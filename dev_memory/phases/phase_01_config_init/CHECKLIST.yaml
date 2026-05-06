@@ -1,0 +1,31 @@
+phase_id: phase_01_config_init
+status: in_progress
+subtasks:
+  - id: "1.1"
+    title: "Implement agent.config.yaml parsing and Pydantic schema"
+    status: in_progress
+    ut_required: true
+    self_review_required: true
+    patch_required: true
+    commit_required: true
+  - id: "1.2"
+    title: "Implement modules.registry validation and namespace computation"
+    status: todo
+    ut_required: true
+    self_review_required: true
+    patch_required: true
+    commit_required: true
+  - id: "1.3"
+    title: "Implement init confirmation flow and .initialized namespace guard"
+    status: todo
+    ut_required: true
+    self_review_required: true
+    patch_required: true
+    commit_required: true
+  - id: "1.4"
+    title: "Implement local WorkspaceLock with stale lock detection"
+    status: todo
+    ut_required: true
+    self_review_required: true
+    patch_required: true
+    commit_required: true

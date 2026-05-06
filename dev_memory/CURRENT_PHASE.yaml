@@ -1,0 +1,64 @@
+phase_id: phase_01_config_init
+phase_title: "Config + init + namespace + workspace lock"
+started_at: 2026-05-06T08:42:41Z
+last_updated: 2026-05-06T08:44:19Z
+target_milestone: M1
+related_requirements:
+  - REQUIREMENTS.md section 4.1
+  - REQUIREMENTS.md section 4.15
+status: in_progress
+subtasks:
+  - id: "1.1"
+    title: "Implement agent.config.yaml parsing and Pydantic schema"
+    status: in_progress
+    related_requirements:
+      - REQUIREMENTS.md section 4.1.2
+      - REQUIREMENTS.md Appendix B
+    files_in_progress:
+      - pyproject.toml
+      - src/agent/config.py
+      - tests/test_config.py
+    files_created: []
+    ut_passed: false
+    self_reviewed: false
+    patch_file: null
+  - id: "1.2"
+    title: "Implement modules.registry validation and namespace computation"
+    status: todo
+    related_requirements:
+      - REQUIREMENTS.md section 4.1.3
+      - REQUIREMENTS.md section 4.1.4
+    files_created: []
+    ut_passed: false
+    self_reviewed: false
+    patch_file: null
+  - id: "1.3"
+    title: "Implement init confirmation flow and .initialized namespace guard"
+    status: todo
+    related_requirements:
+      - REQUIREMENTS.md section 4.1.1
+    files_created: []
+    ut_passed: false
+    self_reviewed: false
+    patch_file: null
+  - id: "1.4"
+    title: "Implement local WorkspaceLock with stale lock detection"
+    status: todo
+    related_requirements:
+      - REQUIREMENTS.md section 4.15
+      - REQUIREMENTS.md Appendix B workspace_lock
+    files_created: []
+    ut_passed: false
+    self_reviewed: false
+    patch_file: null
+notes: |
+  Required kickoff reading is complete. Phase 01 covers config/init/module
+  isolation plus local workspace locking. v1 is Linux/Ubuntu only; do not
+  add Windows compatibility compromises for fcntl/os.O_DIRECTORY/process group
+  behavior.
+
+  Startup observation: initial `git status --porcelain` failed because this
+  workspace was not a Git repository. A local Git repository was initialized
+  during kickoff so Subtask 1.1 can start from a clean baseline after the
+  kickoff commit.
+next_action: "Commit kickoff baseline, then implement config schema for Subtask 1.1."
