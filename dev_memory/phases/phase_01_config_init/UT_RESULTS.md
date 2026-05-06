@@ -1,7 +1,39 @@
 # Unit Test Results
 
-No unit tests have been run yet.
+## Subtask 1.1 - config schema
 
-Next required run for Subtask 1.1:
-- `pytest tests/test_config.py -v`
-- `pytest -v`
+- timestamp_utc: 2026-05-06T08:52:59Z
+- related_requirements:
+  - REQUIREMENTS.md section 4.1.2
+  - REQUIREMENTS.md Appendix B
+  - REQUIREMENTS.md section 7
+- targeted_command: `uv --native-tls run --extra dev pytest tests/test_config.py -v`
+- targeted_duration: 0.83s
+- full_command: `uv --native-tls run --extra dev pytest -v`
+- full_duration: 0.82s
+- final_post_patch_full_duration: 0.63s
+- result: passed
+
+Test cases:
+- PASS `tests/test_config.py::test_full_config_schema_accepts_documented_fields`
+- PASS `tests/test_config.py::test_minimal_config_applies_appendix_b_defaults`
+- PASS `tests/test_config.py::test_direct_model_validation_supports_import_alias`
+- PASS `tests/test_config.py::test_rejects_invalid_enums[path0-sideways]`
+- PASS `tests/test_config.py::test_rejects_invalid_enums[path1-global]`
+- PASS `tests/test_config.py::test_rejects_invalid_enums[path2-delete]`
+- PASS `tests/test_config.py::test_rejects_invalid_enums[path3-sqlite_sot]`
+- PASS `tests/test_config.py::test_rejects_invalid_enums[path4-continue_anyway]`
+- PASS `tests/test_config.py::test_rejects_exploration_schedule_quota_mismatch`
+- PASS `tests/test_config.py::test_rejects_conflicting_convergence_fields`
+- PASS `tests/test_config.py::test_rejects_empty_baseline_combo`
+- PASS `tests/test_config.py::test_rejects_blank_option_value`
+- PASS `tests/test_config.py::test_rejects_extra_unknown_fields`
+- PASS `tests/test_config.py::test_rejects_top_level_non_mapping`
+- PASS `tests/test_config.py::test_rejects_empty_config_file`
+- PASS `tests/test_config.py::test_uses_safe_yaml_load_for_malicious_tags`
+- PASS `tests/test_config.py::test_rejects_incomplete_process_cleanup_safety_checks`
+- PASS `tests/test_config.py::test_rejects_disabled_workspace_lock_safety_flags`
+
+Notes:
+- First `uv run` attempt failed because the managed Python download did not trust the TLS issuer. Re-ran with `uv --native-tls`, which succeeded and created `.venv`.
+- Current shell has no `python` or `py` command; use `uv --native-tls run --extra dev ...` for tests in this environment.

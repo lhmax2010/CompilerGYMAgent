@@ -1,0 +1,14 @@
+﻿ .gitignore                                         |   5 +
+ dev_memory/CURRENT_PHASE.yaml                      |  18 +-
+ dev_memory/DECISIONS.md                            |  22 +
+ dev_memory/PROGRESS.md                             |  11 +
+ .../phases/phase_01_config_init/CHECKLIST.yaml     |   7 +-
+ .../phases/phase_01_config_init/REVIEW_NOTES.md    |  38 +-
+ dev_memory/phases/phase_01_config_init/SUMMARY.md  |   8 +
+ .../phases/phase_01_config_init/UT_RESULTS.md      |  40 +-
+ pyproject.toml                                     |  28 ++
+ src/agent/__init__.py                              |   5 +
+ src/agent/config.py                                | 559 +++++++++++++++++++++
+ tests/test_config.py                               | 377 ++++++++++++++
+ uv.lock                                            | 312 ++++++++++++
+ 13 files changed, 1405 insertions(+), 25 deletions(-)

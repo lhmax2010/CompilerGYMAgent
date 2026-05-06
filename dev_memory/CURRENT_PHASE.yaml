@@ -1,7 +1,7 @@
 phase_id: phase_01_config_init
 phase_title: "Config + init + namespace + workspace lock"
 started_at: 2026-05-06T08:42:41Z
-last_updated: 2026-05-06T08:44:19Z
+last_updated: 2026-05-06T08:56:07Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 4.1
@@ -10,18 +10,20 @@ status: in_progress
 subtasks:
   - id: "1.1"
     title: "Implement agent.config.yaml parsing and Pydantic schema"
-    status: in_progress
+    status: done
     related_requirements:
       - REQUIREMENTS.md section 4.1.2
       - REQUIREMENTS.md Appendix B
-    files_in_progress:
+    files_created:
       - pyproject.toml
+      - uv.lock
+      - .gitignore
+      - src/agent/__init__.py
       - src/agent/config.py
       - tests/test_config.py
-    files_created: []
-    ut_passed: false
-    self_reviewed: false
-    patch_file: null
+    ut_passed: true
+    self_reviewed: true
+    patch_file: dev_memory/phases/phase_01_config_init/patches/01_config_schema.patch
   - id: "1.2"
     title: "Implement modules.registry validation and namespace computation"
     status: todo
@@ -61,4 +63,4 @@ notes: |
   workspace was not a Git repository. A local Git repository was initialized
   during kickoff so Subtask 1.1 can start from a clean baseline after the
   kickoff commit.
-next_action: "Commit kickoff baseline, then implement config schema for Subtask 1.1."
+next_action: "Commit Subtask 1.1, then start Subtask 1.2: modules.registry validation and namespace computation."
