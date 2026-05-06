@@ -20,5 +20,22 @@ Next action: commit the kickoff baseline, then implement Phase 01 / Subtask 1.1.
 - Full UT passed: `uv --native-tls run --extra dev pytest -v` -> 18 passed.
 - Self review completed and recorded in `dev_memory/phases/phase_01_config_init/REVIEW_NOTES.md`.
 - Patch files generated under `dev_memory/phases/phase_01_config_init/patches/01_config_schema.*`.
+- Commit: `68e02bb phase_01_config_init: 1.1 implement config schema (REQUIREMENTS §4.1.2)`.
 
 Next action: Phase 01 / Subtask 1.2, module registry validation and namespace computation.
+
+## 2026-05-06T13:52:19Z - Phase 01 / Subtask 1.1 external review fix started
+
+- External review verdict: Request changes.
+- Accepted blocking findings for immediate fix: baseline conflict detection, runtime path default expansion, unresolved path templates, strict `import` alias handling, config YAML size/alias hardening, package README cleanup, unused `loguru` dependency removal.
+- Subtask 1.1 moved back to review-fix mode; Subtask 1.2 remains blocked until these fixes pass UT and are committed.
+
+## 2026-05-06T13:56:52Z - Phase 01 / Subtask 1.1 external review fixes completed
+
+- Fixed accepted external review findings in config schema and tests.
+- Targeted UT passed: `uv --native-tls run --extra dev pytest tests/test_config.py -v` -> 37 passed.
+- Full UT passed: `uv --native-tls run --extra dev pytest -v` -> 37 passed.
+- Self review completed and recorded in `dev_memory/phases/phase_01_config_init/REVIEW_NOTES.md`.
+- Patch files generated under `dev_memory/phases/phase_01_config_init/patches/02_config_schema_review_fixes.*`.
+
+Next action: commit review fixes, push to `origin/main`, then start Phase 01 / Subtask 1.2.

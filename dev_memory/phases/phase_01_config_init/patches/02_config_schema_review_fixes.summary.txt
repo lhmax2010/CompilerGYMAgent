@@ -1,0 +1,14 @@
+﻿ README.md                                          |   6 +
+ dev_memory/CURRENT_PHASE.yaml                      |   7 +-
+ dev_memory/DECISIONS.md                            |  46 +++
+ dev_memory/PROGRESS.md                             |  17 ++
+ .../phases/phase_01_config_init/CHECKLIST.yaml     |   6 +
+ .../phases/phase_01_config_init/REVIEW_NOTES.md    |  44 +++
+ dev_memory/phases/phase_01_config_init/SUMMARY.md  |   1 +
+ .../phases/phase_01_config_init/UT_RESULTS.md      |  18 ++
+ pyproject.toml                                     |   7 +-
+ src/agent/__init__.py                              |   2 +-
+ src/agent/config.py                                | 316 +++++++++++----------
+ tests/test_config.py                               | 202 ++++++++++++-
+ uv.lock                                            |  28 +-
+ 13 files changed, 519 insertions(+), 181 deletions(-)

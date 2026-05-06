@@ -1,0 +1,1091 @@
+﻿diff --git a/README.md b/README.md
+new file mode 100644
+index 0000000..addaae3
+--- /dev/null
++++ b/README.md
+@@ -0,0 +1,6 @@
++# CompilerGYMAgent
++
++Local-first compiler option tuning agent.
++
++The locked product requirements live in `doc/REQUIREMENTS.md`; implementation
++progress is tracked in `dev_memory/`.
+diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index 40b103e..b02f78b 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -1,7 +1,7 @@
+ phase_id: phase_01_config_init
+ phase_title: "Config + init + namespace + workspace lock"
+ started_at: 2026-05-06T08:42:41Z
+-last_updated: 2026-05-06T08:56:07Z
++last_updated: 2026-05-06T13:58:15Z
+ target_milestone: M1
+ related_requirements:
+   - REQUIREMENTS.md section 4.1
+@@ -24,6 +24,9 @@ subtasks:
+     ut_passed: true
+     self_reviewed: true
+     patch_file: dev_memory/phases/phase_01_config_init/patches/01_config_schema.patch
++    review_fix_patch_file: dev_memory/phases/phase_01_config_init/patches/02_config_schema_review_fixes.patch
++    review_fix_ut_passed: true
++    review_fix_self_reviewed: true
+   - id: "1.2"
+     title: "Implement modules.registry validation and namespace computation"
+     status: todo
+@@ -63,4 +66,4 @@ notes: |
+   workspace was not a Git repository. A local Git repository was initialized
+   during kickoff so Subtask 1.1 can start from a clean baseline after the
+   kickoff commit.
+-next_action: "Commit Subtask 1.1, then start Subtask 1.2: modules.registry validation and namespace computation."
++next_action: "Commit Subtask 1.1 review fixes, push to origin/main, then start Subtask 1.2."
+diff --git a/dev_memory/DECISIONS.md b/dev_memory/DECISIONS.md
+index 5275963..2b50378 100644
+--- a/dev_memory/DECISIONS.md
++++ b/dev_memory/DECISIONS.md
+@@ -22,6 +22,17 @@
+   - Poetry or PDM project metadata, which would add tool-specific files before the repo has an established packaging preference.
+   - Rely on system `python`, which is unavailable in the current shell.
+ 
++## 2026-05-06T13:56:52Z - Defer non-Subtask 1.1 dependencies until their owning phases
++
++- affected_requirement:
++  - REQUIREMENTS.md section 7
++  - CODEX_KICKOFF_PROMPT.md dependency management
++- decision: Keep Subtask 1.1 dependencies limited to configuration parsing and tests: `pydantic`, `PyYAML`, and `pytest`. Remove unused `loguru` for now. Introduce `loguru`, `langgraph`, `litellm`, `scipy`, `psutil`, and optional `sqlite-vec` in the phase/subtask that first uses each dependency.
++- rationale: The kickoff prompt forbids introducing unnecessary dependencies without a reason. Subtask 1.1 does not log, orchestrate, call LLMs, run statistics, manage processes, or build indexes yet.
++- alternatives_considered:
++  - Add every section 7 dependency immediately, which bloats the initial config-only patch.
++  - Keep unused `loguru`, which makes the dependency graph look more implemented than it is.
++
+ ## 2026-05-06T08:52:00Z - Support documented duplicate config field shapes
+ 
+ - affected_requirement:
+@@ -33,6 +44,41 @@
+   - Support only section 4.1.2, which would omit Appendix B schema fields.
+   - Support only Appendix B, which would reject the primary config example.
+ 
++## 2026-05-06T13:56:52Z - Keep baseline default optional but force init confirmation
++
++- affected_requirement:
++  - REQUIREMENTS.md section 4.1.1
++  - REQUIREMENTS.md section 4.1.2
++  - REQUIREMENTS.md Appendix B baseline
++- decision: Continue accepting a missing `baseline` block by applying Appendix B default `["-O2"]`, while ensuring future Subtask 1.3 init flow displays the resolved baseline for user confirmation.
++- rationale: Appendix B explicitly provides `baseline.default_combo: ["-O2"]`, while section 4.1.2 shows `baseline.combo` in the sample config. Treating the Appendix B default as the parser fallback keeps minimal config usable, and the init confirmation flow prevents silent baseline execution.
++- alternatives_considered:
++  - Make `baseline.combo` mandatory now, which would contradict Appendix B defaults.
++  - Silently accept conflicting `combo` and `default_combo`, which external review correctly identified as unsafe and has been fixed.
++
++## 2026-05-06T13:56:52Z - Preserve template and relative path semantics in config
++
++- affected_requirement:
++  - REQUIREMENTS.md section 4.2.3
++  - REQUIREMENTS.md Appendix B dry_run
++  - REQUIREMENTS.md Appendix B clean
++  - REQUIREMENTS.md Appendix B workspace_lock
++- decision: Keep template paths like `<workspace>/_trash` and `dry_run_reports/<run_id>/import_overlay` as explicit strings in config models and provide resolver helpers. Preserve relative paths such as `trace/events.jsonl` and `state/run.lock` as relative `Path` values; namespace-aware anchoring belongs to init/namespace/lock helpers.
++- rationale: Parsing config should not accidentally create literal `<workspace>` paths or guess a namespace root before Subtask 1.2 computes it.
++- alternatives_considered:
++  - Convert template values directly to `Path`, which hides unresolved tokens.
++  - Resolve relative paths against the current working directory, which would make behavior invocation-dependent.
++
++## 2026-05-06T13:56:52Z - Harden config YAML loader
++
++- affected_requirement:
++  - REQUIREMENTS.md section 1.3
++  - REQUIREMENTS.md section 5.3
++- decision: Add a 1 MiB size limit for `agent.config.yaml` and reject YAML aliases by using a dedicated `ConfigYamlLoader` derived from `yaml.SafeLoader`.
++- rationale: Config is a local user input path. Even though it is not import tar handling, bounded parsing and alias rejection reduce accidental or malicious resource exhaustion without changing the user-readable YAML format.
++- alternatives_considered:
++  - Plain `yaml.safe_load`, which blocks Python object construction but not oversized files or aliases.
++
+ Decision records must include:
+ - timestamp
+ - affected requirement section
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index b07c4ba..4374754 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -20,5 +20,22 @@ Next action: commit the kickoff baseline, then implement Phase 01 / Subtask 1.1.
+ - Full UT passed: `uv --native-tls run --extra dev pytest -v` -> 18 passed.
+ - Self review completed and recorded in `dev_memory/phases/phase_01_config_init/REVIEW_NOTES.md`.
+ - Patch files generated under `dev_memory/phases/phase_01_config_init/patches/01_config_schema.*`.
++- Commit: `68e02bb phase_01_config_init: 1.1 implement config schema (REQUIREMENTS §4.1.2)`.
+ 
+ Next action: Phase 01 / Subtask 1.2, module registry validation and namespace computation.
++
++## 2026-05-06T13:52:19Z - Phase 01 / Subtask 1.1 external review fix started
++
++- External review verdict: Request changes.
++- Accepted blocking findings for immediate fix: baseline conflict detection, runtime path default expansion, unresolved path templates, strict `import` alias handling, config YAML size/alias hardening, package README cleanup, unused `loguru` dependency removal.
++- Subtask 1.1 moved back to review-fix mode; Subtask 1.2 remains blocked until these fixes pass UT and are committed.
++
++## 2026-05-06T13:56:52Z - Phase 01 / Subtask 1.1 external review fixes completed
++
++- Fixed accepted external review findings in config schema and tests.
++- Targeted UT passed: `uv --native-tls run --extra dev pytest tests/test_config.py -v` -> 37 passed.
++- Full UT passed: `uv --native-tls run --extra dev pytest -v` -> 37 passed.
++- Self review completed and recorded in `dev_memory/phases/phase_01_config_init/REVIEW_NOTES.md`.
++- Patch files generated under `dev_memory/phases/phase_01_config_init/patches/02_config_schema_review_fixes.*`.
++
++Next action: commit review fixes, push to `origin/main`, then start Phase 01 / Subtask 1.2.
+diff --git a/dev_memory/phases/phase_01_config_init/CHECKLIST.yaml b/dev_memory/phases/phase_01_config_init/CHECKLIST.yaml
+index f32cd92..9dbde71 100644
+--- a/dev_memory/phases/phase_01_config_init/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_01_config_init/CHECKLIST.yaml
+@@ -10,9 +10,15 @@ subtasks:
+     self_reviewed: true
+     patch_required: true
+     patch_file: dev_memory/phases/phase_01_config_init/patches/01_config_schema.patch
++    review_fix_patch_file: dev_memory/phases/phase_01_config_init/patches/02_config_schema_review_fixes.patch
+     commit_required: true
+     commit_pending: false
++    commit_hash: 68e02bb
+     commit_message: "phase_01_config_init: 1.1 implement config schema (REQUIREMENTS 4.1.2)"
++    review_fix_commit_pending: true
++    review_fix_ut_passed: true
++    review_fix_self_reviewed: true
++    review_fix_patch_generated: true
+   - id: "1.2"
+     title: "Implement modules.registry validation and namespace computation"
+     status: todo
+diff --git a/dev_memory/phases/phase_01_config_init/REVIEW_NOTES.md b/dev_memory/phases/phase_01_config_init/REVIEW_NOTES.md
+index f7bd32f..c109006 100644
+--- a/dev_memory/phases/phase_01_config_init/REVIEW_NOTES.md
++++ b/dev_memory/phases/phase_01_config_init/REVIEW_NOTES.md
+@@ -28,3 +28,47 @@ Findings:
+ - `tracing.langfuse.enabled` in section 4.1.2 overlaps with `tracing.langfuse_enabled` in Appendix B. Fixed by synchronizing the flags and rejecting conflicts.
+ - Trace writes and atomic YAML writes are not applicable to Subtask 1.1 because it only reads user config and performs validation; no canonical SoT write path is implemented here.
+ - Imported prompt quoting and hash exclusion behavior are not implemented in Subtask 1.1, but their config flags are represented and tested.
++
++## External Review Fix - Claude review
++
++- started_at: 2026-05-06T13:52:19Z
++- completed_at: 2026-05-06T13:56:52Z
++- status: fixed
++- verdict_received: Request changes
++- accepted_for_immediate_fix:
++  - Baseline `combo` vs `default_combo` conflict must be rejected.
++  - Tilde path defaults must expand at model construction time, not module import time.
++  - Template paths such as `<workspace>/_trash` and `<run_id>` must keep explicit unresolved semantics and have resolver helpers.
++  - Top-level YAML key `import_config` must be rejected; only the documented `import` key is accepted.
++  - Config YAML loading should reject oversized files and aliases before parsing.
++  - Package readme should not point at locked requirements.
++  - Unused `loguru` dependency should be removed until a logging subtask needs it.
++- deferred_or_recorded:
++  - `langgraph`, `litellm`, `scipy`, `psutil`, and optional `sqlite-vec` will be introduced in the phases that use them.
++  - Relative paths such as `trace/events.jsonl` and `state/run.lock` are stored as config values and will be anchored to the namespace directory by Subtask 1.2/1.4 helpers.
++
++Fixes applied:
++- Replaced `object.__setattr__` synchronization for convergence, baseline, and langfuse with raw-dict `model_validator(mode="before")` normalization.
++- Added baseline conflict rejection when both `combo` and `default_combo` are explicitly set differently.
++- Changed tilde path defaults to runtime `default_factory` expansion.
++- Preserved `<workspace>` and `<run_id>` path templates as strings with explicit resolver helpers.
++- Tightened top-level `import` alias handling so YAML key `import_config` is rejected.
++- Added `MAX_CONFIG_BYTES` and a config YAML loader that rejects aliases.
++- Replaced package `readme = doc/REQUIREMENTS.md` with a root `README.md`.
++- Removed unused `loguru` dependency and documented dependency deferral in `DECISIONS.md`.
++
++Post-fix review checklist:
++- [x] Implementation matches referenced requirements.
++- [x] Documented failure modes are covered.
++- [x] Trace writes are present where required by SoT dual-track rules.
++- [x] Atomic YAML writes are used where required.
++- [x] No hidden canonical data is stored only in SQLite/cache.
++- [x] No unsafe assumption about spec restore or workspace verification.
++- [x] `dev_memory` progress is updated.
++- [x] Linux/Ubuntu-only behavior is explicit where POSIX features are used.
++- [x] No hardcoded paths that should come from config.
++- [x] Imported experience text is quote-wrapped in prompts where applicable.
++- [x] Hash calculation excludes fields listed in `hash_fields_excluded`.
++
++Notes:
++- Trace writes, atomic YAML writes, imported prompt quote behavior, and hash calculation remain not directly applicable to the config-only parser, but their config flags are represented where Appendix B defines them.
+diff --git a/dev_memory/phases/phase_01_config_init/SUMMARY.md b/dev_memory/phases/phase_01_config_init/SUMMARY.md
+index 53e06c1..dab46c3 100644
+--- a/dev_memory/phases/phase_01_config_init/SUMMARY.md
++++ b/dev_memory/phases/phase_01_config_init/SUMMARY.md
+@@ -12,6 +12,7 @@ No phase deliverables completed yet.
+ 
+ Completed:
+ - Subtask 1.1 implemented config parsing, pydantic schema validation, safe YAML loading, tests, self review, and patch files.
++- Subtask 1.1 external review fixes addressed baseline conflict checks, strict alias handling, runtime path defaults, explicit template path resolution, YAML size/alias hardening, dependency cleanup, README packaging, and expanded tests.
+ 
+ Remaining:
+ - Subtask 1.2 modules.registry validation and namespace computation.
+diff --git a/dev_memory/phases/phase_01_config_init/UT_RESULTS.md b/dev_memory/phases/phase_01_config_init/UT_RESULTS.md
+index 15dd911..94ba6a5 100644
+--- a/dev_memory/phases/phase_01_config_init/UT_RESULTS.md
++++ b/dev_memory/phases/phase_01_config_init/UT_RESULTS.md
+@@ -37,3 +37,21 @@ Test cases:
+ Notes:
+ - First `uv run` attempt failed because the managed Python download did not trust the TLS issuer. Re-ran with `uv --native-tls`, which succeeded and created `.venv`.
+ - Current shell has no `python` or `py` command; use `uv --native-tls run --extra dev ...` for tests in this environment.
++
++## Subtask 1.1 - external review fixes
++
++- timestamp_utc: 2026-05-06T13:56:52Z
++- related_requirements:
++  - REQUIREMENTS.md section 4.1.2
++  - REQUIREMENTS.md Appendix B
++  - REQUIREMENTS.md section 7
++  - REQUIREMENTS.md section 1.3
++- targeted_command: `uv --native-tls run --extra dev pytest tests/test_config.py -v`
++- targeted_duration: 0.81s
++- full_command: `uv --native-tls run --extra dev pytest -v`
++- full_duration: 0.80s
++- result: passed
++
++Test summary:
++- 37 passed, 0 failed.
++- Added tests for baseline shape conflicts, convergence synchronization, langfuse synchronization and conflicts, strict `import` alias handling, runtime path default expansion, template path resolvers, missing/empty/oversized YAML, YAML alias rejection, workspace protection disabled mode, and benchmark run-count cross-field validation.
+diff --git a/pyproject.toml b/pyproject.toml
+index 859a1cd..6d08e17 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -6,17 +6,16 @@ build-backend = "setuptools.build_meta"
+ name = "compiler-gym-agent"
+ version = "0.1.0"
+ description = "Local-first compiler option tuning agent"
+-readme = "doc/REQUIREMENTS.md"
++readme = "README.md"
+ requires-python = ">=3.11"
+ dependencies = [
+-  "loguru>=0.7",
+   "pydantic>=2.7,<3",
+-  "PyYAML>=6.0",
++  "PyYAML>=6.0,<7",
+ ]
+ 
+ [project.optional-dependencies]
+ dev = [
+-  "pytest>=8.0",
++  "pytest>=8.0,<10",
+ ]
+ 
+ [tool.setuptools.packages.find]
+diff --git a/src/agent/__init__.py b/src/agent/__init__.py
+index 4578377..e6f2da5 100644
+--- a/src/agent/__init__.py
++++ b/src/agent/__init__.py
+@@ -1,5 +1,5 @@
+ """Compiler option tuning agent package."""
+ 
+-from agent.config import AgentConfig, ConfigLoadError, load_config
++from .config import AgentConfig, ConfigLoadError, load_config
+ 
+ __all__ = ["AgentConfig", "ConfigLoadError", "load_config"]
+diff --git a/src/agent/config.py b/src/agent/config.py
+index 09e39ab..0305b58 100644
+--- a/src/agent/config.py
++++ b/src/agent/config.py
+@@ -7,11 +7,12 @@ from __future__ import annotations
+ 
+ import re
+ from pathlib import Path
+-from typing import Annotated, Any, Literal
++from typing import Annotated, Any, Literal, Mapping
+ 
+ import yaml
+ from pydantic import (
+     BaseModel,
++    BeforeValidator,
+     ConfigDict,
+     Field,
+     StringConstraints,
+@@ -21,16 +22,39 @@ from pydantic import (
+ )
+ 
+ 
++MAX_CONFIG_BYTES = 1_048_576
++
++
++def _expand_path(value: Any) -> Any:
++    if isinstance(value, str):
++        return Path(value).expanduser()
++    return value
++
++
+ NonEmptyStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+ OptionStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
++ExpandedPath = Annotated[Path, BeforeValidator(_expand_path)]
+ 
+ 
+ class ConfigLoadError(RuntimeError):
+     """Raised when `agent.config.yaml` cannot be parsed or validated."""
+ 
+ 
+-def _option_list(default: str = "-O2") -> list[str]:
+-    return [default]
++class ConfigYamlLoader(yaml.SafeLoader):
++    """Safe config loader that rejects YAML aliases to avoid expansion bombs."""
++
++    def compose_node(self, parent: Any, index: Any) -> yaml.Node:
++        if self.check_event(yaml.AliasEvent):
++            raise yaml.YAMLError("YAML aliases are not allowed in agent.config.yaml")
++        return super().compose_node(parent, index)
++
++
++def _default_path(path: str) -> Path:
++    return Path(path).expanduser()
++
++
++def _option_list() -> list[str]:
++    return ["-O2"]
+ 
+ 
+ def _generator_priority() -> list[str]:
+@@ -70,10 +94,13 @@ def _process_multi_checks() -> list[str]:
+     return ["create_time", "cmdline_hash", "session_marker"]
+ 
+ 
+-def _expand_path(value: Any) -> Any:
+-    if isinstance(value, str):
+-        return Path(value).expanduser()
+-    return value
++def _template_path(template: str, replacements: Mapping[str, str | Path]) -> Path:
++    resolved = template
++    for token, value in replacements.items():
++        resolved = resolved.replace(token, str(value))
++    if re.search(r"<[^>]+>", resolved):
++        raise ValueError(f"unresolved path template token in {template!r}")
++    return Path(resolved).expanduser()
+ 
+ 
+ class StrictConfigModel(BaseModel):
+@@ -98,7 +125,9 @@ class ProjectConfig(StrictConfigModel):
+ 
+ 
+ class MemoryConfig(StrictConfigModel):
+-    workspace: Path = Path("~/.agent_workspace").expanduser()
++    workspace: ExpandedPath = Field(
++        default_factory=lambda: _default_path("~/.agent_workspace")
++    )
+     vector_index_enabled: bool = False
+     combo_hash_algo: Literal["sha256"] = "sha256"
+     trial_partition: Literal["monthly"] = "monthly"
+@@ -106,11 +135,6 @@ class MemoryConfig(StrictConfigModel):
+     reindex_fail_action: Literal["refuse_to_run"] = "refuse_to_run"
+     vector_top_k: int = Field(default=5, gt=0)
+ 
+-    @field_validator("workspace", mode="before")
+-    @classmethod
+-    def expand_workspace(cls, value: Any) -> Any:
+-        return _expand_path(value)
+-
+ 
+ class LLMConfig(StrictConfigModel):
+     provider: NonEmptyStr = "kimi"
+@@ -155,55 +179,39 @@ class AgentRuntimeConfig(StrictConfigModel):
+     novelty_threshold: float = Field(default=0.5, ge=0.0, le=1.0)
+     convergence: ConvergenceConfig = Field(default_factory=ConvergenceConfig)
+ 
+-    @model_validator(mode="after")
+-    def synchronize_convergence_fields(self) -> AgentRuntimeConfig:
+-        fields_set = self.model_fields_set
+-        convergence_was_set = "convergence" in fields_set
+-
+-        if convergence_was_set:
+-            conflicts = [
+-                (
+-                    "stagnation_threshold_trials",
+-                    self.stagnation_threshold_trials,
+-                    self.convergence.no_improve_trials,
+-                ),
+-                ("min_improve_pct", self.min_improve_pct, self.convergence.min_improve_pct),
+-                (
+-                    "require_statistical_significance",
+-                    self.require_statistical_significance,
+-                    self.convergence.require_statistical_significance,
+-                ),
+-            ]
+-            for field_name, top_level, nested in conflicts:
+-                if field_name in fields_set and top_level != nested:
+-                    raise ValueError(
+-                        f"agent.{field_name} conflicts with agent.convergence "
+-                        f"({top_level!r} != {nested!r})"
+-                    )
+-
+-            if "stagnation_threshold_trials" not in fields_set:
+-                object.__setattr__(
+-                    self, "stagnation_threshold_trials", self.convergence.no_improve_trials
+-                )
+-            if "min_improve_pct" not in fields_set:
+-                object.__setattr__(self, "min_improve_pct", self.convergence.min_improve_pct)
+-            if "require_statistical_significance" not in fields_set:
+-                object.__setattr__(
+-                    self,
+-                    "require_statistical_significance",
+-                    self.convergence.require_statistical_significance,
++    @model_validator(mode="before")
++    @classmethod
++    def normalize_convergence_fields(cls, data: Any) -> Any:
++        if not isinstance(data, dict):
++            return data
++
++        normalized = dict(data)
++        raw_convergence = normalized.get("convergence")
++        convergence: dict[str, Any] = (
++            dict(raw_convergence) if isinstance(raw_convergence, dict) else {}
++        )
++        field_pairs = [
++            ("stagnation_threshold_trials", "no_improve_trials"),
++            ("min_improve_pct", "min_improve_pct"),
++            ("require_statistical_significance", "require_statistical_significance"),
++        ]
++
++        for top_level_name, nested_name in field_pairs:
++            top_level_set = top_level_name in normalized
++            nested_set = nested_name in convergence
++            if top_level_set and nested_set and normalized[top_level_name] != convergence[nested_name]:
++                raise ValueError(
++                    f"agent.{top_level_name} conflicts with agent.convergence "
++                    f"({normalized[top_level_name]!r} != {convergence[nested_name]!r})"
+                 )
+-        else:
+-            object.__setattr__(
+-                self,
+-                "convergence",
+-                ConvergenceConfig(
+-                    no_improve_trials=self.stagnation_threshold_trials,
+-                    min_improve_pct=self.min_improve_pct,
+-                    require_statistical_significance=self.require_statistical_significance,
+-                ),
+-            )
+-        return self
++            if top_level_set and not nested_set:
++                convergence[nested_name] = normalized[top_level_name]
++            elif nested_set and not top_level_set:
++                normalized[top_level_name] = convergence[nested_name]
++
++        if raw_convergence is not None or convergence:
++            normalized["convergence"] = convergence
++        return normalized
+ 
+ 
+ class CandidateEngineConfig(StrictConfigModel):
+@@ -257,14 +265,22 @@ class BaselineConfig(StrictConfigModel):
+     auto_run_first: bool = True
+     default_combo: list[OptionStr] = Field(default_factory=_option_list, min_length=1)
+ 
+-    @model_validator(mode="after")
+-    def synchronize_combo_defaults(self) -> BaselineConfig:
+-        fields_set = self.model_fields_set
+-        if "combo" not in fields_set and "default_combo" in fields_set:
+-            object.__setattr__(self, "combo", list(self.default_combo))
+-        elif "default_combo" not in fields_set:
+-            object.__setattr__(self, "default_combo", list(self.combo))
+-        return self
++    @model_validator(mode="before")
++    @classmethod
++    def normalize_combo_defaults(cls, data: Any) -> Any:
++        if not isinstance(data, dict):
++            return data
++
++        normalized = dict(data)
++        combo_set = "combo" in normalized
++        default_combo_set = "default_combo" in normalized
++        if combo_set and default_combo_set and normalized["combo"] != normalized["default_combo"]:
++            raise ValueError("baseline.combo conflicts with baseline.default_combo")
++        if combo_set and not default_combo_set:
++            normalized["default_combo"] = list(normalized["combo"])
++        elif default_combo_set and not combo_set:
++            normalized["combo"] = list(normalized["default_combo"])
++        return normalized
+ 
+ 
+ class BenchmarkConfig(StrictConfigModel):
+@@ -291,23 +307,26 @@ class BenchmarkConfig(StrictConfigModel):
+ 
+ 
+ class SpecConfig(StrictConfigModel):
+-    source_path: Path
+-    backup_dir: Path = Path("~/.agent_workspace/spec_backups").expanduser()
++    source_path: ExpandedPath
++    backup_dir: ExpandedPath = Field(
++        default_factory=lambda: _default_path("~/.agent_workspace/spec_backups")
++    )
+     backup_retention: int = Field(default=20, gt=0)
+     hash_must_match_after_restore: bool = True
+ 
+-    @field_validator("source_path", "backup_dir", mode="before")
+-    @classmethod
+-    def expand_paths(cls, value: Any) -> Any:
+-        return _expand_path(value)
+-
+ 
+ class WorkspaceProtectionConfig(StrictConfigModel):
+     enabled: bool = True
+-    source_tree_path: Path
+-    build_dir_root: Path = Path("~/.agent_workspace/build_dirs").expanduser()
+-    artifact_staging_dir: Path = Path("~/.agent_workspace/artifacts/staging").expanduser()
+-    artifact_final_dir: Path = Path("~/.agent_workspace/artifacts/final").expanduser()
++    source_tree_path: ExpandedPath | None = None
++    build_dir_root: ExpandedPath = Field(
++        default_factory=lambda: _default_path("~/.agent_workspace/build_dirs")
++    )
++    artifact_staging_dir: ExpandedPath = Field(
++        default_factory=lambda: _default_path("~/.agent_workspace/artifacts/staging")
++    )
++    artifact_final_dir: ExpandedPath = Field(
++        default_factory=lambda: _default_path("~/.agent_workspace/artifacts/final")
++    )
+     source_dirty_action: Literal["warn", "fail", "ignore"] = "warn"
+     build_dir_cleanup: Literal["after_trial"] = "after_trial"
+     build_dir_keep_on_failure: bool = True
+@@ -315,16 +334,11 @@ class WorkspaceProtectionConfig(StrictConfigModel):
+     min_free_gb_to_start_trial: int = Field(default=10, ge=0)
+     key_files_to_hash: list[NonEmptyStr] = Field(default_factory=_key_files_to_hash, min_length=1)
+ 
+-    @field_validator(
+-        "source_tree_path",
+-        "build_dir_root",
+-        "artifact_staging_dir",
+-        "artifact_final_dir",
+-        mode="before",
+-    )
+-    @classmethod
+-    def expand_paths(cls, value: Any) -> Any:
+-        return _expand_path(value)
++    @model_validator(mode="after")
++    def source_tree_required_when_enabled(self) -> WorkspaceProtectionConfig:
++        if self.enabled and self.source_tree_path is None:
++            raise ValueError("workspace_protection.source_tree_path is required when enabled")
++        return self
+ 
+ 
+ class LangfuseConfig(StrictConfigModel):
+@@ -333,30 +347,34 @@ class LangfuseConfig(StrictConfigModel):
+ 
+ 
+ class TracingConfig(StrictConfigModel):
+-    local_jsonl: Path = Path("trace/events.jsonl")
++    local_jsonl: ExpandedPath = Path("trace/events.jsonl")
+     langfuse: LangfuseConfig = Field(default_factory=LangfuseConfig)
+     local_jsonl_required: bool = True
+     langfuse_enabled: bool = False
+     trace_rejected_candidates: bool = True
+ 
+-    @field_validator("local_jsonl", mode="before")
++    @model_validator(mode="before")
+     @classmethod
+-    def expand_local_jsonl(cls, value: Any) -> Any:
+-        return _expand_path(value)
+-
+-    @model_validator(mode="after")
+-    def synchronize_langfuse_flags(self) -> TracingConfig:
+-        fields_set = self.model_fields_set
+-        if "langfuse" in fields_set and "langfuse_enabled" in fields_set:
+-            if self.langfuse.enabled != self.langfuse_enabled:
+-                raise ValueError("tracing.langfuse.enabled conflicts with tracing.langfuse_enabled")
+-        elif "langfuse" in fields_set:
+-            object.__setattr__(self, "langfuse_enabled", self.langfuse.enabled)
+-        elif "langfuse_enabled" in fields_set:
+-            object.__setattr__(
+-                self, "langfuse", LangfuseConfig(enabled=self.langfuse_enabled)
+-            )
+-        return self
++    def normalize_langfuse_flags(cls, data: Any) -> Any:
++        if not isinstance(data, dict):
++            return data
++
++        normalized = dict(data)
++        raw_langfuse = normalized.get("langfuse")
++        langfuse: dict[str, Any] = dict(raw_langfuse) if isinstance(raw_langfuse, dict) else {}
++        top_level_set = "langfuse_enabled" in normalized
++        nested_set = "enabled" in langfuse
++
++        if top_level_set and nested_set and normalized["langfuse_enabled"] != langfuse["enabled"]:
++            raise ValueError("tracing.langfuse.enabled conflicts with tracing.langfuse_enabled")
++        if top_level_set and not nested_set:
++            langfuse["enabled"] = normalized["langfuse_enabled"]
++            normalized["langfuse"] = langfuse
++        elif nested_set and not top_level_set:
++            normalized["langfuse_enabled"] = langfuse["enabled"]
++        elif raw_langfuse is not None and isinstance(raw_langfuse, dict):
++            normalized["langfuse"] = langfuse
++        return normalized
+ 
+ 
+ class CheckpointConfig(StrictConfigModel):
+@@ -368,16 +386,14 @@ class CheckpointConfig(StrictConfigModel):
+ 
+ class DryRunConfig(StrictConfigModel):
+     enabled: bool = False
+-    mock_score_noise_pct: float = Field(default=5, ge=0)
+-    output_dir: Path = Path("dry_run_reports")
+-    import_overlay_dir: Path = Path("dry_run_reports/<run_id>/import_overlay")
++    mock_score_noise_pct: float = Field(default=5.0, ge=0)
++    output_dir: ExpandedPath = Path("dry_run_reports")
++    import_overlay_dir: NonEmptyStr = "dry_run_reports/<run_id>/import_overlay"
+     guard_forbidden_writes: bool = True
+     doctor_check_forbidden_writes: bool = True
+ 
+-    @field_validator("output_dir", "import_overlay_dir", mode="before")
+-    @classmethod
+-    def expand_paths(cls, value: Any) -> Any:
+-        return _expand_path(value)
++    def resolve_import_overlay_dir(self, run_id: str) -> Path:
++        return _template_path(self.import_overlay_dir, {"<run_id>": run_id})
+ 
+ 
+ class KGMergeConstraintsConfig(StrictConfigModel):
+@@ -428,24 +444,21 @@ class ImportConfig(StrictConfigModel):
+ 
+ class CleanConfig(StrictConfigModel):
+     default_dry_run: bool = True
+-    trash_dir: Path = Path("<workspace>/_trash")
++    trash_dir: NonEmptyStr = "<workspace>/_trash"
+     trash_retention_days: int = Field(default=30, gt=0)
+     require_confirmation_for: list[Literal["namespace", "all", "kg-backups"]] = Field(
+         default_factory=_clean_confirmations,
+         min_length=1,
+     )
+ 
+-    @field_validator("trash_dir", mode="before")
+-    @classmethod
+-    def expand_trash_dir(cls, value: Any) -> Any:
+-        return _expand_path(value)
+-
+-    @field_validator("require_confirmation_for")
+-    @classmethod
+-    def confirmations_must_be_unique(cls, value: list[str]) -> list[str]:
+-        if len(value) != len(set(value)):
++    @model_validator(mode="after")
++    def confirmations_must_be_unique(self) -> CleanConfig:
++        if len(self.require_confirmation_for) != len(set(self.require_confirmation_for)):
+             raise ValueError("clean.require_confirmation_for must not contain duplicates")
+-        return value
++        return self
++
++    def resolve_trash_dir(self, workspace: Path) -> Path:
++        return _template_path(self.trash_dir, {"<workspace>": workspace})
+ 
+ 
+ class IntegrityConfig(StrictConfigModel):
+@@ -459,12 +472,11 @@ class ReportConfig(StrictConfigModel):
+     redact_enabled: bool = True
+     always_redact: list[NonEmptyStr] = Field(default_factory=_always_redact, min_length=1)
+ 
+-    @field_validator("always_redact")
+-    @classmethod
+-    def always_redact_must_be_unique(cls, value: list[str]) -> list[str]:
+-        if len(value) != len(set(value)):
++    @model_validator(mode="after")
++    def always_redact_must_be_unique(self) -> ReportConfig:
++        if len(self.always_redact) != len(set(self.always_redact)):
+             raise ValueError("report.always_redact must not contain duplicates")
+-        return value
++        return self
+ 
+ 
+ class ProcessCleanupConfig(StrictConfigModel):
+@@ -475,32 +487,26 @@ class ProcessCleanupConfig(StrictConfigModel):
+     )
+     unsafe_action: Literal["skip_and_log", "abort"] = "skip_and_log"
+ 
+-    @field_validator("multi_check_required")
+-    @classmethod
+-    def checks_must_be_complete_and_unique(cls, value: list[str]) -> list[str]:
++    @model_validator(mode="after")
++    def checks_must_be_complete_and_unique(self) -> ProcessCleanupConfig:
+         required = set(_process_multi_checks())
+-        actual = set(value)
+-        if len(value) != len(actual):
++        actual = set(self.multi_check_required)
++        if len(self.multi_check_required) != len(actual):
+             raise ValueError("process_cleanup.multi_check_required must not contain duplicates")
+         if actual != required:
+             raise ValueError(
+                 "process_cleanup.multi_check_required must include create_time, "
+                 "cmdline_hash, and session_marker"
+             )
+-        return value
++        return self
+ 
+ 
+ class WorkspaceLockConfig(StrictConfigModel):
+-    lock_file: Path = Path("state/run.lock")
++    lock_file: ExpandedPath = Path("state/run.lock")
+     stale_check_required: bool = True
+     on_busy_action: Literal["refuse_with_holder_info"] = "refuse_with_holder_info"
+     high_risk_bypass_event_required: bool = True
+ 
+-    @field_validator("lock_file", mode="before")
+-    @classmethod
+-    def expand_lock_file(cls, value: Any) -> Any:
+-        return _expand_path(value)
+-
+     @model_validator(mode="after")
+     def lock_safety_flags_must_stay_enabled(self) -> WorkspaceLockConfig:
+         if not self.stale_check_required:
+@@ -511,6 +517,14 @@ class WorkspaceLockConfig(StrictConfigModel):
+ 
+ 
+ class AgentConfig(StrictConfigModel):
++    model_config = ConfigDict(
++        extra="forbid",
++        populate_by_name=False,
++        validate_by_name=False,
++        validate_by_alias=True,
++        validate_assignment=True,
++    )
++
+     project: ProjectConfig
+     memory: MemoryConfig = Field(default_factory=MemoryConfig)
+     llm: LLMConfig = Field(default_factory=LLMConfig)
+@@ -535,16 +549,28 @@ class AgentConfig(StrictConfigModel):
+ 
+ 
+ def load_config(path: str | Path) -> AgentConfig:
+-    """Load and validate `agent.config.yaml` with safe YAML parsing."""
++    """Load and validate `agent.config.yaml`.
++
++    Relative paths are preserved as relative `Path` values. Namespace-aware
++    resolution is implemented by later init/namespace helpers.
++    """
+ 
+     config_path = Path(path)
+     try:
++        file_size = config_path.stat().st_size
++        if file_size > MAX_CONFIG_BYTES:
++            raise ConfigLoadError(
++                f"config file {config_path} is too large "
++                f"({file_size} bytes > {MAX_CONFIG_BYTES} bytes)"
++            )
+         raw_text = config_path.read_text(encoding="utf-8")
++    except ConfigLoadError:
++        raise
+     except OSError as exc:
+         raise ConfigLoadError(f"failed to read config file {config_path}: {exc}") from exc
+ 
+     try:
+-        data = yaml.safe_load(raw_text)
++        data = yaml.load(raw_text, Loader=ConfigYamlLoader)
+     except yaml.YAMLError as exc:
+         raise ConfigLoadError(f"failed to parse YAML config {config_path}: {exc}") from exc
+ 
+diff --git a/tests/test_config.py b/tests/test_config.py
+index bc46b89..8c2e4b3 100644
+--- a/tests/test_config.py
++++ b/tests/test_config.py
+@@ -5,7 +5,7 @@ from pathlib import Path
+ import pytest
+ import yaml
+ 
+-from agent.config import AgentConfig, ConfigLoadError, load_config
++from agent.config import AgentConfig, ConfigLoadError, MAX_CONFIG_BYTES, load_config
+ 
+ 
+ def write_config(tmp_path: Path, data: object) -> Path:
+@@ -242,6 +242,7 @@ def test_full_config_schema_accepts_documented_fields(tmp_path: Path) -> None:
+     assert config.dry_run.guard_forbidden_writes is True
+     assert config.kg.v1_merge_constraints.require_same_parent is True
+     assert config.import_config.always_quote_imported_in_prompts is True
++    assert config.clean.trash_dir == "<workspace>/_trash"
+     assert config.clean.default_dry_run is True
+     assert config.integrity.fail_action == "paused_request_user_accept"
+     assert config.report.always_redact == ["api_keys"]
+@@ -263,6 +264,10 @@ def test_minimal_config_applies_appendix_b_defaults(tmp_path: Path) -> None:
+     assert config.checkpoint.every_n_trials == 1
+     assert config.import_config.max_compression_ratio == 100
+     assert config.workspace_lock.stale_check_required is True
++    assert config.clean.resolve_trash_dir(Path("/workspace")) == Path("/workspace/_trash")
++    assert config.dry_run.resolve_import_overlay_dir("dry_1") == Path(
++        "dry_run_reports/dry_1/import_overlay"
++    )
+ 
+ 
+ def test_direct_model_validation_supports_import_alias() -> None:
+@@ -274,6 +279,14 @@ def test_direct_model_validation_supports_import_alias() -> None:
+     assert "import_config" not in dumped
+ 
+ 
++def test_rejects_import_config_yaml_key(tmp_path: Path) -> None:
++    data = full_config()
++    data["import_config"] = data.pop("import")
++
++    with pytest.raises(ConfigLoadError):
++        load_config(write_config(tmp_path, data))
++
++
+ @pytest.mark.parametrize(
+     ("path", "value"),
+     [
+@@ -310,6 +323,101 @@ def test_rejects_conflicting_convergence_fields(tmp_path: Path) -> None:
+         load_config(write_config(tmp_path, data))
+ 
+ 
++def test_synchronizes_convergence_from_nested_shape(tmp_path: Path) -> None:
++    data = minimal_config()
++    data["agent"] = {
++        "convergence": {
++            "no_improve_trials": 7,
++            "min_improve_pct": 4.5,
++            "require_statistical_significance": False,
++        }
++    }
++
++    config = load_config(write_config(tmp_path, data))
++
++    assert config.agent.stagnation_threshold_trials == 7
++    assert config.agent.min_improve_pct == 4.5
++    assert config.agent.require_statistical_significance is False
++
++
++def test_synchronizes_convergence_from_top_level_shape(tmp_path: Path) -> None:
++    data = minimal_config()
++    data["agent"] = {
++        "stagnation_threshold_trials": 7,
++        "min_improve_pct": 4.5,
++        "require_statistical_significance": False,
++    }
++
++    config = load_config(write_config(tmp_path, data))
++
++    assert config.agent.convergence.no_improve_trials == 7
++    assert config.agent.convergence.min_improve_pct == 4.5
++    assert config.agent.convergence.require_statistical_significance is False
++
++
++def test_rejects_conflicting_baseline_combo_shapes(tmp_path: Path) -> None:
++    data = full_config()
++    data["baseline"]["combo"] = ["-O2"]
++    data["baseline"]["default_combo"] = ["-O3"]
++
++    with pytest.raises(ConfigLoadError, match="baseline.combo conflicts"):
++        load_config(write_config(tmp_path, data))
++
++
++def test_synchronizes_baseline_from_default_combo(tmp_path: Path) -> None:
++    data = minimal_config()
++    data["baseline"] = {"default_combo": ["-O3"]}
++
++    config = load_config(write_config(tmp_path, data))
++
++    assert config.baseline.combo == ["-O3"]
++    assert config.baseline.default_combo == ["-O3"]
++
++
++def test_synchronizes_langfuse_from_nested_shape(tmp_path: Path) -> None:
++    data = minimal_config()
++    data["tracing"] = {"langfuse": {"enabled": True}}
++
++    config = load_config(write_config(tmp_path, data))
++
++    assert config.tracing.langfuse_enabled is True
++    assert config.tracing.langfuse.enabled is True
++
++
++def test_synchronizes_langfuse_from_top_level_shape(tmp_path: Path) -> None:
++    data = minimal_config()
++    data["tracing"] = {"langfuse_enabled": True}
++
++    config = load_config(write_config(tmp_path, data))
++
++    assert config.tracing.langfuse_enabled is True
++    assert config.tracing.langfuse.enabled is True
++
++
++def test_synchronizes_langfuse_enabled_with_partial_langfuse_block(tmp_path: Path) -> None:
++    data = minimal_config()
++    data["tracing"] = {
++        "langfuse": {"host": "http://trace.local"},
++        "langfuse_enabled": True,
++    }
++
++    config = load_config(write_config(tmp_path, data))
++
++    assert config.tracing.langfuse.host == "http://trace.local"
++    assert config.tracing.langfuse.enabled is True
++
++
++def test_rejects_conflicting_langfuse_flags(tmp_path: Path) -> None:
++    data = minimal_config()
++    data["tracing"] = {
++        "langfuse": {"enabled": False},
++        "langfuse_enabled": True,
++    }
++
++    with pytest.raises(ConfigLoadError, match="langfuse.enabled conflicts"):
++        load_config(write_config(tmp_path, data))
++
++
+ def test_rejects_empty_baseline_combo(tmp_path: Path) -> None:
+     data = full_config()
+     data["baseline"]["combo"] = []
+@@ -342,14 +450,28 @@ def test_rejects_top_level_non_mapping(tmp_path: Path) -> None:
+         load_config(path)
+ 
+ 
+-def test_rejects_empty_config_file(tmp_path: Path) -> None:
++@pytest.mark.parametrize("raw_text", ["", "# comment only\n", "null\n"])
++def test_rejects_empty_config_file(tmp_path: Path, raw_text: str) -> None:
+     path = tmp_path / "agent.config.yaml"
+-    path.write_text("", encoding="utf-8")
++    path.write_text(raw_text, encoding="utf-8")
+ 
+     with pytest.raises(ConfigLoadError, match="empty"):
+         load_config(path)
+ 
+ 
++def test_rejects_missing_config_file(tmp_path: Path) -> None:
++    with pytest.raises(ConfigLoadError, match="failed to read"):
++        load_config(tmp_path / "missing.yaml")
++
++
++def test_rejects_oversized_config_file(tmp_path: Path) -> None:
++    path = tmp_path / "agent.config.yaml"
++    path.write_text("x" * (MAX_CONFIG_BYTES + 1), encoding="utf-8")
++
++    with pytest.raises(ConfigLoadError, match="too large"):
++        load_config(path)
++
++
+ def test_uses_safe_yaml_load_for_malicious_tags(tmp_path: Path) -> None:
+     path = tmp_path / "agent.config.yaml"
+     path.write_text(
+@@ -361,6 +483,31 @@ def test_uses_safe_yaml_load_for_malicious_tags(tmp_path: Path) -> None:
+         load_config(path)
+ 
+ 
++def test_rejects_yaml_aliases(tmp_path: Path) -> None:
++    path = tmp_path / "agent.config.yaml"
++    path.write_text(
++        """
++project: &project
++  module: multimedia
++  framework: ffmpeg
++  compiler:
++    type: gcc
++    version: "13.2.0"
++  code_commit: a1b2c3d
++  kg_version: v3
++project_copy: *project
++spec:
++  source_path: /path/to/project.spec
++workspace_protection:
++  source_tree_path: /path/to/source
++""",
++        encoding="utf-8",
++    )
++
++    with pytest.raises(ConfigLoadError, match="aliases are not allowed"):
++        load_config(path)
++
++
+ def test_rejects_incomplete_process_cleanup_safety_checks(tmp_path: Path) -> None:
+     data = full_config()
+     data["process_cleanup"]["multi_check_required"] = ["create_time", "cmdline_hash"]
+@@ -375,3 +522,52 @@ def test_rejects_disabled_workspace_lock_safety_flags(tmp_path: Path) -> None:
+ 
+     with pytest.raises(ConfigLoadError, match="stale_check_required"):
+         load_config(write_config(tmp_path, data))
++
++
++def test_path_defaults_expand_at_model_construction_time(
++    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
++) -> None:
++    home = tmp_path / "home"
++    monkeypatch.setenv("HOME", str(home))
++    monkeypatch.setenv("USERPROFILE", str(home))
++
++    config = load_config(write_config(tmp_path, minimal_config()))
++
++    assert config.memory.workspace == home / ".agent_workspace"
++    assert config.spec.backup_dir == home / ".agent_workspace" / "spec_backups"
++    assert config.workspace_protection.build_dir_root == home / ".agent_workspace" / "build_dirs"
++
++
++def test_workspace_protection_can_be_disabled_without_source_tree(tmp_path: Path) -> None:
++    data = minimal_config()
++    data["workspace_protection"] = {"enabled": False}
++
++    config = load_config(write_config(tmp_path, data))
++
++    assert config.workspace_protection.enabled is False
++    assert config.workspace_protection.source_tree_path is None
++
++
++def test_rejects_enabled_workspace_protection_without_source_tree(tmp_path: Path) -> None:
++    data = minimal_config()
++    data["workspace_protection"] = {"enabled": True}
++
++    with pytest.raises(ConfigLoadError, match="source_tree_path is required"):
++        load_config(write_config(tmp_path, data))
++
++
++@pytest.mark.parametrize(
++    ("field", "value", "message"),
++    [
++        ("quick_runs", 11, "quick_runs"),
++        ("max_runs_on_high_variance", 9, "max_runs_on_high_variance"),
++    ],
++)
++def test_rejects_inconsistent_benchmark_run_counts(
++    tmp_path: Path, field: str, value: int, message: str
++) -> None:
++    data = full_config()
++    data["benchmark"][field] = value
++
++    with pytest.raises(ConfigLoadError, match=message):
++        load_config(write_config(tmp_path, data))
+diff --git a/uv.lock b/uv.lock
+index db24833..16eb304 100644
+--- a/uv.lock
++++ b/uv.lock
+@@ -25,7 +25,6 @@ name = "compiler-gym-agent"
+ version = "0.1.0"
+ source = { editable = "." }
+ dependencies = [
+-    { name = "loguru" },
+     { name = "pydantic" },
+     { name = "pyyaml" },
+ ]
+@@ -37,10 +36,9 @@ dev = [
+ 
+ [package.metadata]
+ requires-dist = [
+-    { name = "loguru", specifier = ">=0.7" },
+     { name = "pydantic", specifier = ">=2.7,<3" },
+-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
+-    { name = "pyyaml", specifier = ">=6.0" },
++    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0,<10" },
++    { name = "pyyaml", specifier = ">=6.0,<7" },
+ ]
+ provides-extras = ["dev"]
+ 
+@@ -53,19 +51,6 @@ wheels = [
+     { url = "https://files.pythonhosted.org/packages/cb/b1/3846dd7f199d53cb17f49cba7e651e9ce294d8497c8c150530ed11865bb8/iniconfig-2.3.0-py3-none-any.whl", hash = "sha256:f631c04d2c48c52b84d0d0549c99ff3859c98df65b3101406327ecc7d53fbf12", size = 7484, upload-time = "2025-10-18T21:55:41.639Z" },
+ ]
+ 
+-[[package]]
+-name = "loguru"
+-version = "0.7.3"
+-source = { registry = "https://pypi.org/simple" }
+-dependencies = [
+-    { name = "colorama", marker = "sys_platform == 'win32'" },
+-    { name = "win32-setctime", marker = "sys_platform == 'win32'" },
+-]
+-sdist = { url = "https://files.pythonhosted.org/packages/3a/05/a1dae3dffd1116099471c643b8924f5aa6524411dc6c63fdae648c4f1aca/loguru-0.7.3.tar.gz", hash = "sha256:19480589e77d47b8d85b2c827ad95d49bf31b0dcde16593892eb51dd18706eb6", size = 63559, upload-time = "2024-12-06T11:20:56.608Z" }
+-wheels = [
+-    { url = "https://files.pythonhosted.org/packages/0c/29/0348de65b8cc732daa3e33e67806420b2ae89bdce2b04af740289c5c6c8c/loguru-0.7.3-py3-none-any.whl", hash = "sha256:31a33c10c8e1e10422bfd431aeb5d351c7cf7fa671e3c4df004162264b28220c", size = 61595, upload-time = "2024-12-06T11:20:54.538Z" },
+-]
+-
+ [[package]]
+ name = "packaging"
+ version = "26.2"
+@@ -301,12 +286,3 @@ sdist = { url = "https://files.pythonhosted.org/packages/55/e3/70399cb7dd41c10ac
+ wheels = [
+     { url = "https://files.pythonhosted.org/packages/dc/9b/47798a6c91d8bdb567fe2698fe81e0c6b7cb7ef4d13da4114b41d239f65d/typing_inspection-0.4.2-py3-none-any.whl", hash = "sha256:4ed1cacbdc298c220f1bd249ed5287caa16f34d44ef4e9c3d0cbad5b521545e7", size = 14611, upload-time = "2025-10-01T02:14:40.154Z" },
+ ]
+-
+-[[package]]
+-name = "win32-setctime"
+-version = "1.2.0"
+-source = { registry = "https://pypi.org/simple" }
+-sdist = { url = "https://files.pythonhosted.org/packages/b3/8f/705086c9d734d3b663af0e9bb3d4de6578d08f46b1b101c2442fd9aecaa2/win32_setctime-1.2.0.tar.gz", hash = "sha256:ae1fdf948f5640aae05c511ade119313fb6a30d7eabe25fef9764dca5873c4c0", size = 4867, upload-time = "2024-12-07T15:28:28.314Z" }
+-wheels = [
+-    { url = "https://files.pythonhosted.org/packages/e1/07/c6fe3ad3e685340704d314d765b7912993bcb8dc198f0e7a89382d37974b/win32_setctime-1.2.0-py3-none-any.whl", hash = "sha256:95d644c4e708aba81dc3704a116d8cbc974d70b3bdb8be1d150e36be6e9d1390", size = 4083, upload-time = "2024-12-07T15:28:26.465Z" },
+-]

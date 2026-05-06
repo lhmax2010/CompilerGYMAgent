@@ -37,3 +37,21 @@ Test cases:
 Notes:
 - First `uv run` attempt failed because the managed Python download did not trust the TLS issuer. Re-ran with `uv --native-tls`, which succeeded and created `.venv`.
 - Current shell has no `python` or `py` command; use `uv --native-tls run --extra dev ...` for tests in this environment.
+
+## Subtask 1.1 - external review fixes
+
+- timestamp_utc: 2026-05-06T13:56:52Z
+- related_requirements:
+  - REQUIREMENTS.md section 4.1.2
+  - REQUIREMENTS.md Appendix B
+  - REQUIREMENTS.md section 7
+  - REQUIREMENTS.md section 1.3
+- targeted_command: `uv --native-tls run --extra dev pytest tests/test_config.py -v`
+- targeted_duration: 0.81s
+- full_command: `uv --native-tls run --extra dev pytest -v`
+- full_duration: 0.80s
+- result: passed
+
+Test summary:
+- 37 passed, 0 failed.
+- Added tests for baseline shape conflicts, convergence synchronization, langfuse synchronization and conflicts, strict `import` alias handling, runtime path default expansion, template path resolvers, missing/empty/oversized YAML, YAML alias rejection, workspace protection disabled mode, and benchmark run-count cross-field validation.

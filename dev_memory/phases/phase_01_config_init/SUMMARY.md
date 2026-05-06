@@ -12,6 +12,7 @@ No phase deliverables completed yet.
 
 Completed:
 - Subtask 1.1 implemented config parsing, pydantic schema validation, safe YAML loading, tests, self review, and patch files.
+- Subtask 1.1 external review fixes addressed baseline conflict checks, strict alias handling, runtime path defaults, explicit template path resolution, YAML size/alias hardening, dependency cleanup, README packaging, and expanded tests.
 
 Remaining:
 - Subtask 1.2 modules.registry validation and namespace computation.

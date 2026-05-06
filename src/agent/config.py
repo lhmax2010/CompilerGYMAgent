@@ -7,11 +7,12 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, Mapping
 
 import yaml
 from pydantic import (
     BaseModel,
+    BeforeValidator,
     ConfigDict,
     Field,
     StringConstraints,
@@ -21,16 +22,39 @@ from pydantic import (
 )
 
 
+MAX_CONFIG_BYTES = 1_048_576
+
+
+def _expand_path(value: Any) -> Any:
+    if isinstance(value, str):
+        return Path(value).expanduser()
+    return value
+
+
 NonEmptyStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 OptionStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+ExpandedPath = Annotated[Path, BeforeValidator(_expand_path)]
 
 
 class ConfigLoadError(RuntimeError):
     """Raised when `agent.config.yaml` cannot be parsed or validated."""
 
 
-def _option_list(default: str = "-O2") -> list[str]:
-    return [default]
+class ConfigYamlLoader(yaml.SafeLoader):
+    """Safe config loader that rejects YAML aliases to avoid expansion bombs."""
+
+    def compose_node(self, parent: Any, index: Any) -> yaml.Node:
+        if self.check_event(yaml.AliasEvent):
+            raise yaml.YAMLError("YAML aliases are not allowed in agent.config.yaml")
+        return super().compose_node(parent, index)
+
+
+def _default_path(path: str) -> Path:
+    return Path(path).expanduser()
+
+
+def _option_list() -> list[str]:
+    return ["-O2"]
 
 
 def _generator_priority() -> list[str]:
@@ -70,10 +94,13 @@ def _process_multi_checks() -> list[str]:
     return ["create_time", "cmdline_hash", "session_marker"]
 
 
-def _expand_path(value: Any) -> Any:
-    if isinstance(value, str):
-        return Path(value).expanduser()
-    return value
+def _template_path(template: str, replacements: Mapping[str, str | Path]) -> Path:
+    resolved = template
+    for token, value in replacements.items():
+        resolved = resolved.replace(token, str(value))
+    if re.search(r"<[^>]+>", resolved):
+        raise ValueError(f"unresolved path template token in {template!r}")
+    return Path(resolved).expanduser()
 
 
 class StrictConfigModel(BaseModel):
@@ -98,18 +125,15 @@ class ProjectConfig(StrictConfigModel):
 
 
 class MemoryConfig(StrictConfigModel):
-    workspace: Path = Path("~/.agent_workspace").expanduser()
+    workspace: ExpandedPath = Field(
+        default_factory=lambda: _default_path("~/.agent_workspace")
+    )
     vector_index_enabled: bool = False
     combo_hash_algo: Literal["sha256"] = "sha256"
     trial_partition: Literal["monthly"] = "monthly"
     auto_reindex_on_startup: bool = True
     reindex_fail_action: Literal["refuse_to_run"] = "refuse_to_run"
     vector_top_k: int = Field(default=5, gt=0)
-
-    @field_validator("workspace", mode="before")
-    @classmethod
-    def expand_workspace(cls, value: Any) -> Any:
-        return _expand_path(value)
 
 
 class LLMConfig(StrictConfigModel):
@@ -155,55 +179,39 @@ class AgentRuntimeConfig(StrictConfigModel):
     novelty_threshold: float = Field(default=0.5, ge=0.0, le=1.0)
     convergence: ConvergenceConfig = Field(default_factory=ConvergenceConfig)
 
-    @model_validator(mode="after")
-    def synchronize_convergence_fields(self) -> AgentRuntimeConfig:
-        fields_set = self.model_fields_set
-        convergence_was_set = "convergence" in fields_set
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_convergence_fields(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
 
-        if convergence_was_set:
-            conflicts = [
-                (
-                    "stagnation_threshold_trials",
-                    self.stagnation_threshold_trials,
-                    self.convergence.no_improve_trials,
-                ),
-                ("min_improve_pct", self.min_improve_pct, self.convergence.min_improve_pct),
-                (
-                    "require_statistical_significance",
-                    self.require_statistical_significance,
-                    self.convergence.require_statistical_significance,
-                ),
-            ]
-            for field_name, top_level, nested in conflicts:
-                if field_name in fields_set and top_level != nested:
-                    raise ValueError(
-                        f"agent.{field_name} conflicts with agent.convergence "
-                        f"({top_level!r} != {nested!r})"
-                    )
+        normalized = dict(data)
+        raw_convergence = normalized.get("convergence")
+        convergence: dict[str, Any] = (
+            dict(raw_convergence) if isinstance(raw_convergence, dict) else {}
+        )
+        field_pairs = [
+            ("stagnation_threshold_trials", "no_improve_trials"),
+            ("min_improve_pct", "min_improve_pct"),
+            ("require_statistical_significance", "require_statistical_significance"),
+        ]
 
-            if "stagnation_threshold_trials" not in fields_set:
-                object.__setattr__(
-                    self, "stagnation_threshold_trials", self.convergence.no_improve_trials
+        for top_level_name, nested_name in field_pairs:
+            top_level_set = top_level_name in normalized
+            nested_set = nested_name in convergence
+            if top_level_set and nested_set and normalized[top_level_name] != convergence[nested_name]:
+                raise ValueError(
+                    f"agent.{top_level_name} conflicts with agent.convergence "
+                    f"({normalized[top_level_name]!r} != {convergence[nested_name]!r})"
                 )
-            if "min_improve_pct" not in fields_set:
-                object.__setattr__(self, "min_improve_pct", self.convergence.min_improve_pct)
-            if "require_statistical_significance" not in fields_set:
-                object.__setattr__(
-                    self,
-                    "require_statistical_significance",
-                    self.convergence.require_statistical_significance,
-                )
-        else:
-            object.__setattr__(
-                self,
-                "convergence",
-                ConvergenceConfig(
-                    no_improve_trials=self.stagnation_threshold_trials,
-                    min_improve_pct=self.min_improve_pct,
-                    require_statistical_significance=self.require_statistical_significance,
-                ),
-            )
-        return self
+            if top_level_set and not nested_set:
+                convergence[nested_name] = normalized[top_level_name]
+            elif nested_set and not top_level_set:
+                normalized[top_level_name] = convergence[nested_name]
+
+        if raw_convergence is not None or convergence:
+            normalized["convergence"] = convergence
+        return normalized
 
 
 class CandidateEngineConfig(StrictConfigModel):
@@ -257,14 +265,22 @@ class BaselineConfig(StrictConfigModel):
     auto_run_first: bool = True
     default_combo: list[OptionStr] = Field(default_factory=_option_list, min_length=1)
 
-    @model_validator(mode="after")
-    def synchronize_combo_defaults(self) -> BaselineConfig:
-        fields_set = self.model_fields_set
-        if "combo" not in fields_set and "default_combo" in fields_set:
-            object.__setattr__(self, "combo", list(self.default_combo))
-        elif "default_combo" not in fields_set:
-            object.__setattr__(self, "default_combo", list(self.combo))
-        return self
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_combo_defaults(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+
+        normalized = dict(data)
+        combo_set = "combo" in normalized
+        default_combo_set = "default_combo" in normalized
+        if combo_set and default_combo_set and normalized["combo"] != normalized["default_combo"]:
+            raise ValueError("baseline.combo conflicts with baseline.default_combo")
+        if combo_set and not default_combo_set:
+            normalized["default_combo"] = list(normalized["combo"])
+        elif default_combo_set and not combo_set:
+            normalized["combo"] = list(normalized["default_combo"])
+        return normalized
 
 
 class BenchmarkConfig(StrictConfigModel):
@@ -291,23 +307,26 @@ class BenchmarkConfig(StrictConfigModel):
 
 
 class SpecConfig(StrictConfigModel):
-    source_path: Path
-    backup_dir: Path = Path("~/.agent_workspace/spec_backups").expanduser()
+    source_path: ExpandedPath
+    backup_dir: ExpandedPath = Field(
+        default_factory=lambda: _default_path("~/.agent_workspace/spec_backups")
+    )
     backup_retention: int = Field(default=20, gt=0)
     hash_must_match_after_restore: bool = True
-
-    @field_validator("source_path", "backup_dir", mode="before")
-    @classmethod
-    def expand_paths(cls, value: Any) -> Any:
-        return _expand_path(value)
 
 
 class WorkspaceProtectionConfig(StrictConfigModel):
     enabled: bool = True
-    source_tree_path: Path
-    build_dir_root: Path = Path("~/.agent_workspace/build_dirs").expanduser()
-    artifact_staging_dir: Path = Path("~/.agent_workspace/artifacts/staging").expanduser()
-    artifact_final_dir: Path = Path("~/.agent_workspace/artifacts/final").expanduser()
+    source_tree_path: ExpandedPath | None = None
+    build_dir_root: ExpandedPath = Field(
+        default_factory=lambda: _default_path("~/.agent_workspace/build_dirs")
+    )
+    artifact_staging_dir: ExpandedPath = Field(
+        default_factory=lambda: _default_path("~/.agent_workspace/artifacts/staging")
+    )
+    artifact_final_dir: ExpandedPath = Field(
+        default_factory=lambda: _default_path("~/.agent_workspace/artifacts/final")
+    )
     source_dirty_action: Literal["warn", "fail", "ignore"] = "warn"
     build_dir_cleanup: Literal["after_trial"] = "after_trial"
     build_dir_keep_on_failure: bool = True
@@ -315,16 +334,11 @@ class WorkspaceProtectionConfig(StrictConfigModel):
     min_free_gb_to_start_trial: int = Field(default=10, ge=0)
     key_files_to_hash: list[NonEmptyStr] = Field(default_factory=_key_files_to_hash, min_length=1)
 
-    @field_validator(
-        "source_tree_path",
-        "build_dir_root",
-        "artifact_staging_dir",
-        "artifact_final_dir",
-        mode="before",
-    )
-    @classmethod
-    def expand_paths(cls, value: Any) -> Any:
-        return _expand_path(value)
+    @model_validator(mode="after")
+    def source_tree_required_when_enabled(self) -> WorkspaceProtectionConfig:
+        if self.enabled and self.source_tree_path is None:
+            raise ValueError("workspace_protection.source_tree_path is required when enabled")
+        return self
 
 
 class LangfuseConfig(StrictConfigModel):
@@ -333,30 +347,34 @@ class LangfuseConfig(StrictConfigModel):
 
 
 class TracingConfig(StrictConfigModel):
-    local_jsonl: Path = Path("trace/events.jsonl")
+    local_jsonl: ExpandedPath = Path("trace/events.jsonl")
     langfuse: LangfuseConfig = Field(default_factory=LangfuseConfig)
     local_jsonl_required: bool = True
     langfuse_enabled: bool = False
     trace_rejected_candidates: bool = True
 
-    @field_validator("local_jsonl", mode="before")
+    @model_validator(mode="before")
     @classmethod
-    def expand_local_jsonl(cls, value: Any) -> Any:
-        return _expand_path(value)
+    def normalize_langfuse_flags(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
 
-    @model_validator(mode="after")
-    def synchronize_langfuse_flags(self) -> TracingConfig:
-        fields_set = self.model_fields_set
-        if "langfuse" in fields_set and "langfuse_enabled" in fields_set:
-            if self.langfuse.enabled != self.langfuse_enabled:
-                raise ValueError("tracing.langfuse.enabled conflicts with tracing.langfuse_enabled")
-        elif "langfuse" in fields_set:
-            object.__setattr__(self, "langfuse_enabled", self.langfuse.enabled)
-        elif "langfuse_enabled" in fields_set:
-            object.__setattr__(
-                self, "langfuse", LangfuseConfig(enabled=self.langfuse_enabled)
-            )
-        return self
+        normalized = dict(data)
+        raw_langfuse = normalized.get("langfuse")
+        langfuse: dict[str, Any] = dict(raw_langfuse) if isinstance(raw_langfuse, dict) else {}
+        top_level_set = "langfuse_enabled" in normalized
+        nested_set = "enabled" in langfuse
+
+        if top_level_set and nested_set and normalized["langfuse_enabled"] != langfuse["enabled"]:
+            raise ValueError("tracing.langfuse.enabled conflicts with tracing.langfuse_enabled")
+        if top_level_set and not nested_set:
+            langfuse["enabled"] = normalized["langfuse_enabled"]
+            normalized["langfuse"] = langfuse
+        elif nested_set and not top_level_set:
+            normalized["langfuse_enabled"] = langfuse["enabled"]
+        elif raw_langfuse is not None and isinstance(raw_langfuse, dict):
+            normalized["langfuse"] = langfuse
+        return normalized
 
 
 class CheckpointConfig(StrictConfigModel):
@@ -368,16 +386,14 @@ class CheckpointConfig(StrictConfigModel):
 
 class DryRunConfig(StrictConfigModel):
     enabled: bool = False
-    mock_score_noise_pct: float = Field(default=5, ge=0)
-    output_dir: Path = Path("dry_run_reports")
-    import_overlay_dir: Path = Path("dry_run_reports/<run_id>/import_overlay")
+    mock_score_noise_pct: float = Field(default=5.0, ge=0)
+    output_dir: ExpandedPath = Path("dry_run_reports")
+    import_overlay_dir: NonEmptyStr = "dry_run_reports/<run_id>/import_overlay"
     guard_forbidden_writes: bool = True
     doctor_check_forbidden_writes: bool = True
 
-    @field_validator("output_dir", "import_overlay_dir", mode="before")
-    @classmethod
-    def expand_paths(cls, value: Any) -> Any:
-        return _expand_path(value)
+    def resolve_import_overlay_dir(self, run_id: str) -> Path:
+        return _template_path(self.import_overlay_dir, {"<run_id>": run_id})
 
 
 class KGMergeConstraintsConfig(StrictConfigModel):
@@ -428,24 +444,21 @@ class ImportConfig(StrictConfigModel):
 
 class CleanConfig(StrictConfigModel):
     default_dry_run: bool = True
-    trash_dir: Path = Path("<workspace>/_trash")
+    trash_dir: NonEmptyStr = "<workspace>/_trash"
     trash_retention_days: int = Field(default=30, gt=0)
     require_confirmation_for: list[Literal["namespace", "all", "kg-backups"]] = Field(
         default_factory=_clean_confirmations,
         min_length=1,
     )
 
-    @field_validator("trash_dir", mode="before")
-    @classmethod
-    def expand_trash_dir(cls, value: Any) -> Any:
-        return _expand_path(value)
-
-    @field_validator("require_confirmation_for")
-    @classmethod
-    def confirmations_must_be_unique(cls, value: list[str]) -> list[str]:
-        if len(value) != len(set(value)):
+    @model_validator(mode="after")
+    def confirmations_must_be_unique(self) -> CleanConfig:
+        if len(self.require_confirmation_for) != len(set(self.require_confirmation_for)):
             raise ValueError("clean.require_confirmation_for must not contain duplicates")
-        return value
+        return self
+
+    def resolve_trash_dir(self, workspace: Path) -> Path:
+        return _template_path(self.trash_dir, {"<workspace>": workspace})
 
 
 class IntegrityConfig(StrictConfigModel):
@@ -459,12 +472,11 @@ class ReportConfig(StrictConfigModel):
     redact_enabled: bool = True
     always_redact: list[NonEmptyStr] = Field(default_factory=_always_redact, min_length=1)
 
-    @field_validator("always_redact")
-    @classmethod
-    def always_redact_must_be_unique(cls, value: list[str]) -> list[str]:
-        if len(value) != len(set(value)):
+    @model_validator(mode="after")
+    def always_redact_must_be_unique(self) -> ReportConfig:
+        if len(self.always_redact) != len(set(self.always_redact)):
             raise ValueError("report.always_redact must not contain duplicates")
-        return value
+        return self
 
 
 class ProcessCleanupConfig(StrictConfigModel):
@@ -475,31 +487,25 @@ class ProcessCleanupConfig(StrictConfigModel):
     )
     unsafe_action: Literal["skip_and_log", "abort"] = "skip_and_log"
 
-    @field_validator("multi_check_required")
-    @classmethod
-    def checks_must_be_complete_and_unique(cls, value: list[str]) -> list[str]:
+    @model_validator(mode="after")
+    def checks_must_be_complete_and_unique(self) -> ProcessCleanupConfig:
         required = set(_process_multi_checks())
-        actual = set(value)
-        if len(value) != len(actual):
+        actual = set(self.multi_check_required)
+        if len(self.multi_check_required) != len(actual):
             raise ValueError("process_cleanup.multi_check_required must not contain duplicates")
         if actual != required:
             raise ValueError(
                 "process_cleanup.multi_check_required must include create_time, "
                 "cmdline_hash, and session_marker"
             )
-        return value
+        return self
 
 
 class WorkspaceLockConfig(StrictConfigModel):
-    lock_file: Path = Path("state/run.lock")
+    lock_file: ExpandedPath = Path("state/run.lock")
     stale_check_required: bool = True
     on_busy_action: Literal["refuse_with_holder_info"] = "refuse_with_holder_info"
     high_risk_bypass_event_required: bool = True
-
-    @field_validator("lock_file", mode="before")
-    @classmethod
-    def expand_lock_file(cls, value: Any) -> Any:
-        return _expand_path(value)
 
     @model_validator(mode="after")
     def lock_safety_flags_must_stay_enabled(self) -> WorkspaceLockConfig:
@@ -511,6 +517,14 @@ class WorkspaceLockConfig(StrictConfigModel):
 
 
 class AgentConfig(StrictConfigModel):
+    model_config = ConfigDict(
+        extra="forbid",
+        populate_by_name=False,
+        validate_by_name=False,
+        validate_by_alias=True,
+        validate_assignment=True,
+    )
+
     project: ProjectConfig
     memory: MemoryConfig = Field(default_factory=MemoryConfig)
     llm: LLMConfig = Field(default_factory=LLMConfig)
@@ -535,16 +549,28 @@ class AgentConfig(StrictConfigModel):
 
 
 def load_config(path: str | Path) -> AgentConfig:
-    """Load and validate `agent.config.yaml` with safe YAML parsing."""
+    """Load and validate `agent.config.yaml`.
+
+    Relative paths are preserved as relative `Path` values. Namespace-aware
+    resolution is implemented by later init/namespace helpers.
+    """
 
     config_path = Path(path)
     try:
+        file_size = config_path.stat().st_size
+        if file_size > MAX_CONFIG_BYTES:
+            raise ConfigLoadError(
+                f"config file {config_path} is too large "
+                f"({file_size} bytes > {MAX_CONFIG_BYTES} bytes)"
+            )
         raw_text = config_path.read_text(encoding="utf-8")
+    except ConfigLoadError:
+        raise
     except OSError as exc:
         raise ConfigLoadError(f"failed to read config file {config_path}: {exc}") from exc
 
     try:
-        data = yaml.safe_load(raw_text)
+        data = yaml.load(raw_text, Loader=ConfigYamlLoader)
     except yaml.YAMLError as exc:
         raise ConfigLoadError(f"failed to parse YAML config {config_path}: {exc}") from exc
 

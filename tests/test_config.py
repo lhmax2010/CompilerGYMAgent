@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from agent.config import AgentConfig, ConfigLoadError, load_config
+from agent.config import AgentConfig, ConfigLoadError, MAX_CONFIG_BYTES, load_config
 
 
 def write_config(tmp_path: Path, data: object) -> Path:
@@ -242,6 +242,7 @@ def test_full_config_schema_accepts_documented_fields(tmp_path: Path) -> None:
     assert config.dry_run.guard_forbidden_writes is True
     assert config.kg.v1_merge_constraints.require_same_parent is True
     assert config.import_config.always_quote_imported_in_prompts is True
+    assert config.clean.trash_dir == "<workspace>/_trash"
     assert config.clean.default_dry_run is True
     assert config.integrity.fail_action == "paused_request_user_accept"
     assert config.report.always_redact == ["api_keys"]
@@ -263,6 +264,10 @@ def test_minimal_config_applies_appendix_b_defaults(tmp_path: Path) -> None:
     assert config.checkpoint.every_n_trials == 1
     assert config.import_config.max_compression_ratio == 100
     assert config.workspace_lock.stale_check_required is True
+    assert config.clean.resolve_trash_dir(Path("/workspace")) == Path("/workspace/_trash")
+    assert config.dry_run.resolve_import_overlay_dir("dry_1") == Path(
+        "dry_run_reports/dry_1/import_overlay"
+    )
 
 
 def test_direct_model_validation_supports_import_alias() -> None:
@@ -272,6 +277,14 @@ def test_direct_model_validation_supports_import_alias() -> None:
     dumped = config.model_dump(by_alias=True)
     assert "import" in dumped
     assert "import_config" not in dumped
+
+
+def test_rejects_import_config_yaml_key(tmp_path: Path) -> None:
+    data = full_config()
+    data["import_config"] = data.pop("import")
+
+    with pytest.raises(ConfigLoadError):
+        load_config(write_config(tmp_path, data))
 
 
 @pytest.mark.parametrize(
@@ -310,6 +323,101 @@ def test_rejects_conflicting_convergence_fields(tmp_path: Path) -> None:
         load_config(write_config(tmp_path, data))
 
 
+def test_synchronizes_convergence_from_nested_shape(tmp_path: Path) -> None:
+    data = minimal_config()
+    data["agent"] = {
+        "convergence": {
+            "no_improve_trials": 7,
+            "min_improve_pct": 4.5,
+            "require_statistical_significance": False,
+        }
+    }
+
+    config = load_config(write_config(tmp_path, data))
+
+    assert config.agent.stagnation_threshold_trials == 7
+    assert config.agent.min_improve_pct == 4.5
+    assert config.agent.require_statistical_significance is False
+
+
+def test_synchronizes_convergence_from_top_level_shape(tmp_path: Path) -> None:
+    data = minimal_config()
+    data["agent"] = {
+        "stagnation_threshold_trials": 7,
+        "min_improve_pct": 4.5,
+        "require_statistical_significance": False,
+    }
+
+    config = load_config(write_config(tmp_path, data))
+
+    assert config.agent.convergence.no_improve_trials == 7
+    assert config.agent.convergence.min_improve_pct == 4.5
+    assert config.agent.convergence.require_statistical_significance is False
+
+
+def test_rejects_conflicting_baseline_combo_shapes(tmp_path: Path) -> None:
+    data = full_config()
+    data["baseline"]["combo"] = ["-O2"]
+    data["baseline"]["default_combo"] = ["-O3"]
+
+    with pytest.raises(ConfigLoadError, match="baseline.combo conflicts"):
+        load_config(write_config(tmp_path, data))
+
+
+def test_synchronizes_baseline_from_default_combo(tmp_path: Path) -> None:
+    data = minimal_config()
+    data["baseline"] = {"default_combo": ["-O3"]}
+
+    config = load_config(write_config(tmp_path, data))
+
+    assert config.baseline.combo == ["-O3"]
+    assert config.baseline.default_combo == ["-O3"]
+
+
+def test_synchronizes_langfuse_from_nested_shape(tmp_path: Path) -> None:
+    data = minimal_config()
+    data["tracing"] = {"langfuse": {"enabled": True}}
+
+    config = load_config(write_config(tmp_path, data))
+
+    assert config.tracing.langfuse_enabled is True
+    assert config.tracing.langfuse.enabled is True
+
+
+def test_synchronizes_langfuse_from_top_level_shape(tmp_path: Path) -> None:
+    data = minimal_config()
+    data["tracing"] = {"langfuse_enabled": True}
+
+    config = load_config(write_config(tmp_path, data))
+
+    assert config.tracing.langfuse_enabled is True
+    assert config.tracing.langfuse.enabled is True
+
+
+def test_synchronizes_langfuse_enabled_with_partial_langfuse_block(tmp_path: Path) -> None:
+    data = minimal_config()
+    data["tracing"] = {
+        "langfuse": {"host": "http://trace.local"},
+        "langfuse_enabled": True,
+    }
+
+    config = load_config(write_config(tmp_path, data))
+
+    assert config.tracing.langfuse.host == "http://trace.local"
+    assert config.tracing.langfuse.enabled is True
+
+
+def test_rejects_conflicting_langfuse_flags(tmp_path: Path) -> None:
+    data = minimal_config()
+    data["tracing"] = {
+        "langfuse": {"enabled": False},
+        "langfuse_enabled": True,
+    }
+
+    with pytest.raises(ConfigLoadError, match="langfuse.enabled conflicts"):
+        load_config(write_config(tmp_path, data))
+
+
 def test_rejects_empty_baseline_combo(tmp_path: Path) -> None:
     data = full_config()
     data["baseline"]["combo"] = []
@@ -342,11 +450,25 @@ def test_rejects_top_level_non_mapping(tmp_path: Path) -> None:
         load_config(path)
 
 
-def test_rejects_empty_config_file(tmp_path: Path) -> None:
+@pytest.mark.parametrize("raw_text", ["", "# comment only\n", "null\n"])
+def test_rejects_empty_config_file(tmp_path: Path, raw_text: str) -> None:
     path = tmp_path / "agent.config.yaml"
-    path.write_text("", encoding="utf-8")
+    path.write_text(raw_text, encoding="utf-8")
 
     with pytest.raises(ConfigLoadError, match="empty"):
+        load_config(path)
+
+
+def test_rejects_missing_config_file(tmp_path: Path) -> None:
+    with pytest.raises(ConfigLoadError, match="failed to read"):
+        load_config(tmp_path / "missing.yaml")
+
+
+def test_rejects_oversized_config_file(tmp_path: Path) -> None:
+    path = tmp_path / "agent.config.yaml"
+    path.write_text("x" * (MAX_CONFIG_BYTES + 1), encoding="utf-8")
+
+    with pytest.raises(ConfigLoadError, match="too large"):
         load_config(path)
 
 
@@ -358,6 +480,31 @@ def test_uses_safe_yaml_load_for_malicious_tags(tmp_path: Path) -> None:
     )
 
     with pytest.raises(ConfigLoadError, match="failed to parse YAML"):
+        load_config(path)
+
+
+def test_rejects_yaml_aliases(tmp_path: Path) -> None:
+    path = tmp_path / "agent.config.yaml"
+    path.write_text(
+        """
+project: &project
+  module: multimedia
+  framework: ffmpeg
+  compiler:
+    type: gcc
+    version: "13.2.0"
+  code_commit: a1b2c3d
+  kg_version: v3
+project_copy: *project
+spec:
+  source_path: /path/to/project.spec
+workspace_protection:
+  source_tree_path: /path/to/source
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigLoadError, match="aliases are not allowed"):
         load_config(path)
 
 
@@ -374,4 +521,53 @@ def test_rejects_disabled_workspace_lock_safety_flags(tmp_path: Path) -> None:
     data["workspace_lock"]["stale_check_required"] = False
 
     with pytest.raises(ConfigLoadError, match="stale_check_required"):
+        load_config(write_config(tmp_path, data))
+
+
+def test_path_defaults_expand_at_model_construction_time(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / "home"
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+
+    config = load_config(write_config(tmp_path, minimal_config()))
+
+    assert config.memory.workspace == home / ".agent_workspace"
+    assert config.spec.backup_dir == home / ".agent_workspace" / "spec_backups"
+    assert config.workspace_protection.build_dir_root == home / ".agent_workspace" / "build_dirs"
+
+
+def test_workspace_protection_can_be_disabled_without_source_tree(tmp_path: Path) -> None:
+    data = minimal_config()
+    data["workspace_protection"] = {"enabled": False}
+
+    config = load_config(write_config(tmp_path, data))
+
+    assert config.workspace_protection.enabled is False
+    assert config.workspace_protection.source_tree_path is None
+
+
+def test_rejects_enabled_workspace_protection_without_source_tree(tmp_path: Path) -> None:
+    data = minimal_config()
+    data["workspace_protection"] = {"enabled": True}
+
+    with pytest.raises(ConfigLoadError, match="source_tree_path is required"):
+        load_config(write_config(tmp_path, data))
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("quick_runs", 11, "quick_runs"),
+        ("max_runs_on_high_variance", 9, "max_runs_on_high_variance"),
+    ],
+)
+def test_rejects_inconsistent_benchmark_run_counts(
+    tmp_path: Path, field: str, value: int, message: str
+) -> None:
+    data = full_config()
+    data["benchmark"][field] = value
+
+    with pytest.raises(ConfigLoadError, match=message):
         load_config(write_config(tmp_path, data))

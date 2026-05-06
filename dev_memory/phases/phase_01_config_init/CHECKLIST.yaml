@@ -10,9 +10,15 @@ subtasks:
     self_reviewed: true
     patch_required: true
     patch_file: dev_memory/phases/phase_01_config_init/patches/01_config_schema.patch
+    review_fix_patch_file: dev_memory/phases/phase_01_config_init/patches/02_config_schema_review_fixes.patch
     commit_required: true
     commit_pending: false
+    commit_hash: 68e02bb
     commit_message: "phase_01_config_init: 1.1 implement config schema (REQUIREMENTS 4.1.2)"
+    review_fix_commit_pending: true
+    review_fix_ut_passed: true
+    review_fix_self_reviewed: true
+    review_fix_patch_generated: true
   - id: "1.2"
     title: "Implement modules.registry validation and namespace computation"
     status: todo
