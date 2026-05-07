@@ -173,3 +173,26 @@ Coverage notes:
 - Closes external review M-1 by rejecting C0 and DEL control characters before namespace path construction.
 - Closes external review L-1 by requiring explicit `schema_version: modules.registry.v1`.
 - Adds direct coverage for `compute_project_namespace(AgentConfig)`.
+
+## Subtask 1.2 - Ubuntu target-environment validation
+
+- timestamp_utc: 2026-05-07T09:52:49Z
+- environment:
+  - os: Ubuntu/Linux
+  - python: 3.11.15
+  - virtualenv: `.venv`
+  - runner: plain `pytest` via `venv + pip`, no `uv` required
+- related_requirements:
+  - REQUIREMENTS.md section 1.2
+  - REQUIREMENTS.md section 4.1.3
+  - REQUIREMENTS.md section 4.1.4
+- targeted_command: `pytest tests/test_registry.py -v`
+- targeted_duration: 0.11s
+- targeted_result: 46 passed, 0 failed
+- full_command: `pytest -v`
+- full_duration: 0.31s
+- full_result: 97 passed, 0 failed
+- manual_probe:
+  - command: `compute_project_namespace(ProjectConfig.model_validate({"module": "multi\nmedia", ...}))`
+  - result: `ValueError: project.module cannot contain control characters`
+- reported_by: user on intended Ubuntu server environment

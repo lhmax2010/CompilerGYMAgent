@@ -80,6 +80,16 @@ Next action: generate patch files, commit Subtask 1.2 review fixes, and push to 
 
 Next action: push Subtask 1.2 review-fix commits to `origin/main`, then prepare Subtask 1.3.
 
+## 2026-05-07T09:52:49Z - Phase 01 / Subtask 1.2 Ubuntu target-environment validation
+
+- User validated on Ubuntu server with Python 3.11.15 in a local `.venv`.
+- Targeted UT passed: `pytest tests/test_registry.py -v` -> 46 passed in 0.11s.
+- Full UT passed: `pytest -v` -> 97 passed in 0.31s.
+- Manual control-character probe passed: `module: "multi\nmedia"` is rejected with `ValueError: project.module cannot contain control characters`.
+- This confirms Subtask 1.2 and its review fix pass on the intended Linux/Ubuntu execution environment without requiring `uv`.
+
+Next action: Phase 01 / Subtask 1.3, init confirmation flow and `.initialized` namespace guard.
+
 ## 2026-05-06T13:52:19Z - Phase 01 / Subtask 1.1 external review fix started
 
 - External review verdict: Request changes.

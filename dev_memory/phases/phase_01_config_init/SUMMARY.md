@@ -18,6 +18,7 @@ Completed:
 - Subtask 1.1 was validated by the user on the intended Ubuntu/Linux environment with Python 3.11.15: targeted and full pytest both passed 51/51 without `uv`.
 - Subtask 1.2 implemented `shared/modules.registry.yaml` schema validation, namespace computation, bottom-up experience scopes, startup validation failure paths, tests, self review, and patch files.
 - Subtask 1.2 external review fixes rejected namespace control characters, required explicit registry schema versioning, added AgentConfig namespace coverage, and raised full UT to 97/97.
+- Subtask 1.2 was validated by the user on the intended Ubuntu/Linux environment with Python 3.11.15: targeted registry pytest passed 46/46, full pytest passed 97/97, and the manual control-character probe was rejected as expected.
 
 Remaining:
 - Subtask 1.3 init confirmation flow and `.initialized` namespace guard.

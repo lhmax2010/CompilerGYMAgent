@@ -1,7 +1,7 @@
 phase_id: phase_01_config_init
 phase_title: "Config + init + namespace + workspace lock"
 started_at: 2026-05-06T08:42:41Z
-last_updated: 2026-05-07T08:54:57Z
+last_updated: 2026-05-07T09:52:49Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 4.1
@@ -76,6 +76,13 @@ subtasks:
     review_fix_patch_file: dev_memory/phases/phase_01_config_init/patches/05_registry_namespace_review_fixes.patch
     review_fix_commit_hash: 242a4d3
     review_fix_commit_message: "phase_01_config_init: 1.2 fix registry review findings (REQUIREMENTS section 4.1.3)"
+    target_environment_validation:
+      os: Ubuntu/Linux
+      python: 3.11.15
+      targeted_pytest: "46 passed in 0.11s"
+      full_pytest: "97 passed in 0.31s"
+      manual_probe: "multi\\nmedia namespace rejected with ValueError: project.module cannot contain control characters"
+      runner: "venv + pip + pytest; uv not required"
   - id: "1.3"
     title: "Implement init confirmation flow and .initialized namespace guard"
     status: todo
@@ -105,4 +112,4 @@ notes: |
   workspace was not a Git repository. A local Git repository was initialized
   during kickoff so Subtask 1.1 can start from a clean baseline after the
   kickoff commit.
-next_action: "Push Subtask 1.2 review-fix commits to GitHub, then prepare Subtask 1.3."
+next_action: "Prepare Subtask 1.3 init confirmation flow and .initialized namespace guard."
