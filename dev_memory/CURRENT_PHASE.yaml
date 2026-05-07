@@ -1,7 +1,7 @@
 phase_id: phase_01_config_init
 phase_title: "Config + init + namespace + workspace lock"
 started_at: 2026-05-06T08:42:41Z
-last_updated: 2026-05-07T06:54:29Z
+last_updated: 2026-05-07T08:09:15Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 4.1
@@ -37,6 +37,12 @@ subtasks:
     external_review_verdict: approve
     external_reviewed_at: 2026-05-07T06:54:29Z
     external_review_notes: "Claude verified 51/51 tests and approved Subtask 1.1; remaining low-priority test gaps are non-blocking."
+    target_environment_validation:
+      os: Ubuntu/Linux
+      python: 3.11.15
+      targeted_pytest: "51 passed in 0.29s"
+      full_pytest: "51 passed in 0.28s"
+      runner: "venv + pip + pytest; uv not required"
   - id: "1.2"
     title: "Implement modules.registry validation and namespace computation"
     status: todo

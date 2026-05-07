@@ -88,3 +88,23 @@ Test summary:
   - `test_rejects_duplicate_report_redaction_entries`
   - `test_rejects_duplicate_candidate_generator_priority`
   - `test_rejects_duplicate_canary_priority_order`
+
+## Subtask 1.1 - Ubuntu target-environment validation
+
+- timestamp_utc: 2026-05-07T08:09:15Z
+- environment:
+  - os: Ubuntu/Linux
+  - python: 3.11.15
+  - virtualenv: `.venv`
+  - runner: plain `pytest` via `venv + pip`, no `uv` required
+- related_requirements:
+  - REQUIREMENTS.md section 1.2
+  - REQUIREMENTS.md section 4.1.2
+  - REQUIREMENTS.md Appendix B
+- targeted_command: `pytest tests/test_config.py -v`
+- targeted_duration: 0.29s
+- targeted_result: 51 passed, 0 failed
+- full_command: `pytest -v`
+- full_duration: 0.28s
+- full_result: 51 passed, 0 failed
+- reported_by: user on intended Ubuntu server environment

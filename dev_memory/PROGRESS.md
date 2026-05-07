@@ -24,12 +24,21 @@ Next action: commit the kickoff baseline, then implement Phase 01 / Subtask 1.1.
 
 Next action: Phase 01 / Subtask 1.2, module registry validation and namespace computation.
 
-## 2026-05-07T06:54:29Z - Phase 01 / Subtask 1.1 externally approved
+## 2026-05-06T13:52:19Z - Phase 01 / Subtask 1.1 external review fix started
 
-- External review verdict: Approve.
-- Reviewer independently verified `pytest` with 51 passed, 0 failed.
-- Reviewer confirmed second review fixes for exploration schedule quota semantics, `process_cleanup.require_env_marker`, blank path rejection, baseline assignment validation, relative path contract tests, and ZIP artifact removal.
-- Remaining low-priority UT gaps are explicitly non-blocking and may be rolled into later polish.
+- External review verdict: Request changes.
+- Accepted blocking findings for immediate fix: baseline conflict detection, runtime path default expansion, unresolved path templates, strict `import` alias handling, config YAML size/alias hardening, package README cleanup, unused `loguru` dependency removal.
+- Subtask 1.1 moved back to review-fix mode; Subtask 1.2 remains blocked until these fixes pass UT and are committed.
+
+## 2026-05-06T13:56:52Z - Phase 01 / Subtask 1.1 external review fixes completed
+
+- Fixed accepted external review findings in config schema and tests.
+- Targeted UT passed: `uv --native-tls run --extra dev pytest tests/test_config.py -v` -> 37 passed.
+- Full UT passed: `uv --native-tls run --extra dev pytest -v` -> 37 passed.
+- Self review completed and recorded in `dev_memory/phases/phase_01_config_init/REVIEW_NOTES.md`.
+- Patch files generated under `dev_memory/phases/phase_01_config_init/patches/02_config_schema_review_fixes.*`.
+- Commit: `7228570 phase_01_config_init: 1.1 fix config schema review findings (REQUIREMENTS §4.1.2)`.
+- Pushed to `origin/main`.
 
 Next action: Phase 01 / Subtask 1.2, module registry validation and namespace computation.
 
@@ -53,20 +62,21 @@ Next action: Phase 01 / Subtask 1.2, module registry validation and namespace co
 
 Next action: Phase 01 / Subtask 1.2, module registry validation and namespace computation.
 
-## 2026-05-06T13:52:19Z - Phase 01 / Subtask 1.1 external review fix started
+## 2026-05-07T06:54:29Z - Phase 01 / Subtask 1.1 externally approved
 
-- External review verdict: Request changes.
-- Accepted blocking findings for immediate fix: baseline conflict detection, runtime path default expansion, unresolved path templates, strict `import` alias handling, config YAML size/alias hardening, package README cleanup, unused `loguru` dependency removal.
-- Subtask 1.1 moved back to review-fix mode; Subtask 1.2 remains blocked until these fixes pass UT and are committed.
+- External review verdict: Approve.
+- Reviewer independently verified `pytest` with 51 passed, 0 failed.
+- Reviewer confirmed second review fixes for exploration schedule quota semantics, `process_cleanup.require_env_marker`, blank path rejection, baseline assignment validation, relative path contract tests, and ZIP artifact removal.
+- Remaining low-priority UT gaps are explicitly non-blocking and may be rolled into later polish.
+- Commit: `1f8a947 phase_01_config_init: record 1.1 external approval (REQUIREMENTS §4.1.2)`.
 
-## 2026-05-06T13:56:52Z - Phase 01 / Subtask 1.1 external review fixes completed
+Next action: Phase 01 / Subtask 1.2, module registry validation and namespace computation.
 
-- Fixed accepted external review findings in config schema and tests.
-- Targeted UT passed: `uv --native-tls run --extra dev pytest tests/test_config.py -v` -> 37 passed.
-- Full UT passed: `uv --native-tls run --extra dev pytest -v` -> 37 passed.
-- Self review completed and recorded in `dev_memory/phases/phase_01_config_init/REVIEW_NOTES.md`.
-- Patch files generated under `dev_memory/phases/phase_01_config_init/patches/02_config_schema_review_fixes.*`.
-- Commit: `7228570 phase_01_config_init: 1.1 fix config schema review findings (REQUIREMENTS §4.1.2)`.
-- Pushed to `origin/main`.
+## 2026-05-07T08:09:15Z - Phase 01 / Subtask 1.1 Ubuntu target-environment validation
+
+- User validated on Ubuntu server with Python 3.11.15 in a local `.venv`.
+- Targeted UT passed: `pytest tests/test_config.py -v` -> 51 passed in 0.29s.
+- Full UT passed: `pytest -v` -> 51 passed in 0.28s.
+- This confirms Subtask 1.1 tests pass on the intended Linux/Ubuntu execution environment without requiring `uv`.
 
 Next action: Phase 01 / Subtask 1.2, module registry validation and namespace computation.
