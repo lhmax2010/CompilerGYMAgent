@@ -38,8 +38,9 @@ Next action: Phase 01 / Subtask 1.2, module registry validation and namespace co
 - Full UT passed: `uv --native-tls run --extra dev pytest -v` -> 51 passed.
 - Self review completed and recorded in `dev_memory/phases/phase_01_config_init/REVIEW_NOTES.md`.
 - Patch files generated under `dev_memory/phases/phase_01_config_init/patches/03_config_schema_minor_review_fixes.*`.
+- Commit: `3afef68 phase_01_config_init: 1.1 fix minor config review findings (REQUIREMENTS §4.1.2)`.
 
-Next action: commit minor review fixes, push to `origin/main`, then start Phase 01 / Subtask 1.2.
+Next action: push to `origin/main`, then start Phase 01 / Subtask 1.2.
 
 ## 2026-05-06T13:52:19Z - Phase 01 / Subtask 1.1 external review fix started
 

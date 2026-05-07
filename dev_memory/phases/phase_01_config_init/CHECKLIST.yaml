@@ -26,7 +26,9 @@ subtasks:
     minor_review_fix_ut_passed: true
     minor_review_fix_self_reviewed: true
     minor_review_fix_patch_generated: true
-    minor_review_fix_commit_pending: true
+    minor_review_fix_commit_pending: false
+    minor_review_fix_commit_hash: 3afef68
+    minor_review_fix_commit_message: "phase_01_config_init: 1.1 fix minor config review findings (REQUIREMENTS 4.1.2)"
   - id: "1.2"
     title: "Implement modules.registry validation and namespace computation"
     status: todo
