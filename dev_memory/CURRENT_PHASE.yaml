@@ -1,7 +1,7 @@
 phase_id: phase_01_config_init
 phase_title: "Config + init + namespace + workspace lock"
 started_at: 2026-05-06T08:42:41Z
-last_updated: 2026-05-07T08:21:27Z
+last_updated: 2026-05-07T08:25:56Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 4.1
@@ -59,6 +59,8 @@ subtasks:
     full_ut: "84 passed, 0 failed"
     self_reviewed: true
     patch_file: dev_memory/phases/phase_01_config_init/patches/04_registry_namespace.patch
+    commit_hash: e64a692
+    commit_message: "phase_01_config_init: 1.2 implement registry namespace validation (REQUIREMENTS section 4.1.3)"
   - id: "1.3"
     title: "Implement init confirmation flow and .initialized namespace guard"
     status: todo
@@ -88,4 +90,4 @@ notes: |
   workspace was not a Git repository. A local Git repository was initialized
   during kickoff so Subtask 1.1 can start from a clean baseline after the
   kickoff commit.
-next_action: "Commit Subtask 1.2, push to GitHub, then prepare Subtask 1.3 init confirmation flow."
+next_action: "Push Subtask 1.2 commits to GitHub, then prepare Subtask 1.3 init confirmation flow."

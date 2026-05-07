@@ -45,6 +45,13 @@ Next action: implement registry schema, namespace computation, and startup valid
 
 Next action: generate patch files, commit Subtask 1.2, and push to `origin/main`.
 
+## 2026-05-07T08:25:56Z - Phase 01 / Subtask 1.2 implementation committed
+
+- Commit: `e64a692 phase_01_config_init: 1.2 implement registry namespace validation (REQUIREMENTS section 4.1.3)`.
+- Patch files: `dev_memory/phases/phase_01_config_init/patches/04_registry_namespace.{patch,summary.txt,review.md}`.
+
+Next action: push Subtask 1.2 commits to `origin/main`, then prepare Subtask 1.3.
+
 ## 2026-05-06T13:52:19Z - Phase 01 / Subtask 1.1 external review fix started
 
 - External review verdict: Request changes.

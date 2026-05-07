@@ -42,7 +42,9 @@ subtasks:
     patch_generated: true
     patch_file: dev_memory/phases/phase_01_config_init/patches/04_registry_namespace.patch
     commit_required: true
-    commit_pending: true
+    commit_pending: false
+    commit_hash: e64a692
+    commit_message: "phase_01_config_init: 1.2 implement registry namespace validation (REQUIREMENTS section 4.1.3)"
   - id: "1.3"
     title: "Implement init confirmation flow and .initialized namespace guard"
     status: todo
