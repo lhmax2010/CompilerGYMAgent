@@ -73,6 +73,13 @@ Next action: implement Subtask 1.2 review fixes.
 
 Next action: generate patch files, commit Subtask 1.2 review fixes, and push to `origin/main`.
 
+## 2026-05-07T08:54:57Z - Phase 01 / Subtask 1.2 external review fixes committed
+
+- Commit: `242a4d3 phase_01_config_init: 1.2 fix registry review findings (REQUIREMENTS section 4.1.3)`.
+- Patch files: `dev_memory/phases/phase_01_config_init/patches/05_registry_namespace_review_fixes.{patch,summary.txt,review.md}`.
+
+Next action: push Subtask 1.2 review-fix commits to `origin/main`, then prepare Subtask 1.3.
+
 ## 2026-05-06T13:52:19Z - Phase 01 / Subtask 1.1 external review fix started
 
 - External review verdict: Request changes.
