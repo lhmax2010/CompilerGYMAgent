@@ -16,8 +16,8 @@ Completed:
 - Subtask 1.1 second external review fixes addressed exploration schedule quota semantics, `process_cleanup.require_env_marker`, blank path rejection, assignment validation, relative path contract tests, and removal of accidental ZIP artifact.
 - Subtask 1.1 received final external approval after independent 51-test verification.
 - Subtask 1.1 was validated by the user on the intended Ubuntu/Linux environment with Python 3.11.15: targeted and full pytest both passed 51/51 without `uv`.
+- Subtask 1.2 implemented `shared/modules.registry.yaml` schema validation, namespace computation, bottom-up experience scopes, startup validation failure paths, tests, self review, and patch files.
 
 Remaining:
-- Subtask 1.2 modules.registry validation and namespace computation.
 - Subtask 1.3 init confirmation flow and `.initialized` namespace guard.
 - Subtask 1.4 local WorkspaceLock implementation.

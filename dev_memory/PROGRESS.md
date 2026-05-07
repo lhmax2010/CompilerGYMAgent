@@ -24,6 +24,27 @@ Next action: commit the kickoff baseline, then implement Phase 01 / Subtask 1.1.
 
 Next action: Phase 01 / Subtask 1.2, module registry validation and namespace computation.
 
+## 2026-05-07T08:13:46Z - Phase 01 / Subtask 1.2 started
+
+- Started modules.registry validation and namespace computation.
+- Requirements in scope: REQUIREMENTS.md section 4.1.3 and section 4.1.4.
+- Planned files: `src/agent/registry.py` and `tests/test_registry.py`.
+- Baseline before implementation: clean `main` synced with `origin/main`.
+
+Next action: implement registry schema, namespace computation, and startup validation tests.
+
+## 2026-05-07T08:21:27Z - Phase 01 / Subtask 1.2 completed
+
+- Implemented `shared/modules.registry.yaml` loading and strict Pydantic validation.
+- Implemented namespace computation as `module/framework/compiler-version/code-commit/kg-version`.
+- Added startup validation for registered module/framework/compiler type/compiler version/kg_version and existing trial compiler-version compatibility.
+- Added bottom-up experience scope ordering for later retrieval.
+- Targeted UT passed: `uv --native-tls run --extra dev pytest tests/test_registry.py -v` -> 33 passed.
+- Full UT passed: `uv --native-tls run --extra dev pytest -v` -> 84 passed.
+- Self review completed and recorded in `dev_memory/phases/phase_01_config_init/REVIEW_NOTES.md`.
+
+Next action: generate patch files, commit Subtask 1.2, and push to `origin/main`.
+
 ## 2026-05-06T13:52:19Z - Phase 01 / Subtask 1.1 external review fix started
 
 - External review verdict: Request changes.

@@ -108,3 +108,42 @@ Test summary:
 - full_duration: 0.28s
 - full_result: 51 passed, 0 failed
 - reported_by: user on intended Ubuntu server environment
+
+## Subtask 1.2 - modules.registry validation and namespace computation
+
+- timestamp_utc: 2026-05-07T08:21:27Z
+- related_requirements:
+  - REQUIREMENTS.md section 4.1.3
+  - REQUIREMENTS.md section 4.1.4
+  - REQUIREMENTS.md section 4.2.3
+- targeted_command: `uv --native-tls run --extra dev pytest tests/test_registry.py -v`
+- targeted_duration: 0.39s
+- targeted_result: 33 passed, 0 failed
+- full_command: `uv --native-tls run --extra dev pytest -v`
+- full_duration: 1.53s
+- full_result: 84 passed, 0 failed
+
+Test cases:
+- PASS `tests/test_registry.py::test_loads_registry_and_validates_project_namespace`
+- PASS `tests/test_registry.py::test_namespace_experience_scopes_are_bottom_up`
+- PASS `tests/test_registry.py::test_registry_path_for_workspace_points_to_shared_registry`
+- PASS `tests/test_registry.py::test_compute_project_namespace_accepts_project_config`
+- PASS `tests/test_registry.py::test_rejects_unsafe_namespace_segments`
+- PASS `tests/test_registry.py::test_rejects_unregistered_project_values`
+- PASS `tests/test_registry.py::test_rejects_existing_trial_compiler_version_mismatch`
+- PASS `tests/test_registry.py::test_accepts_matching_existing_trial_compiler_versions`
+- PASS `tests/test_registry.py::test_rejects_empty_or_non_mapping_registry`
+- PASS `tests/test_registry.py::test_rejects_missing_registry_file`
+- PASS `tests/test_registry.py::test_rejects_oversized_registry_file`
+- PASS `tests/test_registry.py::test_rejects_registry_python_tags`
+- PASS `tests/test_registry.py::test_rejects_registry_yaml_aliases`
+- PASS `tests/test_registry.py::test_rejects_unknown_registry_fields`
+- PASS `tests/test_registry.py::test_rejects_duplicate_registry_values`
+- PASS `tests/test_registry.py::test_rejects_unsafe_registry_namespace_values`
+
+Coverage notes:
+- Namespace format `module/framework/compiler-version/code-commit/kg-version`.
+- Experience bottom-up scope ordering for future retrieval.
+- Startup failure conditions for missing module/framework/compiler.type/compiler.version/kg_version.
+- Existing trial compiler version compatibility input for later FS-memory integration.
+- Registry YAML safety: missing/empty/non-mapping files, oversized files, unsafe Python tags, YAML aliases, unknown fields, duplicates, and separator-based path injection.

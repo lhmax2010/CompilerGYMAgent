@@ -70,6 +70,36 @@ Post-fix review checklist:
 - [x] Imported experience text is quote-wrapped in prompts where applicable.
 - [x] Hash calculation excludes fields listed in `hash_fields_excluded`.
 
+## Subtask 1.2 Self Review - modules.registry and namespace
+
+- reviewed_at: 2026-05-07T08:21:27Z
+- related_requirements:
+  - REQUIREMENTS.md section 4.1.3
+  - REQUIREMENTS.md section 4.1.4
+  - REQUIREMENTS.md section 4.2.3
+- files_reviewed:
+  - `src/agent/registry.py`
+  - `src/agent/__init__.py`
+  - `tests/test_registry.py`
+
+Findings:
+- The locked requirements name `shared/modules.registry.yaml` but do not define its complete schema. Recorded an implementation decision to use top-level `kg_versions` plus `modules -> frameworks -> compilers -> versions`.
+- Initial UT for "unregistered module/framework" accidentally emptied required registry maps and hit schema validation before startup validation. Fixed the tests to replace entries with other valid names so they exercise `RegistryValidationError`.
+- Added `experience_scopes_bottom_up` after review to cover the inheritance map from section 4.1.3, not just the full namespace string.
+
+Review checklist:
+- [x] Implementation strictly matches the referenced requirements or records implementation choices in `DECISIONS.md`.
+- [x] Startup failure paths cover module/framework not in registry, compiler.version mismatch, kg_version missing, and existing trial compiler incompatibility.
+- [x] Trace writes are not required in this read-only validation subtask.
+- [x] Atomic YAML writes are not required because this subtask only reads registry YAML.
+- [x] No hidden canonical data is stored in SQLite/cache; registry and namespace are user-readable YAML/path values.
+- [x] No assumption about spec restore or workspace verification.
+- [x] `dev_memory` progress is updated.
+- [x] No POSIX process/locking behavior is introduced in this subtask; namespace computation avoids Windows-specific path semantics by exposing POSIX namespace strings and joining filesystem paths segment-by-segment.
+- [x] No hardcoded project paths; the registry location is derived from configured workspace as `<workspace>/shared/modules.registry.yaml`.
+- [x] Imported experience prompt quoting is not applicable.
+- [x] Hash calculation is not applicable.
+
 ## Final External Review - Claude approve
 
 - reviewed_at: 2026-05-07T06:54:29Z

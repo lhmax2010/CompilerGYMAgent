@@ -116,3 +116,36 @@ Decision records must include:
 - decision
 - rationale
 - alternatives considered
+
+## 2026-05-07T08:21:27Z - Define minimal modules.registry.yaml schema
+
+- affected_requirement:
+  - REQUIREMENTS.md section 4.1.4
+  - REQUIREMENTS.md section 4.2.3
+- decision: Represent `shared/modules.registry.yaml` as a strict, user-editable YAML schema with top-level `kg_versions` and a `modules -> frameworks -> compilers -> versions` tree.
+- rationale: Section 4.1.4 requires startup to fail when module/framework, compiler version, or kg_version are not registered, but does not define the exact registry file fields. A compact explicit tree keeps the SoT human-readable and gives init/startup code a deterministic validation surface.
+- alternatives_considered:
+  - Infer validity only from existing workspace directories, which would hide the registry contract in filesystem side effects.
+  - Put `kg_versions` under each framework, which would duplicate global KG release identifiers and complicate later KG validation.
+
+## 2026-05-07T08:21:27Z - Keep namespace path segments literal but separator-safe
+
+- affected_requirement:
+  - REQUIREMENTS.md section 4.1.3
+  - REQUIREMENTS.md section 1.3
+- decision: Preserve user-provided namespace atoms literally after config validation, but reject empty values, `.`/`..`, NUL bytes, and `/` or `\` separators before constructing namespace paths.
+- rationale: The namespace must remain user-readable (`module/framework/compiler-version/code-commit/kg-version`) while preventing traversal or accidental multi-segment injection. This avoids inventing opaque hashes or lossy slugification.
+- alternatives_considered:
+  - Slugify every value, which could make the on-disk namespace differ from the user's config and hide mistakes.
+  - Accept arbitrary strings because v1 targets Linux, which would allow traversal-shaped values.
+
+## 2026-05-07T08:21:27Z - Make existing-trial compiler compatibility an explicit validator input
+
+- affected_requirement:
+  - REQUIREMENTS.md section 4.1.4
+  - REQUIREMENTS.md section 4.2.3
+- decision: `validate_project_against_registry` accepts optional `existing_trial_compiler_versions` and rejects any version that differs from the configured compiler version.
+- rationale: Subtask 1.2 does not yet own FS-memory trial discovery, but the startup failure condition belongs in this validation layer. Making existing trial versions an explicit input lets later FS-memory code connect canonical trial metadata without changing the registry API.
+- alternatives_considered:
+  - Ignore existing trial compatibility until Phase 02, which would leave a documented startup failure path unrepresented.
+  - Read trial YAML files directly from the registry module, which would couple Subtask 1.2 to FS-memory layout before that subsystem exists.
