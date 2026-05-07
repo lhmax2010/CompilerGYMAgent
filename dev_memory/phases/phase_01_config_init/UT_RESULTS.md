@@ -263,3 +263,26 @@ Coverage notes:
 - Closes external review M-1 by cross-checking `.initialized` namespace, namespace parts, and project identity.
 - Closes external review M-2 by requiring UTC timezone-aware ISO 8601 `created_at`.
 - Adds polish for EOF prompt abort and non-UTF-8 `.initialized` read wrapping.
+
+## Subtask 1.3 review-fix - Ubuntu target-environment validation
+
+- timestamp_utc: 2026-05-07T14:14:41Z
+- environment:
+  - os: Ubuntu/Linux
+  - python: 3.11.15
+  - virtualenv: `.venv`
+  - runner: plain `pytest` via `venv + pip`, no `uv` required
+- related_requirements:
+  - REQUIREMENTS.md section 1.2
+  - REQUIREMENTS.md section 4.1.1
+  - REQUIREMENTS.md section 4.2.3
+- targeted_command: `pytest ./tests/test_init.py -v`
+- targeted_duration: 0.14s
+- targeted_result: 35 passed, 0 failed
+- full_command: `pytest -v`
+- full_duration: 0.37s
+- full_result: 132 passed, 0 failed
+- manual_probe:
+  - namespace_parts_mismatch: `InitializedLoadError: namespace must equal '/'.join(namespace_parts)`
+  - invalid_created_at: `InitializedLoadError: created_at must be ISO 8601`
+- reported_by: user on intended Ubuntu server environment

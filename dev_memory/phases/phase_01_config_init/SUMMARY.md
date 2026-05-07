@@ -21,6 +21,7 @@ Completed:
 - Subtask 1.2 was validated by the user on the intended Ubuntu/Linux environment with Python 3.11.15: targeted registry pytest passed 46/46, full pytest passed 97/97, and the manual control-character probe was rejected as expected.
 - Subtask 1.3 implemented init confirmation context, history summary rendering, `y/n/edit` handling, `.initialized` YAML guard writes, startup namespace guard checks, tests, self review, and patch files.
 - Subtask 1.3 external review fixes added `.initialized` identity cross-checks, UTC ISO timestamp validation, non-UTF-8 read wrapping, EOF abort handling, and raised full UT to 132/132.
+- Subtask 1.3 review fixes were validated by the user on the intended Ubuntu/Linux environment with Python 3.11.15: targeted init pytest passed 35/35, full pytest passed 132/132, and manual `.initialized` mismatch / invalid timestamp probes were rejected as expected.
 
 Remaining:
 - Subtask 1.4 local WorkspaceLock implementation.

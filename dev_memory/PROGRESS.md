@@ -203,3 +203,14 @@ Next action: Phase 01 / Subtask 1.2, module registry validation and namespace co
 - This confirms Subtask 1.1 tests pass on the intended Linux/Ubuntu execution environment without requiring `uv`.
 
 Next action: Phase 01 / Subtask 1.2, module registry validation and namespace computation.
+
+## 2026-05-07T14:14:41Z - Phase 01 / Subtask 1.3 review-fix Ubuntu target-environment validation
+
+- User validated on Ubuntu server with Python 3.11.15 in a local `.venv`.
+- Targeted UT passed: `pytest ./tests/test_init.py -v` -> 35 passed in 0.14s.
+- Full UT passed: `pytest -v` -> 132 passed in 0.37s.
+- Manual probe confirmed `.initialized` namespace_parts mismatch is rejected with `InitializedLoadError: namespace must equal '/'.join(namespace_parts)`.
+- Manual probe confirmed invalid `.initialized.created_at` is rejected with `InitializedLoadError: created_at must be ISO 8601`.
+- This confirms Subtask 1.3 review fixes pass on the intended Linux/Ubuntu execution environment without requiring `uv`.
+
+Next action: prepare Phase 01 / Subtask 1.4 WorkspaceLock.
