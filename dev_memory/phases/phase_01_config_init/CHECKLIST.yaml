@@ -92,7 +92,9 @@ subtasks:
     patch_generated: true
     patch_file: dev_memory/phases/phase_01_config_init/patches/08_workspace_lock.patch
     commit_required: true
-    commit_pending: true
+    commit_pending: false
+    commit_hash: 9b92829
+    commit_message: "phase_01_config_init: 1.4 implement workspace lock (REQUIREMENTS section 4.15)"
     files_created:
       - src/agent/workspace_lock.py
       - tests/test_workspace_lock.py

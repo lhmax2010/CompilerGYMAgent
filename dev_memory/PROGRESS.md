@@ -234,3 +234,10 @@ Next action: implement `fcntl.flock` exclusive lock acquisition, holder metadata
 - Self review completed and recorded in `dev_memory/phases/phase_01_config_init/REVIEW_NOTES.md`.
 
 Next action: generate patch files, commit Subtask 1.4, push to `origin/main`, and send for external review.
+
+## 2026-05-07T14:31:00Z - Phase 01 / Subtask 1.4 implementation committed
+
+- Commit: `9b92829 phase_01_config_init: 1.4 implement workspace lock (REQUIREMENTS section 4.15)`.
+- Patch files: `dev_memory/phases/phase_01_config_init/patches/08_workspace_lock.{patch,summary.txt,review.md}`.
+
+Next action: push Subtask 1.4 commits to `origin/main`, then send WorkspaceLock patch for external review.
