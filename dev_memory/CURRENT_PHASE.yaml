@@ -1,7 +1,7 @@
 phase_id: phase_01_config_init
 phase_title: "Config + init + namespace + workspace lock"
 started_at: 2026-05-06T08:42:41Z
-last_updated: 2026-05-07T04:00:21Z
+last_updated: 2026-05-07T06:44:55Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 4.1
@@ -73,4 +73,4 @@ notes: |
   workspace was not a Git repository. A local Git repository was initialized
   during kickoff so Subtask 1.1 can start from a clean baseline after the
   kickoff commit.
-next_action: "Push minor review fixes to origin/main, then start Subtask 1.2."
+next_action: "Start Subtask 1.2: modules.registry validation and namespace computation."
