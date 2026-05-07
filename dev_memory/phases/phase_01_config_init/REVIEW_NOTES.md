@@ -72,3 +72,39 @@ Post-fix review checklist:
 
 Notes:
 - Trace writes, atomic YAML writes, imported prompt quote behavior, and hash calculation remain not directly applicable to the config-only parser, but their config flags are represented where Appendix B defines them.
+
+## Second External Review Fix - Claude review
+
+- started_at: 2026-05-07T03:54:17Z
+- completed_at: 2026-05-07T03:56:38Z
+- status: fixed
+- verdict_received: Approve with minor changes
+- accepted_for_immediate_fix:
+  - Relax `ExplorationScheduleConfig` so quota total may be less than `window_size` but never greater.
+  - Add `process_cleanup.require_env_marker` from REQUIREMENTS.md section 4.11.4 and model strict vs degraded cleanup checks.
+  - Reject blank expanded path strings.
+  - Preserve field-level empty combo validation during assignment.
+  - Add UT guards for relative path preservation and selected duplicate validators.
+  - Remove accidental tracked `doc/files (4).zip` and ignore future zip artifacts.
+
+Fixes applied:
+- `ExplorationScheduleConfig` now rejects quota totals greater than `window_size`, while allowing totals less than `window_size` for priority fallback slots.
+- `mutation_per_window` and `novelty_per_window` now require positive values.
+- `ProcessCleanupConfig` now supports `require_env_marker`; strict mode requires all three checks, degraded mode requires only `create_time` and `cmdline_hash`.
+- Blank path strings now fail during path expansion.
+- Empty baseline assignment now surfaces field-level list length validation instead of a misleading conflict error.
+- Relative path preservation is covered by UT as a Subtask 1.1 contract.
+- `doc/files (4).zip` was removed from Git tracking and `*.zip` added to `.gitignore`.
+
+Post-fix review checklist:
+- [x] Implementation matches referenced requirements.
+- [x] Documented failure modes are covered.
+- [x] Trace writes are present where required by SoT dual-track rules.
+- [x] Atomic YAML writes are used where required.
+- [x] No hidden canonical data is stored only in SQLite/cache.
+- [x] No unsafe assumption about spec restore or workspace verification.
+- [x] `dev_memory` progress is updated.
+- [x] Linux/Ubuntu-only behavior is explicit where POSIX features are used.
+- [x] No hardcoded paths that should come from config.
+- [x] Imported experience text is quote-wrapped in prompts where applicable.
+- [x] Hash calculation excludes fields listed in `hash_fields_excluded`.

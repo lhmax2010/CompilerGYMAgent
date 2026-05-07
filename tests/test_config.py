@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+from pydantic import ValidationError
 
 from agent.config import AgentConfig, ConfigLoadError, MAX_CONFIG_BYTES, load_config
 
@@ -204,6 +205,7 @@ def full_config() -> dict:
             "process_cleanup": {
                 "start_new_session": True,
                 "multi_check_required": ["create_time", "cmdline_hash", "session_marker"],
+                "require_env_marker": True,
                 "unsafe_action": "skip_and_log",
             },
             "workspace_lock": {
@@ -247,6 +249,7 @@ def test_full_config_schema_accepts_documented_fields(tmp_path: Path) -> None:
     assert config.integrity.fail_action == "paused_request_user_accept"
     assert config.report.always_redact == ["api_keys"]
     assert config.process_cleanup.unsafe_action == "skip_and_log"
+    assert config.process_cleanup.require_env_marker is True
     assert config.workspace_lock.lock_file == Path("state/run.lock")
     assert config.dev_mode is False
 
@@ -306,11 +309,34 @@ def test_rejects_invalid_enums(tmp_path: Path, path: tuple[str, str], value: str
         load_config(write_config(tmp_path, data))
 
 
-def test_rejects_exploration_schedule_quota_mismatch(tmp_path: Path) -> None:
+def test_accepts_exploration_schedule_with_priority_fallback_slots(tmp_path: Path) -> None:
+    data = full_config()
+    data["agent"]["exploration_schedule"] = {
+        "window_size": 5,
+        "exploit_per_window": 2,
+        "mutation_per_window": 1,
+        "novelty_per_window": 1,
+    }
+
+    config = load_config(write_config(tmp_path, data))
+
+    assert config.agent.exploration_schedule.window_size == 5
+
+
+def test_rejects_exploration_schedule_quota_overflow(tmp_path: Path) -> None:
     data = full_config()
     data["agent"]["exploration_schedule"]["novelty_per_window"] = 2
 
-    with pytest.raises(ConfigLoadError, match="quotas must sum"):
+    with pytest.raises(ConfigLoadError, match="quotas must not exceed"):
+        load_config(write_config(tmp_path, data))
+
+
+@pytest.mark.parametrize("field", ["mutation_per_window", "novelty_per_window"])
+def test_rejects_zero_mutation_or_novelty_quota(tmp_path: Path, field: str) -> None:
+    data = full_config()
+    data["agent"]["exploration_schedule"][field] = 0
+
+    with pytest.raises(ConfigLoadError):
         load_config(write_config(tmp_path, data))
 
 
@@ -426,6 +452,13 @@ def test_rejects_empty_baseline_combo(tmp_path: Path) -> None:
         load_config(write_config(tmp_path, data))
 
 
+def test_assignment_to_empty_baseline_combo_reports_field_validation(tmp_path: Path) -> None:
+    config = load_config(write_config(tmp_path, full_config()))
+
+    with pytest.raises(ValidationError, match="at least 1 item"):
+        config.baseline.combo = []
+
+
 def test_rejects_blank_option_value(tmp_path: Path) -> None:
     data = full_config()
     data["baseline"]["combo"] = ["   "]
@@ -512,8 +545,36 @@ def test_rejects_incomplete_process_cleanup_safety_checks(tmp_path: Path) -> Non
     data = full_config()
     data["process_cleanup"]["multi_check_required"] = ["create_time", "cmdline_hash"]
 
-    with pytest.raises(ConfigLoadError, match="must include"):
+    with pytest.raises(ConfigLoadError, match="must exactly match"):
         load_config(write_config(tmp_path, data))
+
+
+def test_process_cleanup_allows_env_marker_degraded_mode(tmp_path: Path) -> None:
+    data = full_config()
+    data["process_cleanup"] = {
+        "start_new_session": True,
+        "require_env_marker": False,
+        "multi_check_required": ["create_time", "cmdline_hash"],
+        "unsafe_action": "skip_and_log",
+    }
+
+    config = load_config(write_config(tmp_path, data))
+
+    assert config.process_cleanup.require_env_marker is False
+    assert config.process_cleanup.multi_check_required == ["create_time", "cmdline_hash"]
+
+
+def test_process_cleanup_degraded_mode_normalizes_default_checks(tmp_path: Path) -> None:
+    data = full_config()
+    data["process_cleanup"] = {
+        "start_new_session": True,
+        "require_env_marker": False,
+        "unsafe_action": "skip_and_log",
+    }
+
+    config = load_config(write_config(tmp_path, data))
+
+    assert config.process_cleanup.multi_check_required == ["create_time", "cmdline_hash"]
 
 
 def test_rejects_disabled_workspace_lock_safety_flags(tmp_path: Path) -> None:
@@ -536,6 +597,30 @@ def test_path_defaults_expand_at_model_construction_time(
     assert config.memory.workspace == home / ".agent_workspace"
     assert config.spec.backup_dir == home / ".agent_workspace" / "spec_backups"
     assert config.workspace_protection.build_dir_root == home / ".agent_workspace" / "build_dirs"
+    assert config.workspace_protection.artifact_staging_dir == (
+        home / ".agent_workspace" / "artifacts" / "staging"
+    )
+    assert config.workspace_protection.artifact_final_dir == (
+        home / ".agent_workspace" / "artifacts" / "final"
+    )
+
+
+def test_rejects_blank_path_values(tmp_path: Path) -> None:
+    data = full_config()
+    data["memory"]["workspace"] = "   "
+
+    with pytest.raises(ConfigLoadError, match="path cannot be empty"):
+        load_config(write_config(tmp_path, data))
+
+
+def test_relative_paths_are_preserved_for_namespace_resolution(tmp_path: Path) -> None:
+    data = minimal_config()
+    data["spec"]["source_path"] = "relative/project.spec"
+
+    config = load_config(write_config(tmp_path, data))
+
+    assert config.spec.source_path == Path("relative/project.spec")
+    assert not config.spec.source_path.is_absolute()
 
 
 def test_workspace_protection_can_be_disabled_without_source_tree(tmp_path: Path) -> None:
@@ -570,4 +655,56 @@ def test_rejects_inconsistent_benchmark_run_counts(
     data["benchmark"][field] = value
 
     with pytest.raises(ConfigLoadError, match=message):
+        load_config(write_config(tmp_path, data))
+
+
+def test_accepts_paired_bootstrap_mode(tmp_path: Path) -> None:
+    data = full_config()
+    data["benchmark"]["bootstrap_mode"] = "paired"
+
+    config = load_config(write_config(tmp_path, data))
+
+    assert config.benchmark.bootstrap_mode == "paired"
+
+
+def test_rejects_empty_clean_confirmation_list(tmp_path: Path) -> None:
+    data = full_config()
+    data["clean"]["require_confirmation_for"] = []
+
+    with pytest.raises(ConfigLoadError):
+        load_config(write_config(tmp_path, data))
+
+
+def test_rejects_duplicate_clean_confirmations(tmp_path: Path) -> None:
+    data = full_config()
+    data["clean"]["require_confirmation_for"] = ["namespace", "namespace"]
+
+    with pytest.raises(ConfigLoadError, match="must not contain duplicates"):
+        load_config(write_config(tmp_path, data))
+
+
+def test_rejects_duplicate_report_redaction_entries(tmp_path: Path) -> None:
+    data = full_config()
+    data["report"]["always_redact"] = ["api_keys", "api_keys"]
+
+    with pytest.raises(ConfigLoadError, match="must not contain duplicates"):
+        load_config(write_config(tmp_path, data))
+
+
+def test_rejects_duplicate_candidate_generator_priority(tmp_path: Path) -> None:
+    data = full_config()
+    data["candidate_engine"]["generator_priority"] = ["llm_proposer", "llm_proposer"]
+
+    with pytest.raises(ConfigLoadError, match="must not contain duplicates"):
+        load_config(write_config(tmp_path, data))
+
+
+def test_rejects_duplicate_canary_priority_order(tmp_path: Path) -> None:
+    data = full_config()
+    data["experience"]["canary_queue"]["priority_order"] = [
+        "older_first",
+        "older_first",
+    ]
+
+    with pytest.raises(ConfigLoadError, match="must not contain duplicates"):
         load_config(write_config(tmp_path, data))

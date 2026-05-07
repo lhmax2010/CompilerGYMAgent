@@ -27,6 +27,8 @@ MAX_CONFIG_BYTES = 1_048_576
 
 def _expand_path(value: Any) -> Any:
     if isinstance(value, str):
+        if not value.strip():
+            raise ValueError("path cannot be empty")
         return Path(value).expanduser()
     return value
 
@@ -146,16 +148,16 @@ class LLMConfig(StrictConfigModel):
 class ExplorationScheduleConfig(StrictConfigModel):
     window_size: int = Field(default=5, gt=0)
     exploit_per_window: int = Field(default=3, ge=0)
-    mutation_per_window: int = Field(default=1, ge=0)
-    novelty_per_window: int = Field(default=1, ge=0)
+    mutation_per_window: int = Field(default=1, gt=0)
+    novelty_per_window: int = Field(default=1, gt=0)
 
     @model_validator(mode="after")
-    def quota_must_match_window(self) -> ExplorationScheduleConfig:
+    def quota_must_fit_window(self) -> ExplorationScheduleConfig:
         total = self.exploit_per_window + self.mutation_per_window + self.novelty_per_window
-        if total != self.window_size:
+        if total > self.window_size:
             raise ValueError(
-                "exploration_schedule quotas must sum to window_size "
-                f"(got {total}, expected {self.window_size})"
+                "exploration_schedule quotas must not exceed window_size "
+                f"(got {total}, max {self.window_size})"
             )
         return self
 
@@ -274,6 +276,10 @@ class BaselineConfig(StrictConfigModel):
         normalized = dict(data)
         combo_set = "combo" in normalized
         default_combo_set = "default_combo" in normalized
+        combo_is_empty = combo_set and normalized["combo"] == []
+        default_combo_is_empty = default_combo_set and normalized["default_combo"] == []
+        if combo_is_empty or default_combo_is_empty:
+            return normalized
         if combo_set and default_combo_set and normalized["combo"] != normalized["default_combo"]:
             raise ValueError("baseline.combo conflicts with baseline.default_combo")
         if combo_set and not default_combo_set:
@@ -485,18 +491,35 @@ class ProcessCleanupConfig(StrictConfigModel):
         default_factory=_process_multi_checks,
         min_length=1,
     )
+    require_env_marker: bool = True
     unsafe_action: Literal["skip_and_log", "abort"] = "skip_and_log"
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_env_marker_checks(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+
+        normalized = dict(data)
+        if normalized.get("require_env_marker") is False and "multi_check_required" not in normalized:
+            normalized["multi_check_required"] = ["create_time", "cmdline_hash"]
+        return normalized
 
     @model_validator(mode="after")
     def checks_must_be_complete_and_unique(self) -> ProcessCleanupConfig:
-        required = set(_process_multi_checks())
+        required = (
+            set(_process_multi_checks())
+            if self.require_env_marker
+            else {"create_time", "cmdline_hash"}
+        )
         actual = set(self.multi_check_required)
         if len(self.multi_check_required) != len(actual):
             raise ValueError("process_cleanup.multi_check_required must not contain duplicates")
         if actual != required:
+            expected = ", ".join(sorted(required))
             raise ValueError(
-                "process_cleanup.multi_check_required must include create_time, "
-                "cmdline_hash, and session_marker"
+                "process_cleanup.multi_check_required must exactly match "
+                f"required checks for require_env_marker={self.require_env_marker}: {expected}"
             )
         return self
 

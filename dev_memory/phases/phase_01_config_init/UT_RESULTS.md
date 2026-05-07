@@ -55,3 +55,36 @@ Notes:
 Test summary:
 - 37 passed, 0 failed.
 - Added tests for baseline shape conflicts, convergence synchronization, langfuse synchronization and conflicts, strict `import` alias handling, runtime path default expansion, template path resolvers, missing/empty/oversized YAML, YAML alias rejection, workspace protection disabled mode, and benchmark run-count cross-field validation.
+
+## Subtask 1.1 - second external review minor fixes
+
+- timestamp_utc: 2026-05-07T03:56:38Z
+- related_requirements:
+  - REQUIREMENTS.md section 4.6.3
+  - REQUIREMENTS.md section 4.11.4
+  - REQUIREMENTS.md section 4.1.2
+  - REQUIREMENTS.md Appendix B
+- targeted_command: `uv --native-tls run --extra dev pytest tests/test_config.py -v`
+- targeted_duration: 2.03s
+- full_command: `uv --native-tls run --extra dev pytest -v`
+- full_duration: 1.25s
+- result: passed
+
+Test summary:
+- 51 passed, 0 failed.
+- New/changed PASS cases:
+  - `test_accepts_exploration_schedule_with_priority_fallback_slots`
+  - `test_rejects_exploration_schedule_quota_overflow`
+  - `test_rejects_zero_mutation_or_novelty_quota[mutation_per_window]`
+  - `test_rejects_zero_mutation_or_novelty_quota[novelty_per_window]`
+  - `test_assignment_to_empty_baseline_combo_reports_field_validation`
+  - `test_process_cleanup_allows_env_marker_degraded_mode`
+  - `test_process_cleanup_degraded_mode_normalizes_default_checks`
+  - `test_rejects_blank_path_values`
+  - `test_relative_paths_are_preserved_for_namespace_resolution`
+  - `test_accepts_paired_bootstrap_mode`
+  - `test_rejects_empty_clean_confirmation_list`
+  - `test_rejects_duplicate_clean_confirmations`
+  - `test_rejects_duplicate_report_redaction_entries`
+  - `test_rejects_duplicate_candidate_generator_priority`
+  - `test_rejects_duplicate_canary_priority_order`

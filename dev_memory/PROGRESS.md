@@ -24,6 +24,23 @@ Next action: commit the kickoff baseline, then implement Phase 01 / Subtask 1.1.
 
 Next action: Phase 01 / Subtask 1.2, module registry validation and namespace computation.
 
+## 2026-05-07T03:54:17Z - Phase 01 / Subtask 1.1 second external review fix started
+
+- External review verdict: Approve with minor changes.
+- Accepted for immediate fix before Subtask 1.2: exploration schedule quota semantics, `process_cleanup.require_env_marker`, empty path rejection, clearer baseline assignment validation, relative path contract tests, and removal of accidental `doc/files (4).zip`.
+- Subtask 1.2 remains pending until these minor fixes pass UT and are committed.
+
+## 2026-05-07T03:56:38Z - Phase 01 / Subtask 1.1 second external review fixes completed
+
+- Fixed accepted minor review findings in config schema and tests.
+- Removed accidental tracked `doc/files (4).zip` and added `*.zip` to `.gitignore`.
+- Targeted UT passed: `uv --native-tls run --extra dev pytest tests/test_config.py -v` -> 51 passed.
+- Full UT passed: `uv --native-tls run --extra dev pytest -v` -> 51 passed.
+- Self review completed and recorded in `dev_memory/phases/phase_01_config_init/REVIEW_NOTES.md`.
+- Patch files generated under `dev_memory/phases/phase_01_config_init/patches/03_config_schema_minor_review_fixes.*`.
+
+Next action: commit minor review fixes, push to `origin/main`, then start Phase 01 / Subtask 1.2.
+
 ## 2026-05-06T13:52:19Z - Phase 01 / Subtask 1.1 external review fix started
 
 - External review verdict: Request changes.

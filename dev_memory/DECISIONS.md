@@ -79,6 +79,37 @@
 - alternatives_considered:
   - Plain `yaml.safe_load`, which blocks Python object construction but not oversized files or aliases.
 
+## 2026-05-07T03:56:38Z - Model exploration schedule quotas as lower-bound slots
+
+- affected_requirement:
+  - REQUIREMENTS.md section 4.6.3
+  - REQUIREMENTS.md Appendix B agent.exploration_schedule
+- decision: Validate that `exploit_per_window + mutation_per_window + novelty_per_window <= window_size`, not exactly equal to `window_size`. Keep `mutation_per_window` and `novelty_per_window` strictly positive.
+- rationale: Section 4.6.3 defines the fields as "at least N" quota slots. If quota sum is less than the window size, leftover slots are selected by generator priority. If quota sum exceeds the window size, the schedule is unsatisfiable. `mutation` and `novelty` stay positive to preserve the v0.5 design goal that local mutation and novelty are not starved.
+- alternatives_considered:
+  - Require exact equality, which rejects valid schedules with priority fallback slots.
+  - Allow zero mutation or novelty quota, which can regress to the v0.4 priority-only behavior.
+
+## 2026-05-07T03:56:38Z - Include process_cleanup.require_env_marker from recovery prose
+
+- affected_requirement:
+  - REQUIREMENTS.md section 4.11.4
+  - REQUIREMENTS.md Appendix B process_cleanup
+- decision: Add `process_cleanup.require_env_marker: true` to the schema even though Appendix B omits it.
+- rationale: Section 4.11.4 explicitly defines this field for Linux `hidepid`/container/low-permission environments. Appendix B is incomplete here, so the schema follows the more specific recovery requirement while retaining strict defaults.
+- alternatives_considered:
+  - Treat the omission as a blocker. This is unnecessary because the prose defines a concrete field, default, and degraded behavior.
+  - Ignore the field until the process cleaner subtask, which would make current config validation reject a documented recovery setting.
+
+## 2026-05-07T03:56:38Z - Remove accidental ZIP artifact from doc baseline
+
+- affected_requirement:
+  - CODEX_KICKOFF_PROMPT.md baseline docs
+- decision: Remove tracked `doc/files (4).zip` and ignore future `*.zip` artifacts.
+- rationale: The kickoff prompt only calls for the locked markdown requirements in `doc/`. The ZIP name indicates a local download artifact and it is not part of the readable project baseline.
+- alternatives_considered:
+  - Keep the ZIP because it was in the kickoff commit, which would continue carrying an opaque binary artifact in a local-first readable repo.
+
 Decision records must include:
 - timestamp
 - affected requirement section

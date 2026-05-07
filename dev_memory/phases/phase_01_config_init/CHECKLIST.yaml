@@ -21,6 +21,12 @@ subtasks:
     review_fix_ut_passed: true
     review_fix_self_reviewed: true
     review_fix_patch_generated: true
+    minor_review_fix_status: done
+    minor_review_fix_patch_file: dev_memory/phases/phase_01_config_init/patches/03_config_schema_minor_review_fixes.patch
+    minor_review_fix_ut_passed: true
+    minor_review_fix_self_reviewed: true
+    minor_review_fix_patch_generated: true
+    minor_review_fix_commit_pending: true
   - id: "1.2"
     title: "Implement modules.registry validation and namespace computation"
     status: todo

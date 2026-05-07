@@ -1,7 +1,7 @@
 phase_id: phase_01_config_init
 phase_title: "Config + init + namespace + workspace lock"
 started_at: 2026-05-06T08:42:41Z
-last_updated: 2026-05-06T14:02:00Z
+last_updated: 2026-05-07T03:58:12Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 4.1
@@ -28,6 +28,11 @@ subtasks:
     review_fix_ut_passed: true
     review_fix_self_reviewed: true
     review_fix_commit_hash: 7228570
+    minor_review_fix_patch_file: dev_memory/phases/phase_01_config_init/patches/03_config_schema_minor_review_fixes.patch
+    minor_review_fix_status: done
+    minor_review_fix_ut_passed: true
+    minor_review_fix_self_reviewed: true
+    minor_review_fix_patch_generated: true
   - id: "1.2"
     title: "Implement modules.registry validation and namespace computation"
     status: todo
@@ -67,4 +72,4 @@ notes: |
   workspace was not a Git repository. A local Git repository was initialized
   during kickoff so Subtask 1.1 can start from a clean baseline after the
   kickoff commit.
-next_action: "Start Subtask 1.2: modules.registry validation and namespace computation."
+next_action: "Commit Subtask 1.1 minor review fixes, push to origin/main, then start Subtask 1.2."
