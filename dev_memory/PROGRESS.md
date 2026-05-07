@@ -214,3 +214,23 @@ Next action: Phase 01 / Subtask 1.2, module registry validation and namespace co
 - This confirms Subtask 1.3 review fixes pass on the intended Linux/Ubuntu execution environment without requiring `uv`.
 
 Next action: prepare Phase 01 / Subtask 1.4 WorkspaceLock.
+
+## 2026-05-07T14:18:14Z - Phase 01 / Subtask 1.4 started
+
+- Started local WorkspaceLock implementation.
+- Requirements in scope: REQUIREMENTS.md section 4.15 and Appendix B `workspace_lock`.
+- Planned files: `src/agent/workspace_lock.py`, `tests/test_workspace_lock.py`, and public exports in `src/agent/__init__.py`.
+- Baseline before implementation: clean `main` synced with `origin/main`.
+
+Next action: implement `fcntl.flock` exclusive lock acquisition, holder metadata YAML, stale lock detection, release cleanup, and focused UT.
+
+## 2026-05-07T14:26:18Z - Phase 01 / Subtask 1.4 completed
+
+- Implemented local `WorkspaceLock` with POSIX `fcntl.flock` backend, holder metadata YAML, busy holder reporting, release cleanup, and stale residual detection using `pid + create_time`.
+- Added `psutil>=5.9,<8` because Subtask 1.4 is the first production use of process create-time checks.
+- Added 18 pytest cases covering lock path resolution, metadata writes, busy refusal, unreadable holder fail-conservative behavior, stale residual replacement, PID reuse, access-denied lookup, YAML alias/size/timestamp hardening, and platform guard behavior.
+- Targeted UT passed: `uv --native-tls run --extra dev pytest tests/test_workspace_lock.py -v` -> 18 passed.
+- Full UT passed: `uv --native-tls run --extra dev pytest -v` -> 150 passed.
+- Self review completed and recorded in `dev_memory/phases/phase_01_config_init/REVIEW_NOTES.md`.
+
+Next action: generate patch files, commit Subtask 1.4, push to `origin/main`, and send for external review.

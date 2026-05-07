@@ -22,6 +22,36 @@ Required checklist for each subtask:
 - [x] Imported experience text is quote-wrapped in prompts where applicable.
 - [x] Hash calculation excludes fields listed in `hash_fields_excluded`.
 
+## Subtask 1.4 Self Review - local WorkspaceLock
+
+- reviewed_at: 2026-05-07T14:26:18Z
+- related_requirements:
+  - REQUIREMENTS.md section 4.15
+  - REQUIREMENTS.md Appendix B workspace_lock
+- files_reviewed:
+  - `src/agent/workspace_lock.py`
+  - `src/agent/__init__.py`
+  - `pyproject.toml`
+  - `tests/test_workspace_lock.py`
+
+Findings:
+- Added `psutil` now that section 4.15 needs production `pid + create_time` checks; recorded the dependency decision in `DECISIONS.md`.
+- The implementation intentionally does not unlink/recreate a lock path while `fcntl` says an OS lock is active. This is stricter than the pseudocode cleanup branch but avoids creating a second unlocked inode; recorded in `DECISIONS.md`.
+- `kill --force` high-risk trace emission is not implemented in this subtask because the control command family is Phase 07. The config flag remains enforced from Subtask 1.1.
+
+Review checklist:
+- [x] Implementation matches section 4.15 core requirements: `fcntl.flock`, holder YAML fields, busy refusal, release cleanup, and stale detection using `pid + create_time`.
+- [x] Failure scenarios are covered: busy holder, unreadable/malicious holder YAML, oversized holder file, invalid timestamps, stale PID, PID reuse, access-denied process lookup, negative timeout, empty command/session, and missing `fcntl`.
+- [x] Trace writes are not required for lock acquire/release; high-risk lock bypass trace belongs to the later `kill --force` control command implementation.
+- [x] Lock metadata writes follow the section 4.15 ftruncate/write/fsync pattern while the lock is held; generic atomic YAML writing is not used for this actively locked file.
+- [x] No hidden canonical data is stored only in SQLite/cache.
+- [x] No assumption about spec restore or workspace verification.
+- [x] `dev_memory` progress is updated.
+- [x] v1 Linux/Ubuntu behavior is explicit; non-Linux hosts fail with `WorkspaceLockPlatformError` unless tests inject a fake backend.
+- [x] Lock path is derived from config workspace and `workspace_lock.lock_file`.
+- [x] Imported experience prompt quoting is not applicable.
+- [x] Hash calculation is not applicable.
+
 Findings:
 - `agent.convergence.no_improve_trials` in REQUIREMENTS.md section 4.1.2 overlaps with `agent.stagnation_threshold_trials` in Appendix B. Fixed by accepting both and rejecting conflicts; decision recorded in `dev_memory/DECISIONS.md`.
 - `baseline.combo` in section 4.1.2 overlaps with `baseline.default_combo` in Appendix B. Fixed by synchronizing the default field when only one form is provided.

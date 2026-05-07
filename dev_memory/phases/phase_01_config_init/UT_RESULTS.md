@@ -109,6 +109,45 @@ Test summary:
 - full_result: 51 passed, 0 failed
 - reported_by: user on intended Ubuntu server environment
 
+## Subtask 1.4 - local WorkspaceLock
+
+- timestamp_utc: 2026-05-07T14:26:18Z
+- related_requirements:
+  - REQUIREMENTS.md section 4.15
+  - REQUIREMENTS.md Appendix B workspace_lock
+- targeted_command: `uv --native-tls run --extra dev pytest tests/test_workspace_lock.py -v`
+- targeted_duration: 0.43s
+- targeted_result: 18 passed, 0 failed
+- full_command: `uv --native-tls run --extra dev pytest -v`
+- full_duration: 2.16s
+- full_result: 150 passed, 0 failed
+
+Test cases:
+- PASS `tests/test_workspace_lock.py::test_lock_path_for_workspace_resolves_relative_lock_file`
+- PASS `tests/test_workspace_lock.py::test_workspace_lock_from_config_uses_configured_lock_file`
+- PASS `tests/test_workspace_lock.py::test_acquire_writes_holder_metadata_and_release_removes_file`
+- PASS `tests/test_workspace_lock.py::test_release_is_idempotent`
+- PASS `tests/test_workspace_lock.py::test_busy_lock_raises_with_holder_info`
+- PASS `tests/test_workspace_lock.py::test_busy_lock_with_unreadable_holder_fails_conservatively`
+- PASS `tests/test_workspace_lock.py::test_busy_lock_with_stale_metadata_does_not_bypass_active_fcntl`
+- PASS `tests/test_workspace_lock.py::test_existing_stale_lock_file_is_overwritten_after_successful_flock`
+- PASS `tests/test_workspace_lock.py::test_pid_reuse_create_time_mismatch_is_stale`
+- PASS `tests/test_workspace_lock.py::test_matching_pid_and_create_time_is_not_stale`
+- PASS `tests/test_workspace_lock.py::test_access_denied_during_stale_check_fails_conservative`
+- PASS `tests/test_workspace_lock.py::test_workspace_lock_rejects_invalid_holder_timestamp`
+- PASS `tests/test_workspace_lock.py::test_workspace_lock_rejects_yaml_aliases`
+- PASS `tests/test_workspace_lock.py::test_workspace_lock_rejects_oversized_holder_file`
+- PASS `tests/test_workspace_lock.py::test_acquire_rejects_empty_command_or_session`
+- PASS `tests/test_workspace_lock.py::test_acquire_rejects_negative_timeout`
+- PASS `tests/test_workspace_lock.py::test_acquire_requires_linux_fcntl_backend`
+- PASS `tests/test_workspace_lock.py::test_enter_requires_acquired_lock`
+
+Coverage notes:
+- Implements exclusive lock metadata writes with `pid`, `pgid`, `create_time`, `session_id`, `command`, `started_at`, `hostname`, and `agent_version`.
+- Covers busy lock refusal with holder info and conservative refusal when holder metadata is unreadable.
+- Covers stale residual holder replacement after successful flock, PID reuse via create_time mismatch, and access-denied conservative behavior.
+- Covers lock holder YAML hardening: aliases rejected, oversized files rejected, invalid timestamp rejected.
+
 ## Subtask 1.2 - modules.registry validation and namespace computation
 
 - timestamp_utc: 2026-05-07T08:21:27Z

@@ -225,3 +225,24 @@ Decision records must include:
 - alternatives_considered:
   - Add an ad hoc lock inside `run_init`, which would conflict with the planned local WorkspaceLock design.
   - Ignore the race entirely, which would leave future CLI integration without a clear handoff.
+
+## 2026-05-07T14:18:14Z - Introduce psutil for WorkspaceLock process identity checks
+
+- affected_requirement:
+  - REQUIREMENTS.md section 4.15
+  - REQUIREMENTS.md section 7
+- decision: Add `psutil>=5.9,<8` as a runtime dependency in Subtask 1.4, where process `create_time` is first required.
+- rationale: Section 4.15 requires stale lock detection to combine `pid + create_time` so PID reuse does not falsely identify a process. `psutil.Process(pid).create_time()` is the documented project-level process API in section 7 and is already planned for process-cleaner work.
+- alternatives_considered:
+  - Parse `/proc/<pid>/stat` directly, which would avoid a dependency but duplicate process handling and make future process-cleaner behavior drift.
+  - Keep tests injecting create times only and delay `psutil`, which would leave production lock stale detection without its required backend.
+
+## 2026-05-07T14:18:14Z - Never bypass an active fcntl lock because of stale YAML metadata
+
+- affected_requirement:
+  - REQUIREMENTS.md section 4.15.3
+- decision: If `fcntl.flock` reports the lock file is actively held, `WorkspaceLock.acquire()` refuses with holder info instead of unlinking/recreating the lock file, even if the YAML holder metadata appears stale. Stale residual lock files are overwritten after the OS lock is successfully acquired.
+- rationale: On local POSIX filesystems, a dead process releases the kernel lock automatically; the realistic stale residue is the YAML file, not an active flock. Unlinking a lock path while another process still holds an inode lock can create a second lock file and allow two writers, so the implementation fails conservative whenever the kernel says the lock is busy.
+- alternatives_considered:
+  - Follow the pseudocode literally and unlink/retry when holder metadata appears stale, which risks bypassing a live holder during the small window after flock acquisition and before metadata write.
+  - Ignore stale holder data entirely, which would miss useful diagnostics when a residual file is overwritten after a successful lock acquisition.

@@ -1,6 +1,6 @@
 # Phase 01 Summary
 
-Status: in_progress
+Status: reviewing
 
 Phase scope:
 - Config parsing and schema validation.
@@ -8,7 +8,7 @@ Phase scope:
 - Initial `agent init` confirmation and `.initialized` guard.
 - Local workspace lock with stale lock detection.
 
-No phase deliverables completed yet.
+Phase implementation deliverables are complete; Subtask 1.4 is ready for external review and Ubuntu target-environment validation.
 
 Completed:
 - Subtask 1.1 implemented config parsing, pydantic schema validation, safe YAML loading, tests, self review, and patch files.
@@ -22,6 +22,8 @@ Completed:
 - Subtask 1.3 implemented init confirmation context, history summary rendering, `y/n/edit` handling, `.initialized` YAML guard writes, startup namespace guard checks, tests, self review, and patch files.
 - Subtask 1.3 external review fixes added `.initialized` identity cross-checks, UTC ISO timestamp validation, non-UTF-8 read wrapping, EOF abort handling, and raised full UT to 132/132.
 - Subtask 1.3 review fixes were validated by the user on the intended Ubuntu/Linux environment with Python 3.11.15: targeted init pytest passed 35/35, full pytest passed 132/132, and manual `.initialized` mismatch / invalid timestamp probes were rejected as expected.
+- Subtask 1.4 implemented local WorkspaceLock with `fcntl.flock`, holder metadata YAML, busy refusal, `pid + create_time` stale detection, release cleanup, `psutil` dependency wiring, tests, self review, and patch files.
 
 Remaining:
-- Subtask 1.4 local WorkspaceLock implementation.
+- External review of Subtask 1.4.
+- Ubuntu target-environment validation of Subtask 1.4.

@@ -1,12 +1,12 @@
 phase_id: phase_01_config_init
 phase_title: "Config + init + namespace + workspace lock"
 started_at: 2026-05-06T08:42:41Z
-last_updated: 2026-05-07T14:14:41Z
+last_updated: 2026-05-07T14:26:18Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 4.1
   - REQUIREMENTS.md section 4.15
-status: in_progress
+status: reviewing
 subtasks:
   - id: "1.1"
     title: "Implement agent.config.yaml parsing and Pydantic schema"
@@ -125,14 +125,22 @@ subtasks:
       runner: "venv + pip + pytest; uv not required"
   - id: "1.4"
     title: "Implement local WorkspaceLock with stale lock detection"
-    status: todo
+    status: done
     related_requirements:
       - REQUIREMENTS.md section 4.15
       - REQUIREMENTS.md Appendix B workspace_lock
-    files_created: []
-    ut_passed: false
-    self_reviewed: false
-    patch_file: null
+    files_created:
+      - src/agent/workspace_lock.py
+      - tests/test_workspace_lock.py
+    files_modified:
+      - src/agent/__init__.py
+      - pyproject.toml
+      - uv.lock
+    ut_passed: true
+    targeted_ut: "18 passed, 0 failed"
+    full_ut: "150 passed, 0 failed"
+    self_reviewed: true
+    patch_file: dev_memory/phases/phase_01_config_init/patches/08_workspace_lock.patch
 notes: |
   Required kickoff reading is complete. Phase 01 covers config/init/module
   isolation plus local workspace locking. v1 is Linux/Ubuntu only; do not
@@ -143,4 +151,4 @@ notes: |
   workspace was not a Git repository. A local Git repository was initialized
   during kickoff so Subtask 1.1 can start from a clean baseline after the
   kickoff commit.
-next_action: "Prepare Phase 01 / Subtask 1.4 WorkspaceLock."
+next_action: "Generate Subtask 1.4 patch files, commit, push, then send for external review."
