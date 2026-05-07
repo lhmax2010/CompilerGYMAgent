@@ -70,6 +70,17 @@ Post-fix review checklist:
 - [x] Imported experience text is quote-wrapped in prompts where applicable.
 - [x] Hash calculation excludes fields listed in `hash_fields_excluded`.
 
+## Final External Review - Claude approve
+
+- reviewed_at: 2026-05-07T06:54:29Z
+- verdict: Approve
+- tested: 51 passed, 0 failed
+- conclusion: Subtask 1.1, including both external review fix rounds, is approved and can move to Subtask 1.2.
+- non_blocking_followups:
+  - Add assignment path expansion UT.
+  - Add `allowed_non_item_files` empty-list UT.
+  - Add baseline assignment conflict UT.
+
 Notes:
 - Trace writes, atomic YAML writes, imported prompt quote behavior, and hash calculation remain not directly applicable to the config-only parser, but their config flags are represented where Appendix B defines them.
 

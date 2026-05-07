@@ -1,7 +1,7 @@
 phase_id: phase_01_config_init
 phase_title: "Config + init + namespace + workspace lock"
 started_at: 2026-05-06T08:42:41Z
-last_updated: 2026-05-07T06:44:55Z
+last_updated: 2026-05-07T06:54:29Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 4.1
@@ -34,6 +34,9 @@ subtasks:
     minor_review_fix_self_reviewed: true
     minor_review_fix_patch_generated: true
     minor_review_fix_commit_hash: 3afef68
+    external_review_verdict: approve
+    external_reviewed_at: 2026-05-07T06:54:29Z
+    external_review_notes: "Claude verified 51/51 tests and approved Subtask 1.1; remaining low-priority test gaps are non-blocking."
   - id: "1.2"
     title: "Implement modules.registry validation and namespace computation"
     status: todo

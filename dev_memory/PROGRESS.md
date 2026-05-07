@@ -24,6 +24,15 @@ Next action: commit the kickoff baseline, then implement Phase 01 / Subtask 1.1.
 
 Next action: Phase 01 / Subtask 1.2, module registry validation and namespace computation.
 
+## 2026-05-07T06:54:29Z - Phase 01 / Subtask 1.1 externally approved
+
+- External review verdict: Approve.
+- Reviewer independently verified `pytest` with 51 passed, 0 failed.
+- Reviewer confirmed second review fixes for exploration schedule quota semantics, `process_cleanup.require_env_marker`, blank path rejection, baseline assignment validation, relative path contract tests, and ZIP artifact removal.
+- Remaining low-priority UT gaps are explicitly non-blocking and may be rolled into later polish.
+
+Next action: Phase 01 / Subtask 1.2, module registry validation and namespace computation.
+
 ## 2026-05-07T03:54:17Z - Phase 01 / Subtask 1.1 second external review fix started
 
 - External review verdict: Approve with minor changes.

@@ -14,6 +14,7 @@ Completed:
 - Subtask 1.1 implemented config parsing, pydantic schema validation, safe YAML loading, tests, self review, and patch files.
 - Subtask 1.1 external review fixes addressed baseline conflict checks, strict alias handling, runtime path defaults, explicit template path resolution, YAML size/alias hardening, dependency cleanup, README packaging, and expanded tests.
 - Subtask 1.1 second external review fixes addressed exploration schedule quota semantics, `process_cleanup.require_env_marker`, blank path rejection, assignment validation, relative path contract tests, and removal of accidental ZIP artifact.
+- Subtask 1.1 received final external approval after independent 51-test verification.
 
 Remaining:
 - Subtask 1.2 modules.registry validation and namespace computation.
