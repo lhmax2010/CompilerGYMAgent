@@ -173,6 +173,18 @@ def test_prompt_for_init_confirmation_reprompts_until_valid(tmp_path: Path) -> N
     assert any("Please answer" in item for item in output)
 
 
+def test_prompt_for_init_confirmation_treats_eof_as_abort(tmp_path: Path) -> None:
+    config_path, registry_path, _ = write_project_files(tmp_path)
+    context = prepare_init_context(config_path, registry_path=registry_path)
+
+    with pytest.raises(InitAborted, match="EOF"):
+        prompt_for_init_confirmation(
+            context,
+            input_func=lambda _: (_ for _ in ()).throw(EOFError),
+            output_func=lambda _: None,
+        )
+
+
 def test_run_init_yes_writes_initialized_file(tmp_path: Path) -> None:
     config_path, registry_path, namespace_dir = write_project_files(tmp_path)
 
@@ -270,9 +282,11 @@ def test_verify_initialized_for_startup_rejects_namespace_mismatch(
     tmp_path: Path,
 ) -> None:
     config_path, registry_path, namespace_dir = write_project_files(tmp_path)
+    data = initialized_data("other/ffmpeg/gcc-13.2.0/code-a1b2c3d/kg-v3")
+    data["project"]["module"] = "other"
     write_yaml(
         namespace_dir / ".initialized",
-        initialized_data("other/ffmpeg/gcc-13.2.0/code-a1b2c3d/kg-v3"),
+        data,
     )
 
     with pytest.raises(NamespaceMismatchError, match="namespace mismatch"):
@@ -333,6 +347,54 @@ def test_load_initialized_state_rejects_missing_schema_version(tmp_path: Path) -
 
     with pytest.raises(InitializedLoadError, match="schema_version"):
         load_initialized_state(write_yaml(tmp_path / ".initialized", data))
+
+
+def test_load_initialized_state_rejects_namespace_parts_mismatch(
+    tmp_path: Path,
+) -> None:
+    data = initialized_data("multimedia/ffmpeg/gcc-13.2.0/code-a1b2c3d/kg-v3")
+    data["namespace_parts"] = ["wrong", "ffmpeg", "gcc-13.2.0", "code-a1b2c3d", "kg-v3"]
+
+    with pytest.raises(InitializedLoadError, match="namespace must equal"):
+        load_initialized_state(write_yaml(tmp_path / ".initialized", data))
+
+
+def test_load_initialized_state_rejects_project_identity_mismatch(
+    tmp_path: Path,
+) -> None:
+    data = initialized_data("multimedia/ffmpeg/gcc-13.2.0/code-a1b2c3d/kg-v3")
+    data["project"]["module"] = "other"
+
+    with pytest.raises(InitializedLoadError, match="project identity"):
+        load_initialized_state(write_yaml(tmp_path / ".initialized", data))
+
+
+@pytest.mark.parametrize("created_at", ["garbage", "2026-05-07T00:00:00"])
+def test_load_initialized_state_rejects_invalid_created_at(
+    tmp_path: Path, created_at: str
+) -> None:
+    data = initialized_data("multimedia/ffmpeg/gcc-13.2.0/code-a1b2c3d/kg-v3")
+    data["created_at"] = created_at
+
+    with pytest.raises(InitializedLoadError, match="created_at"):
+        load_initialized_state(write_yaml(tmp_path / ".initialized", data))
+
+
+def test_load_initialized_state_accepts_zulu_utc_created_at(tmp_path: Path) -> None:
+    data = initialized_data("multimedia/ffmpeg/gcc-13.2.0/code-a1b2c3d/kg-v3")
+    data["created_at"] = "2026-05-07T00:00:00Z"
+
+    state = load_initialized_state(write_yaml(tmp_path / ".initialized", data))
+
+    assert state.created_at == "2026-05-07T00:00:00Z"
+
+
+def test_load_initialized_state_rejects_non_utf8_bytes(tmp_path: Path) -> None:
+    path = tmp_path / ".initialized"
+    path.write_bytes(b"\xff\xfe\x00")
+
+    with pytest.raises(InitializedLoadError, match="failed to read"):
+        load_initialized_state(path)
 
 
 def test_load_initialized_state_rejects_oversized_file(tmp_path: Path) -> None:

@@ -1,7 +1,7 @@
 phase_id: phase_01_config_init
 phase_title: "Config + init + namespace + workspace lock"
 started_at: 2026-05-06T08:42:41Z
-last_updated: 2026-05-07T10:02:05Z
+last_updated: 2026-05-07T13:53:40Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 4.1
@@ -100,6 +100,19 @@ subtasks:
     patch_file: dev_memory/phases/phase_01_config_init/patches/06_init_confirmation.patch
     commit_hash: abdfdf9
     commit_message: "phase_01_config_init: 1.3 implement init namespace guard (REQUIREMENTS section 4.1.1)"
+    external_review_verdict: approve_with_minor_changes
+    external_reviewed_at: 2026-05-07T13:51:34Z
+    review_fix_targets:
+      - "Cross-check .initialized namespace, namespace_parts, and project identity"
+      - "Validate .initialized created_at as UTC ISO 8601"
+      - "Wrap non-UTF-8 .initialized reads as InitializedLoadError"
+      - "Convert EOF during init prompt to InitAborted"
+    review_fix_status: done
+    review_fix_ut_passed: true
+    review_fix_targeted_ut: "35 passed, 0 failed"
+    review_fix_full_ut: "132 passed, 0 failed"
+    review_fix_self_reviewed: true
+    review_fix_patch_file: dev_memory/phases/phase_01_config_init/patches/07_init_review_fixes.patch
   - id: "1.4"
     title: "Implement local WorkspaceLock with stale lock detection"
     status: todo
@@ -120,4 +133,4 @@ notes: |
   workspace was not a Git repository. A local Git repository was initialized
   during kickoff so Subtask 1.1 can start from a clean baseline after the
   kickoff commit.
-next_action: "Push Subtask 1.3 commits to GitHub, then prepare Subtask 1.4 workspace lock."
+next_action: "Generate Subtask 1.3 review-fix patch, commit, push, then prepare Subtask 1.4."

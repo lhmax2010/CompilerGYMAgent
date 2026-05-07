@@ -166,6 +166,42 @@ Review checklist:
 - [x] Imported experience prompt quoting is not applicable.
 - [x] Hash calculation is not applicable.
 
+## Subtask 1.3 External Review Fix - Claude minor changes
+
+- started_at: 2026-05-07T13:51:34Z
+- completed_at: 2026-05-07T13:53:40Z
+- status: fixed
+- verdict_received: Approve with minor changes
+- accepted_for_immediate_fix:
+  - Cross-check `.initialized.namespace`, `.initialized.namespace_parts`, and `.initialized.project`.
+  - Require `.initialized.created_at` to be UTC timezone-aware ISO 8601.
+  - Wrap non-UTF-8 `.initialized` reads as `InitializedLoadError`.
+  - Convert EOF during init prompt to `InitAborted`.
+
+Fixes applied:
+- `InitializedState` now rejects namespace/parts/project identity drift during load.
+- `InitializedState.created_at` now rejects non-ISO, naive, and non-UTC timestamps while accepting `Z` UTC timestamps.
+- `load_initialized_state` wraps `UnicodeDecodeError` consistently.
+- `prompt_for_init_confirmation` treats EOF as user abort.
+- The namespace mismatch test now uses an internally consistent but config-mismatched `.initialized` file, so it still exercises `NamespaceMismatchError`.
+
+Deferred low-priority review notes:
+- Baseline drift warning, hidden YAML counting, `.initialized` mode normalization, orphan temp cleanup, and shared atomic-write extraction remain polish candidates before or during Phase 02.
+- `run_init` concurrency serialization is explicitly deferred to Subtask 1.4 WorkspaceLock and recorded in `DECISIONS.md`.
+
+Post-fix review checklist:
+- [x] Implementation matches referenced requirements.
+- [x] Documented failure modes are covered.
+- [x] Trace writes are not required in this init guard subtask.
+- [x] `.initialized` still uses atomic YAML write.
+- [x] No hidden canonical data is stored only in SQLite/cache.
+- [x] No unsafe assumption about spec restore or workspace verification.
+- [x] `dev_memory` progress is updated.
+- [x] Workspace lock race is documented for Subtask 1.4.
+- [x] No hardcoded project paths that should come from config.
+- [x] Imported experience prompt quoting is not applicable.
+- [x] Hash calculation is not applicable.
+
 ## Final External Review - Claude approve
 
 - reviewed_at: 2026-05-07T06:54:29Z

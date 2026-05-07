@@ -119,6 +119,27 @@ Next action: generate patch files, commit Subtask 1.3, and push to `origin/main`
 
 Next action: push Subtask 1.3 commits to `origin/main`, then prepare Subtask 1.4.
 
+## 2026-05-07T13:51:34Z - Phase 01 / Subtask 1.3 external review fix started
+
+- External review verdict: Approve with minor changes.
+- Accepted immediate fixes: `.initialized` identity cross-checks and UTC ISO 8601 `created_at` validation.
+- Accepted small polish in same patch: wrap non-UTF-8 `.initialized` reads as `InitializedLoadError` and convert EOF during prompt to `InitAborted`.
+- Subtask 1.4 remains pending until this review-fix patch passes UT and is committed.
+
+Next action: implement Subtask 1.3 review fixes.
+
+## 2026-05-07T13:53:40Z - Phase 01 / Subtask 1.3 external review fixes completed
+
+- Fixed `.initialized` identity drift by requiring namespace, namespace parts, and project identity to agree.
+- Required `.initialized.created_at` to be UTC timezone-aware ISO 8601.
+- Wrapped non-UTF-8 `.initialized` reads as `InitializedLoadError`.
+- Converted EOF during init prompt to `InitAborted`.
+- Targeted UT passed: `uv --native-tls run --extra dev pytest tests/test_init.py -v` -> 35 passed.
+- Full UT passed: `uv --native-tls run --extra dev pytest -v` -> 132 passed.
+- Self review completed and recorded in `dev_memory/phases/phase_01_config_init/REVIEW_NOTES.md`.
+
+Next action: generate patch files, commit Subtask 1.3 review fixes, and push to `origin/main`.
+
 ## 2026-05-06T13:52:19Z - Phase 01 / Subtask 1.1 external review fix started
 
 - External review verdict: Request changes.

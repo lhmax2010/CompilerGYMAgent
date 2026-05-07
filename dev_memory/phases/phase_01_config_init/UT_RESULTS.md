@@ -237,3 +237,29 @@ Coverage notes:
 - `.initialized` is written as user-readable YAML and loaded with safe YAML parsing.
 - Later startup refuses missing `.initialized`, invalid `.initialized`, and namespace mismatch.
 - Registry validation errors and existing-trial compiler mismatch are propagated before initialization.
+
+## Subtask 1.3 - external review fixes
+
+- timestamp_utc: 2026-05-07T13:53:40Z
+- related_requirements:
+  - REQUIREMENTS.md section 4.1.1
+  - REQUIREMENTS.md section 4.2.3
+- targeted_command: `uv --native-tls run --extra dev pytest tests/test_init.py -v`
+- targeted_duration: 0.70s
+- targeted_result: 35 passed, 0 failed
+- full_command: `uv --native-tls run --extra dev pytest -v`
+- full_duration: 2.08s
+- full_result: 132 passed, 0 failed
+
+New/changed PASS cases:
+- `tests/test_init.py::test_prompt_for_init_confirmation_treats_eof_as_abort`
+- `tests/test_init.py::test_load_initialized_state_rejects_namespace_parts_mismatch`
+- `tests/test_init.py::test_load_initialized_state_rejects_project_identity_mismatch`
+- `tests/test_init.py::test_load_initialized_state_rejects_invalid_created_at`
+- `tests/test_init.py::test_load_initialized_state_accepts_zulu_utc_created_at`
+- `tests/test_init.py::test_load_initialized_state_rejects_non_utf8_bytes`
+
+Coverage notes:
+- Closes external review M-1 by cross-checking `.initialized` namespace, namespace parts, and project identity.
+- Closes external review M-2 by requiring UTC timezone-aware ISO 8601 `created_at`.
+- Adds polish for EOF prompt abort and non-UTF-8 `.initialized` read wrapping.

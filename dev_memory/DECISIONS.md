@@ -192,3 +192,36 @@ Decision records must include:
 - alternatives_considered:
   - Direct `yaml.safe_dump` to the target path, which can leave truncated or partial YAML on interruption.
   - Wait for Phase 02 atomic-write helpers, which would leave Subtask 1.3's guard write weaker than necessary.
+
+## 2026-05-07T13:53:40Z - Validate .initialized identity redundancy
+
+- affected_requirement:
+  - REQUIREMENTS.md section 4.1.1
+  - REQUIREMENTS.md section 4.2.3
+- decision: Treat `.initialized.namespace`, `.initialized.namespace_parts`, and `.initialized.project` as redundant facts that must agree at load time.
+- rationale: `.initialized` is a user-readable startup guard. If a user edits one identity field but not the others, startup should fail with a clear validation error instead of silently choosing one field as authoritative.
+- alternatives_considered:
+  - Compare only the flat `namespace` string, which keeps startup simple but lets corrupted readable state pass.
+  - Remove the redundant fields, which would make `.initialized` less useful for inspection and diagnostics.
+
+## 2026-05-07T13:53:40Z - Require UTC ISO 8601 .initialized timestamps
+
+- affected_requirement:
+  - REQUIREMENTS.md section 4.1.1
+  - REQUIREMENTS.md section 4.10
+- decision: Keep `.initialized.created_at` as a string for readability, but require it to parse as UTC timezone-aware ISO 8601.
+- rationale: The writer emits UTC `datetime.isoformat()` strings. Requiring the same shape on load prevents user-edited timestamps like `yesterday` from becoming future doctor/report hazards.
+- alternatives_considered:
+  - Store `created_at` as a Pydantic `datetime`, which validates well but changes the exact dumped representation.
+  - Accept any non-empty string, which is friendly but makes the field unreliable as audit metadata.
+
+## 2026-05-07T13:53:40Z - Defer init serialization to WorkspaceLock
+
+- affected_requirement:
+  - REQUIREMENTS.md section 4.15
+  - REQUIREMENTS.md section 4.1.1
+- decision: `run_init` remains a core helper and does not implement its own cross-process lock; the upcoming WorkspaceLock subtask must wrap init/run entrypoints.
+- rationale: Section 4.15 owns process-safe namespace locking. Duplicating a partial lock in init would risk divergent behavior right before the dedicated lock implementation.
+- alternatives_considered:
+  - Add an ad hoc lock inside `run_init`, which would conflict with the planned local WorkspaceLock design.
+  - Ignore the race entirely, which would leave future CLI integration without a clear handoff.

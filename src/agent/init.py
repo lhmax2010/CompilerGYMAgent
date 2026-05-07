@@ -10,18 +10,26 @@ from __future__ import annotations
 import os
 import tempfile
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 from .config import AgentConfig, NonEmptyStr, ProjectConfig, load_config
 from .registry import (
     ModulesRegistry,
     ProjectNamespace,
     RegistryValidationError,
+    compute_project_namespace,
     load_modules_registry,
     registry_path_for_workspace,
     validate_project_against_registry,
@@ -74,6 +82,33 @@ class InitializedState(StrictInitModel):
     project: ProjectConfig
     baseline_combo: list[NonEmptyStr] = Field(min_length=1)
     created_at: NonEmptyStr
+
+    @field_validator("created_at")
+    @classmethod
+    def created_at_must_be_utc_isoformat(cls, value: str) -> str:
+        normalized = value[:-1] + "+00:00" if value.endswith("Z") else value
+        try:
+            parsed = datetime.fromisoformat(normalized)
+        except ValueError as exc:
+            raise ValueError("created_at must be ISO 8601") from exc
+        if parsed.tzinfo is None or parsed.utcoffset() != timedelta(0):
+            raise ValueError("created_at must be UTC timezone-aware ISO 8601")
+        return value
+
+    @model_validator(mode="after")
+    def namespace_identity_must_match_project(self) -> InitializedState:
+        parts_namespace = "/".join(self.namespace_parts)
+        if self.namespace != parts_namespace:
+            raise ValueError("namespace must equal '/'.join(namespace_parts)")
+
+        expected_namespace = compute_project_namespace(self.project)
+        expected_parts = list(expected_namespace.parts)
+        if self.namespace_parts != expected_parts:
+            raise ValueError(
+                "namespace_parts do not match project identity "
+                f"(parts={self.namespace_parts!r}, expected={expected_parts!r})"
+            )
+        return self
 
 
 @dataclass(frozen=True)
@@ -215,7 +250,10 @@ def prompt_for_init_confirmation(
 ) -> InitChoice:
     output_func(render_init_confirmation(context))
     while True:
-        response = input_func("Confirm init? [y]es/[n]o/[e]dit: ")
+        try:
+            response = input_func("Confirm init? [y]es/[n]o/[e]dit: ")
+        except EOFError as exc:
+            raise InitAborted("agent init aborted by EOF") from exc
         try:
             return normalize_init_choice(response)
         except ValueError:
@@ -322,7 +360,7 @@ def load_initialized_state(path: str | Path) -> InitializedState:
         raw_text = initialized_path.read_text(encoding="utf-8")
     except InitializedLoadError:
         raise
-    except OSError as exc:
+    except (OSError, UnicodeDecodeError) as exc:
         raise InitializedLoadError(f"failed to read .initialized {initialized_path}: {exc}") from exc
 
     try:

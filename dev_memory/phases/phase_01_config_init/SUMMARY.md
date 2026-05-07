@@ -20,6 +20,7 @@ Completed:
 - Subtask 1.2 external review fixes rejected namespace control characters, required explicit registry schema versioning, added AgentConfig namespace coverage, and raised full UT to 97/97.
 - Subtask 1.2 was validated by the user on the intended Ubuntu/Linux environment with Python 3.11.15: targeted registry pytest passed 46/46, full pytest passed 97/97, and the manual control-character probe was rejected as expected.
 - Subtask 1.3 implemented init confirmation context, history summary rendering, `y/n/edit` handling, `.initialized` YAML guard writes, startup namespace guard checks, tests, self review, and patch files.
+- Subtask 1.3 external review fixes added `.initialized` identity cross-checks, UTC ISO timestamp validation, non-UTF-8 read wrapping, EOF abort handling, and raised full UT to 132/132.
 
 Remaining:
 - Subtask 1.4 local WorkspaceLock implementation.
