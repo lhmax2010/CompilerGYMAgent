@@ -160,3 +160,35 @@ Decision records must include:
 - alternatives_considered:
   - Ignore existing trial compatibility until Phase 02, which would leave a documented startup failure path unrepresented.
   - Read trial YAML files directly from the registry module, which would couple Subtask 1.2 to FS-memory layout before that subsystem exists.
+
+## 2026-05-07T09:59:55Z - Store init guard as explicit .initialized YAML
+
+- affected_requirement:
+  - REQUIREMENTS.md section 4.1.1
+  - REQUIREMENTS.md section 4.2.3
+- decision: Write `.initialized` as strict user-readable YAML with required `schema_version: agent.initialized.v1`, namespace, five namespace parts, project identity, baseline combo, and creation timestamp.
+- rationale: Section 4.1.1 makes `.initialized` the later-startup namespace guard. Keeping it as YAML preserves the local-first readable SoT principle and lets users inspect exactly why a namespace is considered initialized.
+- alternatives_considered:
+  - Store only a bare namespace string, which is easy to read but too weak for diagnostics.
+  - Store a hidden binary/cache marker, which would violate the user-readable project-state rule.
+
+## 2026-05-07T09:59:55Z - Keep init edit as a core-flow signal, not an editor launch
+
+- affected_requirement:
+  - REQUIREMENTS.md section 4.1.1
+- decision: The core `run_init` helper treats `edit` as `InitEditRequested` and does not launch an external editor.
+- rationale: The requirement says the confirmation flow offers `y/n/edit`, but editor choice and process handling belong in a later CLI layer. Returning a clear edit signal keeps the safety behavior testable and avoids coupling the library to shell-specific editor behavior.
+- alternatives_considered:
+  - Spawn `$EDITOR` directly from the core helper, which would make tests and non-interactive usage fragile.
+  - Treat `edit` as abort, which would lose the user's intended action.
+
+## 2026-05-07T09:59:55Z - Use local atomic YAML write for .initialized
+
+- affected_requirement:
+  - REQUIREMENTS.md section 4.1.1
+  - REQUIREMENTS.md section 4.2.1
+- decision: Write `.initialized` via a same-directory temporary file, file fsync, `os.replace`, and POSIX parent-directory fsync when available.
+- rationale: `.initialized` influences subsequent startup decisions, so partial writes should not leave the namespace in an ambiguous state. A focused local helper is sufficient until Phase 02 introduces shared FS-memory atomic write utilities.
+- alternatives_considered:
+  - Direct `yaml.safe_dump` to the target path, which can leave truncated or partial YAML on interruption.
+  - Wait for Phase 02 atomic-write helpers, which would leave Subtask 1.3's guard write weaker than necessary.

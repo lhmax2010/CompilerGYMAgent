@@ -137,6 +137,35 @@ Post-fix review checklist:
 - [x] Imported experience prompt quoting is not applicable.
 - [x] Hash calculation is not applicable.
 
+## Subtask 1.3 Self Review - init confirmation and .initialized guard
+
+- reviewed_at: 2026-05-07T09:59:55Z
+- related_requirements:
+  - REQUIREMENTS.md section 4.1.1
+  - REQUIREMENTS.md section 4.2.3
+- files_reviewed:
+  - `src/agent/init.py`
+  - `src/agent/__init__.py`
+  - `tests/test_init.py`
+
+Findings:
+- REQUIREMENTS.md section 4.1.1 specifies `y/n/edit` but not editor invocation details. Recorded a decision to surface `edit` as `InitEditRequested`; CLI/editor integration can wrap it later.
+- `.initialized` writes affect future startup decisions. Implemented a local atomic YAML writer with same-directory temp file, file fsync, `os.replace`, and POSIX parent-directory fsync when available.
+- `.initialized` schema now requires an explicit `agent.initialized.v1` version, mirroring the stricter registry schema-version lesson from Subtask 1.2 review.
+
+Review checklist:
+- [x] Implementation matches the referenced init flow: config load, registry validation, namespace calculation, confirmation prompt, `.initialized` write, and later guard check.
+- [x] Failure scenarios are covered: user no/edit, missing `.initialized`, namespace mismatch, invalid/empty/non-mapping/malicious/oversized `.initialized`, registry validation failure, and compiler-version compatibility failure.
+- [x] Trace writes are not required because init writes a non-destructive guard file; destructive writes are not introduced.
+- [x] `.initialized` uses atomic YAML write rather than direct target overwrite.
+- [x] No hidden canonical data is stored only in SQLite/cache.
+- [x] No assumption about spec restore or workspace verification.
+- [x] `dev_memory` progress is updated.
+- [x] v1 Linux/Ubuntu durability path uses POSIX parent-directory fsync when `os.O_DIRECTORY` is available.
+- [x] Paths are derived from config workspace and computed namespace; no project-specific hardcoded paths.
+- [x] Imported experience prompt quoting is not applicable.
+- [x] Hash calculation is not applicable.
+
 ## Final External Review - Claude approve
 
 - reviewed_at: 2026-05-07T06:54:29Z

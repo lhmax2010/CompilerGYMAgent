@@ -90,6 +90,28 @@ Next action: push Subtask 1.2 review-fix commits to `origin/main`, then prepare 
 
 Next action: Phase 01 / Subtask 1.3, init confirmation flow and `.initialized` namespace guard.
 
+## 2026-05-07T09:54:08Z - Phase 01 / Subtask 1.3 started
+
+- Started init confirmation flow and `.initialized` namespace guard.
+- Requirements in scope: REQUIREMENTS.md section 4.1.1, with Subtask 1.2 registry/namespace helpers as inputs.
+- Planned files: `src/agent/init.py` and `tests/test_init.py`.
+- Baseline before implementation: clean `main` synced with `origin/main`.
+
+Next action: implement init context preparation, confirmation handling, and namespace guard tests.
+
+## 2026-05-07T09:59:55Z - Phase 01 / Subtask 1.3 completed
+
+- Implemented init context preparation from `agent.config.yaml` + `modules.registry.yaml`.
+- Implemented confirmation rendering with module/framework/compiler/commit/kg_version/baseline and existing history summary.
+- Implemented `y/n/edit` confirmation handling.
+- Implemented `.initialized` write/read as strict user-readable YAML with safe loading and atomic write.
+- Implemented later-startup guard for missing, invalid, or namespace-mismatched `.initialized`.
+- Targeted UT passed: `uv --native-tls run --extra dev pytest tests/test_init.py -v` -> 28 passed.
+- Full UT passed: `uv --native-tls run --extra dev pytest -v` -> 125 passed.
+- Self review completed and recorded in `dev_memory/phases/phase_01_config_init/REVIEW_NOTES.md`.
+
+Next action: generate patch files, commit Subtask 1.3, and push to `origin/main`.
+
 ## 2026-05-06T13:52:19Z - Phase 01 / Subtask 1.1 external review fix started
 
 - External review verdict: Request changes.

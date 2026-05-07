@@ -196,3 +196,44 @@ Coverage notes:
   - command: `compute_project_namespace(ProjectConfig.model_validate({"module": "multi\nmedia", ...}))`
   - result: `ValueError: project.module cannot contain control characters`
 - reported_by: user on intended Ubuntu server environment
+
+## Subtask 1.3 - init confirmation flow and .initialized guard
+
+- timestamp_utc: 2026-05-07T09:59:55Z
+- related_requirements:
+  - REQUIREMENTS.md section 4.1.1
+  - REQUIREMENTS.md section 4.2.3
+- targeted_command: `uv --native-tls run --extra dev pytest tests/test_init.py -v`
+- targeted_duration: 0.67s
+- targeted_result: 28 passed, 0 failed
+- full_command: `uv --native-tls run --extra dev pytest -v`
+- full_duration: 2.11s
+- full_result: 125 passed, 0 failed
+
+Test cases:
+- PASS `tests/test_init.py::test_prepare_init_context_loads_registry_and_existing_history`
+- PASS `tests/test_init.py::test_render_init_confirmation_includes_identity_baseline_and_history`
+- PASS `tests/test_init.py::test_normalize_init_choice`
+- PASS `tests/test_init.py::test_prompt_for_init_confirmation_reprompts_until_valid`
+- PASS `tests/test_init.py::test_run_init_yes_writes_initialized_file`
+- PASS `tests/test_init.py::test_run_init_no_aborts_without_writing`
+- PASS `tests/test_init.py::test_run_init_edit_requests_without_writing`
+- PASS `tests/test_init.py::test_run_init_existing_matching_state_skips_prompt`
+- PASS `tests/test_init.py::test_verify_initialized_for_startup_requires_initialized_file`
+- PASS `tests/test_init.py::test_verify_initialized_for_startup_accepts_matching_state`
+- PASS `tests/test_init.py::test_verify_initialized_for_startup_rejects_namespace_mismatch`
+- PASS `tests/test_init.py::test_assert_initialized_matches_accepts_expected_namespace`
+- PASS `tests/test_init.py::test_load_initialized_state_rejects_invalid_yaml`
+- PASS `tests/test_init.py::test_load_initialized_state_rejects_yaml_aliases`
+- PASS `tests/test_init.py::test_load_initialized_state_rejects_missing_schema_version`
+- PASS `tests/test_init.py::test_load_initialized_state_rejects_oversized_file`
+- PASS `tests/test_init.py::test_run_init_propagates_registry_validation_failure`
+- PASS `tests/test_init.py::test_run_init_checks_existing_trial_compiler_versions`
+- PASS `tests/test_init.py::test_initialized_state_file_is_user_readable_yaml`
+
+Coverage notes:
+- First init flow prepares config + registry + namespace context and renders module/framework/compiler/commit/kg_version/baseline plus history summary.
+- Confirmation handles yes/no/edit, including invalid-answer reprompt.
+- `.initialized` is written as user-readable YAML and loaded with safe YAML parsing.
+- Later startup refuses missing `.initialized`, invalid `.initialized`, and namespace mismatch.
+- Registry validation errors and existing-trial compiler mismatch are propagated before initialization.
