@@ -57,8 +57,8 @@ def _validate_namespace_segment(value: str, label: str) -> str:
         raise ValueError(f"{label} cannot be {segment!r}")
     if "/" in segment or "\\" in segment:
         raise ValueError(f"{label} cannot contain path separators")
-    if "\x00" in segment:
-        raise ValueError(f"{label} cannot contain NUL bytes")
+    if any(ord(char) < 0x20 or ord(char) == 0x7F for char in segment):
+        raise ValueError(f"{label} cannot contain control characters")
     return segment
 
 
@@ -103,7 +103,7 @@ class ModuleRegistryEntry(StrictRegistryModel):
 
 
 class ModulesRegistry(StrictRegistryModel):
-    schema_version: Literal["modules.registry.v1"] = "modules.registry.v1"
+    schema_version: Literal["modules.registry.v1"]
     kg_versions: list[NonEmptyStr] = Field(min_length=1)
     modules: dict[NonEmptyStr, ModuleRegistryEntry] = Field(min_length=1)
 
@@ -224,6 +224,14 @@ def validate_project_against_registry(
     *,
     existing_trial_compiler_versions: Iterable[str] | None = None,
 ) -> ProjectNamespace:
+    """Validate startup project identity against the user-editable registry.
+
+    `existing_trial_compiler_versions` should contain compiler.version values
+    already observed in trials for this same namespace. In normal operation all
+    values match the configured compiler version because the compiler is part
+    of the namespace path; a mismatch indicates corrupted state and fails fast.
+    """
+
     project = _project_from_config(config)
     namespace = compute_project_namespace(project)
 

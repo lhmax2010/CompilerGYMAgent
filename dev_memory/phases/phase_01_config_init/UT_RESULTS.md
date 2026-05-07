@@ -147,3 +147,29 @@ Coverage notes:
 - Startup failure conditions for missing module/framework/compiler.type/compiler.version/kg_version.
 - Existing trial compiler version compatibility input for later FS-memory integration.
 - Registry YAML safety: missing/empty/non-mapping files, oversized files, unsafe Python tags, YAML aliases, unknown fields, duplicates, and separator-based path injection.
+
+## Subtask 1.2 - external review fixes
+
+- timestamp_utc: 2026-05-07T08:52:38Z
+- related_requirements:
+  - REQUIREMENTS.md section 4.1.3
+  - REQUIREMENTS.md section 4.1.4
+  - REQUIREMENTS.md section 4.2.3
+- targeted_command: `uv --native-tls run --extra dev pytest tests/test_registry.py -v`
+- targeted_duration: 0.51s
+- targeted_result: 46 passed, 0 failed
+- full_command: `uv --native-tls run --extra dev pytest -v`
+- full_duration: 1.64s
+- full_result: 97 passed, 0 failed
+
+New/changed PASS cases:
+- `tests/test_registry.py::test_compute_project_namespace_accepts_agent_config`
+- `tests/test_registry.py::test_rejects_control_characters_in_namespace_segments`
+- `tests/test_registry.py::test_rejects_missing_registry_schema_version`
+- `tests/test_registry.py::test_rejects_unknown_registry_schema_version`
+- `tests/test_registry.py::test_rejects_control_characters_in_registry_values`
+
+Coverage notes:
+- Closes external review M-1 by rejecting C0 and DEL control characters before namespace path construction.
+- Closes external review L-1 by requiring explicit `schema_version: modules.registry.v1`.
+- Adds direct coverage for `compute_project_namespace(AgentConfig)`.

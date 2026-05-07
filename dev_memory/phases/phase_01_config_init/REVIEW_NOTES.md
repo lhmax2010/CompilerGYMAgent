@@ -100,6 +100,43 @@ Review checklist:
 - [x] Imported experience prompt quoting is not applicable.
 - [x] Hash calculation is not applicable.
 
+## Subtask 1.2 External Review Fix - Claude minor changes
+
+- started_at: 2026-05-07T08:51:09Z
+- completed_at: 2026-05-07T08:52:38Z
+- status: fixed
+- verdict_received: Approve with minor changes
+- accepted_for_immediate_fix:
+  - Reject namespace and registry segment control characters.
+  - Require explicit `schema_version` in `modules.registry.yaml`.
+  - Add direct `AgentConfig` namespace computation UT.
+  - Add `existing_trial_compiler_versions` docstring.
+  - Record `schema_version` and `code-`/`kg-` prefix decisions.
+
+Fixes applied:
+- `_validate_namespace_segment` now rejects all C0 control characters and DEL before path construction.
+- `ModulesRegistry.schema_version` is now required and must be `modules.registry.v1`.
+- Added regression tests for newline, tab, carriage return, BEL, ESC, and DEL in project namespace values, plus registry control-character values.
+- Added tests for missing and unknown registry schema versions.
+- Added direct `compute_project_namespace(AgentConfig)` coverage.
+- Added a docstring explaining that `existing_trial_compiler_versions` is a defensive same-namespace compatibility input for later FS-memory integration.
+
+Deferred low-priority review notes:
+- Internal spaces, hidden dot-prefixed names, very long segment limits, and whitespace stripping semantics remain non-blocking polish candidates before or during Phase 02.
+
+Post-fix review checklist:
+- [x] Implementation matches referenced requirements.
+- [x] Documented failure modes are covered.
+- [x] Trace writes are not required in this read-only validation subtask.
+- [x] Atomic YAML writes are not required because this subtask only reads registry YAML.
+- [x] No hidden canonical data is stored only in SQLite/cache.
+- [x] No unsafe assumption about spec restore or workspace verification.
+- [x] `dev_memory` progress is updated.
+- [x] No POSIX process/locking behavior is introduced.
+- [x] No hardcoded project paths that should come from config.
+- [x] Imported experience prompt quoting is not applicable.
+- [x] Hash calculation is not applicable.
+
 ## Final External Review - Claude approve
 
 - reviewed_at: 2026-05-07T06:54:29Z

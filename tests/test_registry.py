@@ -126,6 +126,14 @@ def test_compute_project_namespace_accepts_project_config() -> None:
     )
 
 
+def test_compute_project_namespace_accepts_agent_config() -> None:
+    config = AgentConfig.model_validate(minimal_config_data())
+
+    namespace = compute_project_namespace(config)
+
+    assert namespace.as_posix == "multimedia/ffmpeg/gcc-13.2.0/code-a1b2c3d/kg-v3"
+
+
 @pytest.mark.parametrize(
     ("field", "value", "message"),
     [
@@ -140,6 +148,12 @@ def test_compute_project_namespace_accepts_project_config() -> None:
 def test_rejects_unsafe_namespace_segments(field: str, value: str, message: str) -> None:
     with pytest.raises(ValueError, match=message):
         compute_project_namespace(project_config(**{field: value}))
+
+
+@pytest.mark.parametrize("control", ["\n", "\t", "\r", "\x07", "\x1b", "\x7f"])
+def test_rejects_control_characters_in_namespace_segments(control: str) -> None:
+    with pytest.raises(ValueError, match="control characters"):
+        compute_project_namespace(project_config(module=f"multi{control}media"))
 
 
 @pytest.mark.parametrize(
@@ -276,6 +290,22 @@ def test_rejects_unknown_registry_fields(tmp_path: Path) -> None:
         load_modules_registry(write_registry(tmp_path, data))
 
 
+def test_rejects_missing_registry_schema_version(tmp_path: Path) -> None:
+    data = registry_data()
+    data.pop("schema_version")
+
+    with pytest.raises(RegistryLoadError, match="schema_version"):
+        load_modules_registry(write_registry(tmp_path, data))
+
+
+def test_rejects_unknown_registry_schema_version(tmp_path: Path) -> None:
+    data = registry_data()
+    data["schema_version"] = "modules.registry.v2"
+
+    with pytest.raises(RegistryLoadError, match="schema_version"):
+        load_modules_registry(write_registry(tmp_path, data))
+
+
 @pytest.mark.parametrize(
     "mutator",
     [
@@ -322,4 +352,13 @@ def test_rejects_unsafe_registry_namespace_values(
     mutator(data)
 
     with pytest.raises(ValueError, match="path separators"):
+        ModulesRegistry.model_validate(data)
+
+
+@pytest.mark.parametrize("control", ["\n", "\t", "\r", "\x7f"])
+def test_rejects_control_characters_in_registry_values(control: str) -> None:
+    data = registry_data()
+    data["kg_versions"] = [f"v3{control}draft"]
+
+    with pytest.raises(ValueError, match="control characters"):
         ModulesRegistry.model_validate(data)

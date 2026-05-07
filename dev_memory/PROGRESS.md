@@ -52,6 +52,27 @@ Next action: generate patch files, commit Subtask 1.2, and push to `origin/main`
 
 Next action: push Subtask 1.2 commits to `origin/main`, then prepare Subtask 1.3.
 
+## 2026-05-07T08:51:09Z - Phase 01 / Subtask 1.2 external review fix started
+
+- External review verdict: Approve with minor changes.
+- Accepted immediate fix: reject control characters in namespace/registry segments.
+- Accepted polish in same patch: require `schema_version`, add direct `AgentConfig` namespace UT, add validator docstring, and record schema/prefix decisions.
+- Subtask 1.3 remains pending until this review-fix patch passes UT and is committed.
+
+Next action: implement Subtask 1.2 review fixes.
+
+## 2026-05-07T08:52:38Z - Phase 01 / Subtask 1.2 external review fixes completed
+
+- Fixed control-character namespace bypass found by external review.
+- Required explicit `schema_version: modules.registry.v1` in `shared/modules.registry.yaml`.
+- Added `AgentConfig` namespace computation coverage and validation docstring.
+- Recorded schema-version and `code-`/`kg-` prefix decisions in `DECISIONS.md`.
+- Targeted UT passed: `uv --native-tls run --extra dev pytest tests/test_registry.py -v` -> 46 passed.
+- Full UT passed: `uv --native-tls run --extra dev pytest -v` -> 97 passed.
+- Self review completed and recorded in `dev_memory/phases/phase_01_config_init/REVIEW_NOTES.md`.
+
+Next action: generate patch files, commit Subtask 1.2 review fixes, and push to `origin/main`.
+
 ## 2026-05-06T13:52:19Z - Phase 01 / Subtask 1.1 external review fix started
 
 - External review verdict: Request changes.

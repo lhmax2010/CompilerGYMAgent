@@ -122,11 +122,12 @@ Decision records must include:
 - affected_requirement:
   - REQUIREMENTS.md section 4.1.4
   - REQUIREMENTS.md section 4.2.3
-- decision: Represent `shared/modules.registry.yaml` as a strict, user-editable YAML schema with top-level `kg_versions` and a `modules -> frameworks -> compilers -> versions` tree.
+- decision: Represent `shared/modules.registry.yaml` as a strict, user-editable YAML schema with required `schema_version: modules.registry.v1`, top-level `kg_versions`, and a `modules -> frameworks -> compilers -> versions` tree.
 - rationale: Section 4.1.4 requires startup to fail when module/framework, compiler version, or kg_version are not registered, but does not define the exact registry file fields. A compact explicit tree keeps the SoT human-readable and gives init/startup code a deterministic validation surface.
 - alternatives_considered:
   - Infer validity only from existing workspace directories, which would hide the registry contract in filesystem side effects.
   - Put `kg_versions` under each framework, which would duplicate global KG release identifiers and complicate later KG validation.
+  - Let missing `schema_version` default to v1, which would make future schema migrations ambiguous.
 
 ## 2026-05-07T08:21:27Z - Keep namespace path segments literal but separator-safe
 
@@ -138,6 +139,16 @@ Decision records must include:
 - alternatives_considered:
   - Slugify every value, which could make the on-disk namespace differ from the user's config and hide mistakes.
   - Accept arbitrary strings because v1 targets Linux, which would allow traversal-shaped values.
+
+## 2026-05-07T08:51:09Z - Prefix code_commit and kg_version namespace segments explicitly
+
+- affected_requirement:
+  - REQUIREMENTS.md section 4.1.3
+- decision: Always render namespace commit and KG atoms as `code-{project.code_commit}` and `kg-{project.kg_version}`.
+- rationale: The section 4.1.3 example uses `code-a1b2c3d/kg-v3`. Treating `code-` and `kg-` as structural prefixes keeps the five namespace levels self-describing and avoids ambiguous bare values when browsing `namespaces/`.
+- alternatives_considered:
+  - Treat config values as complete path segments, which would require users to include structural prefixes in `agent.config.yaml`.
+  - Strip an already-present `code-` or `kg-` prefix, which would create surprising normalization and could hide user typos.
 
 ## 2026-05-07T08:21:27Z - Make existing-trial compiler compatibility an explicit validator input
 
