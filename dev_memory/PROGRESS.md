@@ -140,6 +140,13 @@ Next action: implement Subtask 1.3 review fixes.
 
 Next action: generate patch files, commit Subtask 1.3 review fixes, and push to `origin/main`.
 
+## 2026-05-07T13:55:55Z - Phase 01 / Subtask 1.3 external review fixes committed
+
+- Commit: `5dfd1a1 phase_01_config_init: 1.3 fix init review findings (REQUIREMENTS section 4.1.1)`.
+- Patch files: `dev_memory/phases/phase_01_config_init/patches/07_init_review_fixes.{patch,summary.txt,review.md}`.
+
+Next action: push Subtask 1.3 review-fix commits to `origin/main`, then prepare Subtask 1.4.
+
 ## 2026-05-06T13:52:19Z - Phase 01 / Subtask 1.1 external review fix started
 
 - External review verdict: Request changes.

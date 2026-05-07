@@ -76,7 +76,9 @@ subtasks:
     review_fix_full_ut: "132 passed, 0 failed"
     review_fix_self_reviewed: true
     review_fix_patch_file: dev_memory/phases/phase_01_config_init/patches/07_init_review_fixes.patch
-    review_fix_commit_pending: true
+    review_fix_commit_pending: false
+    review_fix_commit_hash: 5dfd1a1
+    review_fix_commit_message: "phase_01_config_init: 1.3 fix init review findings (REQUIREMENTS section 4.1.1)"
   - id: "1.4"
     title: "Implement local WorkspaceLock with stale lock detection"
     status: todo
