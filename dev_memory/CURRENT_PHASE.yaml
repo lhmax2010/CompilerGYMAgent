@@ -1,7 +1,7 @@
 phase_id: phase_01_config_init
 phase_title: "Config + init + namespace + workspace lock"
 started_at: 2026-05-06T08:42:41Z
-last_updated: 2026-05-07T09:59:55Z
+last_updated: 2026-05-07T10:02:05Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 4.1
@@ -98,6 +98,8 @@ subtasks:
     full_ut: "125 passed, 0 failed"
     self_reviewed: true
     patch_file: dev_memory/phases/phase_01_config_init/patches/06_init_confirmation.patch
+    commit_hash: abdfdf9
+    commit_message: "phase_01_config_init: 1.3 implement init namespace guard (REQUIREMENTS section 4.1.1)"
   - id: "1.4"
     title: "Implement local WorkspaceLock with stale lock detection"
     status: todo
@@ -118,4 +120,4 @@ notes: |
   workspace was not a Git repository. A local Git repository was initialized
   during kickoff so Subtask 1.1 can start from a clean baseline after the
   kickoff commit.
-next_action: "Generate Subtask 1.3 patch, commit, push, then prepare Subtask 1.4 workspace lock."
+next_action: "Push Subtask 1.3 commits to GitHub, then prepare Subtask 1.4 workspace lock."
