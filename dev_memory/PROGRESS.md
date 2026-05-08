@@ -309,3 +309,10 @@ Next action: implement atomic writer + namespace layout resolver, then run targe
 - Self review completed and recorded in `dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md`.
 
 Next action: generate patch files, commit Subtask 2.1, and push to `origin/main`.
+
+## 2026-05-08T07:10:09Z - Phase 02 / Subtask 2.1 committed
+
+- Commit: `b92f5db phase_02_fs_memory: 2.1 implement atomic layout (REQUIREMENTS sections 4.2.3, 4.7.5)`.
+- Patch files: `dev_memory/phases/phase_02_fs_memory/patches/01_atomic_layout.{patch,summary.txt,review.md}`.
+
+Next action: push Subtask 2.1 to `origin/main`, then continue to Subtask 2.2 TrialRecord schema.

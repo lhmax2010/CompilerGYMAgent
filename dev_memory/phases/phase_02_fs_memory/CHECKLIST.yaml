@@ -14,7 +14,9 @@ subtasks:
     patch_file: dev_memory/phases/phase_02_fs_memory/patches/01_atomic_layout.patch
     patch_generated: true
     commit_required: true
-    commit_pending: true
+    commit_pending: false
+    commit_hash: b92f5db
+    commit_message: "phase_02_fs_memory: 2.1 implement atomic layout (REQUIREMENTS sections 4.2.3, 4.7.5)"
     files_created:
       - src/agent/fs_memory.py
       - tests/test_fs_memory.py
