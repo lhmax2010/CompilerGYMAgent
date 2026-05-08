@@ -106,7 +106,9 @@ subtasks:
     review_fix_full_ut: "152 passed, 1 skipped"
     review_fix_self_reviewed: true
     review_fix_patch_file: dev_memory/phases/phase_01_config_init/patches/09_workspace_lock_review_fixes.patch
-    review_fix_commit_pending: true
+    review_fix_commit_pending: false
+    review_fix_commit_hash: 94941df
+    review_fix_commit_message: "phase_01_config_init: 1.4 fix workspace lock review findings (REQUIREMENTS section 4.15)"
     files_created:
       - src/agent/workspace_lock.py
       - tests/test_workspace_lock.py

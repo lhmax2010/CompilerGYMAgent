@@ -156,6 +156,8 @@ subtasks:
     review_fix_full_ut: "152 passed, 1 skipped"
     review_fix_self_reviewed: true
     review_fix_patch_file: dev_memory/phases/phase_01_config_init/patches/09_workspace_lock_review_fixes.patch
+    review_fix_commit_hash: 94941df
+    review_fix_commit_message: "phase_01_config_init: 1.4 fix workspace lock review findings (REQUIREMENTS section 4.15)"
 notes: |
   Required kickoff reading is complete. Phase 01 covers config/init/module
   isolation plus local workspace locking. v1 is Linux/Ubuntu only; do not
@@ -166,4 +168,4 @@ notes: |
   workspace was not a Git repository. A local Git repository was initialized
   during kickoff so Subtask 1.1 can start from a clean baseline after the
   kickoff commit.
-next_action: "Generate Subtask 1.4 review-fix patch files, commit, push, then send for external review."
+next_action: "Push Subtask 1.4 review-fix commits to GitHub, then send for external verification and Ubuntu validation."

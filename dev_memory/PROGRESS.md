@@ -262,3 +262,10 @@ Next action: implement Subtask 1.4 review fixes, run targeted/full UT, self revi
 - Self review completed and recorded in `dev_memory/phases/phase_01_config_init/REVIEW_NOTES.md`.
 
 Next action: generate patch files, commit Subtask 1.4 review fixes, push to `origin/main`, then request external verification.
+
+## 2026-05-08T02:08:30Z - Phase 01 / Subtask 1.4 external review fixes committed
+
+- Commit: `94941df phase_01_config_init: 1.4 fix workspace lock review findings (REQUIREMENTS section 4.15)`.
+- Patch files: `dev_memory/phases/phase_01_config_init/patches/09_workspace_lock_review_fixes.{patch,summary.txt,review.md}`.
+
+Next action: push Subtask 1.4 review-fix commits to `origin/main`, then request external verification and Ubuntu validation.
