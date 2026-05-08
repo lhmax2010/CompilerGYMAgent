@@ -11,6 +11,7 @@ Phase scope:
 Completed:
 - Phase started after Phase 01 Ubuntu validation completed.
 - Subtask 2.1 implemented shared `atomic_write_yaml`, `NamespaceLayout`, public exports, tests, and migrated `.initialized` writes to the shared SoT writer.
+- Subtask 2.1 received external approval after independent 163-test verification and additional atomic-write probes.
 
 Remaining:
 - Subtask 2.2 immutable trial record schema and writer.
