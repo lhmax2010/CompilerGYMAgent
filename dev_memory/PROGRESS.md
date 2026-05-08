@@ -278,3 +278,14 @@ Next action: push Subtask 1.4 review-fix commits to `origin/main`, then request 
 - Remaining low-priority follow-up: reject naive `datetime` values for `WorkspaceLockHolder.started_at` instead of allowing Python to interpret them as local time.
 
 Next action: run Subtask 1.4 Ubuntu target-environment validation, including `tests/test_workspace_lock.py` so the Linux real-fcntl regression test executes.
+
+## 2026-05-08T06:56:45Z - Phase 01 / Subtask 1.4 review-fix Ubuntu target-environment validation
+
+- User validated on Ubuntu/Linux with Python 3.11.15 in a local `.venv`.
+- Targeted UT passed: `pytest ./tests/test_workspace_lock.py -v` -> 21 passed in 0.23s.
+- Full UT passed: `pytest -v` -> 153 passed in 0.55s.
+- The Linux real-fcntl regression test executed and passed: `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter`.
+- A second targeted run with `-rs` also passed 21/21 and confirmed there were no skipped tests in `tests/test_workspace_lock.py` on Linux.
+- This confirms Subtask 1.4 review fixes pass on the intended Linux/Ubuntu execution environment without requiring `uv`.
+
+Next action: Phase 01 is complete; ask user whether to enter Phase 02 FS-Memory SoT + schema + atomic write.

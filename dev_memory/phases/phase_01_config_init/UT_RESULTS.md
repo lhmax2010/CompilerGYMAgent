@@ -351,3 +351,38 @@ Coverage notes:
   - namespace_parts_mismatch: `InitializedLoadError: namespace must equal '/'.join(namespace_parts)`
   - invalid_created_at: `InitializedLoadError: created_at must be ISO 8601`
 - reported_by: user on intended Ubuntu server environment
+
+## Subtask 1.4 review-fix - Ubuntu target-environment validation
+
+- timestamp_utc: 2026-05-08T06:56:45Z
+- environment:
+  - os: Ubuntu/Linux
+  - python: 3.11.15
+  - virtualenv: `.venv`
+  - runner: plain `pytest` via `venv + pip`, no `uv` required
+- related_requirements:
+  - REQUIREMENTS.md section 1.2
+  - REQUIREMENTS.md section 4.15
+  - REQUIREMENTS.md Appendix B workspace_lock
+- targeted_command: `pytest ./tests/test_workspace_lock.py -v`
+- targeted_duration: 0.23s
+- targeted_result: 21 passed, 0 failed
+- targeted_repeat_command: `pytest ./tests/test_workspace_lock.py -v -rs`
+- targeted_repeat_duration: 0.23s
+- targeted_repeat_result: 21 passed, 0 failed, 0 skipped
+- full_command: `pytest -v`
+- full_duration: 0.55s
+- full_result: 153 passed, 0 failed
+
+Key PASS cases:
+- `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter`
+- `tests/test_workspace_lock.py::test_acquire_writes_holder_metadata_and_release_keeps_lock_file`
+- `tests/test_workspace_lock.py::test_busy_lock_with_stale_metadata_does_not_bypass_active_fcntl`
+- `tests/test_workspace_lock.py::test_workspace_lock_accepts_unquoted_yaml_timestamp`
+- `tests/test_workspace_lock.py::test_timeout_retry_reads_holder_only_on_final_busy`
+
+Coverage notes:
+- Confirms the Linux-only real `fcntl` release/reacquire regression test executes and passes in the intended Ubuntu environment.
+- Confirms Subtask 1.4 review fix H-1 remains closed under real Linux file-locking semantics.
+- Confirms full Phase 01 suite passes on Ubuntu after adding `psutil` to the local virtualenv.
+- reported_by: user on intended Ubuntu server environment

@@ -1,6 +1,6 @@
 # Phase 01 Summary
 
-Status: reviewing
+Status: done
 
 Phase scope:
 - Config parsing and schema validation.
@@ -8,7 +8,7 @@ Phase scope:
 - Initial `agent init` confirmation and `.initialized` guard.
 - Local workspace lock with stale lock detection.
 
-Phase implementation deliverables are complete; Subtask 1.4 is ready for external review and Ubuntu target-environment validation.
+Phase implementation deliverables are complete. Subtasks 1.1 through 1.4 have passed local tests, external review cycles, and Ubuntu target-environment validation.
 
 Completed:
 - Subtask 1.1 implemented config parsing, pydantic schema validation, safe YAML loading, tests, self review, and patch files.
@@ -25,7 +25,8 @@ Completed:
 - Subtask 1.4 implemented local WorkspaceLock with `fcntl.flock`, holder metadata YAML, busy refusal, `pid + create_time` stale detection, release cleanup, `psutil` dependency wiring, tests, self review, and patch files.
 - Subtask 1.4 external review fixes removed release-time lock-file unlinking, reduced timeout retry holder reads, accepted unquoted YAML timestamps, and added a Linux-only real `fcntl` race regression test.
 - Subtask 1.4 review fixes were externally approved after independent 153-test and real `fcntl` verification; remaining naive datetime handling is non-blocking polish.
+- Subtask 1.4 review fixes were validated by the user on the intended Ubuntu/Linux environment with Python 3.11.15: targeted workspace-lock pytest passed 21/21, full pytest passed 153/153, and the Linux real-fcntl regression test executed and passed.
 
 Remaining:
-- External review of Subtask 1.4.
-- Ubuntu target-environment validation of Subtask 1.4.
+- Non-blocking polish carried forward: reject naive `datetime` values for `WorkspaceLockHolder.started_at` instead of treating them as local time.
+- Await user approval to enter Phase 02 FS-Memory SoT + schema + atomic write.
