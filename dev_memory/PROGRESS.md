@@ -387,3 +387,13 @@ Next action: push sync commit to GitHub and prepare external review prompt.
 - Full UT: `uv --native-tls run --extra dev pytest -v` -> 179 passed, 1 skipped.
 
 Next action: commit/push the review-fix patch, then provide Ubuntu validation guide.
+
+## 2026-05-08T08:38:12Z - Phase 02 / Subtask 2.2 review fixes committed
+
+- Review-fix commit: `a61d44c phase_02_fs_memory: 2.2 review fixes (REQUIREMENTS sections 4.2.6, 4.15)`.
+- Recorded patch artifacts:
+  - `dev_memory/phases/phase_02_fs_memory/patches/03_trial_record_review_fixes.patch`
+  - `dev_memory/phases/phase_02_fs_memory/patches/03_trial_record_review_fixes.summary.txt`
+  - `dev_memory/phases/phase_02_fs_memory/patches/03_trial_record_review_fixes.review.md`
+
+Next action: push review-fix sync commit to GitHub and prepare Ubuntu validation guide.

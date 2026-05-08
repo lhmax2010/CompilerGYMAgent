@@ -53,6 +53,8 @@ subtasks:
     external_reviewed_at: 2026-05-08T08:34:49Z
     review_fix_patch_file: dev_memory/phases/phase_02_fs_memory/patches/03_trial_record_review_fixes.patch
     review_fix_applied: true
+    review_fix_commit_hash: a61d44c
+    review_fix_commit_message: "phase_02_fs_memory: 2.2 review fixes (REQUIREMENTS sections 4.2.6, 4.15)"
     files_modified:
       - src/agent/fs_memory.py
       - src/agent/__init__.py

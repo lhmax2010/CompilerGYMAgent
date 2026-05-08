@@ -69,6 +69,8 @@ subtasks:
       - "Documented that write_trial_record callers must hold WorkspaceLock for cross-process immutability."
       - "Moved namespace mismatch validation before integrity hash computation."
       - "Tightened compute_combo_hash direct-call validation for surrounding whitespace and control characters."
+    review_fix_commit_hash: a61d44c
+    review_fix_commit_message: "phase_02_fs_memory: 2.2 review fixes (REQUIREMENTS sections 4.2.6, 4.15)"
   - id: "2.3"
     title: "Implement checkpoint schema and canonical checkpoint YAML read/write"
     status: todo
@@ -87,4 +89,4 @@ notes: |
   checkpoint.yaml, experience yaml, learned rule yaml) must reuse the same
   flush/fsync/os.replace/parent-fsync semantics from REQUIREMENTS.md section
   4.7.5.
-next_action: "Commit and push Subtask 2.2 review fixes, then prepare Ubuntu validation guide."
+next_action: "Push Subtask 2.2 review-fix sync commit, then prepare Ubuntu validation guide."
