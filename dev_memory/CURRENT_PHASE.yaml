@@ -1,7 +1,7 @@
 phase_id: phase_01_config_init
 phase_title: "Config + init + namespace + workspace lock"
 started_at: 2026-05-06T08:42:41Z
-last_updated: 2026-05-08T02:04:07Z
+last_updated: 2026-05-08T02:43:54Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 4.1
@@ -158,6 +158,11 @@ subtasks:
     review_fix_patch_file: dev_memory/phases/phase_01_config_init/patches/09_workspace_lock_review_fixes.patch
     review_fix_commit_hash: 94941df
     review_fix_commit_message: "phase_01_config_init: 1.4 fix workspace lock review findings (REQUIREMENTS section 4.15)"
+    review_fix_external_review_verdict: approve
+    review_fix_external_reviewed_at: 2026-05-08T02:43:54Z
+    review_fix_external_review_notes: "Claude independently verified 153/153 tests plus raw fcntl/cross-process behavior; only naive datetime timezone-shift polish remains non-blocking."
+    deferred_low_priority_followups:
+      - "Reject naive datetime objects for WorkspaceLockHolder.started_at instead of treating them as local time."
 notes: |
   Required kickoff reading is complete. Phase 01 covers config/init/module
   isolation plus local workspace locking. v1 is Linux/Ubuntu only; do not
@@ -168,4 +173,4 @@ notes: |
   workspace was not a Git repository. A local Git repository was initialized
   during kickoff so Subtask 1.1 can start from a clean baseline after the
   kickoff commit.
-next_action: "Push Subtask 1.4 review-fix commits to GitHub, then send for external verification and Ubuntu validation."
+next_action: "Run Subtask 1.4 Ubuntu target-environment validation, including the Linux real-fcntl test."

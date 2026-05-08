@@ -269,3 +269,12 @@ Next action: generate patch files, commit Subtask 1.4 review fixes, push to `ori
 - Patch files: `dev_memory/phases/phase_01_config_init/patches/09_workspace_lock_review_fixes.{patch,summary.txt,review.md}`.
 
 Next action: push Subtask 1.4 review-fix commits to `origin/main`, then request external verification and Ubuntu validation.
+
+## 2026-05-08T02:43:54Z - Phase 01 / Subtask 1.4 review fixes externally approved
+
+- External review verdict: Approve.
+- Reviewer independently verified 153 passed, 0 failed with real `fcntl` and cross-process checks.
+- Reviewer confirmed H-1 release unlink race, M-1 timeout holder reads, and M-2 unquoted timestamp handling are fixed.
+- Remaining low-priority follow-up: reject naive `datetime` values for `WorkspaceLockHolder.started_at` instead of allowing Python to interpret them as local time.
+
+Next action: run Subtask 1.4 Ubuntu target-environment validation, including `tests/test_workspace_lock.py` so the Linux real-fcntl regression test executes.

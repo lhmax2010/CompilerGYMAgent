@@ -83,6 +83,15 @@ Post-fix review checklist:
 - [x] Imported experience prompt quoting is not applicable.
 - [x] Hash calculation is not applicable.
 
+## Subtask 1.4 External Review Verification - Claude approve
+
+- reviewed_at: 2026-05-08T02:43:54Z
+- verdict: Approve
+- tested: 153 passed, 0 failed with independent real `fcntl` and cross-process verification.
+- conclusion: H-1, M-1, and M-2 review-fix items are closed. Subtask 1.4 can proceed to Ubuntu target-environment validation.
+- non_blocking_followups:
+  - Reject naive `datetime` values for `WorkspaceLockHolder.started_at` instead of allowing `.astimezone(UTC)` to interpret them as local time.
+
 Findings:
 - `agent.convergence.no_improve_trials` in REQUIREMENTS.md section 4.1.2 overlaps with `agent.stagnation_threshold_trials` in Appendix B. Fixed by accepting both and rejecting conflicts; decision recorded in `dev_memory/DECISIONS.md`.
 - `baseline.combo` in section 4.1.2 overlaps with `baseline.default_combo` in Appendix B. Fixed by synchronizing the default field when only one form is provided.
