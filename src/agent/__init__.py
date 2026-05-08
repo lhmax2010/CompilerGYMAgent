@@ -1,6 +1,13 @@
 """Compiler option tuning agent package."""
 
 from .config import AgentConfig, ConfigLoadError, load_config
+from .fs_memory import (
+    AtomicWriteError,
+    FsMemoryError,
+    NamespaceLayout,
+    atomic_write_yaml,
+    namespace_layout_for_config,
+)
 from .init import (
     HistorySummary,
     InitAborted,
@@ -44,7 +51,9 @@ from .workspace_lock import (
 
 __all__ = [
     "AgentConfig",
+    "AtomicWriteError",
     "ConfigLoadError",
+    "FsMemoryError",
     "HistorySummary",
     "InitAborted",
     "InitContext",
@@ -56,6 +65,7 @@ __all__ = [
     "LockReadResult",
     "ModulesRegistry",
     "NamespaceMismatchError",
+    "NamespaceLayout",
     "ProjectNamespace",
     "RegistryLoadError",
     "RegistryValidationError",
@@ -65,12 +75,14 @@ __all__ = [
     "WorkspaceLockHolder",
     "WorkspaceLockPlatformError",
     "assert_initialized_matches",
+    "atomic_write_yaml",
     "collect_history_summary",
     "compute_project_namespace",
     "load_config",
     "load_initialized_state",
     "load_modules_registry",
     "lock_path_for_workspace",
+    "namespace_layout_for_config",
     "normalize_init_choice",
     "prepare_init_context",
     "prompt_for_init_confirmation",

@@ -289,3 +289,23 @@ Next action: run Subtask 1.4 Ubuntu target-environment validation, including `te
 - This confirms Subtask 1.4 review fixes pass on the intended Linux/Ubuntu execution environment without requiring `uv`.
 
 Next action: Phase 01 is complete; ask user whether to enter Phase 02 FS-Memory SoT + schema + atomic write.
+
+## 2026-05-08T07:04:04Z - Phase 02 started / Subtask 2.1 started
+
+- Started Phase 02: FS-Memory SoT + schema + atomic write.
+- Started Subtask 2.1: shared atomic YAML writer and namespace FS layout resolver.
+- Requirements in scope: REQUIREMENTS.md section 4.2.3 and section 4.7.5.
+- Planned files: `src/agent/fs_memory.py`, `tests/test_fs_memory.py`, public exports in `src/agent/__init__.py`, and Phase 02 `dev_memory` files.
+
+Next action: implement atomic writer + namespace layout resolver, then run targeted/full UT.
+
+## 2026-05-08T07:10:09Z - Phase 02 / Subtask 2.1 completed
+
+- Implemented `src/agent/fs_memory.py` with shared `atomic_write_yaml` and `NamespaceLayout`.
+- Migrated `.initialized` writes from the private init helper to the shared FS-Memory atomic writer.
+- Added 10 pytest cases covering namespace layout paths, directory creation, unique same-parent temp names, fsync calls, alias-free YAML output, target-directory rejection, non-mapping rejection, failure-conservative behavior, and temp-file non-clobbering.
+- Targeted UT passed: `uv --native-tls run --extra dev pytest tests/test_fs_memory.py -v` -> 10 passed.
+- Full UT passed: `uv --native-tls run --extra dev pytest -v` -> 162 passed, 1 skipped.
+- Self review completed and recorded in `dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md`.
+
+Next action: generate patch files, commit Subtask 2.1, and push to `origin/main`.

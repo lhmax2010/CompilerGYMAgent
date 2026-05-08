@@ -1,183 +1,52 @@
-phase_id: phase_01_config_init
-phase_title: "Config + init + namespace + workspace lock"
-started_at: 2026-05-06T08:42:41Z
-last_updated: 2026-05-08T06:56:45Z
+phase_id: phase_02_fs_memory
+phase_title: "FS-Memory SoT + schema + atomic write"
+started_at: 2026-05-08T07:04:04Z
+last_updated: 2026-05-08T07:10:09Z
 target_milestone: M1
 related_requirements:
-  - REQUIREMENTS.md section 4.1
-  - REQUIREMENTS.md section 4.15
-status: done
+  - REQUIREMENTS.md section 4.2
+  - REQUIREMENTS.md section 4.7.5
+status: in_progress
 subtasks:
-  - id: "1.1"
-    title: "Implement agent.config.yaml parsing and Pydantic schema"
+  - id: "2.1"
+    title: "Implement shared atomic YAML writer and namespace FS layout resolver"
     status: done
     related_requirements:
-      - REQUIREMENTS.md section 4.1.2
-      - REQUIREMENTS.md Appendix B
+      - REQUIREMENTS.md section 4.2.3
+      - REQUIREMENTS.md section 4.7.5
     files_created:
-      - pyproject.toml
-      - uv.lock
-      - .gitignore
-      - src/agent/__init__.py
-      - src/agent/config.py
-      - tests/test_config.py
-    ut_passed: true
-    self_reviewed: true
-    patch_file: dev_memory/phases/phase_01_config_init/patches/01_config_schema.patch
-    review_fix_patch_file: dev_memory/phases/phase_01_config_init/patches/02_config_schema_review_fixes.patch
-    review_fix_ut_passed: true
-    review_fix_self_reviewed: true
-    review_fix_commit_hash: 7228570
-    minor_review_fix_patch_file: dev_memory/phases/phase_01_config_init/patches/03_config_schema_minor_review_fixes.patch
-    minor_review_fix_status: done
-    minor_review_fix_ut_passed: true
-    minor_review_fix_self_reviewed: true
-    minor_review_fix_patch_generated: true
-    minor_review_fix_commit_hash: 3afef68
-    external_review_verdict: approve
-    external_reviewed_at: 2026-05-07T06:54:29Z
-    external_review_notes: "Claude verified 51/51 tests and approved Subtask 1.1; remaining low-priority test gaps are non-blocking."
-    target_environment_validation:
-      os: Ubuntu/Linux
-      python: 3.11.15
-      targeted_pytest: "51 passed in 0.29s"
-      full_pytest: "51 passed in 0.28s"
-      runner: "venv + pip + pytest; uv not required"
-  - id: "1.2"
-    title: "Implement modules.registry validation and namespace computation"
-    status: done
-    related_requirements:
-      - REQUIREMENTS.md section 4.1.3
-      - REQUIREMENTS.md section 4.1.4
-    files_created:
-      - src/agent/registry.py
-      - tests/test_registry.py
+      - src/agent/fs_memory.py
+      - tests/test_fs_memory.py
     files_modified:
-      - src/agent/__init__.py
-    ut_passed: true
-    targeted_ut: "33 passed, 0 failed"
-    full_ut: "84 passed, 0 failed"
-    self_reviewed: true
-    patch_file: dev_memory/phases/phase_01_config_init/patches/04_registry_namespace.patch
-    commit_hash: e64a692
-    commit_message: "phase_01_config_init: 1.2 implement registry namespace validation (REQUIREMENTS section 4.1.3)"
-    external_review_verdict: approve_with_minor_changes
-    external_reviewed_at: 2026-05-07T08:51:09Z
-    review_fix_targets:
-      - "Reject namespace control characters"
-      - "Require registry schema_version"
-      - "Add AgentConfig namespace UT and validation docstring"
-      - "Record schema_version and prefix decisions"
-    review_fix_status: done
-    review_fix_ut_passed: true
-    review_fix_targeted_ut: "46 passed, 0 failed"
-    review_fix_full_ut: "97 passed, 0 failed"
-    review_fix_self_reviewed: true
-    review_fix_patch_file: dev_memory/phases/phase_01_config_init/patches/05_registry_namespace_review_fixes.patch
-    review_fix_commit_hash: 242a4d3
-    review_fix_commit_message: "phase_01_config_init: 1.2 fix registry review findings (REQUIREMENTS section 4.1.3)"
-    target_environment_validation:
-      os: Ubuntu/Linux
-      python: 3.11.15
-      targeted_pytest: "46 passed in 0.11s"
-      full_pytest: "97 passed in 0.31s"
-      manual_probe: "multi\\nmedia namespace rejected with ValueError: project.module cannot contain control characters"
-      runner: "venv + pip + pytest; uv not required"
-  - id: "1.3"
-    title: "Implement init confirmation flow and .initialized namespace guard"
-    status: done
-    related_requirements:
-      - REQUIREMENTS.md section 4.1.1
-    files_created:
       - src/agent/init.py
-      - tests/test_init.py
-    files_modified:
       - src/agent/__init__.py
     ut_passed: true
-    targeted_ut: "28 passed, 0 failed"
-    full_ut: "125 passed, 0 failed"
+    targeted_ut: "10 passed, 0 failed"
+    full_ut: "162 passed, 0 failed, 1 skipped"
     self_reviewed: true
-    patch_file: dev_memory/phases/phase_01_config_init/patches/06_init_confirmation.patch
-    commit_hash: abdfdf9
-    commit_message: "phase_01_config_init: 1.3 implement init namespace guard (REQUIREMENTS section 4.1.1)"
-    external_review_verdict: approve_with_minor_changes
-    external_reviewed_at: 2026-05-07T13:51:34Z
-    review_fix_targets:
-      - "Cross-check .initialized namespace, namespace_parts, and project identity"
-      - "Validate .initialized created_at as UTC ISO 8601"
-      - "Wrap non-UTF-8 .initialized reads as InitializedLoadError"
-      - "Convert EOF during init prompt to InitAborted"
-    review_fix_status: done
-    review_fix_ut_passed: true
-    review_fix_targeted_ut: "35 passed, 0 failed"
-    review_fix_full_ut: "132 passed, 0 failed"
-    review_fix_self_reviewed: true
-    review_fix_patch_file: dev_memory/phases/phase_01_config_init/patches/07_init_review_fixes.patch
-    review_fix_commit_hash: 5dfd1a1
-    review_fix_commit_message: "phase_01_config_init: 1.3 fix init review findings (REQUIREMENTS section 4.1.1)"
-    review_fix_target_environment_validation:
-      os: Ubuntu/Linux
-      python: 3.11.15
-      targeted_pytest: "35 passed in 0.14s"
-      full_pytest: "132 passed in 0.37s"
-      manual_probe_namespace_parts: "InitializedLoadError: namespace must equal '/'.join(namespace_parts)"
-      manual_probe_created_at: "InitializedLoadError: created_at must be ISO 8601"
-      runner: "venv + pip + pytest; uv not required"
-  - id: "1.4"
-    title: "Implement local WorkspaceLock with stale lock detection"
-    status: done
+    patch_file: dev_memory/phases/phase_02_fs_memory/patches/01_atomic_layout.patch
+    patch_generated: true
+  - id: "2.2"
+    title: "Implement TrialRecord schema, integrity hash, and immutable trial writer"
+    status: todo
     related_requirements:
-      - REQUIREMENTS.md section 4.15
-      - REQUIREMENTS.md Appendix B workspace_lock
-    files_created:
-      - src/agent/workspace_lock.py
-      - tests/test_workspace_lock.py
-    files_modified:
-      - src/agent/__init__.py
-      - pyproject.toml
-      - uv.lock
-    ut_passed: true
-    targeted_ut: "18 passed, 0 failed"
-    full_ut: "150 passed, 0 failed"
-    self_reviewed: true
-    patch_file: dev_memory/phases/phase_01_config_init/patches/08_workspace_lock.patch
-    commit_hash: 9b92829
-    commit_message: "phase_01_config_init: 1.4 implement workspace lock (REQUIREMENTS section 4.15)"
-    external_review_verdict: request_changes
-    external_reviewed_at: 2026-05-08T02:02:01Z
-    review_fix_targets:
-      - "Do not unlink run.lock on release because it can break fcntl mutual exclusion"
-      - "Avoid repeated holder YAML reads during timeout retry loops"
-      - "Accept hand-edited unquoted YAML timestamps parsed as datetime"
-      - "Add Linux real-fcntl integration coverage for release/reacquire"
-    review_fix_status: done
-    review_fix_ut_passed: true
-    review_fix_targeted_ut: "20 passed, 1 skipped"
-    review_fix_full_ut: "152 passed, 1 skipped"
-    review_fix_self_reviewed: true
-    review_fix_patch_file: dev_memory/phases/phase_01_config_init/patches/09_workspace_lock_review_fixes.patch
-    review_fix_commit_hash: 94941df
-    review_fix_commit_message: "phase_01_config_init: 1.4 fix workspace lock review findings (REQUIREMENTS section 4.15)"
-    review_fix_external_review_verdict: approve
-    review_fix_external_reviewed_at: 2026-05-08T02:43:54Z
-    review_fix_external_review_notes: "Claude independently verified 153/153 tests plus raw fcntl/cross-process behavior; only naive datetime timezone-shift polish remains non-blocking."
-    review_fix_target_environment_validation:
-      os: Ubuntu/Linux
-      python: 3.11.15
-      targeted_pytest: "21 passed in 0.23s"
-      full_pytest: "153 passed in 0.55s"
-      linux_real_fcntl_test: "tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter PASSED"
-      runner: "venv + pip + pytest; uv not required"
-    deferred_low_priority_followups:
-      - "Reject naive datetime objects for WorkspaceLockHolder.started_at instead of treating them as local time."
+      - REQUIREMENTS.md section 4.2.6
+  - id: "2.3"
+    title: "Implement checkpoint schema and canonical checkpoint YAML read/write"
+    status: todo
+    related_requirements:
+      - REQUIREMENTS.md section 4.2.6
+      - REQUIREMENTS.md section 3.3.4
+  - id: "2.4"
+    title: "Implement SoT discovery helpers for existing trials and startup validation inputs"
+    status: todo
+    related_requirements:
+      - REQUIREMENTS.md section 4.2.4
+      - REQUIREMENTS.md section 4.1.4
 notes: |
-  Required kickoff reading is complete. Phase 01 covers config/init/module
-  isolation plus local workspace locking. v1 is Linux/Ubuntu only; do not
-  add Windows compatibility compromises for fcntl/os.O_DIRECTORY/process group
-  behavior.
-
-  Startup observation: initial `git status --porcelain` failed because this
-  workspace was not a Git repository. A local Git repository was initialized
-  during kickoff so Subtask 1.1 can start from a clean baseline after the
-  kickoff commit.
-next_action: "Phase 01 complete. Ask user whether to enter Phase 02: FS-Memory SoT + schema + atomic write."
+  Phase 01 is complete and validated on Ubuntu. Phase 02 starts with the
+  shared atomic YAML writer because every later SoT writer (trial yaml,
+  checkpoint.yaml, experience yaml, learned rule yaml) must reuse the same
+  flush/fsync/os.replace/parent-fsync semantics from REQUIREMENTS.md section
+  4.7.5.
+next_action: "Commit and push Subtask 2.1, then continue to Subtask 2.2 TrialRecord schema."

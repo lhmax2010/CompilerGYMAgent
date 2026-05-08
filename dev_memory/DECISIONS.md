@@ -256,3 +256,25 @@ Decision records must include:
 - alternatives_considered:
   - Keep unlink-after-unlock cleanup, which can break mutual exclusion.
   - Unlink before unlock, which still risks confusing new contenders and is unnecessary because section 4.15 explicitly allows residual lock files.
+
+## 2026-05-08T07:10:09Z - Promote atomic YAML writing to FS-Memory shared utility
+
+- affected_requirement:
+  - REQUIREMENTS.md section 4.2.1
+  - REQUIREMENTS.md section 4.7.5
+- decision: Implement `agent.fs_memory.atomic_write_yaml(data, path)` as the shared SoT writer and migrate `.initialized` writes to it immediately.
+- rationale: Section 4.7.5 requires every SoT YAML writer to use the same unique-temp, flush/fsync, `os.replace`, and parent-directory fsync semantics. `.initialized` already affects startup decisions, so keeping a private duplicate writer after Phase 02 starts would create drift risk before trial/checkpoint writers are added.
+- alternatives_considered:
+  - Leave `.initialized` on its private helper until more FS-Memory writers exist, which would preserve duplication and make future fixes easy to miss.
+  - Make the helper internal-only and not export it, which would force later modules to reach into private APIs or reimplement the writer.
+
+## 2026-05-08T07:10:09Z - NamespaceLayout creates directories but not SoT files
+
+- affected_requirement:
+  - REQUIREMENTS.md section 4.2.3
+  - REQUIREMENTS.md section 4.2.6
+- decision: `NamespaceLayout.ensure_directories()` creates required directories from the documented layout, but it does not pre-create `.initialized`, `checkpoint.yaml`, `events.jsonl`, trial YAML, or index/cache files.
+- rationale: Empty placeholder files can be mistaken for canonical state and can weaken recovery semantics. Each SoT file should be created by the module that owns its schema and write transaction.
+- alternatives_considered:
+  - Pre-create all documented files during layout setup, which would make the tree visually complete but introduce empty canonical-state files.
+  - Avoid layout directory creation entirely, which would push repeated `mkdir` logic into every writer and increase inconsistency risk.

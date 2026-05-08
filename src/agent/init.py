@@ -7,8 +7,6 @@ checks.
 
 from __future__ import annotations
 
-import os
-import tempfile
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -25,6 +23,7 @@ from pydantic import (
 )
 
 from .config import AgentConfig, NonEmptyStr, ProjectConfig, load_config
+from .fs_memory import atomic_write_yaml
 from .registry import (
     ModulesRegistry,
     ProjectNamespace,
@@ -344,7 +343,7 @@ def write_initialized_state(
         created_at=created_at,
     )
     context.namespace_dir.mkdir(parents=True, exist_ok=True)
-    _atomic_write_yaml(context.initialized_path, state.model_dump(mode="json"))
+    atomic_write_yaml(state.model_dump(mode="json"), context.initialized_path)
     return state
 
 
@@ -385,43 +384,7 @@ def load_initialized_state(path: str | Path) -> InitializedState:
         ) from exc
 
 
-def _atomic_write_yaml(path: Path, data: dict[str, Any]) -> None:
-    target = Path(path)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    fd, temp_name = tempfile.mkstemp(
-        prefix=f".{target.name}.",
-        suffix=".tmp",
-        dir=target.parent,
-        text=True,
-    )
-    temp_path = Path(temp_name)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
-            yaml.safe_dump(data, handle, sort_keys=False, allow_unicode=False)
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temp_path, target)
-        _fsync_parent_dir(target.parent)
-    except Exception:
-        try:
-            temp_path.unlink()
-        except OSError:
-            pass
-        raise
-
-
 def _count_yaml_files(path: Path) -> int:
     if not path.exists():
         return 0
     return sum(1 for item in path.rglob("*.yaml") if item.is_file())
-
-
-def _fsync_parent_dir(path: Path) -> None:
-    flags = getattr(os, "O_DIRECTORY", None)
-    if flags is None:
-        return
-    dir_fd = os.open(path, os.O_RDONLY | flags)
-    try:
-        os.fsync(dir_fd)
-    finally:
-        os.close(dir_fd)
