@@ -148,6 +148,32 @@ Coverage notes:
 - Covers stale residual holder replacement after successful flock, PID reuse via create_time mismatch, and access-denied conservative behavior.
 - Covers lock holder YAML hardening: aliases rejected, oversized files rejected, invalid timestamp rejected.
 
+## Subtask 1.4 - external review fixes
+
+- timestamp_utc: 2026-05-08T02:04:07Z
+- related_requirements:
+  - REQUIREMENTS.md section 4.15
+  - REQUIREMENTS.md Appendix B workspace_lock
+- targeted_command: `uv --native-tls run --extra dev pytest tests/test_workspace_lock.py -v`
+- targeted_duration: 1.36s
+- targeted_result: 20 passed, 1 skipped
+- full_command: `uv --native-tls run --extra dev pytest -v`
+- full_duration: 2.39s
+- full_result: 152 passed, 1 skipped
+- skipped:
+  - `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter` skipped on Windows; it requires Linux `fcntl` and should run in Ubuntu validation.
+
+New/changed PASS cases:
+- `tests/test_workspace_lock.py::test_acquire_writes_holder_metadata_and_release_keeps_lock_file`
+- `tests/test_workspace_lock.py::test_workspace_lock_accepts_unquoted_yaml_timestamp`
+- `tests/test_workspace_lock.py::test_timeout_retry_reads_holder_only_on_final_busy`
+
+Coverage notes:
+- Closes external review H-1 by removing release-time unlink and asserting the holder file remains as the stable lock rendezvous path.
+- Closes external review M-1 by checking timeout retries do not repeatedly parse holder YAML.
+- Closes external review M-2 by accepting unquoted ISO timestamps that PyYAML parses as `datetime`.
+- Adds Linux-only real `fcntl` regression coverage for the preopened waiter race.
+
 ## Subtask 1.2 - modules.registry validation and namespace computation
 
 - timestamp_utc: 2026-05-07T08:21:27Z

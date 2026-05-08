@@ -52,6 +52,37 @@ Review checklist:
 - [x] Imported experience prompt quoting is not applicable.
 - [x] Hash calculation is not applicable.
 
+## Subtask 1.4 External Review Fix - Claude request changes
+
+- started_at: 2026-05-08T02:02:01Z
+- completed_at: 2026-05-08T02:04:07Z
+- status: fixed
+- verdict_received: Request changes
+- accepted_for_immediate_fix:
+  - Remove `release()` unlink-after-unlock because it can break Linux `fcntl` mutual exclusion by creating a new lock inode.
+  - Avoid repeated holder YAML reads during timeout retry loops.
+  - Accept unquoted ISO timestamps parsed by PyYAML as `datetime`.
+  - Add Linux-only real `fcntl` integration coverage for release/reacquire behavior.
+
+Fixes applied:
+- `release()` now only unlocks and closes; `state/run.lock` remains and is overwritten on the next successful acquire.
+- `acquire(timeout>0)` reads holder metadata only when it finally raises `WorkspaceBusyError`.
+- `WorkspaceLockHolder.started_at` now coerces `datetime` inputs to UTC ISO strings before string validation.
+- Added `test_real_fcntl_release_keeps_path_locked_for_preopened_waiter`, skipped on non-Linux and intended for Ubuntu validation.
+
+Post-fix review checklist:
+- [x] Implementation matches referenced WorkspaceLock requirements.
+- [x] Documented failure modes and external review findings are covered.
+- [x] Trace writes are still not required for lock acquire/release; high-risk bypass trace remains for later control commands.
+- [x] Lock metadata writes still use ftruncate/write/fsync while the file lock is held.
+- [x] No hidden canonical data is stored only in SQLite/cache.
+- [x] No unsafe assumption about spec restore or workspace verification.
+- [x] `dev_memory` progress is updated.
+- [x] v1 Linux/Ubuntu behavior is explicit; Linux-only real fcntl test is marked for target environment.
+- [x] Lock path is derived from config workspace and `workspace_lock.lock_file`.
+- [x] Imported experience prompt quoting is not applicable.
+- [x] Hash calculation is not applicable.
+
 Findings:
 - `agent.convergence.no_improve_trials` in REQUIREMENTS.md section 4.1.2 overlaps with `agent.stagnation_threshold_trials` in Appendix B. Fixed by accepting both and rejecting conflicts; decision recorded in `dev_memory/DECISIONS.md`.
 - `baseline.combo` in section 4.1.2 overlaps with `baseline.default_combo` in Appendix B. Fixed by synchronizing the default field when only one form is provided.

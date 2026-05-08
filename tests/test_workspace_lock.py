@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import multiprocessing as mp
 import os
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -44,6 +46,38 @@ class FakeProcess:
 
     def create_time(self) -> float:
         return self._create_time
+
+
+class CountingWorkspaceLock(WorkspaceLock):
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        super().__init__(*args, **kwargs)
+        self.holder_reads = 0
+
+    def read_holder(self) -> LockReadResult:
+        self.holder_reads += 1
+        return super().read_holder()
+
+
+def hold_preopened_flock(
+    lock_path: str,
+    opened: mp.Event,
+    release_now: mp.Event,
+    locked: mp.Event,
+    done: mp.Event,
+) -> None:
+    import fcntl
+
+    fd = os.open(lock_path, os.O_RDWR)
+    try:
+        opened.set()
+        if not release_now.wait(5):
+            return
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        locked.set()
+        done.wait(5)
+        fcntl.flock(fd, fcntl.LOCK_UN)
+    finally:
+        os.close(fd)
 
 
 def make_lock(
@@ -127,12 +161,15 @@ def test_workspace_lock_from_config_uses_configured_lock_file(tmp_path: Path) ->
     assert lock.lock_path == tmp_path / "state" / "custom.lock"
 
 
-def test_acquire_writes_holder_metadata_and_release_removes_file(tmp_path: Path) -> None:
+def test_acquire_writes_holder_metadata_and_release_keeps_lock_file(
+    tmp_path: Path,
+) -> None:
     lock = make_lock(tmp_path)
+    lock_path = tmp_path / "state" / "run.lock"
 
     with lock.acquire("agent run", "sess_20260507_test"):
         assert lock.is_held is True
-        holder = yaml.safe_load((tmp_path / "state" / "run.lock").read_text())
+        holder = yaml.safe_load(lock_path.read_text())
         assert holder == {
             "pid": 12345,
             "pgid": 12345,
@@ -144,10 +181,11 @@ def test_acquire_writes_holder_metadata_and_release_removes_file(tmp_path: Path)
             "agent_version": "0.1.test",
         }
         if os.name == "posix":
-            assert (tmp_path / "state" / "run.lock").stat().st_mode & 0o777 == 0o600
+            assert lock_path.stat().st_mode & 0o777 == 0o600
 
     assert lock.is_held is False
-    assert not (tmp_path / "state" / "run.lock").exists()
+    assert lock_path.exists()
+    assert yaml.safe_load(lock_path.read_text())["session_id"] == "sess_20260507_test"
 
 
 def test_release_is_idempotent(tmp_path: Path) -> None:
@@ -211,6 +249,43 @@ def test_busy_lock_with_stale_metadata_does_not_bypass_active_fcntl(
     assert exc_info.value.holder is not None
     assert exc_info.value.holder.pid == 99999
     assert lock_path.exists()
+
+
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="requires Linux fcntl")
+def test_real_fcntl_release_keeps_path_locked_for_preopened_waiter(
+    tmp_path: Path,
+) -> None:
+    lock_path = tmp_path / "state" / "run.lock"
+    lock = WorkspaceLock(tmp_path).acquire("agent run", "sess_parent")
+    opened = mp.Event()
+    release_now = mp.Event()
+    locked = mp.Event()
+    done = mp.Event()
+    process = mp.Process(
+        target=hold_preopened_flock,
+        args=(str(lock_path), opened, release_now, locked, done),
+    )
+    process.start()
+    try:
+        assert opened.wait(5)
+        release_now.set()
+        lock.release()
+        assert locked.wait(5)
+
+        with pytest.raises(WorkspaceBusyError):
+            WorkspaceLock(tmp_path).acquire("agent run", "sess_contender")
+    finally:
+        done.set()
+        process.join(5)
+        if process.is_alive():
+            process.terminate()
+            process.join(5)
+        try:
+            lock_path.unlink()
+        except FileNotFoundError:
+            pass
+
+    assert process.exitcode == 0
 
 
 def test_existing_stale_lock_file_is_overwritten_after_successful_flock(
@@ -290,6 +365,34 @@ def test_workspace_lock_rejects_invalid_holder_timestamp(tmp_path: Path) -> None
     assert "started_at must be ISO 8601" in result.error
 
 
+def test_workspace_lock_accepts_unquoted_yaml_timestamp(tmp_path: Path) -> None:
+    lock_path = tmp_path / "state" / "run.lock"
+    lock_path.parent.mkdir(parents=True)
+    lock_path.write_text(
+        "\n".join(
+            [
+                "pid: 12345",
+                "pgid: 12345",
+                "create_time: 100.0",
+                "session_id: sess_old",
+                "command: agent run",
+                "started_at: 2026-05-07T00:00:00+00:00",
+                "hostname: old-host",
+                "agent_version: 0.1.old",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    lock = make_lock(tmp_path)
+
+    result = lock.read_holder()
+
+    assert result.error is None
+    assert result.holder is not None
+    assert result.holder.started_at == "2026-05-07T00:00:00+00:00"
+
+
 def test_workspace_lock_rejects_yaml_aliases(tmp_path: Path) -> None:
     lock_path = tmp_path / "state" / "run.lock"
     lock_path.parent.mkdir(parents=True)
@@ -331,6 +434,30 @@ def test_acquire_rejects_empty_command_or_session(tmp_path: Path) -> None:
 def test_acquire_rejects_negative_timeout(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="timeout"):
         make_lock(tmp_path).acquire("agent run", "sess", timeout=-1)
+
+
+def test_timeout_retry_reads_holder_only_on_final_busy(tmp_path: Path) -> None:
+    fake_fcntl = FakeFcntl()
+    lock_path = tmp_path / "state" / "run.lock"
+    write_holder(lock_path, lock_holder_data())
+    fake_fcntl.held = True
+    lock = CountingWorkspaceLock(
+        tmp_path,
+        fcntl_module=fake_fcntl,
+        pid_provider=lambda: 12345,
+        pgid_provider=lambda: 12345,
+        create_time_provider=lambda: 100.0,
+        process_lookup=lambda pid: FakeProcess(100.0),
+        hostname_provider=lambda: "dev-host",
+        now_provider=lambda: datetime(2026, 5, 7, tzinfo=UTC),
+        agent_version="0.1.test",
+    )
+
+    with pytest.raises(WorkspaceBusyError):
+        lock.acquire("agent run", "sess_new", timeout=0.12)
+
+    assert fake_fcntl.calls.count(fake_fcntl.LOCK_EX | fake_fcntl.LOCK_NB) > 1
+    assert lock.holder_reads == 1
 
 
 def test_acquire_requires_linux_fcntl_backend(tmp_path: Path) -> None:

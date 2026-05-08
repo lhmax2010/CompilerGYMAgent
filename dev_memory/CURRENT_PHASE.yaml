@@ -1,7 +1,7 @@
 phase_id: phase_01_config_init
 phase_title: "Config + init + namespace + workspace lock"
 started_at: 2026-05-06T08:42:41Z
-last_updated: 2026-05-07T14:26:18Z
+last_updated: 2026-05-08T02:04:07Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 4.1
@@ -143,6 +143,19 @@ subtasks:
     patch_file: dev_memory/phases/phase_01_config_init/patches/08_workspace_lock.patch
     commit_hash: 9b92829
     commit_message: "phase_01_config_init: 1.4 implement workspace lock (REQUIREMENTS section 4.15)"
+    external_review_verdict: request_changes
+    external_reviewed_at: 2026-05-08T02:02:01Z
+    review_fix_targets:
+      - "Do not unlink run.lock on release because it can break fcntl mutual exclusion"
+      - "Avoid repeated holder YAML reads during timeout retry loops"
+      - "Accept hand-edited unquoted YAML timestamps parsed as datetime"
+      - "Add Linux real-fcntl integration coverage for release/reacquire"
+    review_fix_status: done
+    review_fix_ut_passed: true
+    review_fix_targeted_ut: "20 passed, 1 skipped"
+    review_fix_full_ut: "152 passed, 1 skipped"
+    review_fix_self_reviewed: true
+    review_fix_patch_file: dev_memory/phases/phase_01_config_init/patches/09_workspace_lock_review_fixes.patch
 notes: |
   Required kickoff reading is complete. Phase 01 covers config/init/module
   isolation plus local workspace locking. v1 is Linux/Ubuntu only; do not
@@ -153,4 +166,4 @@ notes: |
   workspace was not a Git repository. A local Git repository was initialized
   during kickoff so Subtask 1.1 can start from a clean baseline after the
   kickoff commit.
-next_action: "Push Subtask 1.4 commits to GitHub, then send WorkspaceLock patch for external review."
+next_action: "Generate Subtask 1.4 review-fix patch files, commit, push, then send for external review."

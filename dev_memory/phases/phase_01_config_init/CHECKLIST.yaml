@@ -95,6 +95,18 @@ subtasks:
     commit_pending: false
     commit_hash: 9b92829
     commit_message: "phase_01_config_init: 1.4 implement workspace lock (REQUIREMENTS section 4.15)"
+    review_fix_status: done
+    review_fix_targets:
+      - "Remove release unlink race"
+      - "Reduce timeout retry holder reads"
+      - "Accept YAML datetime started_at"
+      - "Add Linux real-fcntl integration test"
+    review_fix_ut_passed: true
+    review_fix_targeted_ut: "20 passed, 1 skipped"
+    review_fix_full_ut: "152 passed, 1 skipped"
+    review_fix_self_reviewed: true
+    review_fix_patch_file: dev_memory/phases/phase_01_config_init/patches/09_workspace_lock_review_fixes.patch
+    review_fix_commit_pending: true
     files_created:
       - src/agent/workspace_lock.py
       - tests/test_workspace_lock.py

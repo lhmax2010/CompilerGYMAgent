@@ -241,3 +241,24 @@ Next action: generate patch files, commit Subtask 1.4, push to `origin/main`, an
 - Patch files: `dev_memory/phases/phase_01_config_init/patches/08_workspace_lock.{patch,summary.txt,review.md}`.
 
 Next action: push Subtask 1.4 commits to `origin/main`, then send WorkspaceLock patch for external review.
+
+## 2026-05-08T02:02:01Z - Phase 01 / Subtask 1.4 external review fix started
+
+- External review verdict: Request changes.
+- Accepted blocking finding: `release()` must not unlink `state/run.lock` after unlocking because a waiting process can hold the old inode while a new process creates and locks a new inode.
+- Accepted immediate medium fixes: reduce repeated holder YAML reads during timeout retry loops, and accept hand-edited unquoted YAML timestamps parsed by PyYAML as `datetime`.
+- Added target: Linux-only real `fcntl` integration coverage for release/reacquire behavior.
+
+Next action: implement Subtask 1.4 review fixes, run targeted/full UT, self review, patch, commit, and push.
+
+## 2026-05-08T02:04:07Z - Phase 01 / Subtask 1.4 external review fixes completed
+
+- Fixed H-1 by keeping `state/run.lock` after release; release now unlocks and closes without unlinking, preserving the inode rendezvous point for waiting contenders.
+- Fixed M-1 by reading holder YAML only when timeout retry finally reports busy.
+- Fixed M-2 by accepting hand-edited unquoted YAML timestamps parsed by PyYAML as `datetime`.
+- Added a Linux-only real `fcntl` integration test for the preopened-waiter release race; it is skipped on the Windows development host and will run on Ubuntu.
+- Targeted UT passed locally: `uv --native-tls run --extra dev pytest tests/test_workspace_lock.py -v` -> 20 passed, 1 skipped.
+- Full UT passed locally: `uv --native-tls run --extra dev pytest -v` -> 152 passed, 1 skipped.
+- Self review completed and recorded in `dev_memory/phases/phase_01_config_init/REVIEW_NOTES.md`.
+
+Next action: generate patch files, commit Subtask 1.4 review fixes, push to `origin/main`, then request external verification.

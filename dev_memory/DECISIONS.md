@@ -246,3 +246,13 @@ Decision records must include:
 - alternatives_considered:
   - Follow the pseudocode literally and unlink/retry when holder metadata appears stale, which risks bypassing a live holder during the small window after flock acquisition and before metadata write.
   - Ignore stale holder data entirely, which would miss useful diagnostics when a residual file is overwritten after a successful lock acquisition.
+
+## 2026-05-08T02:04:07Z - Keep run.lock file after release
+
+- affected_requirement:
+  - REQUIREMENTS.md section 4.15.3
+- decision: `WorkspaceLock.release()` unlocks and closes the file descriptor but does not unlink `state/run.lock`.
+- rationale: External review identified a real Linux `fcntl` race: a waiting process can lock the old inode after release while another process recreates and locks a new inode after unlink. Leaving the lock file in place preserves a single inode rendezvous point; the next successful acquire overwrites holder metadata with `ftruncate + write + fsync`.
+- alternatives_considered:
+  - Keep unlink-after-unlock cleanup, which can break mutual exclusion.
+  - Unlink before unlock, which still risks confusing new contenders and is unnecessary because section 4.15 explicitly allows residual lock files.

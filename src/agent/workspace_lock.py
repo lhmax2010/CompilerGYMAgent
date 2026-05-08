@@ -91,6 +91,13 @@ class WorkspaceLockHolder(StrictLockModel):
     hostname: NonEmptyStr
     agent_version: NonEmptyStr
 
+    @field_validator("started_at", mode="before")
+    @classmethod
+    def started_at_datetime_to_string(cls, value: Any) -> Any:
+        if isinstance(value, datetime):
+            return value.astimezone(UTC).isoformat()
+        return value
+
     @field_validator("started_at")
     @classmethod
     def started_at_must_be_utc_isoformat(cls, value: str) -> str:
@@ -198,9 +205,8 @@ class WorkspaceLock:
                     )
                     break
                 except BlockingIOError as exc:
-                    holder_result = self.read_holder()
                     if timeout == 0 or time.monotonic() >= deadline:
-                        raise _busy_error(self.lock_path, holder_result) from exc
+                        raise _busy_error(self.lock_path, self.read_holder()) from exc
                     time.sleep(min(0.05, max(0.0, deadline - time.monotonic())))
 
             previous_holder = self.read_holder().holder
@@ -225,11 +231,6 @@ class WorkspaceLock:
         finally:
             os.close(fd)
             self.holder = None
-            try:
-                self.lock_path.unlink()
-                _fsync_parent_dir(self.lock_path.parent)
-            except FileNotFoundError:
-                pass
 
     def __enter__(self) -> WorkspaceLock:
         if self._fd is None:
