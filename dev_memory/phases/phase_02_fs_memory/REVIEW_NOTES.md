@@ -82,3 +82,35 @@ Deferred low-priority follow-ups:
 
 Review conclusion:
 - Subtask 2.2 is ready for external review.
+
+## Subtask 2.2 - external review and review fixes
+
+- timestamp_utc: 2026-05-08T08:34:49Z
+- reviewer: Claude
+- verdict: Approve with minor changes
+- files_reviewed:
+  - src/agent/fs_memory.py
+  - tests/test_fs_memory.py
+  - dev_memory/DECISIONS.md
+
+External findings addressed:
+- M-1: `write_trial_record` has an inherent exists-before-replace TOCTOU window if callers skip `WorkspaceLock`.
+  - Fix: added a docstring stating callers must hold the section 4.15 workspace lock; added a DECISIONS.md entry making the lock boundary explicit.
+- L-5: namespace mismatch was checked after computing integrity.
+  - Fix: `write_trial_record` now validates `record.namespace` against `layout.namespace` before computing integrity.
+- L-2: direct `compute_combo_hash` calls accepted surrounding whitespace and control characters.
+  - Fix: direct helper calls now reject surrounding whitespace and C0/DEL control characters; added parametrized tests.
+
+Additional clarification:
+- The external review listed mapping-order and integrity false-negative tests as gaps, but Subtask 2.2 already had `test_payload_hash_is_independent_of_mapping_insertion_order` and an integrity-block tamper check. This review-fix adds a payload-field tamper test as extra coverage.
+
+Post-fix checklist:
+- [x] `write_trial_record` documents its `WorkspaceLock` precondition.
+- [x] DECISIONS.md records why trial immutability is enforced at the workspace-lock boundary rather than with a second writer-specific lock.
+- [x] Namespace mismatch fails before integrity hash computation.
+- [x] Dirty direct combo-hash inputs are rejected.
+- [x] Payload tampering makes `verify_trial_integrity` return false.
+- [x] Targeted and full UT suites pass.
+
+Review conclusion:
+- Subtask 2.2 review fixes are ready for Ubuntu validation.

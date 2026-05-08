@@ -289,6 +289,12 @@ def test_trial_record_rejects_combo_hash_mismatch() -> None:
         TrialRecord.model_validate(data)
 
 
+@pytest.mark.parametrize("option", [" -O3", "-O3 ", "-O3\nINJECT", "-O3\t"])
+def test_compute_combo_hash_rejects_untrimmed_or_control_options(option: str) -> None:
+    with pytest.raises(ValueError, match="combo options"):
+        compute_combo_hash([option])
+
+
 def test_trial_record_rejects_unsafe_namespace() -> None:
     data = trial_record_data()
     data["namespace"] = "multimedia/ffmpeg/gcc-13.2.0/code-a1b2c3d"
@@ -339,6 +345,14 @@ def test_payload_hash_is_independent_of_mapping_insertion_order() -> None:
     right = {"a": ["-O3"], "b": {"x": 1, "y": 2}}
 
     assert compute_payload_hash(left) == compute_payload_hash(right)
+
+
+def test_verify_trial_integrity_detects_payload_tampering() -> None:
+    record = with_trial_integrity(trial_record_data())
+    payload = trial_record_payload(record)
+    payload["duration_sec"] = 9999
+
+    assert verify_trial_integrity(payload) is False
 
 
 def test_with_trial_integrity_adds_hash_and_verifies() -> None:

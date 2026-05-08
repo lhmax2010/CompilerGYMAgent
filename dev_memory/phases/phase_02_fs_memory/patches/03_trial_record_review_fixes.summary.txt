@@ -1,0 +1,23 @@
+Phase 02 / Subtask 2.2 - TrialRecord external review fixes
+
+Review verdict:
+- Approve with minor changes.
+
+Fixed:
+- Documented `write_trial_record`'s caller-side `WorkspaceLock` precondition for cross-process immutability.
+- Added a DECISIONS.md entry explaining why trial writer immutability relies on the section 4.15 workspace lock rather than a writer-specific lock or a separate `O_EXCL` path.
+- Moved `write_trial_record` namespace mismatch validation before integrity hash computation.
+- Tightened direct `compute_combo_hash` input validation:
+  - rejects surrounding whitespace
+  - rejects C0/DEL control characters
+- Added a payload-field tamper test for `verify_trial_integrity`.
+
+Tests:
+- Targeted: `uv --native-tls run --extra dev pytest tests/test_fs_memory.py -v`
+  - 27 passed, 0 failed
+- Full: `uv --native-tls run --extra dev pytest -v`
+  - 179 passed, 0 failed, 1 skipped
+
+Remaining deferred items:
+- Trial writer concurrent same-path behavior should be integration-tested when workflow/CLI code wraps writes with `WorkspaceLock`.
+- NonEmptyStr silent strip behavior remains a cross-codebase low-priority policy topic.

@@ -342,6 +342,10 @@ def compute_combo_hash(combo: Sequence[str]) -> str:
     for option in combo:
         if not isinstance(option, str) or not option.strip():
             raise ValueError("combo options must be non-empty strings")
+        if option != option.strip():
+            raise ValueError("combo options cannot contain surrounding whitespace")
+        if any(ord(char) < 0x20 or ord(char) == 0x7F for char in option):
+            raise ValueError("combo options cannot contain control characters")
     payload = _canonical_yaml_bytes(list(combo))
     return "sha256:" + hashlib.sha256(payload).hexdigest()
 
@@ -410,13 +414,21 @@ def write_trial_record(
     layout: NamespaceLayout,
     record: TrialRecord | Mapping[str, Any],
 ) -> Path:
-    trial = with_trial_integrity(record)
+    """Write one completed immutable trial YAML.
+
+    Callers must hold the workspace lock before invoking this function. The
+    helper refuses existing paths, but cross-process immutability still depends
+    on the section 4.15 lock serializing concurrent writers.
+    """
+
+    validated = TrialRecord.model_validate(record)
     expected_namespace = str(layout.namespace)
-    if trial.namespace != expected_namespace:
+    if validated.namespace != expected_namespace:
         raise TrialRecordError(
             "trial namespace does not match layout "
-            f"(expected={expected_namespace!r}, actual={trial.namespace!r})"
+            f"(expected={expected_namespace!r}, actual={validated.namespace!r})"
         )
+    trial = with_trial_integrity(validated)
     target = trial_record_path(layout, trial)
     if target.exists() or target.is_symlink():
         raise TrialImmutableError(f"trial record already exists and is immutable: {target}")

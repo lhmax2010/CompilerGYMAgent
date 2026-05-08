@@ -375,3 +375,15 @@ Next action: generate Subtask 2.2 patch artifacts, commit/push, then prepare ext
   - `dev_memory/phases/phase_02_fs_memory/patches/02_trial_record.review.md`
 
 Next action: push sync commit to GitHub and prepare external review prompt.
+
+## 2026-05-08T08:34:49Z - Phase 02 / Subtask 2.2 external review fixes applied
+
+- External review verdict: Approve with minor changes.
+- Fixed M-1 by documenting that `write_trial_record` assumes the caller holds `WorkspaceLock`; helper-level `exists()` checks are not a replacement for section 4.15 cross-process serialization.
+- Fixed L-5 by validating the record namespace against the layout before computing integrity.
+- Addressed L-2 defensively by making direct `compute_combo_hash` calls reject surrounding whitespace and control characters.
+- Added tests for direct combo-hash dirty input and payload tamper detection.
+- Targeted UT: `uv --native-tls run --extra dev pytest tests/test_fs_memory.py -v` -> 27 passed.
+- Full UT: `uv --native-tls run --extra dev pytest -v` -> 179 passed, 1 skipped.
+
+Next action: commit/push the review-fix patch, then provide Ubuntu validation guide.

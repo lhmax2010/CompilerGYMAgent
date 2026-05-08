@@ -101,3 +101,26 @@ Coverage notes:
 - Covers immutable trial behavior by rejecting existing target paths without overwriting existing YAML.
 - Covers namespace isolation by rejecting writes when the record's `namespace` does not match the target `NamespaceLayout`.
 - Windows full-suite skip is expected: `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter` requires Linux `fcntl`.
+
+## Subtask 2.2 - external review fixes
+
+- timestamp_utc: 2026-05-08T08:34:49Z
+- related_requirements:
+  - REQUIREMENTS.md section 4.2.6
+  - REQUIREMENTS.md section 4.15
+- targeted_command: `uv --native-tls run --extra dev pytest tests/test_fs_memory.py -v`
+- targeted_result: 27 passed, 0 failed
+- full_command: `uv --native-tls run --extra dev pytest -v`
+- full_result: 179 passed, 0 failed, 1 skipped
+
+New test coverage:
+- PASS `tests/test_fs_memory.py::test_compute_combo_hash_rejects_untrimmed_or_control_options[ -O3]`
+- PASS `tests/test_fs_memory.py::test_compute_combo_hash_rejects_untrimmed_or_control_options[-O3 ]`
+- PASS `tests/test_fs_memory.py::test_compute_combo_hash_rejects_untrimmed_or_control_options[-O3\nINJECT]`
+- PASS `tests/test_fs_memory.py::test_compute_combo_hash_rejects_untrimmed_or_control_options[-O3\t]`
+- PASS `tests/test_fs_memory.py::test_verify_trial_integrity_detects_payload_tampering`
+
+Coverage notes:
+- Confirms direct `compute_combo_hash` calls reject dirty option strings instead of relying only on `TrialRecord` normalization.
+- Confirms a non-integrity payload edit causes `verify_trial_integrity` to return false.
+- Confirms the full suite remains green after documenting the WorkspaceLock precondition and moving namespace validation before integrity hashing.

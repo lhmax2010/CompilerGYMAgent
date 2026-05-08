@@ -299,3 +299,14 @@ Decision records must include:
 - alternatives_considered:
   - Let callers choose arbitrary trial output paths, which would weaken the documented directory layout and increase duplicate naming risk.
   - Trust the record's `namespace` without comparing it to the layout, which would make namespace isolation depend entirely on caller discipline.
+
+## 2026-05-08T08:29:44Z - TrialRecord writer assumes WorkspaceLock for cross-process immutability
+
+- affected_requirement:
+  - REQUIREMENTS.md section 4.2.6
+  - REQUIREMENTS.md section 4.15
+- decision: Keep `write_trial_record()` on the shared `atomic_write_yaml` path and document that callers must hold `WorkspaceLock` before writing completed trial YAML.
+- rationale: The helper can refuse already-existing paths, but any exists-before-replace check has a TOCTOU window if two processes write the same trial path concurrently. Section 4.15 is the project-wide serialization boundary for SoT writes, and preserving that single lock owner avoids a second ad hoc writer-specific locking mechanism.
+- alternatives_considered:
+  - Replace `atomic_write_yaml` with an `O_EXCL`-based writer just for trial YAML, which would split SoT writer semantics and lose the shared section 4.7.5 path.
+  - Add a `must_not_exist` flag to `atomic_write_yaml`, which may be useful later but is unnecessary until a real caller needs lock-free immutable creation.

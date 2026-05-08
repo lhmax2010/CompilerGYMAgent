@@ -15,6 +15,7 @@ Completed:
 - Subtask 2.1 was validated by the user on the intended Ubuntu/Linux environment with Python 3.11.15: targeted FS-Memory pytest passed 10/10, full pytest passed 163/163, and a manual atomic-write UTF-8/tmp-cleanup probe passed.
 - Subtask 2.2 implemented the immutable `TrialRecord` schema, canonical payload hash helpers, combo hashing, monthly trial path resolution, and the immutable trial writer.
 - Subtask 2.2 targeted UT passed 22/22 and full UT passed 174/175 with the expected Windows skip for the Linux-only real-fcntl workspace lock test.
+- Subtask 2.2 external review returned Approve with minor changes. Review fixes documented the WorkspaceLock precondition for `write_trial_record`, moved namespace validation before integrity hashing, tightened direct `compute_combo_hash` validation, and raised local tests to 27 targeted / 179 full pass plus one expected Windows skip.
 
 Remaining:
 - Subtask 2.3 checkpoint schema and writer.

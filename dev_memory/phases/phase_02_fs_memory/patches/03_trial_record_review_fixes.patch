@@ -1,0 +1,262 @@
+﻿diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index ab424d9..d382051 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -1,7 +1,7 @@
+ phase_id: phase_02_fs_memory
+ phase_title: "FS-Memory SoT + schema + atomic write"
+ started_at: 2026-05-08T07:04:04Z
+-last_updated: 2026-05-08T08:16:42Z
++last_updated: 2026-05-08T08:34:49Z
+ target_milestone: M1
+ related_requirements:
+   - REQUIREMENTS.md section 4.2
+@@ -55,13 +55,20 @@ subtasks:
+       - tests/test_fs_memory.py
+       - src/agent/__init__.py
+     ut_passed: true
+-    targeted_ut: "22 passed, 0 failed"
+-    full_ut: "174 passed, 0 failed, 1 skipped"
++    targeted_ut: "27 passed, 0 failed"
++    full_ut: "179 passed, 0 failed, 1 skipped"
+     self_reviewed: true
+     patch_file: dev_memory/phases/phase_02_fs_memory/patches/02_trial_record.patch
+     patch_generated: true
+     commit_hash: e13592e
+     commit_message: "phase_02_fs_memory: 2.2 implement trial record writer (REQUIREMENTS section 4.2.6)"
++    external_review_verdict: approve_with_minor_changes
++    external_reviewed_at: 2026-05-08T08:34:49Z
++    review_fix_patch_file: dev_memory/phases/phase_02_fs_memory/patches/03_trial_record_review_fixes.patch
++    review_fix_summary:
++      - "Documented that write_trial_record callers must hold WorkspaceLock for cross-process immutability."
++      - "Moved namespace mismatch validation before integrity hash computation."
++      - "Tightened compute_combo_hash direct-call validation for surrounding whitespace and control characters."
+   - id: "2.3"
+     title: "Implement checkpoint schema and canonical checkpoint YAML read/write"
+     status: todo
+@@ -80,4 +87,4 @@ notes: |
+   checkpoint.yaml, experience yaml, learned rule yaml) must reuse the same
+   flush/fsync/os.replace/parent-fsync semantics from REQUIREMENTS.md section
+   4.7.5.
+-next_action: "Push Subtask 2.2 sync commit, then prepare external review prompt before Subtask 2.3."
++next_action: "Commit and push Subtask 2.2 review fixes, then prepare Ubuntu validation guide."
+diff --git a/dev_memory/DECISIONS.md b/dev_memory/DECISIONS.md
+index 86cd1c7..2fb7b7f 100644
+--- a/dev_memory/DECISIONS.md
++++ b/dev_memory/DECISIONS.md
+@@ -299,3 +299,14 @@ Decision records must include:
+ - alternatives_considered:
+   - Let callers choose arbitrary trial output paths, which would weaken the documented directory layout and increase duplicate naming risk.
+   - Trust the record's `namespace` without comparing it to the layout, which would make namespace isolation depend entirely on caller discipline.
++
++## 2026-05-08T08:29:44Z - TrialRecord writer assumes WorkspaceLock for cross-process immutability
++
++- affected_requirement:
++  - REQUIREMENTS.md section 4.2.6
++  - REQUIREMENTS.md section 4.15
++- decision: Keep `write_trial_record()` on the shared `atomic_write_yaml` path and document that callers must hold `WorkspaceLock` before writing completed trial YAML.
++- rationale: The helper can refuse already-existing paths, but any exists-before-replace check has a TOCTOU window if two processes write the same trial path concurrently. Section 4.15 is the project-wide serialization boundary for SoT writes, and preserving that single lock owner avoids a second ad hoc writer-specific locking mechanism.
++- alternatives_considered:
++  - Replace `atomic_write_yaml` with an `O_EXCL`-based writer just for trial YAML, which would split SoT writer semantics and lose the shared section 4.7.5 path.
++  - Add a `must_not_exist` flag to `atomic_write_yaml`, which may be useful later but is unnecessary until a real caller needs lock-free immutable creation.
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index f3ba5df..8b86480 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -375,3 +375,15 @@ Next action: generate Subtask 2.2 patch artifacts, commit/push, then prepare ext
+   - `dev_memory/phases/phase_02_fs_memory/patches/02_trial_record.review.md`
+ 
+ Next action: push sync commit to GitHub and prepare external review prompt.
++
++## 2026-05-08T08:34:49Z - Phase 02 / Subtask 2.2 external review fixes applied
++
++- External review verdict: Approve with minor changes.
++- Fixed M-1 by documenting that `write_trial_record` assumes the caller holds `WorkspaceLock`; helper-level `exists()` checks are not a replacement for section 4.15 cross-process serialization.
++- Fixed L-5 by validating the record namespace against the layout before computing integrity.
++- Addressed L-2 defensively by making direct `compute_combo_hash` calls reject surrounding whitespace and control characters.
++- Added tests for direct combo-hash dirty input and payload tamper detection.
++- Targeted UT: `uv --native-tls run --extra dev pytest tests/test_fs_memory.py -v` -> 27 passed.
++- Full UT: `uv --native-tls run --extra dev pytest -v` -> 179 passed, 1 skipped.
++
++Next action: commit/push the review-fix patch, then provide Ubuntu validation guide.
+diff --git a/dev_memory/phases/phase_02_fs_memory/CHECKLIST.yaml b/dev_memory/phases/phase_02_fs_memory/CHECKLIST.yaml
+index ef7aca9..2cf73d0 100644
+--- a/dev_memory/phases/phase_02_fs_memory/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_02_fs_memory/CHECKLIST.yaml
+@@ -38,8 +38,8 @@ subtasks:
+     status: done
+     ut_required: true
+     ut_passed: true
+-    targeted_ut: "22 passed, 0 failed"
+-    full_ut: "174 passed, 0 failed, 1 skipped"
++    targeted_ut: "27 passed, 0 failed"
++    full_ut: "179 passed, 0 failed, 1 skipped"
+     self_review_required: true
+     self_reviewed: true
+     patch_required: true
+@@ -49,6 +49,10 @@ subtasks:
+     commit_pending: false
+     commit_hash: e13592e
+     commit_message: "phase_02_fs_memory: 2.2 implement trial record writer (REQUIREMENTS section 4.2.6)"
++    external_review_verdict: approve_with_minor_changes
++    external_reviewed_at: 2026-05-08T08:34:49Z
++    review_fix_patch_file: dev_memory/phases/phase_02_fs_memory/patches/03_trial_record_review_fixes.patch
++    review_fix_applied: true
+     files_modified:
+       - src/agent/fs_memory.py
+       - src/agent/__init__.py
+diff --git a/dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md b/dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md
+index 2feda7a..a107d25 100644
+--- a/dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md
++++ b/dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md
+@@ -82,3 +82,35 @@ Deferred low-priority follow-ups:
+ 
+ Review conclusion:
+ - Subtask 2.2 is ready for external review.
++
++## Subtask 2.2 - external review and review fixes
++
++- timestamp_utc: 2026-05-08T08:34:49Z
++- reviewer: Claude
++- verdict: Approve with minor changes
++- files_reviewed:
++  - src/agent/fs_memory.py
++  - tests/test_fs_memory.py
++  - dev_memory/DECISIONS.md
++
++External findings addressed:
++- M-1: `write_trial_record` has an inherent exists-before-replace TOCTOU window if callers skip `WorkspaceLock`.
++  - Fix: added a docstring stating callers must hold the section 4.15 workspace lock; added a DECISIONS.md entry making the lock boundary explicit.
++- L-5: namespace mismatch was checked after computing integrity.
++  - Fix: `write_trial_record` now validates `record.namespace` against `layout.namespace` before computing integrity.
++- L-2: direct `compute_combo_hash` calls accepted surrounding whitespace and control characters.
++  - Fix: direct helper calls now reject surrounding whitespace and C0/DEL control characters; added parametrized tests.
++
++Additional clarification:
++- The external review listed mapping-order and integrity false-negative tests as gaps, but Subtask 2.2 already had `test_payload_hash_is_independent_of_mapping_insertion_order` and an integrity-block tamper check. This review-fix adds a payload-field tamper test as extra coverage.
++
++Post-fix checklist:
++- [x] `write_trial_record` documents its `WorkspaceLock` precondition.
++- [x] DECISIONS.md records why trial immutability is enforced at the workspace-lock boundary rather than with a second writer-specific lock.
++- [x] Namespace mismatch fails before integrity hash computation.
++- [x] Dirty direct combo-hash inputs are rejected.
++- [x] Payload tampering makes `verify_trial_integrity` return false.
++- [x] Targeted and full UT suites pass.
++
++Review conclusion:
++- Subtask 2.2 review fixes are ready for Ubuntu validation.
+diff --git a/dev_memory/phases/phase_02_fs_memory/SUMMARY.md b/dev_memory/phases/phase_02_fs_memory/SUMMARY.md
+index 3ff2746..bb92d1a 100644
+--- a/dev_memory/phases/phase_02_fs_memory/SUMMARY.md
++++ b/dev_memory/phases/phase_02_fs_memory/SUMMARY.md
+@@ -15,6 +15,7 @@ Completed:
+ - Subtask 2.1 was validated by the user on the intended Ubuntu/Linux environment with Python 3.11.15: targeted FS-Memory pytest passed 10/10, full pytest passed 163/163, and a manual atomic-write UTF-8/tmp-cleanup probe passed.
+ - Subtask 2.2 implemented the immutable `TrialRecord` schema, canonical payload hash helpers, combo hashing, monthly trial path resolution, and the immutable trial writer.
+ - Subtask 2.2 targeted UT passed 22/22 and full UT passed 174/175 with the expected Windows skip for the Linux-only real-fcntl workspace lock test.
++- Subtask 2.2 external review returned Approve with minor changes. Review fixes documented the WorkspaceLock precondition for `write_trial_record`, moved namespace validation before integrity hashing, tightened direct `compute_combo_hash` validation, and raised local tests to 27 targeted / 179 full pass plus one expected Windows skip.
+ 
+ Remaining:
+ - Subtask 2.3 checkpoint schema and writer.
+diff --git a/dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md b/dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md
+index 4f4a791..76503db 100644
+--- a/dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md
++++ b/dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md
+@@ -101,3 +101,26 @@ Coverage notes:
+ - Covers immutable trial behavior by rejecting existing target paths without overwriting existing YAML.
+ - Covers namespace isolation by rejecting writes when the record's `namespace` does not match the target `NamespaceLayout`.
+ - Windows full-suite skip is expected: `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter` requires Linux `fcntl`.
++
++## Subtask 2.2 - external review fixes
++
++- timestamp_utc: 2026-05-08T08:34:49Z
++- related_requirements:
++  - REQUIREMENTS.md section 4.2.6
++  - REQUIREMENTS.md section 4.15
++- targeted_command: `uv --native-tls run --extra dev pytest tests/test_fs_memory.py -v`
++- targeted_result: 27 passed, 0 failed
++- full_command: `uv --native-tls run --extra dev pytest -v`
++- full_result: 179 passed, 0 failed, 1 skipped
++
++New test coverage:
++- PASS `tests/test_fs_memory.py::test_compute_combo_hash_rejects_untrimmed_or_control_options[ -O3]`
++- PASS `tests/test_fs_memory.py::test_compute_combo_hash_rejects_untrimmed_or_control_options[-O3 ]`
++- PASS `tests/test_fs_memory.py::test_compute_combo_hash_rejects_untrimmed_or_control_options[-O3\nINJECT]`
++- PASS `tests/test_fs_memory.py::test_compute_combo_hash_rejects_untrimmed_or_control_options[-O3\t]`
++- PASS `tests/test_fs_memory.py::test_verify_trial_integrity_detects_payload_tampering`
++
++Coverage notes:
++- Confirms direct `compute_combo_hash` calls reject dirty option strings instead of relying only on `TrialRecord` normalization.
++- Confirms a non-integrity payload edit causes `verify_trial_integrity` to return false.
++- Confirms the full suite remains green after documenting the WorkspaceLock precondition and moving namespace validation before integrity hashing.
+diff --git a/src/agent/fs_memory.py b/src/agent/fs_memory.py
+index 5b0baea..f72b19a 100644
+--- a/src/agent/fs_memory.py
++++ b/src/agent/fs_memory.py
+@@ -342,6 +342,10 @@ def compute_combo_hash(combo: Sequence[str]) -> str:
+     for option in combo:
+         if not isinstance(option, str) or not option.strip():
+             raise ValueError("combo options must be non-empty strings")
++        if option != option.strip():
++            raise ValueError("combo options cannot contain surrounding whitespace")
++        if any(ord(char) < 0x20 or ord(char) == 0x7F for char in option):
++            raise ValueError("combo options cannot contain control characters")
+     payload = _canonical_yaml_bytes(list(combo))
+     return "sha256:" + hashlib.sha256(payload).hexdigest()
+ 
+@@ -410,13 +414,21 @@ def write_trial_record(
+     layout: NamespaceLayout,
+     record: TrialRecord | Mapping[str, Any],
+ ) -> Path:
+-    trial = with_trial_integrity(record)
++    """Write one completed immutable trial YAML.
++
++    Callers must hold the workspace lock before invoking this function. The
++    helper refuses existing paths, but cross-process immutability still depends
++    on the section 4.15 lock serializing concurrent writers.
++    """
++
++    validated = TrialRecord.model_validate(record)
+     expected_namespace = str(layout.namespace)
+-    if trial.namespace != expected_namespace:
++    if validated.namespace != expected_namespace:
+         raise TrialRecordError(
+             "trial namespace does not match layout "
+-            f"(expected={expected_namespace!r}, actual={trial.namespace!r})"
++            f"(expected={expected_namespace!r}, actual={validated.namespace!r})"
+         )
++    trial = with_trial_integrity(validated)
+     target = trial_record_path(layout, trial)
+     if target.exists() or target.is_symlink():
+         raise TrialImmutableError(f"trial record already exists and is immutable: {target}")
+diff --git a/tests/test_fs_memory.py b/tests/test_fs_memory.py
+index 58fdcd3..a47ea34 100644
+--- a/tests/test_fs_memory.py
++++ b/tests/test_fs_memory.py
+@@ -289,6 +289,12 @@ def test_trial_record_rejects_combo_hash_mismatch() -> None:
+         TrialRecord.model_validate(data)
+ 
+ 
++@pytest.mark.parametrize("option", [" -O3", "-O3 ", "-O3\nINJECT", "-O3\t"])
++def test_compute_combo_hash_rejects_untrimmed_or_control_options(option: str) -> None:
++    with pytest.raises(ValueError, match="combo options"):
++        compute_combo_hash([option])
++
++
+ def test_trial_record_rejects_unsafe_namespace() -> None:
+     data = trial_record_data()
+     data["namespace"] = "multimedia/ffmpeg/gcc-13.2.0/code-a1b2c3d"
+@@ -341,6 +347,14 @@ def test_payload_hash_is_independent_of_mapping_insertion_order() -> None:
+     assert compute_payload_hash(left) == compute_payload_hash(right)
+ 
+ 
++def test_verify_trial_integrity_detects_payload_tampering() -> None:
++    record = with_trial_integrity(trial_record_data())
++    payload = trial_record_payload(record)
++    payload["duration_sec"] = 9999
++
++    assert verify_trial_integrity(payload) is False
++
++
+ def test_with_trial_integrity_adds_hash_and_verifies() -> None:
+     record = with_trial_integrity(trial_record_data())
+ 
