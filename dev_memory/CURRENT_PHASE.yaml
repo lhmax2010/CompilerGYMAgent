@@ -51,4 +51,4 @@ notes: |
   checkpoint.yaml, experience yaml, learned rule yaml) must reuse the same
   flush/fsync/os.replace/parent-fsync semantics from REQUIREMENTS.md section
   4.7.5.
-next_action: "Push Subtask 2.1, then continue to Subtask 2.2 TrialRecord schema."
+next_action: "Continue to Subtask 2.2: TrialRecord schema, integrity hash, and immutable trial writer."
