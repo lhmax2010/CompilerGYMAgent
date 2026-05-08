@@ -1,0 +1,48 @@
+Phase 02 / Subtask 2.2 - TrialRecord schema, integrity hash, and immutable writer
+
+Scope:
+- REQUIREMENTS.md section 4.2.6 Trial record schema.
+- REQUIREMENTS.md section 4.7.5 shared atomic SoT YAML write semantics.
+
+Implemented:
+- Added strict Pydantic models for immutable trial YAML:
+  - TrialRecord
+  - TrialIntegrity
+  - WorkspaceState
+  - SourceTreeChange
+  - TrialScore
+  - ScoreVsBest
+  - CanaryRecord
+- Added TrialRecord validation:
+  - UTC timezone-aware ISO 8601 timestamp.
+  - Safe 5-segment namespace string.
+  - Safe trial_id path atom.
+  - combo_hash must match the canonical combo.
+  - success outcome requires score.
+  - canary mode requires a canary block.
+  - strict enum coverage for outcome/mode/source/slot/bench/significance fields.
+- Added hashing and payload helpers:
+  - compute_combo_hash
+  - compute_payload_hash
+  - compute_trial_payload_hash
+  - trial_record_payload
+  - with_trial_integrity
+  - verify_trial_integrity
+- Added immutable writer helpers:
+  - trial_record_path
+  - write_trial_record
+- `write_trial_record` computes integrity, refuses existing target paths, validates layout namespace alignment, and writes with shared `atomic_write_yaml`.
+- Exported the public trial APIs from `src/agent/__init__.py`.
+
+Tests:
+- Targeted: `uv --native-tls run --extra dev pytest tests/test_fs_memory.py -v`
+  - 22 passed, 0 failed
+- Full: `uv --native-tls run --extra dev pytest -v`
+  - 174 passed, 0 failed, 1 skipped
+- Manual probe:
+  - `write_trial_record` wrote `trials/data/2026-04/trial_r12_t3.yaml`
+  - `verify_trial_integrity` returned true on the written YAML
+
+Notes:
+- Trace event emission for `trial_yaml_written` is intentionally left to the trace/events subtask.
+- Load-side discovery and integrity scanning for existing trials are left to Subtask 2.4.

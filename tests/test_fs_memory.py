@@ -6,14 +6,26 @@ from pathlib import Path
 
 import pytest
 import yaml
+from pydantic import ValidationError
 
 import agent.fs_memory as fs_memory
 from agent.config import AgentConfig
 from agent.fs_memory import (
     AtomicWriteError,
     NamespaceLayout,
+    TrialImmutableError,
+    TrialRecord,
+    TrialRecordError,
     atomic_write_yaml,
+    compute_combo_hash,
+    compute_payload_hash,
+    compute_trial_payload_hash,
     namespace_layout_for_config,
+    trial_record_path,
+    trial_record_payload,
+    verify_trial_integrity,
+    with_trial_integrity,
+    write_trial_record,
 )
 from agent.registry import ProjectNamespace
 
@@ -42,6 +54,57 @@ def namespace() -> ProjectNamespace:
         code_commit="code-a1b2c3d",
         kg_version="kg-v3",
     )
+
+
+def trial_record_data() -> dict:
+    combo = ["-O3", "-flto=thin", "-fno-plt"]
+    return {
+        "trial_id": "r12_t3",
+        "round": 12,
+        "timestamp": "2026-04-30T10:23:45Z",
+        "duration_sec": 1230.0,
+        "namespace": str(namespace()),
+        "combo": combo,
+        "combo_hash": compute_combo_hash(combo),
+        "mode": "exploit",
+        "candidate_source": "llm_proposal",
+        "schedule_slot": "exploit",
+        "bench_level": "full",
+        "environment_snapshot_hash": "env_abc123",
+        "spec_patch": "--- spec.orig\n+++ spec.new\n",
+        "workspace_state": {
+            "pre_snapshot_hash": "ws_pre_xyz",
+            "post_snapshot_hash": "ws_post_xyz",
+            "source_tree_changes": [
+                {"file": "src/configure", "action": "regenerated"},
+                {"file": "src/Makefile", "action": "regenerated"},
+            ],
+            "build_dir": "~/.agent_workspace/build_dirs/r12_t3",
+            "artifact_path": "~/.agent_workspace/artifacts/final/r12_t3.rpm",
+            "cleanup_status": "completed",
+        },
+        "score": {
+            "objective_direction": "higher_is_better",
+            "baseline_score": 1.0,
+            "raw_runs": [1.22, 1.25, 1.23],
+            "geomean": 1.234,
+            "stddev": 0.016,
+            "ci_95": [1.222, 1.246],
+            "baseline_normalized": 1.234,
+            "vs_best": {
+                "delta_pct": 3.2,
+                "significant": True,
+                "significance_method": "bootstrap_ci",
+                "bootstrap_mode": "unpaired",
+                "p_value_or_ci_test": 0.012,
+            },
+            "noisy": False,
+        },
+        "outcome": "success",
+        "agent_reasoning": "Started from the previous best and added -fno-plt.",
+        "trace_id": "events.jsonl#L12345",
+        "kg_version_used": "v3",
+    }
 
 
 def test_namespace_layout_for_config_matches_requirements_paths(tmp_path: Path) -> None:
@@ -207,3 +270,126 @@ def test_atomic_write_yaml_flushes_file_and_fsyncs_parent(
 
     assert len(fsync_calls) == 1
     assert parent_calls == [target.parent]
+
+
+def test_trial_record_schema_accepts_documented_success_record() -> None:
+    record = TrialRecord.model_validate(trial_record_data())
+
+    assert record.trial_id == "r12_t3"
+    assert record.namespace == str(namespace())
+    assert record.combo_hash == compute_combo_hash(record.combo)
+    assert record.score is not None
+
+
+def test_trial_record_rejects_combo_hash_mismatch() -> None:
+    data = trial_record_data()
+    data["combo_hash"] = "sha256:" + ("0" * 64)
+
+    with pytest.raises(ValidationError, match="combo_hash does not match combo"):
+        TrialRecord.model_validate(data)
+
+
+def test_trial_record_rejects_unsafe_namespace() -> None:
+    data = trial_record_data()
+    data["namespace"] = "multimedia/ffmpeg/gcc-13.2.0/code-a1b2c3d"
+
+    with pytest.raises(ValidationError, match="exactly 5 path segments"):
+        TrialRecord.model_validate(data)
+
+    data = trial_record_data()
+    data["namespace"] = "multimedia//gcc-13.2.0/code-a1b2c3d/kg-v3"
+
+    with pytest.raises(ValidationError, match="cannot be empty"):
+        TrialRecord.model_validate(data)
+
+
+def test_trial_record_requires_score_for_success() -> None:
+    data = trial_record_data()
+    data["score"] = None
+
+    with pytest.raises(ValidationError, match="successful trials must include score"):
+        TrialRecord.model_validate(data)
+
+
+def test_trial_record_requires_canary_details_for_canary_mode() -> None:
+    data = trial_record_data()
+    data["mode"] = "canary"
+    data["schedule_slot"] = "canary"
+    data["canary"] = None
+
+    with pytest.raises(ValidationError, match="canary trials must include canary"):
+        TrialRecord.model_validate(data)
+
+
+def test_trial_payload_hash_excludes_integrity_block() -> None:
+    record = with_trial_integrity(trial_record_data())
+    expected_hash = compute_trial_payload_hash(record)
+    payload = trial_record_payload(record)
+    payload["integrity"] = {
+        **payload["integrity"],
+        "payload_hash": "sha256:" + ("0" * 64),
+    }
+
+    assert compute_trial_payload_hash(payload) == expected_hash
+    assert verify_trial_integrity(payload) is False
+
+
+def test_payload_hash_is_independent_of_mapping_insertion_order() -> None:
+    left = {"b": {"y": 2, "x": 1}, "a": ["-O3"]}
+    right = {"a": ["-O3"], "b": {"x": 1, "y": 2}}
+
+    assert compute_payload_hash(left) == compute_payload_hash(right)
+
+
+def test_with_trial_integrity_adds_hash_and_verifies() -> None:
+    record = with_trial_integrity(trial_record_data())
+
+    assert record.integrity is not None
+    assert record.integrity.hash_fields_excluded == ["integrity"]
+    assert verify_trial_integrity(record) is True
+
+
+def test_trial_record_path_uses_completion_timestamp_month(tmp_path: Path) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+
+    assert trial_record_path(layout, trial_record_data()) == (
+        layout.trial_data_dir / "2026-04" / "trial_r12_t3.yaml"
+    )
+
+
+def test_write_trial_record_writes_month_partition_with_integrity(tmp_path: Path) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+
+    path = write_trial_record(layout, trial_record_data())
+
+    assert path == layout.trial_data_dir / "2026-04" / "trial_r12_t3.yaml"
+    raw = path.read_text(encoding="utf-8")
+    assert "&id" not in raw
+    assert "*id" not in raw
+    stored = yaml.safe_load(raw)
+    assert stored["integrity"]["hash_fields_excluded"] == ["integrity"]
+    assert verify_trial_integrity(stored) is True
+    assert not list(path.parent.glob(".trial_r12_t3.yaml.*.tmp"))
+
+
+def test_write_trial_record_rejects_existing_trial_without_overwrite(tmp_path: Path) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+    target = trial_record_path(layout, trial_record_data())
+    target.parent.mkdir(parents=True)
+    target.write_text("old: true\n", encoding="utf-8")
+
+    with pytest.raises(TrialImmutableError, match="immutable"):
+        write_trial_record(layout, trial_record_data())
+
+    assert yaml.safe_load(target.read_text(encoding="utf-8")) == {"old": True}
+
+
+def test_write_trial_record_rejects_layout_namespace_mismatch(tmp_path: Path) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+    data = trial_record_data()
+    data["namespace"] = "other/ffmpeg/gcc-13.2.0/code-a1b2c3d/kg-v3"
+
+    with pytest.raises(TrialRecordError, match="does not match layout"):
+        write_trial_record(layout, data)
+
+    assert not list(layout.trial_data_dir.rglob("*.yaml"))

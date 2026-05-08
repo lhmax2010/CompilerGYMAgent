@@ -1,0 +1,890 @@
+﻿diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index 9fb5a5c..31ee558 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -1,7 +1,7 @@
+ phase_id: phase_02_fs_memory
+ phase_title: "FS-Memory SoT + schema + atomic write"
+ started_at: 2026-05-08T07:04:04Z
+-last_updated: 2026-05-08T07:52:58Z
++last_updated: 2026-05-08T08:16:42Z
+ target_milestone: M1
+ related_requirements:
+   - REQUIREMENTS.md section 4.2
+@@ -46,9 +46,20 @@ subtasks:
+       - "Consider optional write-size limits if future SoT writers may emit files larger than their read caps."
+   - id: "2.2"
+     title: "Implement TrialRecord schema, integrity hash, and immutable trial writer"
+-    status: todo
++    status: done
+     related_requirements:
+       - REQUIREMENTS.md section 4.2.6
++      - REQUIREMENTS.md section 4.7.5
++    files_modified:
++      - src/agent/fs_memory.py
++      - tests/test_fs_memory.py
++      - src/agent/__init__.py
++    ut_passed: true
++    targeted_ut: "22 passed, 0 failed"
++    full_ut: "174 passed, 0 failed, 1 skipped"
++    self_reviewed: true
++    patch_file: dev_memory/phases/phase_02_fs_memory/patches/02_trial_record.patch
++    patch_generated: true
+   - id: "2.3"
+     title: "Implement checkpoint schema and canonical checkpoint YAML read/write"
+     status: todo
+@@ -67,4 +78,4 @@ notes: |
+   checkpoint.yaml, experience yaml, learned rule yaml) must reuse the same
+   flush/fsync/os.replace/parent-fsync semantics from REQUIREMENTS.md section
+   4.7.5.
+-next_action: "Continue to Subtask 2.2: TrialRecord schema, integrity hash, and immutable trial writer."
++next_action: "Generate patch and commit Subtask 2.2, then prepare external review prompt before Subtask 2.3."
+diff --git a/dev_memory/DECISIONS.md b/dev_memory/DECISIONS.md
+index 23fb530..86cd1c7 100644
+--- a/dev_memory/DECISIONS.md
++++ b/dev_memory/DECISIONS.md
+@@ -278,3 +278,24 @@ Decision records must include:
+ - alternatives_considered:
+   - Pre-create all documented files during layout setup, which would make the tree visually complete but introduce empty canonical-state files.
+   - Avoid layout directory creation entirely, which would push repeated `mkdir` logic into every writer and increase inconsistency risk.
++
++## 2026-05-08T08:16:42Z - Compute TrialRecord integrity from sorted canonical YAML excluding integrity
++
++- affected_requirement:
++  - REQUIREMENTS.md section 4.2.6
++- decision: Trial payload hashes are computed from `TrialRecord.model_dump(mode="json", exclude_none=True)` with the top-level `integrity` block removed, then serialized as sorted-key YAML before SHA-256.
++- rationale: Section 4.2.6 requires `integrity.payload_hash` to avoid the hash self-reference loop by excluding `integrity`. Sorting mapping keys makes the hash independent of YAML key insertion order while preserving a human-readable YAML representation for on-disk SoT.
++- alternatives_considered:
++  - Hash the generated on-disk YAML text directly, which would make cosmetic key reordering or dumper behavior part of integrity.
++  - Use JSON canonicalization instead of YAML, which is stricter but would introduce a second canonical format while user-readable SoT remains YAML.
++
++## 2026-05-08T08:16:42Z - Keep TrialRecord writes immutable and namespace-bound
++
++- affected_requirement:
++  - REQUIREMENTS.md section 4.2.6
++  - REQUIREMENTS.md section 4.1.3
++- decision: `write_trial_record(layout, record)` computes integrity, writes to `trials/data/YYYY-MM/trial_<trial_id>.yaml`, refuses existing paths, and rejects records whose `namespace` does not match the target `NamespaceLayout`.
++- rationale: Trial YAML is historical fact and must not be edited by normal workflow code after completion. Binding the record namespace to the layout prevents cross-namespace drift where a file lives under one namespace path but claims another inside YAML.
++- alternatives_considered:
++  - Let callers choose arbitrary trial output paths, which would weaken the documented directory layout and increase duplicate naming risk.
++  - Trust the record's `namespace` without comparing it to the layout, which would make namespace isolation depend entirely on caller discipline.
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index 30da8cf..4409c0c 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -345,3 +345,23 @@ Next action: continue to Subtask 2.2 TrialRecord schema, integrity hash, and imm
+ - The Linux real-fcntl workspace lock regression test also executed during the full suite and passed.
+ 
+ Next action: continue to Subtask 2.2 TrialRecord schema, integrity hash, and immutable trial writer.
++
++## 2026-05-08T08:06:18Z - Phase 02 / Subtask 2.2 started
++
++- Started TrialRecord schema, integrity hash, and immutable trial writer.
++- Requirements in scope: REQUIREMENTS.md section 4.2.6 and section 4.7.5.
++- Planned files: `src/agent/fs_memory.py`, `tests/test_fs_memory.py`, and public exports in `src/agent/__init__.py`.
++
++Next action: implement TrialRecord models, payload hash helpers, monthly trial path resolver, and immutable writer.
++
++## 2026-05-08T08:16:42Z - Phase 02 / Subtask 2.2 implemented
++
++- Added `TrialRecord` and nested schema models for trial YAML completion records from REQUIREMENTS.md section 4.2.6.
++- Added canonical payload hashing helpers that exclude the `integrity` block and sort mapping keys for stable hash semantics.
++- Added `compute_combo_hash`, `with_trial_integrity`, `verify_trial_integrity`, monthly `trial_record_path`, and immutable `write_trial_record`.
++- Added namespace safety checks and layout namespace matching so a trial YAML cannot be written into a different namespace directory than it claims.
++- Exported the new FS-Memory trial APIs from `src/agent/__init__.py`.
++- Targeted UT: `uv --native-tls run --extra dev pytest tests/test_fs_memory.py -v` -> 22 passed.
++- Full UT: `uv --native-tls run --extra dev pytest -v` -> 174 passed, 1 skipped.
++
++Next action: generate Subtask 2.2 patch artifacts, commit/push, then prepare external review prompt.
+diff --git a/dev_memory/phases/phase_02_fs_memory/CHECKLIST.yaml b/dev_memory/phases/phase_02_fs_memory/CHECKLIST.yaml
+index d826cd4..2924cdc 100644
+--- a/dev_memory/phases/phase_02_fs_memory/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_02_fs_memory/CHECKLIST.yaml
+@@ -35,13 +35,22 @@ subtasks:
+       - src/agent/__init__.py
+   - id: "2.2"
+     title: "Implement TrialRecord schema, integrity hash, and immutable trial writer"
+-    status: todo
++    status: done
+     ut_required: true
+-    ut_passed: false
++    ut_passed: true
++    targeted_ut: "22 passed, 0 failed"
++    full_ut: "174 passed, 0 failed, 1 skipped"
+     self_review_required: true
+-    self_reviewed: false
++    self_reviewed: true
+     patch_required: true
++    patch_file: dev_memory/phases/phase_02_fs_memory/patches/02_trial_record.patch
++    patch_generated: true
+     commit_required: true
++    commit_pending: true
++    files_modified:
++      - src/agent/fs_memory.py
++      - src/agent/__init__.py
++      - tests/test_fs_memory.py
+   - id: "2.3"
+     title: "Implement checkpoint schema and canonical checkpoint YAML read/write"
+     status: todo
+diff --git a/dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md b/dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md
+index f4f05d4..2feda7a 100644
+--- a/dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md
++++ b/dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md
+@@ -46,3 +46,39 @@ Findings:
+ 
+ Review conclusion:
+ - Subtask 2.1 is approved and can proceed to Subtask 2.2.
++
++## Subtask 2.2 - TrialRecord schema, integrity hash, and immutable writer
++
++- timestamp_utc: 2026-05-08T08:16:42Z
++- files_reviewed:
++  - src/agent/fs_memory.py
++  - src/agent/__init__.py
++  - tests/test_fs_memory.py
++
++Review checklist:
++- [x] `TrialRecord` covers the documented fields from REQUIREMENTS.md section 4.2.6.
++- [x] Outcome, mode, candidate source, schedule slot, bench level, objective direction, bootstrap mode, cleanup status, and canary validation result are strict enums.
++- [x] `combo_hash` is recomputed from the canonical combo list and mismatches are rejected.
++- [x] Successful trials require `score`; canary mode requires a `canary` block.
++- [x] Trial timestamps are UTC timezone-aware ISO 8601 strings.
++- [x] Trial `namespace` is a safe 5-segment namespace string.
++- [x] `integrity.payload_hash` excludes the `integrity` block and uses sorted canonical YAML so mapping insertion order cannot change the hash.
++- [x] `write_trial_record` derives `integrity`, writes through shared `atomic_write_yaml`, and refuses an existing trial path.
++- [x] `write_trial_record` checks that the record namespace matches the target `NamespaceLayout`.
++- [x] Trial YAML path uses the completion timestamp month: `trials/data/YYYY-MM/trial_<trial_id>.yaml`.
++- [x] No running trial state is stored in trial YAML; checkpoint and trace remain later subtasks.
++- [x] Public exports in `src/agent/__init__.py` match the new FS-Memory trial APIs.
++- [x] Targeted and full UT suites pass.
++
++Findings:
++- No blocking issues found.
++- The immutable writer rejects existing files before calling `atomic_write_yaml`; future CLI/workflow callers must still hold `WorkspaceLock` to avoid concurrent same-trial writers.
++- Trace event emission for `trial_yaml_written` is out of scope for Subtask 2.2 and remains owned by the trace/event subtask.
++
++Deferred low-priority follow-ups:
++- Add a contract test or decision for concurrent same-path trial writes once workflow-level `WorkspaceLock` wrapping is wired into the CLI.
++- Add load-side integrity checking helpers when Subtask 2.4 implements SoT discovery over existing trials.
++- Decide whether `TrialIntegrityError` should be used by a future strict assertion helper or removed if the later integrity command path uses a different exception.
++
++Review conclusion:
++- Subtask 2.2 is ready for external review.
+diff --git a/dev_memory/phases/phase_02_fs_memory/SUMMARY.md b/dev_memory/phases/phase_02_fs_memory/SUMMARY.md
+index dfec009..3ff2746 100644
+--- a/dev_memory/phases/phase_02_fs_memory/SUMMARY.md
++++ b/dev_memory/phases/phase_02_fs_memory/SUMMARY.md
+@@ -13,8 +13,9 @@ Completed:
+ - Subtask 2.1 implemented shared `atomic_write_yaml`, `NamespaceLayout`, public exports, tests, and migrated `.initialized` writes to the shared SoT writer.
+ - Subtask 2.1 received external approval after independent 163-test verification and additional atomic-write probes.
+ - Subtask 2.1 was validated by the user on the intended Ubuntu/Linux environment with Python 3.11.15: targeted FS-Memory pytest passed 10/10, full pytest passed 163/163, and a manual atomic-write UTF-8/tmp-cleanup probe passed.
++- Subtask 2.2 implemented the immutable `TrialRecord` schema, canonical payload hash helpers, combo hashing, monthly trial path resolution, and the immutable trial writer.
++- Subtask 2.2 targeted UT passed 22/22 and full UT passed 174/175 with the expected Windows skip for the Linux-only real-fcntl workspace lock test.
+ 
+ Remaining:
+-- Subtask 2.2 immutable trial record schema and writer.
+ - Subtask 2.3 checkpoint schema and writer.
+ - Subtask 2.4 SoT discovery helpers.
+diff --git a/dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md b/dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md
+index dccc4ba..4f4a791 100644
+--- a/dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md
++++ b/dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md
+@@ -62,3 +62,42 @@ Coverage notes:
+ - Confirms temp-file cleanup behavior through a manual end-to-end probe.
+ - Confirms the Linux-only real `fcntl` workspace lock regression test still passes during the full suite.
+ - reported_by: user on intended Ubuntu server environment
++
++## Subtask 2.2 - TrialRecord schema, integrity hash, and immutable writer
++
++- timestamp_utc: 2026-05-08T08:16:42Z
++- related_requirements:
++  - REQUIREMENTS.md section 4.2.6
++  - REQUIREMENTS.md section 4.7.5
++- targeted_command: `uv --native-tls run --extra dev pytest tests/test_fs_memory.py -v`
++- targeted_result: 22 passed, 0 failed
++- full_command: `uv --native-tls run --extra dev pytest -v`
++- full_result: 174 passed, 0 failed, 1 skipped
++- manual_probe:
++  - command: `write_trial_record(NamespaceLayout(...), record)`
++  - written_relative_path: `namespaces/multimedia/ffmpeg/gcc-13.2.0/code-a1b2c3d/kg-v3/trials/data/2026-04/trial_r12_t3.yaml`
++  - integrity_hash_fields_excluded: `[integrity]`
++  - verify_trial_integrity: true
++
++New and updated test cases:
++- PASS `tests/test_fs_memory.py::test_trial_record_schema_accepts_documented_success_record`
++- PASS `tests/test_fs_memory.py::test_trial_record_rejects_combo_hash_mismatch`
++- PASS `tests/test_fs_memory.py::test_trial_record_rejects_unsafe_namespace`
++- PASS `tests/test_fs_memory.py::test_trial_record_requires_score_for_success`
++- PASS `tests/test_fs_memory.py::test_trial_record_requires_canary_details_for_canary_mode`
++- PASS `tests/test_fs_memory.py::test_trial_payload_hash_excludes_integrity_block`
++- PASS `tests/test_fs_memory.py::test_payload_hash_is_independent_of_mapping_insertion_order`
++- PASS `tests/test_fs_memory.py::test_with_trial_integrity_adds_hash_and_verifies`
++- PASS `tests/test_fs_memory.py::test_trial_record_path_uses_completion_timestamp_month`
++- PASS `tests/test_fs_memory.py::test_write_trial_record_writes_month_partition_with_integrity`
++- PASS `tests/test_fs_memory.py::test_write_trial_record_rejects_existing_trial_without_overwrite`
++- PASS `tests/test_fs_memory.py::test_write_trial_record_rejects_layout_namespace_mismatch`
++
++Coverage notes:
++- Covers the documented trial YAML schema fields and strict enum validation through Pydantic literals.
++- Covers `combo_hash` recomputation from the canonical combo list.
++- Covers `integrity.payload_hash` excluding the `integrity` block and canonical hash stability across mapping insertion order.
++- Covers monthly partitioning from the UTC completion timestamp: `trials/data/YYYY-MM/trial_<trial_id>.yaml`.
++- Covers immutable trial behavior by rejecting existing target paths without overwriting existing YAML.
++- Covers namespace isolation by rejecting writes when the record's `namespace` does not match the target `NamespaceLayout`.
++- Windows full-suite skip is expected: `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter` requires Linux `fcntl`.
+diff --git a/src/agent/__init__.py b/src/agent/__init__.py
+index 8d6ed1c..f722885 100644
+--- a/src/agent/__init__.py
++++ b/src/agent/__init__.py
+@@ -3,10 +3,28 @@
+ from .config import AgentConfig, ConfigLoadError, load_config
+ from .fs_memory import (
+     AtomicWriteError,
++    CanaryRecord,
+     FsMemoryError,
+     NamespaceLayout,
++    ScoreVsBest,
++    SourceTreeChange,
++    TrialImmutableError,
++    TrialIntegrity,
++    TrialIntegrityError,
++    TrialRecord,
++    TrialRecordError,
++    TrialScore,
++    WorkspaceState,
+     atomic_write_yaml,
++    compute_combo_hash,
++    compute_payload_hash,
++    compute_trial_payload_hash,
+     namespace_layout_for_config,
++    trial_record_path,
++    trial_record_payload,
++    verify_trial_integrity,
++    with_trial_integrity,
++    write_trial_record,
+ )
+ from .init import (
+     HistorySummary,
+@@ -52,6 +70,7 @@ from .workspace_lock import (
+ __all__ = [
+     "AgentConfig",
+     "AtomicWriteError",
++    "CanaryRecord",
+     "ConfigLoadError",
+     "FsMemoryError",
+     "HistorySummary",
+@@ -69,6 +88,15 @@ __all__ = [
+     "ProjectNamespace",
+     "RegistryLoadError",
+     "RegistryValidationError",
++    "ScoreVsBest",
++    "SourceTreeChange",
++    "TrialImmutableError",
++    "TrialIntegrity",
++    "TrialIntegrityError",
++    "TrialRecord",
++    "TrialRecordError",
++    "TrialScore",
++    "WorkspaceState",
+     "WorkspaceBusyError",
+     "WorkspaceLock",
+     "WorkspaceLockError",
+@@ -77,7 +105,10 @@ __all__ = [
+     "assert_initialized_matches",
+     "atomic_write_yaml",
+     "collect_history_summary",
++    "compute_combo_hash",
++    "compute_payload_hash",
+     "compute_project_namespace",
++    "compute_trial_payload_hash",
+     "load_config",
+     "load_initialized_state",
+     "load_modules_registry",
+@@ -89,7 +120,12 @@ __all__ = [
+     "registry_path_for_workspace",
+     "render_init_confirmation",
+     "run_init",
++    "trial_record_path",
++    "trial_record_payload",
+     "validate_project_against_registry",
+     "verify_initialized_for_startup",
++    "verify_trial_integrity",
++    "with_trial_integrity",
+     "write_initialized_state",
++    "write_trial_record",
+ ]
+diff --git a/src/agent/fs_memory.py b/src/agent/fs_memory.py
+index f63a978..5b0baea 100644
+--- a/src/agent/fs_memory.py
++++ b/src/agent/fs_memory.py
+@@ -8,14 +8,17 @@ caches must be rebuildable from these paths.
+ from __future__ import annotations
+ 
+ import os
++import hashlib
+ import tempfile
+ from dataclasses import dataclass
++from datetime import UTC, datetime, timedelta
+ from pathlib import Path
+-from typing import Any, Mapping
++from typing import Any, Literal, Mapping, Sequence
+ 
+ import yaml
++from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+ 
+-from .config import AgentConfig
++from .config import AgentConfig, NonEmptyStr
+ from .registry import ProjectNamespace, compute_project_namespace
+ 
+ 
+@@ -27,6 +30,22 @@ class AtomicWriteError(FsMemoryError):
+     """Raised when an atomic SoT write cannot be completed."""
+ 
+ 
++class TrialRecordError(FsMemoryError):
++    """Raised when trial record data is invalid for FS-Memory use."""
++
++
++class TrialImmutableError(TrialRecordError):
++    """Raised when an immutable trial YAML path already exists."""
++
++
++class TrialIntegrityError(TrialRecordError):
++    """Raised when trial record integrity data is missing or invalid."""
++
++
++class StrictFsModel(BaseModel):
++    model_config = ConfigDict(extra="forbid", validate_assignment=True)
++
++
+ class SotYamlDumper(yaml.SafeDumper):
+     """Safe dumper that keeps generated SoT YAML free of anchors."""
+ 
+@@ -34,6 +53,157 @@ class SotYamlDumper(yaml.SafeDumper):
+         return True
+ 
+ 
++TRIAL_HASH_FIELDS_EXCLUDED = ("integrity",)
++TrialMode = Literal["exploit", "explore", "warmup", "canary", "mixed"]
++CandidateSource = Literal["llm_proposal", "local_mutation", "weighted_random", "ablation"]
++ScheduleSlot = Literal["exploit", "mutation", "novelty", "warmup", "canary"]
++BenchLevel = Literal["build_only", "quick", "full"]
++ObjectiveDirection = Literal["higher_is_better", "lower_is_better"]
++BootstrapMode = Literal["paired", "unpaired"]
++TrialOutcome = Literal[
++    "success",
++    "compile_failed",
++    "benchmark_failed",
++    "timeout",
++    "infra_failure",
++    "aborted_by_user",
++    "spec_corruption",
++    "workspace_corruption",
++]
++CanaryValidationResult = Literal["supports", "contradicts", "inconclusive"]
++
++
++class TrialIntegrity(StrictFsModel):
++    payload_hash: NonEmptyStr
++    hash_fields_excluded: list[NonEmptyStr] = Field(default_factory=lambda: ["integrity"])
++
++    @field_validator("payload_hash")
++    @classmethod
++    def payload_hash_must_be_sha256(cls, value: str) -> str:
++        _validate_sha256_digest(value, "integrity.payload_hash")
++        return value
++
++    @field_validator("hash_fields_excluded")
++    @classmethod
++    def excluded_fields_must_match_trial_contract(cls, value: list[str]) -> list[str]:
++        if value != list(TRIAL_HASH_FIELDS_EXCLUDED):
++            raise ValueError("trial integrity must exclude exactly ['integrity']")
++        return value
++
++
++class SourceTreeChange(StrictFsModel):
++    file: NonEmptyStr
++    action: NonEmptyStr
++
++
++class WorkspaceState(StrictFsModel):
++    pre_snapshot_hash: NonEmptyStr
++    post_snapshot_hash: NonEmptyStr
++    source_tree_changes: list[SourceTreeChange] = Field(default_factory=list)
++    build_dir: NonEmptyStr
++    artifact_path: NonEmptyStr | None = None
++    cleanup_status: Literal["completed", "partial", "failed"]
++
++
++class ScoreVsBest(StrictFsModel):
++    delta_pct: float
++    significant: bool
++    significance_method: NonEmptyStr
++    bootstrap_mode: BootstrapMode
++    p_value_or_ci_test: float = Field(ge=0)
++
++
++class TrialScore(StrictFsModel):
++    objective_direction: ObjectiveDirection
++    baseline_score: float = Field(gt=0)
++    raw_runs: list[float] = Field(min_length=1)
++    geomean: float = Field(gt=0)
++    stddev: float = Field(ge=0)
++    ci_95: list[float] = Field(min_length=2, max_length=2)
++    baseline_normalized: float = Field(gt=0)
++    vs_best: ScoreVsBest
++    noisy: bool
++
++
++class CanaryRecord(StrictFsModel):
++    for_experience: NonEmptyStr | None = None
++    hypothesis: NonEmptyStr | None = None
++    expected_outcome: NonEmptyStr | None = None
++    actual_outcome: NonEmptyStr | None = None
++    validation_result: CanaryValidationResult | None = None
++
++
++class TrialRecord(StrictFsModel):
++    trial_id: NonEmptyStr
++    round: int = Field(ge=0)
++    timestamp: NonEmptyStr
++    duration_sec: float = Field(ge=0)
++    namespace: NonEmptyStr
++    combo: list[NonEmptyStr] = Field(min_length=1)
++    combo_hash: NonEmptyStr
++    mode: TrialMode
++    candidate_source: CandidateSource
++    schedule_slot: ScheduleSlot
++    bench_level: BenchLevel
++    environment_snapshot_hash: NonEmptyStr | None = None
++    spec_patch: str = ""
++    workspace_state: WorkspaceState
++    score: TrialScore | None = None
++    outcome: TrialOutcome
++    canary: CanaryRecord | None = None
++    agent_reasoning: str = ""
++    trace_id: NonEmptyStr
++    kg_version_used: NonEmptyStr
++    integrity: TrialIntegrity | None = None
++
++    @field_validator("timestamp", mode="before")
++    @classmethod
++    def timestamp_datetime_to_string(cls, value: Any) -> Any:
++        return _datetime_to_utc_isoformat(value, "timestamp")
++
++    @field_validator("timestamp")
++    @classmethod
++    def timestamp_must_be_utc_isoformat(cls, value: str) -> str:
++        _parse_utc_isoformat(value, "timestamp")
++        return value
++
++    @field_validator("combo_hash")
++    @classmethod
++    def combo_hash_must_be_sha256(cls, value: str) -> str:
++        _validate_sha256_digest(value, "combo_hash")
++        return value
++
++    @field_validator("trial_id")
++    @classmethod
++    def trial_id_must_be_file_safe(cls, value: str) -> str:
++        _validate_file_atom(value, "trial_id")
++        return value
++
++    @field_validator("namespace")
++    @classmethod
++    def namespace_must_be_safe(cls, value: str) -> str:
++        parts = value.split("/")
++        if len(parts) != 5:
++            raise ValueError("namespace must contain exactly 5 path segments")
++        for index, part in enumerate(parts, start=1):
++            _validate_file_atom(part, f"namespace segment {index}")
++        return value
++
++    @model_validator(mode="after")
++    def trial_consistency(self) -> TrialRecord:
++        expected_combo_hash = compute_combo_hash(self.combo)
++        if self.combo_hash != expected_combo_hash:
++            raise ValueError(
++                "combo_hash does not match combo "
++                f"(expected={expected_combo_hash!r}, actual={self.combo_hash!r})"
++            )
++        if self.outcome == "success" and self.score is None:
++            raise ValueError("successful trials must include score")
++        if self.mode == "canary" and self.canary is None:
++            raise ValueError("canary trials must include canary details")
++        return self
++
++
+ @dataclass(frozen=True)
+ class NamespaceLayout:
+     """Resolved paths for one namespace under a workspace."""
+@@ -166,6 +336,94 @@ def namespace_layout_for_config(config: AgentConfig) -> NamespaceLayout:
+     )
+ 
+ 
++def compute_combo_hash(combo: Sequence[str]) -> str:
++    if not combo:
++        raise ValueError("combo cannot be empty")
++    for option in combo:
++        if not isinstance(option, str) or not option.strip():
++            raise ValueError("combo options must be non-empty strings")
++    payload = _canonical_yaml_bytes(list(combo))
++    return "sha256:" + hashlib.sha256(payload).hexdigest()
++
++
++def compute_trial_payload_hash(record: TrialRecord | Mapping[str, Any]) -> str:
++    trial = TrialRecord.model_validate(record)
++    payload = trial_record_payload(trial, include_integrity=False)
++    return compute_payload_hash(payload, excluded_fields=TRIAL_HASH_FIELDS_EXCLUDED)
++
++
++def compute_payload_hash(
++    payload: Mapping[str, Any],
++    *,
++    excluded_fields: Sequence[str] = TRIAL_HASH_FIELDS_EXCLUDED,
++) -> str:
++    canonical_payload = {
++        key: value for key, value in dict(payload).items() if key not in set(excluded_fields)
++    }
++    digest = hashlib.sha256(_canonical_yaml_bytes(canonical_payload)).hexdigest()
++    return f"sha256:{digest}"
++
++
++def trial_record_payload(
++    record: TrialRecord | Mapping[str, Any],
++    *,
++    include_integrity: bool = True,
++) -> dict[str, Any]:
++    trial = TrialRecord.model_validate(record)
++    payload = trial.model_dump(mode="json", exclude_none=True)
++    if not include_integrity:
++        payload.pop("integrity", None)
++    return payload
++
++
++def with_trial_integrity(record: TrialRecord | Mapping[str, Any]) -> TrialRecord:
++    trial = TrialRecord.model_validate(record)
++    payload = trial_record_payload(trial, include_integrity=False)
++    payload["integrity"] = {
++        "payload_hash": compute_payload_hash(
++            payload,
++            excluded_fields=TRIAL_HASH_FIELDS_EXCLUDED,
++        ),
++        "hash_fields_excluded": list(TRIAL_HASH_FIELDS_EXCLUDED),
++    }
++    return TrialRecord.model_validate(payload)
++
++
++def verify_trial_integrity(record: TrialRecord | Mapping[str, Any]) -> bool:
++    trial = TrialRecord.model_validate(record)
++    if trial.integrity is None:
++        return False
++    return trial.integrity.payload_hash == compute_trial_payload_hash(trial)
++
++
++def trial_record_path(layout: NamespaceLayout, record: TrialRecord | Mapping[str, Any]) -> Path:
++    trial = TrialRecord.model_validate(record)
++    timestamp = _parse_utc_isoformat(trial.timestamp, "timestamp")
++    return (
++        layout.trial_data_dir
++        / f"{timestamp.year:04d}-{timestamp.month:02d}"
++        / f"trial_{trial.trial_id}.yaml"
++    )
++
++
++def write_trial_record(
++    layout: NamespaceLayout,
++    record: TrialRecord | Mapping[str, Any],
++) -> Path:
++    trial = with_trial_integrity(record)
++    expected_namespace = str(layout.namespace)
++    if trial.namespace != expected_namespace:
++        raise TrialRecordError(
++            "trial namespace does not match layout "
++            f"(expected={expected_namespace!r}, actual={trial.namespace!r})"
++        )
++    target = trial_record_path(layout, trial)
++    if target.exists() or target.is_symlink():
++        raise TrialImmutableError(f"trial record already exists and is immutable: {target}")
++    atomic_write_yaml(trial_record_payload(trial), target)
++    return target
++
++
+ def atomic_write_yaml(
+     data: Mapping[str, Any],
+     path: str | Path,
+@@ -229,3 +487,58 @@ def _fsync_parent_dir(path: Path) -> None:
+         os.fsync(dir_fd)
+     finally:
+         os.close(dir_fd)
++
++
++def _canonical_yaml_bytes(payload: Any) -> bytes:
++    text = yaml.dump(
++        payload,
++        Dumper=SotYamlDumper,
++        sort_keys=True,
++        allow_unicode=True,
++    )
++    return text.encode("utf-8")
++
++
++def _validate_sha256_digest(value: str, label: str) -> None:
++    prefix = "sha256:"
++    if not value.startswith(prefix):
++        raise ValueError(f"{label} must start with 'sha256:'")
++    hexdigest = value[len(prefix) :]
++    if len(hexdigest) != 64:
++        raise ValueError(f"{label} must contain a 64-character sha256 digest")
++    try:
++        int(hexdigest, 16)
++    except ValueError as exc:
++        raise ValueError(f"{label} must be hexadecimal") from exc
++
++
++def _datetime_to_utc_isoformat(value: Any, label: str) -> Any:
++    if isinstance(value, datetime):
++        if value.tzinfo is None or value.utcoffset() != timedelta(0):
++            raise ValueError(f"{label} datetime must be UTC timezone-aware")
++        return value.astimezone(UTC).isoformat()
++    return value
++
++
++def _parse_utc_isoformat(value: str, label: str) -> datetime:
++    normalized = value[:-1] + "+00:00" if value.endswith("Z") else value
++    try:
++        parsed = datetime.fromisoformat(normalized)
++    except ValueError as exc:
++        raise ValueError(f"{label} must be ISO 8601") from exc
++    if parsed.tzinfo is None or parsed.utcoffset() != timedelta(0):
++        raise ValueError(f"{label} must be UTC timezone-aware ISO 8601")
++    return parsed.astimezone(UTC)
++
++
++def _validate_file_atom(value: str, label: str) -> None:
++    if not value:
++        raise ValueError(f"{label} cannot be empty")
++    if value != value.strip():
++        raise ValueError(f"{label} cannot contain surrounding whitespace")
++    if value in {".", ".."}:
++        raise ValueError(f"{label} cannot be {value!r}")
++    if "/" in value or "\\" in value:
++        raise ValueError(f"{label} cannot contain path separators")
++    if any(ord(char) < 0x20 or ord(char) == 0x7F for char in value):
++        raise ValueError(f"{label} cannot contain control characters")
+diff --git a/tests/test_fs_memory.py b/tests/test_fs_memory.py
+index 5610335..58fdcd3 100644
+--- a/tests/test_fs_memory.py
++++ b/tests/test_fs_memory.py
+@@ -6,14 +6,26 @@ from pathlib import Path
+ 
+ import pytest
+ import yaml
++from pydantic import ValidationError
+ 
+ import agent.fs_memory as fs_memory
+ from agent.config import AgentConfig
+ from agent.fs_memory import (
+     AtomicWriteError,
+     NamespaceLayout,
++    TrialImmutableError,
++    TrialRecord,
++    TrialRecordError,
+     atomic_write_yaml,
++    compute_combo_hash,
++    compute_payload_hash,
++    compute_trial_payload_hash,
+     namespace_layout_for_config,
++    trial_record_path,
++    trial_record_payload,
++    verify_trial_integrity,
++    with_trial_integrity,
++    write_trial_record,
+ )
+ from agent.registry import ProjectNamespace
+ 
+@@ -44,6 +56,57 @@ def namespace() -> ProjectNamespace:
+     )
+ 
+ 
++def trial_record_data() -> dict:
++    combo = ["-O3", "-flto=thin", "-fno-plt"]
++    return {
++        "trial_id": "r12_t3",
++        "round": 12,
++        "timestamp": "2026-04-30T10:23:45Z",
++        "duration_sec": 1230.0,
++        "namespace": str(namespace()),
++        "combo": combo,
++        "combo_hash": compute_combo_hash(combo),
++        "mode": "exploit",
++        "candidate_source": "llm_proposal",
++        "schedule_slot": "exploit",
++        "bench_level": "full",
++        "environment_snapshot_hash": "env_abc123",
++        "spec_patch": "--- spec.orig\n+++ spec.new\n",
++        "workspace_state": {
++            "pre_snapshot_hash": "ws_pre_xyz",
++            "post_snapshot_hash": "ws_post_xyz",
++            "source_tree_changes": [
++                {"file": "src/configure", "action": "regenerated"},
++                {"file": "src/Makefile", "action": "regenerated"},
++            ],
++            "build_dir": "~/.agent_workspace/build_dirs/r12_t3",
++            "artifact_path": "~/.agent_workspace/artifacts/final/r12_t3.rpm",
++            "cleanup_status": "completed",
++        },
++        "score": {
++            "objective_direction": "higher_is_better",
++            "baseline_score": 1.0,
++            "raw_runs": [1.22, 1.25, 1.23],
++            "geomean": 1.234,
++            "stddev": 0.016,
++            "ci_95": [1.222, 1.246],
++            "baseline_normalized": 1.234,
++            "vs_best": {
++                "delta_pct": 3.2,
++                "significant": True,
++                "significance_method": "bootstrap_ci",
++                "bootstrap_mode": "unpaired",
++                "p_value_or_ci_test": 0.012,
++            },
++            "noisy": False,
++        },
++        "outcome": "success",
++        "agent_reasoning": "Started from the previous best and added -fno-plt.",
++        "trace_id": "events.jsonl#L12345",
++        "kg_version_used": "v3",
++    }
++
++
+ def test_namespace_layout_for_config_matches_requirements_paths(tmp_path: Path) -> None:
+     config = AgentConfig.model_validate(config_data(tmp_path / "workspace"))
+ 
+@@ -207,3 +270,126 @@ def test_atomic_write_yaml_flushes_file_and_fsyncs_parent(
+ 
+     assert len(fsync_calls) == 1
+     assert parent_calls == [target.parent]
++
++
++def test_trial_record_schema_accepts_documented_success_record() -> None:
++    record = TrialRecord.model_validate(trial_record_data())
++
++    assert record.trial_id == "r12_t3"
++    assert record.namespace == str(namespace())
++    assert record.combo_hash == compute_combo_hash(record.combo)
++    assert record.score is not None
++
++
++def test_trial_record_rejects_combo_hash_mismatch() -> None:
++    data = trial_record_data()
++    data["combo_hash"] = "sha256:" + ("0" * 64)
++
++    with pytest.raises(ValidationError, match="combo_hash does not match combo"):
++        TrialRecord.model_validate(data)
++
++
++def test_trial_record_rejects_unsafe_namespace() -> None:
++    data = trial_record_data()
++    data["namespace"] = "multimedia/ffmpeg/gcc-13.2.0/code-a1b2c3d"
++
++    with pytest.raises(ValidationError, match="exactly 5 path segments"):
++        TrialRecord.model_validate(data)
++
++    data = trial_record_data()
++    data["namespace"] = "multimedia//gcc-13.2.0/code-a1b2c3d/kg-v3"
++
++    with pytest.raises(ValidationError, match="cannot be empty"):
++        TrialRecord.model_validate(data)
++
++
++def test_trial_record_requires_score_for_success() -> None:
++    data = trial_record_data()
++    data["score"] = None
++
++    with pytest.raises(ValidationError, match="successful trials must include score"):
++        TrialRecord.model_validate(data)
++
++
++def test_trial_record_requires_canary_details_for_canary_mode() -> None:
++    data = trial_record_data()
++    data["mode"] = "canary"
++    data["schedule_slot"] = "canary"
++    data["canary"] = None
++
++    with pytest.raises(ValidationError, match="canary trials must include canary"):
++        TrialRecord.model_validate(data)
++
++
++def test_trial_payload_hash_excludes_integrity_block() -> None:
++    record = with_trial_integrity(trial_record_data())
++    expected_hash = compute_trial_payload_hash(record)
++    payload = trial_record_payload(record)
++    payload["integrity"] = {
++        **payload["integrity"],
++        "payload_hash": "sha256:" + ("0" * 64),
++    }
++
++    assert compute_trial_payload_hash(payload) == expected_hash
++    assert verify_trial_integrity(payload) is False
++
++
++def test_payload_hash_is_independent_of_mapping_insertion_order() -> None:
++    left = {"b": {"y": 2, "x": 1}, "a": ["-O3"]}
++    right = {"a": ["-O3"], "b": {"x": 1, "y": 2}}
++
++    assert compute_payload_hash(left) == compute_payload_hash(right)
++
++
++def test_with_trial_integrity_adds_hash_and_verifies() -> None:
++    record = with_trial_integrity(trial_record_data())
++
++    assert record.integrity is not None
++    assert record.integrity.hash_fields_excluded == ["integrity"]
++    assert verify_trial_integrity(record) is True
++
++
++def test_trial_record_path_uses_completion_timestamp_month(tmp_path: Path) -> None:
++    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
++
++    assert trial_record_path(layout, trial_record_data()) == (
++        layout.trial_data_dir / "2026-04" / "trial_r12_t3.yaml"
++    )
++
++
++def test_write_trial_record_writes_month_partition_with_integrity(tmp_path: Path) -> None:
++    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
++
++    path = write_trial_record(layout, trial_record_data())
++
++    assert path == layout.trial_data_dir / "2026-04" / "trial_r12_t3.yaml"
++    raw = path.read_text(encoding="utf-8")
++    assert "&id" not in raw
++    assert "*id" not in raw
++    stored = yaml.safe_load(raw)
++    assert stored["integrity"]["hash_fields_excluded"] == ["integrity"]
++    assert verify_trial_integrity(stored) is True
++    assert not list(path.parent.glob(".trial_r12_t3.yaml.*.tmp"))
++
++
++def test_write_trial_record_rejects_existing_trial_without_overwrite(tmp_path: Path) -> None:
++    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
++    target = trial_record_path(layout, trial_record_data())
++    target.parent.mkdir(parents=True)
++    target.write_text("old: true\n", encoding="utf-8")
++
++    with pytest.raises(TrialImmutableError, match="immutable"):
++        write_trial_record(layout, trial_record_data())
++
++    assert yaml.safe_load(target.read_text(encoding="utf-8")) == {"old": True}
++
++
++def test_write_trial_record_rejects_layout_namespace_mismatch(tmp_path: Path) -> None:
++    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
++    data = trial_record_data()
++    data["namespace"] = "other/ffmpeg/gcc-13.2.0/code-a1b2c3d/kg-v3"
++
++    with pytest.raises(TrialRecordError, match="does not match layout"):
++        write_trial_record(layout, data)
++
++    assert not list(layout.trial_data_dir.rglob("*.yaml"))

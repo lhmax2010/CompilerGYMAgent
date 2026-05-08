@@ -35,13 +35,22 @@ subtasks:
       - src/agent/__init__.py
   - id: "2.2"
     title: "Implement TrialRecord schema, integrity hash, and immutable trial writer"
-    status: todo
+    status: done
     ut_required: true
-    ut_passed: false
+    ut_passed: true
+    targeted_ut: "22 passed, 0 failed"
+    full_ut: "174 passed, 0 failed, 1 skipped"
     self_review_required: true
-    self_reviewed: false
+    self_reviewed: true
     patch_required: true
+    patch_file: dev_memory/phases/phase_02_fs_memory/patches/02_trial_record.patch
+    patch_generated: true
     commit_required: true
+    commit_pending: true
+    files_modified:
+      - src/agent/fs_memory.py
+      - src/agent/__init__.py
+      - tests/test_fs_memory.py
   - id: "2.3"
     title: "Implement checkpoint schema and canonical checkpoint YAML read/write"
     status: todo

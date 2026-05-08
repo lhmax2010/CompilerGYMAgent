@@ -46,3 +46,39 @@ Findings:
 
 Review conclusion:
 - Subtask 2.1 is approved and can proceed to Subtask 2.2.
+
+## Subtask 2.2 - TrialRecord schema, integrity hash, and immutable writer
+
+- timestamp_utc: 2026-05-08T08:16:42Z
+- files_reviewed:
+  - src/agent/fs_memory.py
+  - src/agent/__init__.py
+  - tests/test_fs_memory.py
+
+Review checklist:
+- [x] `TrialRecord` covers the documented fields from REQUIREMENTS.md section 4.2.6.
+- [x] Outcome, mode, candidate source, schedule slot, bench level, objective direction, bootstrap mode, cleanup status, and canary validation result are strict enums.
+- [x] `combo_hash` is recomputed from the canonical combo list and mismatches are rejected.
+- [x] Successful trials require `score`; canary mode requires a `canary` block.
+- [x] Trial timestamps are UTC timezone-aware ISO 8601 strings.
+- [x] Trial `namespace` is a safe 5-segment namespace string.
+- [x] `integrity.payload_hash` excludes the `integrity` block and uses sorted canonical YAML so mapping insertion order cannot change the hash.
+- [x] `write_trial_record` derives `integrity`, writes through shared `atomic_write_yaml`, and refuses an existing trial path.
+- [x] `write_trial_record` checks that the record namespace matches the target `NamespaceLayout`.
+- [x] Trial YAML path uses the completion timestamp month: `trials/data/YYYY-MM/trial_<trial_id>.yaml`.
+- [x] No running trial state is stored in trial YAML; checkpoint and trace remain later subtasks.
+- [x] Public exports in `src/agent/__init__.py` match the new FS-Memory trial APIs.
+- [x] Targeted and full UT suites pass.
+
+Findings:
+- No blocking issues found.
+- The immutable writer rejects existing files before calling `atomic_write_yaml`; future CLI/workflow callers must still hold `WorkspaceLock` to avoid concurrent same-trial writers.
+- Trace event emission for `trial_yaml_written` is out of scope for Subtask 2.2 and remains owned by the trace/event subtask.
+
+Deferred low-priority follow-ups:
+- Add a contract test or decision for concurrent same-path trial writes once workflow-level `WorkspaceLock` wrapping is wired into the CLI.
+- Add load-side integrity checking helpers when Subtask 2.4 implements SoT discovery over existing trials.
+- Decide whether `TrialIntegrityError` should be used by a future strict assertion helper or removed if the later integrity command path uses a different exception.
+
+Review conclusion:
+- Subtask 2.2 is ready for external review.

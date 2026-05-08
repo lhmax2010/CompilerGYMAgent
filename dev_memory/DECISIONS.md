@@ -278,3 +278,24 @@ Decision records must include:
 - alternatives_considered:
   - Pre-create all documented files during layout setup, which would make the tree visually complete but introduce empty canonical-state files.
   - Avoid layout directory creation entirely, which would push repeated `mkdir` logic into every writer and increase inconsistency risk.
+
+## 2026-05-08T08:16:42Z - Compute TrialRecord integrity from sorted canonical YAML excluding integrity
+
+- affected_requirement:
+  - REQUIREMENTS.md section 4.2.6
+- decision: Trial payload hashes are computed from `TrialRecord.model_dump(mode="json", exclude_none=True)` with the top-level `integrity` block removed, then serialized as sorted-key YAML before SHA-256.
+- rationale: Section 4.2.6 requires `integrity.payload_hash` to avoid the hash self-reference loop by excluding `integrity`. Sorting mapping keys makes the hash independent of YAML key insertion order while preserving a human-readable YAML representation for on-disk SoT.
+- alternatives_considered:
+  - Hash the generated on-disk YAML text directly, which would make cosmetic key reordering or dumper behavior part of integrity.
+  - Use JSON canonicalization instead of YAML, which is stricter but would introduce a second canonical format while user-readable SoT remains YAML.
+
+## 2026-05-08T08:16:42Z - Keep TrialRecord writes immutable and namespace-bound
+
+- affected_requirement:
+  - REQUIREMENTS.md section 4.2.6
+  - REQUIREMENTS.md section 4.1.3
+- decision: `write_trial_record(layout, record)` computes integrity, writes to `trials/data/YYYY-MM/trial_<trial_id>.yaml`, refuses existing paths, and rejects records whose `namespace` does not match the target `NamespaceLayout`.
+- rationale: Trial YAML is historical fact and must not be edited by normal workflow code after completion. Binding the record namespace to the layout prevents cross-namespace drift where a file lives under one namespace path but claims another inside YAML.
+- alternatives_considered:
+  - Let callers choose arbitrary trial output paths, which would weaken the documented directory layout and increase duplicate naming risk.
+  - Trust the record's `namespace` without comparing it to the layout, which would make namespace isolation depend entirely on caller discipline.

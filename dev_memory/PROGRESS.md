@@ -345,3 +345,23 @@ Next action: continue to Subtask 2.2 TrialRecord schema, integrity hash, and imm
 - The Linux real-fcntl workspace lock regression test also executed during the full suite and passed.
 
 Next action: continue to Subtask 2.2 TrialRecord schema, integrity hash, and immutable trial writer.
+
+## 2026-05-08T08:06:18Z - Phase 02 / Subtask 2.2 started
+
+- Started TrialRecord schema, integrity hash, and immutable trial writer.
+- Requirements in scope: REQUIREMENTS.md section 4.2.6 and section 4.7.5.
+- Planned files: `src/agent/fs_memory.py`, `tests/test_fs_memory.py`, and public exports in `src/agent/__init__.py`.
+
+Next action: implement TrialRecord models, payload hash helpers, monthly trial path resolver, and immutable writer.
+
+## 2026-05-08T08:16:42Z - Phase 02 / Subtask 2.2 implemented
+
+- Added `TrialRecord` and nested schema models for trial YAML completion records from REQUIREMENTS.md section 4.2.6.
+- Added canonical payload hashing helpers that exclude the `integrity` block and sort mapping keys for stable hash semantics.
+- Added `compute_combo_hash`, `with_trial_integrity`, `verify_trial_integrity`, monthly `trial_record_path`, and immutable `write_trial_record`.
+- Added namespace safety checks and layout namespace matching so a trial YAML cannot be written into a different namespace directory than it claims.
+- Exported the new FS-Memory trial APIs from `src/agent/__init__.py`.
+- Targeted UT: `uv --native-tls run --extra dev pytest tests/test_fs_memory.py -v` -> 22 passed.
+- Full UT: `uv --native-tls run --extra dev pytest -v` -> 174 passed, 1 skipped.
+
+Next action: generate Subtask 2.2 patch artifacts, commit/push, then prepare external review prompt.

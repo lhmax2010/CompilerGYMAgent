@@ -8,14 +8,17 @@ caches must be rebuildable from these paths.
 from __future__ import annotations
 
 import os
+import hashlib
 import tempfile
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Literal, Mapping, Sequence
 
 import yaml
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from .config import AgentConfig
+from .config import AgentConfig, NonEmptyStr
 from .registry import ProjectNamespace, compute_project_namespace
 
 
@@ -27,11 +30,178 @@ class AtomicWriteError(FsMemoryError):
     """Raised when an atomic SoT write cannot be completed."""
 
 
+class TrialRecordError(FsMemoryError):
+    """Raised when trial record data is invalid for FS-Memory use."""
+
+
+class TrialImmutableError(TrialRecordError):
+    """Raised when an immutable trial YAML path already exists."""
+
+
+class TrialIntegrityError(TrialRecordError):
+    """Raised when trial record integrity data is missing or invalid."""
+
+
+class StrictFsModel(BaseModel):
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+
+
 class SotYamlDumper(yaml.SafeDumper):
     """Safe dumper that keeps generated SoT YAML free of anchors."""
 
     def ignore_aliases(self, data: Any) -> bool:
         return True
+
+
+TRIAL_HASH_FIELDS_EXCLUDED = ("integrity",)
+TrialMode = Literal["exploit", "explore", "warmup", "canary", "mixed"]
+CandidateSource = Literal["llm_proposal", "local_mutation", "weighted_random", "ablation"]
+ScheduleSlot = Literal["exploit", "mutation", "novelty", "warmup", "canary"]
+BenchLevel = Literal["build_only", "quick", "full"]
+ObjectiveDirection = Literal["higher_is_better", "lower_is_better"]
+BootstrapMode = Literal["paired", "unpaired"]
+TrialOutcome = Literal[
+    "success",
+    "compile_failed",
+    "benchmark_failed",
+    "timeout",
+    "infra_failure",
+    "aborted_by_user",
+    "spec_corruption",
+    "workspace_corruption",
+]
+CanaryValidationResult = Literal["supports", "contradicts", "inconclusive"]
+
+
+class TrialIntegrity(StrictFsModel):
+    payload_hash: NonEmptyStr
+    hash_fields_excluded: list[NonEmptyStr] = Field(default_factory=lambda: ["integrity"])
+
+    @field_validator("payload_hash")
+    @classmethod
+    def payload_hash_must_be_sha256(cls, value: str) -> str:
+        _validate_sha256_digest(value, "integrity.payload_hash")
+        return value
+
+    @field_validator("hash_fields_excluded")
+    @classmethod
+    def excluded_fields_must_match_trial_contract(cls, value: list[str]) -> list[str]:
+        if value != list(TRIAL_HASH_FIELDS_EXCLUDED):
+            raise ValueError("trial integrity must exclude exactly ['integrity']")
+        return value
+
+
+class SourceTreeChange(StrictFsModel):
+    file: NonEmptyStr
+    action: NonEmptyStr
+
+
+class WorkspaceState(StrictFsModel):
+    pre_snapshot_hash: NonEmptyStr
+    post_snapshot_hash: NonEmptyStr
+    source_tree_changes: list[SourceTreeChange] = Field(default_factory=list)
+    build_dir: NonEmptyStr
+    artifact_path: NonEmptyStr | None = None
+    cleanup_status: Literal["completed", "partial", "failed"]
+
+
+class ScoreVsBest(StrictFsModel):
+    delta_pct: float
+    significant: bool
+    significance_method: NonEmptyStr
+    bootstrap_mode: BootstrapMode
+    p_value_or_ci_test: float = Field(ge=0)
+
+
+class TrialScore(StrictFsModel):
+    objective_direction: ObjectiveDirection
+    baseline_score: float = Field(gt=0)
+    raw_runs: list[float] = Field(min_length=1)
+    geomean: float = Field(gt=0)
+    stddev: float = Field(ge=0)
+    ci_95: list[float] = Field(min_length=2, max_length=2)
+    baseline_normalized: float = Field(gt=0)
+    vs_best: ScoreVsBest
+    noisy: bool
+
+
+class CanaryRecord(StrictFsModel):
+    for_experience: NonEmptyStr | None = None
+    hypothesis: NonEmptyStr | None = None
+    expected_outcome: NonEmptyStr | None = None
+    actual_outcome: NonEmptyStr | None = None
+    validation_result: CanaryValidationResult | None = None
+
+
+class TrialRecord(StrictFsModel):
+    trial_id: NonEmptyStr
+    round: int = Field(ge=0)
+    timestamp: NonEmptyStr
+    duration_sec: float = Field(ge=0)
+    namespace: NonEmptyStr
+    combo: list[NonEmptyStr] = Field(min_length=1)
+    combo_hash: NonEmptyStr
+    mode: TrialMode
+    candidate_source: CandidateSource
+    schedule_slot: ScheduleSlot
+    bench_level: BenchLevel
+    environment_snapshot_hash: NonEmptyStr | None = None
+    spec_patch: str = ""
+    workspace_state: WorkspaceState
+    score: TrialScore | None = None
+    outcome: TrialOutcome
+    canary: CanaryRecord | None = None
+    agent_reasoning: str = ""
+    trace_id: NonEmptyStr
+    kg_version_used: NonEmptyStr
+    integrity: TrialIntegrity | None = None
+
+    @field_validator("timestamp", mode="before")
+    @classmethod
+    def timestamp_datetime_to_string(cls, value: Any) -> Any:
+        return _datetime_to_utc_isoformat(value, "timestamp")
+
+    @field_validator("timestamp")
+    @classmethod
+    def timestamp_must_be_utc_isoformat(cls, value: str) -> str:
+        _parse_utc_isoformat(value, "timestamp")
+        return value
+
+    @field_validator("combo_hash")
+    @classmethod
+    def combo_hash_must_be_sha256(cls, value: str) -> str:
+        _validate_sha256_digest(value, "combo_hash")
+        return value
+
+    @field_validator("trial_id")
+    @classmethod
+    def trial_id_must_be_file_safe(cls, value: str) -> str:
+        _validate_file_atom(value, "trial_id")
+        return value
+
+    @field_validator("namespace")
+    @classmethod
+    def namespace_must_be_safe(cls, value: str) -> str:
+        parts = value.split("/")
+        if len(parts) != 5:
+            raise ValueError("namespace must contain exactly 5 path segments")
+        for index, part in enumerate(parts, start=1):
+            _validate_file_atom(part, f"namespace segment {index}")
+        return value
+
+    @model_validator(mode="after")
+    def trial_consistency(self) -> TrialRecord:
+        expected_combo_hash = compute_combo_hash(self.combo)
+        if self.combo_hash != expected_combo_hash:
+            raise ValueError(
+                "combo_hash does not match combo "
+                f"(expected={expected_combo_hash!r}, actual={self.combo_hash!r})"
+            )
+        if self.outcome == "success" and self.score is None:
+            raise ValueError("successful trials must include score")
+        if self.mode == "canary" and self.canary is None:
+            raise ValueError("canary trials must include canary details")
+        return self
 
 
 @dataclass(frozen=True)
@@ -166,6 +336,94 @@ def namespace_layout_for_config(config: AgentConfig) -> NamespaceLayout:
     )
 
 
+def compute_combo_hash(combo: Sequence[str]) -> str:
+    if not combo:
+        raise ValueError("combo cannot be empty")
+    for option in combo:
+        if not isinstance(option, str) or not option.strip():
+            raise ValueError("combo options must be non-empty strings")
+    payload = _canonical_yaml_bytes(list(combo))
+    return "sha256:" + hashlib.sha256(payload).hexdigest()
+
+
+def compute_trial_payload_hash(record: TrialRecord | Mapping[str, Any]) -> str:
+    trial = TrialRecord.model_validate(record)
+    payload = trial_record_payload(trial, include_integrity=False)
+    return compute_payload_hash(payload, excluded_fields=TRIAL_HASH_FIELDS_EXCLUDED)
+
+
+def compute_payload_hash(
+    payload: Mapping[str, Any],
+    *,
+    excluded_fields: Sequence[str] = TRIAL_HASH_FIELDS_EXCLUDED,
+) -> str:
+    canonical_payload = {
+        key: value for key, value in dict(payload).items() if key not in set(excluded_fields)
+    }
+    digest = hashlib.sha256(_canonical_yaml_bytes(canonical_payload)).hexdigest()
+    return f"sha256:{digest}"
+
+
+def trial_record_payload(
+    record: TrialRecord | Mapping[str, Any],
+    *,
+    include_integrity: bool = True,
+) -> dict[str, Any]:
+    trial = TrialRecord.model_validate(record)
+    payload = trial.model_dump(mode="json", exclude_none=True)
+    if not include_integrity:
+        payload.pop("integrity", None)
+    return payload
+
+
+def with_trial_integrity(record: TrialRecord | Mapping[str, Any]) -> TrialRecord:
+    trial = TrialRecord.model_validate(record)
+    payload = trial_record_payload(trial, include_integrity=False)
+    payload["integrity"] = {
+        "payload_hash": compute_payload_hash(
+            payload,
+            excluded_fields=TRIAL_HASH_FIELDS_EXCLUDED,
+        ),
+        "hash_fields_excluded": list(TRIAL_HASH_FIELDS_EXCLUDED),
+    }
+    return TrialRecord.model_validate(payload)
+
+
+def verify_trial_integrity(record: TrialRecord | Mapping[str, Any]) -> bool:
+    trial = TrialRecord.model_validate(record)
+    if trial.integrity is None:
+        return False
+    return trial.integrity.payload_hash == compute_trial_payload_hash(trial)
+
+
+def trial_record_path(layout: NamespaceLayout, record: TrialRecord | Mapping[str, Any]) -> Path:
+    trial = TrialRecord.model_validate(record)
+    timestamp = _parse_utc_isoformat(trial.timestamp, "timestamp")
+    return (
+        layout.trial_data_dir
+        / f"{timestamp.year:04d}-{timestamp.month:02d}"
+        / f"trial_{trial.trial_id}.yaml"
+    )
+
+
+def write_trial_record(
+    layout: NamespaceLayout,
+    record: TrialRecord | Mapping[str, Any],
+) -> Path:
+    trial = with_trial_integrity(record)
+    expected_namespace = str(layout.namespace)
+    if trial.namespace != expected_namespace:
+        raise TrialRecordError(
+            "trial namespace does not match layout "
+            f"(expected={expected_namespace!r}, actual={trial.namespace!r})"
+        )
+    target = trial_record_path(layout, trial)
+    if target.exists() or target.is_symlink():
+        raise TrialImmutableError(f"trial record already exists and is immutable: {target}")
+    atomic_write_yaml(trial_record_payload(trial), target)
+    return target
+
+
 def atomic_write_yaml(
     data: Mapping[str, Any],
     path: str | Path,
@@ -229,3 +487,58 @@ def _fsync_parent_dir(path: Path) -> None:
         os.fsync(dir_fd)
     finally:
         os.close(dir_fd)
+
+
+def _canonical_yaml_bytes(payload: Any) -> bytes:
+    text = yaml.dump(
+        payload,
+        Dumper=SotYamlDumper,
+        sort_keys=True,
+        allow_unicode=True,
+    )
+    return text.encode("utf-8")
+
+
+def _validate_sha256_digest(value: str, label: str) -> None:
+    prefix = "sha256:"
+    if not value.startswith(prefix):
+        raise ValueError(f"{label} must start with 'sha256:'")
+    hexdigest = value[len(prefix) :]
+    if len(hexdigest) != 64:
+        raise ValueError(f"{label} must contain a 64-character sha256 digest")
+    try:
+        int(hexdigest, 16)
+    except ValueError as exc:
+        raise ValueError(f"{label} must be hexadecimal") from exc
+
+
+def _datetime_to_utc_isoformat(value: Any, label: str) -> Any:
+    if isinstance(value, datetime):
+        if value.tzinfo is None or value.utcoffset() != timedelta(0):
+            raise ValueError(f"{label} datetime must be UTC timezone-aware")
+        return value.astimezone(UTC).isoformat()
+    return value
+
+
+def _parse_utc_isoformat(value: str, label: str) -> datetime:
+    normalized = value[:-1] + "+00:00" if value.endswith("Z") else value
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError as exc:
+        raise ValueError(f"{label} must be ISO 8601") from exc
+    if parsed.tzinfo is None or parsed.utcoffset() != timedelta(0):
+        raise ValueError(f"{label} must be UTC timezone-aware ISO 8601")
+    return parsed.astimezone(UTC)
+
+
+def _validate_file_atom(value: str, label: str) -> None:
+    if not value:
+        raise ValueError(f"{label} cannot be empty")
+    if value != value.strip():
+        raise ValueError(f"{label} cannot contain surrounding whitespace")
+    if value in {".", ".."}:
+        raise ValueError(f"{label} cannot be {value!r}")
+    if "/" in value or "\\" in value:
+        raise ValueError(f"{label} cannot contain path separators")
+    if any(ord(char) < 0x20 or ord(char) == 0x7F for char in value):
+        raise ValueError(f"{label} cannot contain control characters")
