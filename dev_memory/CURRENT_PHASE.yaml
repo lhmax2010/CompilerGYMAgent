@@ -60,6 +60,8 @@ subtasks:
     self_reviewed: true
     patch_file: dev_memory/phases/phase_02_fs_memory/patches/02_trial_record.patch
     patch_generated: true
+    commit_hash: e13592e
+    commit_message: "phase_02_fs_memory: 2.2 implement trial record writer (REQUIREMENTS section 4.2.6)"
   - id: "2.3"
     title: "Implement checkpoint schema and canonical checkpoint YAML read/write"
     status: todo
@@ -78,4 +80,4 @@ notes: |
   checkpoint.yaml, experience yaml, learned rule yaml) must reuse the same
   flush/fsync/os.replace/parent-fsync semantics from REQUIREMENTS.md section
   4.7.5.
-next_action: "Generate patch and commit Subtask 2.2, then prepare external review prompt before Subtask 2.3."
+next_action: "Push Subtask 2.2 sync commit, then prepare external review prompt before Subtask 2.3."
