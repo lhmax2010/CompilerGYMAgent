@@ -20,6 +20,13 @@ subtasks:
     external_review_verdict: approve
     external_reviewed_at: 2026-05-08T07:41:20Z
     external_review_notes: "Claude independently verified 163/163 tests and approved Subtask 2.1; only Low/Info follow-ups remain."
+    target_environment_validation:
+      os: Ubuntu/Linux
+      python: 3.11.15
+      targeted_pytest: "10 passed in 0.10s"
+      full_pytest: "163 passed in 0.58s"
+      manual_probe: "atomic_write_yaml wrote UTF-8 YAML with unicode: 编译 and left tmp files: []"
+      runner: "venv + pip + pytest; uv not required"
     files_created:
       - src/agent/fs_memory.py
       - tests/test_fs_memory.py

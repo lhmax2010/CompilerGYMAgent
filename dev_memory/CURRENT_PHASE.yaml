@@ -1,7 +1,7 @@
 phase_id: phase_02_fs_memory
 phase_title: "FS-Memory SoT + schema + atomic write"
 started_at: 2026-05-08T07:04:04Z
-last_updated: 2026-05-08T07:41:20Z
+last_updated: 2026-05-08T07:52:58Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 4.2
@@ -31,6 +31,13 @@ subtasks:
     external_review_verdict: approve
     external_reviewed_at: 2026-05-08T07:41:20Z
     external_review_notes: "Claude independently verified 163/163 tests and approved Subtask 2.1; only Low/Info follow-ups remain."
+    target_environment_validation:
+      os: Ubuntu/Linux
+      python: 3.11.15
+      targeted_pytest: "10 passed in 0.10s"
+      full_pytest: "163 passed in 0.58s"
+      manual_probe: "atomic_write_yaml wrote UTF-8 YAML with unicode: 编译 and left tmp files: []"
+      runner: "venv + pip + pytest; uv not required"
     deferred_low_priority_followups:
       - "Document or test symlink-target behavior: atomic_write_yaml replaces the symlink path instead of writing through it."
       - "Document parent-directory fsync failure semantics: os.replace may have succeeded while durability fsync raises, so caller should treat state as unknown and retry/inspect."

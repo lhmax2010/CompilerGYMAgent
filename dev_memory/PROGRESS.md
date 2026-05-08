@@ -334,3 +334,14 @@ Next action: continue to Subtask 2.2 TrialRecord schema, integrity hash, and imm
 - Remaining findings are Low/Info only and are recorded as deferred follow-ups in `CURRENT_PHASE.yaml` and `REVIEW_NOTES.md`.
 
 Next action: continue to Subtask 2.2 TrialRecord schema, integrity hash, and immutable trial writer.
+
+## 2026-05-08T07:52:58Z - Phase 02 / Subtask 2.1 Ubuntu target-environment validation
+
+- User validated on Ubuntu/Linux with Python 3.11.15 in a local `.venv`.
+- Targeted UT passed: `pytest tests/test_fs_memory.py -v` -> 10 passed in 0.10s.
+- Full UT passed: `pytest -v` -> 163 passed in 0.58s.
+- Manual probe confirmed `atomic_write_yaml` writes UTF-8 YAML containing `unicode: 编译`.
+- Manual probe confirmed no temp files remain after the write: `tmp files: []`.
+- The Linux real-fcntl workspace lock regression test also executed during the full suite and passed.
+
+Next action: continue to Subtask 2.2 TrialRecord schema, integrity hash, and immutable trial writer.
