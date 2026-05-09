@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any, Literal, Mapping, Sequence
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from .config import AgentConfig, NonEmptyStr
 from .registry import ProjectNamespace, compute_project_namespace
@@ -42,6 +42,14 @@ class TrialIntegrityError(TrialRecordError):
     """Raised when trial record integrity data is missing or invalid."""
 
 
+class CheckpointError(FsMemoryError):
+    """Raised when checkpoint state is invalid for FS-Memory use."""
+
+
+class CheckpointLoadError(CheckpointError):
+    """Raised when `state/checkpoint.yaml` cannot be parsed or validated."""
+
+
 class StrictFsModel(BaseModel):
     model_config = ConfigDict(extra="forbid", validate_assignment=True)
 
@@ -53,6 +61,16 @@ class SotYamlDumper(yaml.SafeDumper):
         return True
 
 
+class CheckpointYamlLoader(yaml.SafeLoader):
+    """Safe loader for user-readable canonical checkpoint YAML."""
+
+    def compose_node(self, parent: Any, index: Any) -> yaml.Node:
+        if self.check_event(yaml.AliasEvent):
+            raise yaml.YAMLError("YAML aliases are not allowed in checkpoint state")
+        return super().compose_node(parent, index)
+
+
+MAX_CHECKPOINT_BYTES = 1_048_576
 TRIAL_HASH_FIELDS_EXCLUDED = ("integrity",)
 TrialMode = Literal["exploit", "explore", "warmup", "canary", "mixed"]
 CandidateSource = Literal["llm_proposal", "local_mutation", "weighted_random", "ablation"]
@@ -71,6 +89,20 @@ TrialOutcome = Literal[
     "workspace_corruption",
 ]
 CanaryValidationResult = Literal["supports", "contradicts", "inconclusive"]
+CheckpointStage = Literal[
+    "workspace_snapshot_pre",
+    "spec_backup",
+    "spec_inject",
+    "compiling",
+    "benchmarking",
+    "score_aggregate",
+    "spec_restore",
+    "workspace_verify",
+    "artifact_rename",
+    "memory_write",
+    "build_dir_cleanup",
+]
+CHECKPOINT_PROCESS_STAGES = frozenset({"compiling", "benchmarking"})
 
 
 class TrialIntegrity(StrictFsModel):
@@ -182,11 +214,7 @@ class TrialRecord(StrictFsModel):
     @field_validator("namespace")
     @classmethod
     def namespace_must_be_safe(cls, value: str) -> str:
-        parts = value.split("/")
-        if len(parts) != 5:
-            raise ValueError("namespace must contain exactly 5 path segments")
-        for index, part in enumerate(parts, start=1):
-            _validate_file_atom(part, f"namespace segment {index}")
+        _validate_namespace_string(value, "namespace")
         return value
 
     @model_validator(mode="after")
@@ -201,6 +229,128 @@ class TrialRecord(StrictFsModel):
             raise ValueError("successful trials must include score")
         if self.mode == "canary" and self.canary is None:
             raise ValueError("canary trials must include canary details")
+        return self
+
+
+class CheckpointProcess(StrictFsModel):
+    pid: int = Field(gt=0)
+    pgid: int = Field(gt=0)
+    create_time: float = Field(gt=0)
+    cmdline_hash: NonEmptyStr
+    session_marker: NonEmptyStr
+
+    @field_validator("cmdline_hash")
+    @classmethod
+    def cmdline_hash_must_be_sha256(cls, value: str) -> str:
+        _validate_sha256_digest(value, "current_trial.process.cmdline_hash")
+        return value
+
+    @field_validator("session_marker")
+    @classmethod
+    def session_marker_must_reference_agent_session(cls, value: str) -> str:
+        if not value.startswith("AGENT_SESSION_ID="):
+            raise ValueError("session_marker must start with 'AGENT_SESSION_ID='")
+        return value
+
+
+class CheckpointCurrentTrial(StrictFsModel):
+    trial_id: NonEmptyStr
+    started_at: NonEmptyStr
+    current_stage: CheckpointStage
+    stage_started_at: NonEmptyStr
+    spec_backup_path: NonEmptyStr | None = None
+    workspace_snapshot_pre: NonEmptyStr | None = None
+    build_dir: NonEmptyStr
+    artifact_staging: NonEmptyStr | None = None
+    process: CheckpointProcess | None = None
+
+    @field_validator("trial_id")
+    @classmethod
+    def trial_id_must_be_file_safe(cls, value: str) -> str:
+        _validate_file_atom(value, "current_trial.trial_id")
+        return value
+
+    @field_validator("started_at", "stage_started_at", mode="before")
+    @classmethod
+    def timestamp_datetime_to_string(cls, value: Any, info: Any) -> Any:
+        return _datetime_to_utc_isoformat(value, f"current_trial.{info.field_name}")
+
+    @field_validator("started_at", "stage_started_at")
+    @classmethod
+    def timestamp_must_be_utc_isoformat(cls, value: str, info: Any) -> str:
+        _parse_utc_isoformat(value, f"current_trial.{info.field_name}")
+        return value
+
+    @model_validator(mode="after")
+    def current_trial_consistency(self) -> CheckpointCurrentTrial:
+        started_at = _parse_utc_isoformat(self.started_at, "current_trial.started_at")
+        stage_started_at = _parse_utc_isoformat(
+            self.stage_started_at,
+            "current_trial.stage_started_at",
+        )
+        if stage_started_at < started_at:
+            raise ValueError("stage_started_at cannot be before started_at")
+        if self.current_stage in CHECKPOINT_PROCESS_STAGES and self.process is None:
+            raise ValueError("active process stages must include process details")
+        return self
+
+
+class CheckpointBest(StrictFsModel):
+    trial_id: NonEmptyStr
+    score: float = Field(gt=0)
+
+    @field_validator("trial_id")
+    @classmethod
+    def trial_id_must_be_file_safe(cls, value: str) -> str:
+        _validate_file_atom(value, "current_best.trial_id")
+        return value
+
+
+class CheckpointState(StrictFsModel):
+    session_id: NonEmptyStr
+    namespace: NonEmptyStr
+    last_completed_trial: NonEmptyStr | None = None
+    current_trial: CheckpointCurrentTrial | None = None
+    current_best: CheckpointBest | None = None
+    explorer_state: dict[str, Any] = Field(default_factory=dict)
+    random_seed: int = Field(ge=0)
+    total_tokens_consumed: int = Field(ge=0)
+    last_updated: NonEmptyStr
+
+    @field_validator("namespace")
+    @classmethod
+    def namespace_must_be_safe(cls, value: str) -> str:
+        _validate_namespace_string(value, "namespace")
+        return value
+
+    @field_validator("last_completed_trial")
+    @classmethod
+    def last_completed_trial_must_be_file_safe(cls, value: str | None) -> str | None:
+        if value is not None:
+            _validate_file_atom(value, "last_completed_trial")
+        return value
+
+    @field_validator("last_updated", mode="before")
+    @classmethod
+    def last_updated_datetime_to_string(cls, value: Any) -> Any:
+        return _datetime_to_utc_isoformat(value, "last_updated")
+
+    @field_validator("last_updated")
+    @classmethod
+    def last_updated_must_be_utc_isoformat(cls, value: str) -> str:
+        _parse_utc_isoformat(value, "last_updated")
+        return value
+
+    @model_validator(mode="after")
+    def process_marker_must_match_session(self) -> CheckpointState:
+        if self.current_trial is None or self.current_trial.process is None:
+            return self
+        expected_marker = f"AGENT_SESSION_ID={self.session_id}"
+        actual_marker = self.current_trial.process.session_marker
+        if actual_marker != expected_marker:
+            raise ValueError(
+                "current_trial.process.session_marker must match checkpoint session_id"
+            )
         return self
 
 
@@ -436,6 +586,82 @@ def write_trial_record(
     return target
 
 
+def checkpoint_payload(state: CheckpointState | Mapping[str, Any]) -> dict[str, Any]:
+    checkpoint = CheckpointState.model_validate(state)
+    return checkpoint.model_dump(mode="json", exclude_none=True)
+
+
+def write_checkpoint_state(
+    layout: NamespaceLayout,
+    state: CheckpointState | Mapping[str, Any],
+) -> Path:
+    """Write the mutable canonical recovery checkpoint.
+
+    Callers must hold the workspace lock before invoking this function because
+    `checkpoint.yaml` is overwritten as a session progresses.
+    """
+
+    checkpoint = CheckpointState.model_validate(state)
+    expected_namespace = str(layout.namespace)
+    if checkpoint.namespace != expected_namespace:
+        raise CheckpointError(
+            "checkpoint namespace does not match layout "
+            f"(expected={expected_namespace!r}, actual={checkpoint.namespace!r})"
+        )
+    atomic_write_yaml(checkpoint_payload(checkpoint), layout.checkpoint_path)
+    return layout.checkpoint_path
+
+
+def load_checkpoint_state(path: str | Path) -> CheckpointState:
+    checkpoint_path = Path(path)
+    try:
+        file_size = checkpoint_path.stat().st_size
+    except FileNotFoundError as exc:
+        raise CheckpointLoadError(f"checkpoint file not found: {checkpoint_path}") from exc
+    if file_size > MAX_CHECKPOINT_BYTES:
+        raise CheckpointLoadError(
+            f"checkpoint file {checkpoint_path} is too large "
+            f"({file_size} bytes > {MAX_CHECKPOINT_BYTES} bytes)"
+        )
+
+    try:
+        raw_text = checkpoint_path.read_text(encoding="utf-8")
+    except UnicodeDecodeError as exc:
+        raise CheckpointLoadError(
+            f"checkpoint file {checkpoint_path} is not valid UTF-8"
+        ) from exc
+
+    try:
+        data = yaml.load(raw_text, Loader=CheckpointYamlLoader)
+    except yaml.YAMLError as exc:
+        raise CheckpointLoadError(
+            f"checkpoint file {checkpoint_path} failed to parse YAML: {exc}"
+        ) from exc
+
+    if not data:
+        raise CheckpointLoadError(f"checkpoint file {checkpoint_path} is empty")
+    if not isinstance(data, Mapping):
+        raise CheckpointLoadError(
+            f"checkpoint file {checkpoint_path} must contain a YAML mapping"
+        )
+
+    try:
+        return CheckpointState.model_validate(data)
+    except ValidationError as exc:
+        raise CheckpointLoadError(f"checkpoint file {checkpoint_path} is invalid:\n{exc}") from exc
+
+
+def load_checkpoint_for_layout(layout: NamespaceLayout) -> CheckpointState:
+    checkpoint = load_checkpoint_state(layout.checkpoint_path)
+    expected_namespace = str(layout.namespace)
+    if checkpoint.namespace != expected_namespace:
+        raise CheckpointLoadError(
+            "checkpoint namespace does not match layout "
+            f"(expected={expected_namespace!r}, actual={checkpoint.namespace!r})"
+        )
+    return checkpoint
+
+
 def atomic_write_yaml(
     data: Mapping[str, Any],
     path: str | Path,
@@ -554,3 +780,11 @@ def _validate_file_atom(value: str, label: str) -> None:
         raise ValueError(f"{label} cannot contain path separators")
     if any(ord(char) < 0x20 or ord(char) == 0x7F for char in value):
         raise ValueError(f"{label} cannot contain control characters")
+
+
+def _validate_namespace_string(value: str, label: str) -> None:
+    parts = value.split("/")
+    if len(parts) != 5:
+        raise ValueError(f"{label} must contain exactly 5 path segments")
+    for index, part in enumerate(parts, start=1):
+        _validate_file_atom(part, f"{label} segment {index}")

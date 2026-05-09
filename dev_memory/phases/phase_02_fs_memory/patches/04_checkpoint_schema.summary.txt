@@ -1,0 +1,30 @@
+Phase 02 / Subtask 2.3 - Checkpoint schema and canonical checkpoint YAML read/write
+
+Implemented:
+- Added strict checkpoint models for canonical `state/checkpoint.yaml` recovery state:
+  `CheckpointState`, `CheckpointCurrentTrial`, `CheckpointProcess`, and `CheckpointBest`.
+- Added checkpoint read/write helpers:
+  `checkpoint_payload`, `write_checkpoint_state`, `load_checkpoint_state`, and
+  `load_checkpoint_for_layout`.
+- Added alias-free bounded checkpoint YAML loading with UTF-8, missing-file,
+  oversized-file, non-mapping, and schema-validation errors wrapped as
+  `CheckpointLoadError`.
+- Reused shared `atomic_write_yaml` for checkpoint writes and enforced
+  `NamespaceLayout` namespace matching on both write and layout-scoped load.
+- Required active process stages (`compiling`, `benchmarking`) to carry process
+  identity metadata, including sha256 cmdline hash and matching
+  `AGENT_SESSION_ID=<session_id>` marker.
+- Exported new checkpoint APIs from `src/agent/__init__.py`.
+- Recorded the design decision that checkpoint YAML is mutable canonical
+  recovery state, not immutable trial history, so it uses atomic writes and
+  WorkspaceLock rather than an integrity block.
+
+Tests:
+- Targeted: `uv --native-tls run --extra dev pytest tests/test_fs_memory.py -v`
+  -> 51 passed, 0 failed.
+- Full: `uv --native-tls run --extra dev pytest -v`
+  -> 203 passed, 0 failed, 1 skipped.
+
+Notes:
+- The one skipped test is the expected Windows-local skip for the Linux-only
+  real-fcntl workspace lock regression.

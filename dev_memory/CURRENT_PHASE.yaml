@@ -1,7 +1,7 @@
 phase_id: phase_02_fs_memory
 phase_title: "FS-Memory SoT + schema + atomic write"
 started_at: 2026-05-08T07:04:04Z
-last_updated: 2026-05-09T03:16:47Z
+last_updated: 2026-05-09T03:35:10Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 4.2
@@ -88,10 +88,21 @@ subtasks:
       runner: "venv + pip + pytest; uv not required"
   - id: "2.3"
     title: "Implement checkpoint schema and canonical checkpoint YAML read/write"
-    status: todo
+    status: done
     related_requirements:
       - REQUIREMENTS.md section 4.2.6
       - REQUIREMENTS.md section 3.3.4
+      - REQUIREMENTS.md section 4.11.2
+    files_modified:
+      - src/agent/fs_memory.py
+      - tests/test_fs_memory.py
+      - src/agent/__init__.py
+    ut_passed: true
+    targeted_ut: "51 passed, 0 failed"
+    full_ut: "203 passed, 0 failed, 1 skipped"
+    self_reviewed: true
+    patch_file: dev_memory/phases/phase_02_fs_memory/patches/04_checkpoint_schema.patch
+    patch_generated: true
   - id: "2.4"
     title: "Implement SoT discovery helpers for existing trials and startup validation inputs"
     status: todo
@@ -104,4 +115,4 @@ notes: |
   checkpoint.yaml, experience yaml, learned rule yaml) must reuse the same
   flush/fsync/os.replace/parent-fsync semantics from REQUIREMENTS.md section
   4.7.5.
-next_action: "Record and push Subtask 2.2 Ubuntu validation, then continue to Subtask 2.3 checkpoint schema."
+next_action: "Generate Subtask 2.3 patch artifacts, commit/push, then prepare external review prompt."

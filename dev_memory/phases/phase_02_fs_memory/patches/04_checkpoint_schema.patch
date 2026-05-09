@@ -1,0 +1,905 @@
+﻿diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index d28a1bf..791f992 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -1,7 +1,7 @@
+ phase_id: phase_02_fs_memory
+ phase_title: "FS-Memory SoT + schema + atomic write"
+ started_at: 2026-05-08T07:04:04Z
+-last_updated: 2026-05-09T03:16:47Z
++last_updated: 2026-05-09T03:35:10Z
+ target_milestone: M1
+ related_requirements:
+   - REQUIREMENTS.md section 4.2
+@@ -88,10 +88,21 @@ subtasks:
+       runner: "venv + pip + pytest; uv not required"
+   - id: "2.3"
+     title: "Implement checkpoint schema and canonical checkpoint YAML read/write"
+-    status: todo
++    status: done
+     related_requirements:
+       - REQUIREMENTS.md section 4.2.6
+       - REQUIREMENTS.md section 3.3.4
++      - REQUIREMENTS.md section 4.11.2
++    files_modified:
++      - src/agent/fs_memory.py
++      - tests/test_fs_memory.py
++      - src/agent/__init__.py
++    ut_passed: true
++    targeted_ut: "51 passed, 0 failed"
++    full_ut: "203 passed, 0 failed, 1 skipped"
++    self_reviewed: true
++    patch_file: dev_memory/phases/phase_02_fs_memory/patches/04_checkpoint_schema.patch
++    patch_generated: true
+   - id: "2.4"
+     title: "Implement SoT discovery helpers for existing trials and startup validation inputs"
+     status: todo
+@@ -104,4 +115,4 @@ notes: |
+   checkpoint.yaml, experience yaml, learned rule yaml) must reuse the same
+   flush/fsync/os.replace/parent-fsync semantics from REQUIREMENTS.md section
+   4.7.5.
+-next_action: "Record and push Subtask 2.2 Ubuntu validation, then continue to Subtask 2.3 checkpoint schema."
++next_action: "Generate Subtask 2.3 patch artifacts, commit/push, then prepare external review prompt."
+diff --git a/dev_memory/DECISIONS.md b/dev_memory/DECISIONS.md
+index 2fb7b7f..2bdc16f 100644
+--- a/dev_memory/DECISIONS.md
++++ b/dev_memory/DECISIONS.md
+@@ -310,3 +310,17 @@ Decision records must include:
+ - alternatives_considered:
+   - Replace `atomic_write_yaml` with an `O_EXCL`-based writer just for trial YAML, which would split SoT writer semantics and lose the shared section 4.7.5 path.
+   - Add a `must_not_exist` flag to `atomic_write_yaml`, which may be useful later but is unnecessary until a real caller needs lock-free immutable creation.
++
++## 2026-05-09T03:35:10Z - Treat checkpoint.yaml as mutable canonical recovery state
++
++- affected_requirement:
++  - REQUIREMENTS.md section 3.3.4
++  - REQUIREMENTS.md section 4.11.2
++  - REQUIREMENTS.md section 4.7.5
++  - REQUIREMENTS.md section 4.15
++- decision: Model `state/checkpoint.yaml` as the mutable canonical recovery snapshot, validate it with strict Pydantic schemas, read it with bounded alias-free YAML loading, and write it through the shared `atomic_write_yaml` path. Writers must be called while holding `WorkspaceLock`.
++- rationale: Checkpoint state changes at each trial lifecycle stage, so it is not immutable historical fact like completed trial YAML and should not carry a self-referential integrity block. Its safety comes from strict schema validation, atomic replacement, the canonical `trace/events.jsonl` companion stream, and the section 4.15 workspace serialization boundary. Active process metadata also requires `AGENT_SESSION_ID=<session_id>` to match the checkpoint session so later process cleanup can fail conservative on drift.
++- alternatives_considered:
++  - Add a checkpoint integrity block like `TrialRecord`, which would churn on every live-state update and add little value while trace events remain the audit companion.
++  - Let LangGraph internal checkpoints be authoritative, which contradicts section 3.3.4 and would hide canonical recovery state from user-readable YAML.
++  - Write checkpoint YAML directly with `yaml.safe_dump`, which would bypass the section 4.7.5 atomic writer shared by all SoT YAML files.
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index 9287e08..2d6738e 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -417,3 +417,24 @@ Next action: provide Ubuntu validation guide for Subtask 2.2 review fixes, then
+ - Manual probe confirmed `hash_fields_excluded: ['integrity']`, `verify: True`, and `tmp_files: []`.
+ 
+ Next action: commit/push the Ubuntu validation record, then continue to Subtask 2.3 checkpoint schema.
++
++## 2026-05-09T03:30:15Z - Phase 02 / Subtask 2.3 started
++
++- Started checkpoint schema and canonical checkpoint YAML read/write helpers.
++- Requirements in scope: REQUIREMENTS.md sections 3.3.4, 4.2.6, and 4.11.2.
++- Planned files: `src/agent/fs_memory.py`, `tests/test_fs_memory.py`, and public exports in `src/agent/__init__.py`.
++- Baseline before implementation: clean `main` synced with `origin/main`.
++
++Next action: implement checkpoint models, YAML load/write helpers, and targeted pytest coverage.
++
++## 2026-05-09T03:35:10Z - Phase 02 / Subtask 2.3 implemented
++
++- Added strict checkpoint schema models for `state/checkpoint.yaml`, including current trial stage, active process identity, current best, explorer state, token counter, random seed, and UTC timestamps.
++- Added canonical checkpoint helpers: `checkpoint_payload`, `write_checkpoint_state`, `load_checkpoint_state`, and `load_checkpoint_for_layout`.
++- Checkpoint loading now rejects missing, empty, non-mapping, alias-bearing, non-UTF-8, oversized, and schema-invalid YAML.
++- Checkpoint writes reuse the shared `atomic_write_yaml` path and enforce that the checkpoint namespace matches the target `NamespaceLayout`.
++- Added 24 focused checkpoint tests, raising `tests/test_fs_memory.py` to 51 passed.
++- Targeted UT: `uv --native-tls run --extra dev pytest tests/test_fs_memory.py -v` -> 51 passed.
++- Full UT: `uv --native-tls run --extra dev pytest -v` -> 203 passed, 1 skipped.
++
++Next action: generate Subtask 2.3 patch artifacts, commit/push, then prepare external review prompt.
+diff --git a/dev_memory/phases/phase_02_fs_memory/CHECKLIST.yaml b/dev_memory/phases/phase_02_fs_memory/CHECKLIST.yaml
+index ff6b116..962bf7f 100644
+--- a/dev_memory/phases/phase_02_fs_memory/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_02_fs_memory/CHECKLIST.yaml
+@@ -71,13 +71,22 @@ subtasks:
+       - tests/test_fs_memory.py
+   - id: "2.3"
+     title: "Implement checkpoint schema and canonical checkpoint YAML read/write"
+-    status: todo
++    status: done
+     ut_required: true
+-    ut_passed: false
++    ut_passed: true
++    targeted_ut: "51 passed, 0 failed"
++    full_ut: "203 passed, 0 failed, 1 skipped"
+     self_review_required: true
+-    self_reviewed: false
++    self_reviewed: true
+     patch_required: true
++    patch_file: dev_memory/phases/phase_02_fs_memory/patches/04_checkpoint_schema.patch
++    patch_generated: true
+     commit_required: true
++    commit_pending: true
++    files_modified:
++      - src/agent/fs_memory.py
++      - tests/test_fs_memory.py
++      - src/agent/__init__.py
+   - id: "2.4"
+     title: "Implement SoT discovery helpers for existing trials and startup validation inputs"
+     status: todo
+diff --git a/dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md b/dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md
+index 9e8f9ae..86170df 100644
+--- a/dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md
++++ b/dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md
+@@ -153,3 +153,38 @@ Review conclusion:
+ 
+ Conclusion:
+ - Subtask 2.2 review-fix is validated on Ubuntu and can proceed to Subtask 2.3.
++
++## Subtask 2.3 - Checkpoint schema and canonical checkpoint YAML read/write
++
++- timestamp_utc: 2026-05-09T03:35:10Z
++- files_reviewed:
++  - src/agent/fs_memory.py
++  - src/agent/__init__.py
++  - tests/test_fs_memory.py
++
++Review checklist:
++- [x] `CheckpointState` covers the documented `state/checkpoint.yaml` fields from REQUIREMENTS.md sections 3.3.4, 4.2.6, and 4.11.2.
++- [x] Checkpoint timestamps are UTC timezone-aware ISO 8601 strings and hand-edited unquoted YAML timestamps are accepted when PyYAML parses them as UTC datetimes.
++- [x] `current_trial.current_stage` is restricted to documented lifecycle stages, including `score_aggregate`.
++- [x] Active process stages (`compiling`, `benchmarking`) require process details.
++- [x] Process identity validates `pid`, `pgid`, `create_time`, `cmdline_hash`, and `AGENT_SESSION_ID` marker.
++- [x] Process session marker must match the checkpoint `session_id`.
++- [x] `checkpoint_payload` emits user-readable JSON-mode data and omits `None` fields.
++- [x] `write_checkpoint_state` writes through shared `atomic_write_yaml` and rejects layout namespace drift.
++- [x] `load_checkpoint_state` rejects missing, empty, non-mapping, alias-bearing, non-UTF-8, oversized, unsafe-tag, and schema-invalid YAML.
++- [x] `load_checkpoint_for_layout` rejects canonical state that claims a different namespace than its filesystem layout.
++- [x] Public exports in `src/agent/__init__.py` match the new checkpoint APIs.
++- [x] Targeted and full UT suites pass.
++
++Findings:
++- No blocking issues found.
++- `write_checkpoint_state` documents the WorkspaceLock precondition because checkpoint YAML is mutable and overwritten during a session.
++- Checkpoint does not include an integrity block by design; this is recorded in DECISIONS.md as mutable canonical recovery state paired with trace events.
++
++Deferred low-priority follow-ups:
++- Add resume-level tests that compare checkpoint state with LangGraph cache once the LangGraph cache adapter exists.
++- Add trace/event correlation tests for checkpoint stage transitions when the trace writer is implemented.
++- Decide whether checkpoint `explorer_state` should gain a stricter schema after the exploration planner data model is introduced.
++
++Review conclusion:
++- Subtask 2.3 is ready for external review.
+diff --git a/dev_memory/phases/phase_02_fs_memory/SUMMARY.md b/dev_memory/phases/phase_02_fs_memory/SUMMARY.md
+index 6fe1331..836f8f6 100644
+--- a/dev_memory/phases/phase_02_fs_memory/SUMMARY.md
++++ b/dev_memory/phases/phase_02_fs_memory/SUMMARY.md
+@@ -18,7 +18,8 @@ Completed:
+ - Subtask 2.2 external review returned Approve with minor changes. Review fixes documented the WorkspaceLock precondition for `write_trial_record`, moved namespace validation before integrity hashing, tightened direct `compute_combo_hash` validation, and raised local tests to 27 targeted / 179 full pass plus one expected Windows skip.
+ - Subtask 2.2 review-fix received final external approval after independent 180/180 verification; it is clear to proceed to Subtask 2.3.
+ - Subtask 2.2 review-fix was validated by the user on the intended Ubuntu/Linux environment with Python 3.11.15: targeted FS-Memory pytest passed 27/27, full pytest passed 180/180, and a manual trial writer integrity/tmp-cleanup probe passed.
++- Subtask 2.3 implemented `state/checkpoint.yaml` schema, canonical checkpoint read/write helpers, namespace-bound writes, alias-free bounded loading, active process identity checks, and public exports.
++- Subtask 2.3 targeted UT passed 51/51 and full UT passed 203/204 with the expected Windows skip for the Linux-only real-fcntl workspace lock test.
+ 
+ Remaining:
+-- Subtask 2.3 checkpoint schema and writer.
+ - Subtask 2.4 SoT discovery helpers.
+diff --git a/dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md b/dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md
+index b11ed4c..878ec31 100644
+--- a/dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md
++++ b/dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md
+@@ -174,3 +174,45 @@ Coverage notes:
+ - Confirms completed trial YAML writes to the documented monthly partition and verifies integrity after loading.
+ - Confirms no temporary files remain after the manual trial writer probe.
+ - reported_by: user on intended Ubuntu server environment
++
++## Subtask 2.3 - Checkpoint schema and canonical checkpoint YAML read/write
++
++- timestamp_utc: 2026-05-09T03:35:10Z
++- related_requirements:
++  - REQUIREMENTS.md section 3.3.4
++  - REQUIREMENTS.md section 4.2.6
++  - REQUIREMENTS.md section 4.11.2
++  - REQUIREMENTS.md section 4.7.5
++- targeted_command: `uv --native-tls run --extra dev pytest tests/test_fs_memory.py -v`
++- targeted_result: 51 passed, 0 failed
++- full_command: `uv --native-tls run --extra dev pytest -v`
++- full_result: 203 passed, 0 failed, 1 skipped
++
++New checkpoint test coverage:
++- PASS `tests/test_fs_memory.py::test_checkpoint_state_schema_accepts_documented_running_state`
++- PASS `tests/test_fs_memory.py::test_checkpoint_state_rejects_invalid_stage`
++- PASS `tests/test_fs_memory.py::test_checkpoint_state_rejects_non_utc_timestamps[...]`
++- PASS `tests/test_fs_memory.py::test_checkpoint_current_trial_rejects_stage_before_start`
++- PASS `tests/test_fs_memory.py::test_checkpoint_current_trial_requires_process_for_active_stage`
++- PASS `tests/test_fs_memory.py::test_checkpoint_current_trial_allows_process_absent_for_non_process_stage`
++- PASS `tests/test_fs_memory.py::test_checkpoint_process_rejects_invalid_identity_fields[...]`
++- PASS `tests/test_fs_memory.py::test_checkpoint_state_rejects_process_session_marker_mismatch`
++- PASS `tests/test_fs_memory.py::test_checkpoint_payload_omits_none_fields`
++- PASS `tests/test_fs_memory.py::test_write_checkpoint_state_round_trips_with_atomic_yaml`
++- PASS `tests/test_fs_memory.py::test_write_checkpoint_state_rejects_layout_namespace_mismatch`
++- PASS `tests/test_fs_memory.py::test_load_checkpoint_state_accepts_unquoted_yaml_timestamps`
++- PASS `tests/test_fs_memory.py::test_load_checkpoint_state_rejects_invalid_yaml[...]`
++- PASS `tests/test_fs_memory.py::test_load_checkpoint_state_rejects_missing_file`
++- PASS `tests/test_fs_memory.py::test_load_checkpoint_state_rejects_yaml_aliases`
++- PASS `tests/test_fs_memory.py::test_load_checkpoint_state_rejects_non_utf8_bytes`
++- PASS `tests/test_fs_memory.py::test_load_checkpoint_state_rejects_oversized_file`
++- PASS `tests/test_fs_memory.py::test_load_checkpoint_for_layout_rejects_namespace_mismatch`
++
++Coverage notes:
++- Covers the documented canonical checkpoint fields: session id, namespace, last completed trial, current trial, current best, explorer state, random seed, token usage, and last updated timestamp.
++- Covers trial lifecycle stages including process-required active stages (`compiling`, `benchmarking`) and process-optional non-active stages.
++- Covers process identity defense: pid/pgid/create_time bounds, `sha256:` cmdline hash, `AGENT_SESSION_ID=` marker, and marker/session consistency.
++- Covers checkpoint namespace isolation for both write and load helpers.
++- Covers safe YAML loading with size cap, UTF-8 requirement, alias rejection, non-mapping rejection, missing-file errors, and hand-edited unquoted UTC timestamps.
++- Confirms checkpoint writes reuse shared `atomic_write_yaml`; no temporary files remain in the write round-trip test.
++- Windows full-suite skip is expected: `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter` requires Linux `fcntl`.
+diff --git a/src/agent/__init__.py b/src/agent/__init__.py
+index f722885..e8a366b 100644
+--- a/src/agent/__init__.py
++++ b/src/agent/__init__.py
+@@ -4,6 +4,12 @@ from .config import AgentConfig, ConfigLoadError, load_config
+ from .fs_memory import (
+     AtomicWriteError,
+     CanaryRecord,
++    CheckpointBest,
++    CheckpointCurrentTrial,
++    CheckpointError,
++    CheckpointLoadError,
++    CheckpointProcess,
++    CheckpointState,
+     FsMemoryError,
+     NamespaceLayout,
+     ScoreVsBest,
+@@ -16,14 +22,18 @@ from .fs_memory import (
+     TrialScore,
+     WorkspaceState,
+     atomic_write_yaml,
++    checkpoint_payload,
+     compute_combo_hash,
+     compute_payload_hash,
+     compute_trial_payload_hash,
++    load_checkpoint_for_layout,
++    load_checkpoint_state,
+     namespace_layout_for_config,
+     trial_record_path,
+     trial_record_payload,
+     verify_trial_integrity,
+     with_trial_integrity,
++    write_checkpoint_state,
+     write_trial_record,
+ )
+ from .init import (
+@@ -71,6 +81,12 @@ __all__ = [
+     "AgentConfig",
+     "AtomicWriteError",
+     "CanaryRecord",
++    "CheckpointBest",
++    "CheckpointCurrentTrial",
++    "CheckpointError",
++    "CheckpointLoadError",
++    "CheckpointProcess",
++    "CheckpointState",
+     "ConfigLoadError",
+     "FsMemoryError",
+     "HistorySummary",
+@@ -104,12 +120,15 @@ __all__ = [
+     "WorkspaceLockPlatformError",
+     "assert_initialized_matches",
+     "atomic_write_yaml",
++    "checkpoint_payload",
+     "collect_history_summary",
+     "compute_combo_hash",
+     "compute_payload_hash",
+     "compute_project_namespace",
+     "compute_trial_payload_hash",
+     "load_config",
++    "load_checkpoint_for_layout",
++    "load_checkpoint_state",
+     "load_initialized_state",
+     "load_modules_registry",
+     "lock_path_for_workspace",
+@@ -126,6 +145,7 @@ __all__ = [
+     "verify_initialized_for_startup",
+     "verify_trial_integrity",
+     "with_trial_integrity",
++    "write_checkpoint_state",
+     "write_initialized_state",
+     "write_trial_record",
+ ]
+diff --git a/src/agent/fs_memory.py b/src/agent/fs_memory.py
+index f72b19a..32e60a1 100644
+--- a/src/agent/fs_memory.py
++++ b/src/agent/fs_memory.py
+@@ -16,7 +16,7 @@ from pathlib import Path
+ from typing import Any, Literal, Mapping, Sequence
+ 
+ import yaml
+-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
++from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
+ 
+ from .config import AgentConfig, NonEmptyStr
+ from .registry import ProjectNamespace, compute_project_namespace
+@@ -42,6 +42,14 @@ class TrialIntegrityError(TrialRecordError):
+     """Raised when trial record integrity data is missing or invalid."""
+ 
+ 
++class CheckpointError(FsMemoryError):
++    """Raised when checkpoint state is invalid for FS-Memory use."""
++
++
++class CheckpointLoadError(CheckpointError):
++    """Raised when `state/checkpoint.yaml` cannot be parsed or validated."""
++
++
+ class StrictFsModel(BaseModel):
+     model_config = ConfigDict(extra="forbid", validate_assignment=True)
+ 
+@@ -53,6 +61,16 @@ class SotYamlDumper(yaml.SafeDumper):
+         return True
+ 
+ 
++class CheckpointYamlLoader(yaml.SafeLoader):
++    """Safe loader for user-readable canonical checkpoint YAML."""
++
++    def compose_node(self, parent: Any, index: Any) -> yaml.Node:
++        if self.check_event(yaml.AliasEvent):
++            raise yaml.YAMLError("YAML aliases are not allowed in checkpoint state")
++        return super().compose_node(parent, index)
++
++
++MAX_CHECKPOINT_BYTES = 1_048_576
+ TRIAL_HASH_FIELDS_EXCLUDED = ("integrity",)
+ TrialMode = Literal["exploit", "explore", "warmup", "canary", "mixed"]
+ CandidateSource = Literal["llm_proposal", "local_mutation", "weighted_random", "ablation"]
+@@ -71,6 +89,20 @@ TrialOutcome = Literal[
+     "workspace_corruption",
+ ]
+ CanaryValidationResult = Literal["supports", "contradicts", "inconclusive"]
++CheckpointStage = Literal[
++    "workspace_snapshot_pre",
++    "spec_backup",
++    "spec_inject",
++    "compiling",
++    "benchmarking",
++    "score_aggregate",
++    "spec_restore",
++    "workspace_verify",
++    "artifact_rename",
++    "memory_write",
++    "build_dir_cleanup",
++]
++CHECKPOINT_PROCESS_STAGES = frozenset({"compiling", "benchmarking"})
+ 
+ 
+ class TrialIntegrity(StrictFsModel):
+@@ -182,11 +214,7 @@ class TrialRecord(StrictFsModel):
+     @field_validator("namespace")
+     @classmethod
+     def namespace_must_be_safe(cls, value: str) -> str:
+-        parts = value.split("/")
+-        if len(parts) != 5:
+-            raise ValueError("namespace must contain exactly 5 path segments")
+-        for index, part in enumerate(parts, start=1):
+-            _validate_file_atom(part, f"namespace segment {index}")
++        _validate_namespace_string(value, "namespace")
+         return value
+ 
+     @model_validator(mode="after")
+@@ -204,6 +232,128 @@ class TrialRecord(StrictFsModel):
+         return self
+ 
+ 
++class CheckpointProcess(StrictFsModel):
++    pid: int = Field(gt=0)
++    pgid: int = Field(gt=0)
++    create_time: float = Field(gt=0)
++    cmdline_hash: NonEmptyStr
++    session_marker: NonEmptyStr
++
++    @field_validator("cmdline_hash")
++    @classmethod
++    def cmdline_hash_must_be_sha256(cls, value: str) -> str:
++        _validate_sha256_digest(value, "current_trial.process.cmdline_hash")
++        return value
++
++    @field_validator("session_marker")
++    @classmethod
++    def session_marker_must_reference_agent_session(cls, value: str) -> str:
++        if not value.startswith("AGENT_SESSION_ID="):
++            raise ValueError("session_marker must start with 'AGENT_SESSION_ID='")
++        return value
++
++
++class CheckpointCurrentTrial(StrictFsModel):
++    trial_id: NonEmptyStr
++    started_at: NonEmptyStr
++    current_stage: CheckpointStage
++    stage_started_at: NonEmptyStr
++    spec_backup_path: NonEmptyStr | None = None
++    workspace_snapshot_pre: NonEmptyStr | None = None
++    build_dir: NonEmptyStr
++    artifact_staging: NonEmptyStr | None = None
++    process: CheckpointProcess | None = None
++
++    @field_validator("trial_id")
++    @classmethod
++    def trial_id_must_be_file_safe(cls, value: str) -> str:
++        _validate_file_atom(value, "current_trial.trial_id")
++        return value
++
++    @field_validator("started_at", "stage_started_at", mode="before")
++    @classmethod
++    def timestamp_datetime_to_string(cls, value: Any, info: Any) -> Any:
++        return _datetime_to_utc_isoformat(value, f"current_trial.{info.field_name}")
++
++    @field_validator("started_at", "stage_started_at")
++    @classmethod
++    def timestamp_must_be_utc_isoformat(cls, value: str, info: Any) -> str:
++        _parse_utc_isoformat(value, f"current_trial.{info.field_name}")
++        return value
++
++    @model_validator(mode="after")
++    def current_trial_consistency(self) -> CheckpointCurrentTrial:
++        started_at = _parse_utc_isoformat(self.started_at, "current_trial.started_at")
++        stage_started_at = _parse_utc_isoformat(
++            self.stage_started_at,
++            "current_trial.stage_started_at",
++        )
++        if stage_started_at < started_at:
++            raise ValueError("stage_started_at cannot be before started_at")
++        if self.current_stage in CHECKPOINT_PROCESS_STAGES and self.process is None:
++            raise ValueError("active process stages must include process details")
++        return self
++
++
++class CheckpointBest(StrictFsModel):
++    trial_id: NonEmptyStr
++    score: float = Field(gt=0)
++
++    @field_validator("trial_id")
++    @classmethod
++    def trial_id_must_be_file_safe(cls, value: str) -> str:
++        _validate_file_atom(value, "current_best.trial_id")
++        return value
++
++
++class CheckpointState(StrictFsModel):
++    session_id: NonEmptyStr
++    namespace: NonEmptyStr
++    last_completed_trial: NonEmptyStr | None = None
++    current_trial: CheckpointCurrentTrial | None = None
++    current_best: CheckpointBest | None = None
++    explorer_state: dict[str, Any] = Field(default_factory=dict)
++    random_seed: int = Field(ge=0)
++    total_tokens_consumed: int = Field(ge=0)
++    last_updated: NonEmptyStr
++
++    @field_validator("namespace")
++    @classmethod
++    def namespace_must_be_safe(cls, value: str) -> str:
++        _validate_namespace_string(value, "namespace")
++        return value
++
++    @field_validator("last_completed_trial")
++    @classmethod
++    def last_completed_trial_must_be_file_safe(cls, value: str | None) -> str | None:
++        if value is not None:
++            _validate_file_atom(value, "last_completed_trial")
++        return value
++
++    @field_validator("last_updated", mode="before")
++    @classmethod
++    def last_updated_datetime_to_string(cls, value: Any) -> Any:
++        return _datetime_to_utc_isoformat(value, "last_updated")
++
++    @field_validator("last_updated")
++    @classmethod
++    def last_updated_must_be_utc_isoformat(cls, value: str) -> str:
++        _parse_utc_isoformat(value, "last_updated")
++        return value
++
++    @model_validator(mode="after")
++    def process_marker_must_match_session(self) -> CheckpointState:
++        if self.current_trial is None or self.current_trial.process is None:
++            return self
++        expected_marker = f"AGENT_SESSION_ID={self.session_id}"
++        actual_marker = self.current_trial.process.session_marker
++        if actual_marker != expected_marker:
++            raise ValueError(
++                "current_trial.process.session_marker must match checkpoint session_id"
++            )
++        return self
++
++
+ @dataclass(frozen=True)
+ class NamespaceLayout:
+     """Resolved paths for one namespace under a workspace."""
+@@ -436,6 +586,82 @@ def write_trial_record(
+     return target
+ 
+ 
++def checkpoint_payload(state: CheckpointState | Mapping[str, Any]) -> dict[str, Any]:
++    checkpoint = CheckpointState.model_validate(state)
++    return checkpoint.model_dump(mode="json", exclude_none=True)
++
++
++def write_checkpoint_state(
++    layout: NamespaceLayout,
++    state: CheckpointState | Mapping[str, Any],
++) -> Path:
++    """Write the mutable canonical recovery checkpoint.
++
++    Callers must hold the workspace lock before invoking this function because
++    `checkpoint.yaml` is overwritten as a session progresses.
++    """
++
++    checkpoint = CheckpointState.model_validate(state)
++    expected_namespace = str(layout.namespace)
++    if checkpoint.namespace != expected_namespace:
++        raise CheckpointError(
++            "checkpoint namespace does not match layout "
++            f"(expected={expected_namespace!r}, actual={checkpoint.namespace!r})"
++        )
++    atomic_write_yaml(checkpoint_payload(checkpoint), layout.checkpoint_path)
++    return layout.checkpoint_path
++
++
++def load_checkpoint_state(path: str | Path) -> CheckpointState:
++    checkpoint_path = Path(path)
++    try:
++        file_size = checkpoint_path.stat().st_size
++    except FileNotFoundError as exc:
++        raise CheckpointLoadError(f"checkpoint file not found: {checkpoint_path}") from exc
++    if file_size > MAX_CHECKPOINT_BYTES:
++        raise CheckpointLoadError(
++            f"checkpoint file {checkpoint_path} is too large "
++            f"({file_size} bytes > {MAX_CHECKPOINT_BYTES} bytes)"
++        )
++
++    try:
++        raw_text = checkpoint_path.read_text(encoding="utf-8")
++    except UnicodeDecodeError as exc:
++        raise CheckpointLoadError(
++            f"checkpoint file {checkpoint_path} is not valid UTF-8"
++        ) from exc
++
++    try:
++        data = yaml.load(raw_text, Loader=CheckpointYamlLoader)
++    except yaml.YAMLError as exc:
++        raise CheckpointLoadError(
++            f"checkpoint file {checkpoint_path} failed to parse YAML: {exc}"
++        ) from exc
++
++    if not data:
++        raise CheckpointLoadError(f"checkpoint file {checkpoint_path} is empty")
++    if not isinstance(data, Mapping):
++        raise CheckpointLoadError(
++            f"checkpoint file {checkpoint_path} must contain a YAML mapping"
++        )
++
++    try:
++        return CheckpointState.model_validate(data)
++    except ValidationError as exc:
++        raise CheckpointLoadError(f"checkpoint file {checkpoint_path} is invalid:\n{exc}") from exc
++
++
++def load_checkpoint_for_layout(layout: NamespaceLayout) -> CheckpointState:
++    checkpoint = load_checkpoint_state(layout.checkpoint_path)
++    expected_namespace = str(layout.namespace)
++    if checkpoint.namespace != expected_namespace:
++        raise CheckpointLoadError(
++            "checkpoint namespace does not match layout "
++            f"(expected={expected_namespace!r}, actual={checkpoint.namespace!r})"
++        )
++    return checkpoint
++
++
+ def atomic_write_yaml(
+     data: Mapping[str, Any],
+     path: str | Path,
+@@ -554,3 +780,11 @@ def _validate_file_atom(value: str, label: str) -> None:
+         raise ValueError(f"{label} cannot contain path separators")
+     if any(ord(char) < 0x20 or ord(char) == 0x7F for char in value):
+         raise ValueError(f"{label} cannot contain control characters")
++
++
++def _validate_namespace_string(value: str, label: str) -> None:
++    parts = value.split("/")
++    if len(parts) != 5:
++        raise ValueError(f"{label} must contain exactly 5 path segments")
++    for index, part in enumerate(parts, start=1):
++        _validate_file_atom(part, f"{label} segment {index}")
+diff --git a/tests/test_fs_memory.py b/tests/test_fs_memory.py
+index a47ea34..4b8584b 100644
+--- a/tests/test_fs_memory.py
++++ b/tests/test_fs_memory.py
+@@ -12,19 +12,26 @@ import agent.fs_memory as fs_memory
+ from agent.config import AgentConfig
+ from agent.fs_memory import (
+     AtomicWriteError,
++    CheckpointError,
++    CheckpointLoadError,
++    CheckpointState,
+     NamespaceLayout,
+     TrialImmutableError,
+     TrialRecord,
+     TrialRecordError,
+     atomic_write_yaml,
++    checkpoint_payload,
+     compute_combo_hash,
+     compute_payload_hash,
+     compute_trial_payload_hash,
++    load_checkpoint_for_layout,
++    load_checkpoint_state,
+     namespace_layout_for_config,
+     trial_record_path,
+     trial_record_payload,
+     verify_trial_integrity,
+     with_trial_integrity,
++    write_checkpoint_state,
+     write_trial_record,
+ )
+ from agent.registry import ProjectNamespace
+@@ -107,6 +114,39 @@ def trial_record_data() -> dict:
+     }
+ 
+ 
++def checkpoint_data() -> dict:
++    return {
++        "session_id": "sess_20260430_abc",
++        "namespace": str(namespace()),
++        "last_completed_trial": "r12_t2",
++        "current_trial": {
++            "trial_id": "r12_t3",
++            "started_at": "2026-04-30T10:18:00Z",
++            "current_stage": "compiling",
++            "stage_started_at": "2026-04-30T10:23:21Z",
++            "spec_backup_path": "spec_backups/pre_trial_r12_t3.spec.bak",
++            "workspace_snapshot_pre": "ws_pre_xyz",
++            "build_dir": "~/.agent_workspace/build_dirs/r12_t3",
++            "artifact_staging": "~/.agent_workspace/artifacts/staging/r12_t3",
++            "process": {
++                "pid": 12345,
++                "pgid": 12345,
++                "create_time": 1730000000.123,
++                "cmdline_hash": "sha256:" + ("d" * 64),
++                "session_marker": "AGENT_SESSION_ID=sess_20260430_abc",
++            },
++        },
++        "current_best": {
++            "trial_id": "r12_t2",
++            "score": 1.231,
++        },
++        "explorer_state": {"frontier": ["r12_t4"], "cursor": 7},
++        "random_seed": 42,
++        "total_tokens_consumed": 152400,
++        "last_updated": "2026-04-30T10:30:22Z",
++    }
++
++
+ def test_namespace_layout_for_config_matches_requirements_paths(tmp_path: Path) -> None:
+     config = AgentConfig.model_validate(config_data(tmp_path / "workspace"))
+ 
+@@ -407,3 +447,227 @@ def test_write_trial_record_rejects_layout_namespace_mismatch(tmp_path: Path) ->
+         write_trial_record(layout, data)
+ 
+     assert not list(layout.trial_data_dir.rglob("*.yaml"))
++
++
++def test_checkpoint_state_schema_accepts_documented_running_state() -> None:
++    checkpoint = CheckpointState.model_validate(checkpoint_data())
++
++    assert checkpoint.session_id == "sess_20260430_abc"
++    assert checkpoint.namespace == str(namespace())
++    assert checkpoint.current_trial is not None
++    assert checkpoint.current_trial.current_stage == "compiling"
++    assert checkpoint.current_trial.process is not None
++    assert checkpoint.current_trial.process.cmdline_hash == "sha256:" + ("d" * 64)
++    assert checkpoint.current_best is not None
++    assert checkpoint.current_best.score == 1.231
++
++
++def test_checkpoint_state_rejects_invalid_stage() -> None:
++    data = checkpoint_data()
++    data["current_trial"]["current_stage"] = "finished"
++
++    with pytest.raises(ValidationError, match="current_stage"):
++        CheckpointState.model_validate(data)
++
++
++@pytest.mark.parametrize(
++    "timestamp",
++    [
++        "2026-04-30T10:30:22",
++        "2026-04-30T10:30:22+05:00",
++        "not-a-time",
++    ],
++)
++def test_checkpoint_state_rejects_non_utc_timestamps(timestamp: str) -> None:
++    data = checkpoint_data()
++    data["last_updated"] = timestamp
++
++    with pytest.raises(ValidationError, match="last_updated"):
++        CheckpointState.model_validate(data)
++
++
++def test_checkpoint_current_trial_rejects_stage_before_start() -> None:
++    data = checkpoint_data()
++    data["current_trial"]["stage_started_at"] = "2026-04-30T10:00:00Z"
++
++    with pytest.raises(ValidationError, match="stage_started_at cannot be before started_at"):
++        CheckpointState.model_validate(data)
++
++
++def test_checkpoint_current_trial_requires_process_for_active_stage() -> None:
++    data = checkpoint_data()
++    data["current_trial"]["process"] = None
++
++    with pytest.raises(ValidationError, match="active process stages"):
++        CheckpointState.model_validate(data)
++
++
++def test_checkpoint_current_trial_allows_process_absent_for_non_process_stage() -> None:
++    data = checkpoint_data()
++    data["current_trial"]["current_stage"] = "memory_write"
++    data["current_trial"]["process"] = None
++
++    checkpoint = CheckpointState.model_validate(data)
++
++    assert checkpoint.current_trial is not None
++    assert checkpoint.current_trial.process is None
++
++
++@pytest.mark.parametrize(
++    ("field", "value", "message"),
++    [
++        ("cmdline_hash", "sha256:short", "64-character sha256"),
++        ("session_marker", "SESSION=sess_20260430_abc", "AGENT_SESSION_ID"),
++    ],
++)
++def test_checkpoint_process_rejects_invalid_identity_fields(
++    field: str,
++    value: str,
++    message: str,
++) -> None:
++    data = checkpoint_data()
++    data["current_trial"]["process"][field] = value
++
++    with pytest.raises(ValidationError, match=message):
++        CheckpointState.model_validate(data)
++
++
++def test_checkpoint_state_rejects_process_session_marker_mismatch() -> None:
++    data = checkpoint_data()
++    data["session_id"] = "sess_other"
++
++    with pytest.raises(ValidationError, match="session_marker must match"):
++        CheckpointState.model_validate(data)
++
++
++def test_checkpoint_payload_omits_none_fields() -> None:
++    data = checkpoint_data()
++    data["current_trial"]["current_stage"] = "memory_write"
++    data["current_trial"]["process"] = None
++    data["current_trial"]["artifact_staging"] = None
++
++    payload = checkpoint_payload(data)
++
++    assert "process" not in payload["current_trial"]
++    assert "artifact_staging" not in payload["current_trial"]
++
++
++def test_write_checkpoint_state_round_trips_with_atomic_yaml(tmp_path: Path) -> None:
++    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
++
++    path = write_checkpoint_state(layout, checkpoint_data())
++
++    assert path == layout.checkpoint_path
++    raw = path.read_text(encoding="utf-8")
++    assert "&id" not in raw
++    assert "*id" not in raw
++    assert yaml.safe_load(raw)["current_trial"]["process"]["pid"] == 12345
++    loaded = load_checkpoint_for_layout(layout)
++    assert loaded.session_id == "sess_20260430_abc"
++    assert loaded.current_trial is not None
++    assert loaded.current_trial.trial_id == "r12_t3"
++    assert not list(path.parent.glob(".checkpoint.yaml.*.tmp"))
++
++
++def test_write_checkpoint_state_rejects_layout_namespace_mismatch(tmp_path: Path) -> None:
++    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
++    data = checkpoint_data()
++    data["namespace"] = "other/ffmpeg/gcc-13.2.0/code-a1b2c3d/kg-v3"
++
++    with pytest.raises(CheckpointError, match="does not match layout"):
++        write_checkpoint_state(layout, data)
++
++    assert not layout.checkpoint_path.exists()
++
++
++def test_load_checkpoint_state_accepts_unquoted_yaml_timestamps(tmp_path: Path) -> None:
++    path = tmp_path / "checkpoint.yaml"
++    payload = checkpoint_data()
++    payload["current_trial"]["current_stage"] = "memory_write"
++    payload["current_trial"]["process"] = None
++    path.write_text(
++        yaml.dump(payload, sort_keys=False).replace(
++            "'2026-04-30T10:30:22Z'",
++            "2026-04-30T10:30:22+00:00",
++        ),
++        encoding="utf-8",
++    )
++
++    loaded = load_checkpoint_state(path)
++
++    assert loaded.last_updated == "2026-04-30T10:30:22+00:00"
++
++
++@pytest.mark.parametrize(
++    ("raw", "message"),
++    [
++        ("", "empty"),
++        ("null\n", "empty"),
++        ("- not\n- mapping\n", "YAML mapping"),
++        ("!!python/object/apply:os.system ['echo unsafe']\n", "failed to parse YAML"),
++    ],
++)
++def test_load_checkpoint_state_rejects_invalid_yaml(
++    tmp_path: Path,
++    raw: str,
++    message: str,
++) -> None:
++    path = tmp_path / "checkpoint.yaml"
++    path.write_text(raw, encoding="utf-8")
++
++    with pytest.raises(CheckpointLoadError, match=message):
++        load_checkpoint_state(path)
++
++
++def test_load_checkpoint_state_rejects_missing_file(tmp_path: Path) -> None:
++    with pytest.raises(CheckpointLoadError, match="not found"):
++        load_checkpoint_state(tmp_path / "missing.yaml")
++
++
++def test_load_checkpoint_state_rejects_yaml_aliases(tmp_path: Path) -> None:
++    path = tmp_path / "checkpoint.yaml"
++    path.write_text(
++        """
++session_id: sess_20260430_abc
++namespace: &ns multimedia/ffmpeg/gcc-13.2.0/code-a1b2c3d/kg-v3
++last_completed_trial: r12_t2
++current_best:
++  trial_id: r12_t2
++  score: 1.231
++explorer_state: {}
++random_seed: 42
++total_tokens_consumed: 152400
++last_updated: 2026-04-30T10:30:22Z
++copy_namespace: *ns
++""".lstrip(),
++        encoding="utf-8",
++    )
++
++    with pytest.raises(CheckpointLoadError, match="aliases"):
++        load_checkpoint_state(path)
++
++
++def test_load_checkpoint_state_rejects_non_utf8_bytes(tmp_path: Path) -> None:
++    path = tmp_path / "checkpoint.yaml"
++    path.write_bytes(b"\xff\xfe\x00")
++
++    with pytest.raises(CheckpointLoadError, match="UTF-8"):
++        load_checkpoint_state(path)
++
++
++def test_load_checkpoint_state_rejects_oversized_file(tmp_path: Path) -> None:
++    path = tmp_path / "checkpoint.yaml"
++    path.write_text("x" * (fs_memory.MAX_CHECKPOINT_BYTES + 1), encoding="utf-8")
++
++    with pytest.raises(CheckpointLoadError, match="too large"):
++        load_checkpoint_state(path)
++
++
++def test_load_checkpoint_for_layout_rejects_namespace_mismatch(tmp_path: Path) -> None:
++    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
++    data = checkpoint_data()
++    data["namespace"] = "other/ffmpeg/gcc-13.2.0/code-a1b2c3d/kg-v3"
++    atomic_write_yaml(data, layout.checkpoint_path)
++
++    with pytest.raises(CheckpointLoadError, match="does not match layout"):
++        load_checkpoint_for_layout(layout)

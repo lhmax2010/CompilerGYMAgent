@@ -153,3 +153,38 @@ Review conclusion:
 
 Conclusion:
 - Subtask 2.2 review-fix is validated on Ubuntu and can proceed to Subtask 2.3.
+
+## Subtask 2.3 - Checkpoint schema and canonical checkpoint YAML read/write
+
+- timestamp_utc: 2026-05-09T03:35:10Z
+- files_reviewed:
+  - src/agent/fs_memory.py
+  - src/agent/__init__.py
+  - tests/test_fs_memory.py
+
+Review checklist:
+- [x] `CheckpointState` covers the documented `state/checkpoint.yaml` fields from REQUIREMENTS.md sections 3.3.4, 4.2.6, and 4.11.2.
+- [x] Checkpoint timestamps are UTC timezone-aware ISO 8601 strings and hand-edited unquoted YAML timestamps are accepted when PyYAML parses them as UTC datetimes.
+- [x] `current_trial.current_stage` is restricted to documented lifecycle stages, including `score_aggregate`.
+- [x] Active process stages (`compiling`, `benchmarking`) require process details.
+- [x] Process identity validates `pid`, `pgid`, `create_time`, `cmdline_hash`, and `AGENT_SESSION_ID` marker.
+- [x] Process session marker must match the checkpoint `session_id`.
+- [x] `checkpoint_payload` emits user-readable JSON-mode data and omits `None` fields.
+- [x] `write_checkpoint_state` writes through shared `atomic_write_yaml` and rejects layout namespace drift.
+- [x] `load_checkpoint_state` rejects missing, empty, non-mapping, alias-bearing, non-UTF-8, oversized, unsafe-tag, and schema-invalid YAML.
+- [x] `load_checkpoint_for_layout` rejects canonical state that claims a different namespace than its filesystem layout.
+- [x] Public exports in `src/agent/__init__.py` match the new checkpoint APIs.
+- [x] Targeted and full UT suites pass.
+
+Findings:
+- No blocking issues found.
+- `write_checkpoint_state` documents the WorkspaceLock precondition because checkpoint YAML is mutable and overwritten during a session.
+- Checkpoint does not include an integrity block by design; this is recorded in DECISIONS.md as mutable canonical recovery state paired with trace events.
+
+Deferred low-priority follow-ups:
+- Add resume-level tests that compare checkpoint state with LangGraph cache once the LangGraph cache adapter exists.
+- Add trace/event correlation tests for checkpoint stage transitions when the trace writer is implemented.
+- Decide whether checkpoint `explorer_state` should gain a stricter schema after the exploration planner data model is introduced.
+
+Review conclusion:
+- Subtask 2.3 is ready for external review.

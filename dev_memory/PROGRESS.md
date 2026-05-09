@@ -417,3 +417,24 @@ Next action: provide Ubuntu validation guide for Subtask 2.2 review fixes, then 
 - Manual probe confirmed `hash_fields_excluded: ['integrity']`, `verify: True`, and `tmp_files: []`.
 
 Next action: commit/push the Ubuntu validation record, then continue to Subtask 2.3 checkpoint schema.
+
+## 2026-05-09T03:30:15Z - Phase 02 / Subtask 2.3 started
+
+- Started checkpoint schema and canonical checkpoint YAML read/write helpers.
+- Requirements in scope: REQUIREMENTS.md sections 3.3.4, 4.2.6, and 4.11.2.
+- Planned files: `src/agent/fs_memory.py`, `tests/test_fs_memory.py`, and public exports in `src/agent/__init__.py`.
+- Baseline before implementation: clean `main` synced with `origin/main`.
+
+Next action: implement checkpoint models, YAML load/write helpers, and targeted pytest coverage.
+
+## 2026-05-09T03:35:10Z - Phase 02 / Subtask 2.3 implemented
+
+- Added strict checkpoint schema models for `state/checkpoint.yaml`, including current trial stage, active process identity, current best, explorer state, token counter, random seed, and UTC timestamps.
+- Added canonical checkpoint helpers: `checkpoint_payload`, `write_checkpoint_state`, `load_checkpoint_state`, and `load_checkpoint_for_layout`.
+- Checkpoint loading now rejects missing, empty, non-mapping, alias-bearing, non-UTF-8, oversized, and schema-invalid YAML.
+- Checkpoint writes reuse the shared `atomic_write_yaml` path and enforce that the checkpoint namespace matches the target `NamespaceLayout`.
+- Added 24 focused checkpoint tests, raising `tests/test_fs_memory.py` to 51 passed.
+- Targeted UT: `uv --native-tls run --extra dev pytest tests/test_fs_memory.py -v` -> 51 passed.
+- Full UT: `uv --native-tls run --extra dev pytest -v` -> 203 passed, 1 skipped.
+
+Next action: generate Subtask 2.3 patch artifacts, commit/push, then prepare external review prompt.

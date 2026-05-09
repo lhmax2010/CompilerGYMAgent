@@ -174,3 +174,45 @@ Coverage notes:
 - Confirms completed trial YAML writes to the documented monthly partition and verifies integrity after loading.
 - Confirms no temporary files remain after the manual trial writer probe.
 - reported_by: user on intended Ubuntu server environment
+
+## Subtask 2.3 - Checkpoint schema and canonical checkpoint YAML read/write
+
+- timestamp_utc: 2026-05-09T03:35:10Z
+- related_requirements:
+  - REQUIREMENTS.md section 3.3.4
+  - REQUIREMENTS.md section 4.2.6
+  - REQUIREMENTS.md section 4.11.2
+  - REQUIREMENTS.md section 4.7.5
+- targeted_command: `uv --native-tls run --extra dev pytest tests/test_fs_memory.py -v`
+- targeted_result: 51 passed, 0 failed
+- full_command: `uv --native-tls run --extra dev pytest -v`
+- full_result: 203 passed, 0 failed, 1 skipped
+
+New checkpoint test coverage:
+- PASS `tests/test_fs_memory.py::test_checkpoint_state_schema_accepts_documented_running_state`
+- PASS `tests/test_fs_memory.py::test_checkpoint_state_rejects_invalid_stage`
+- PASS `tests/test_fs_memory.py::test_checkpoint_state_rejects_non_utc_timestamps[...]`
+- PASS `tests/test_fs_memory.py::test_checkpoint_current_trial_rejects_stage_before_start`
+- PASS `tests/test_fs_memory.py::test_checkpoint_current_trial_requires_process_for_active_stage`
+- PASS `tests/test_fs_memory.py::test_checkpoint_current_trial_allows_process_absent_for_non_process_stage`
+- PASS `tests/test_fs_memory.py::test_checkpoint_process_rejects_invalid_identity_fields[...]`
+- PASS `tests/test_fs_memory.py::test_checkpoint_state_rejects_process_session_marker_mismatch`
+- PASS `tests/test_fs_memory.py::test_checkpoint_payload_omits_none_fields`
+- PASS `tests/test_fs_memory.py::test_write_checkpoint_state_round_trips_with_atomic_yaml`
+- PASS `tests/test_fs_memory.py::test_write_checkpoint_state_rejects_layout_namespace_mismatch`
+- PASS `tests/test_fs_memory.py::test_load_checkpoint_state_accepts_unquoted_yaml_timestamps`
+- PASS `tests/test_fs_memory.py::test_load_checkpoint_state_rejects_invalid_yaml[...]`
+- PASS `tests/test_fs_memory.py::test_load_checkpoint_state_rejects_missing_file`
+- PASS `tests/test_fs_memory.py::test_load_checkpoint_state_rejects_yaml_aliases`
+- PASS `tests/test_fs_memory.py::test_load_checkpoint_state_rejects_non_utf8_bytes`
+- PASS `tests/test_fs_memory.py::test_load_checkpoint_state_rejects_oversized_file`
+- PASS `tests/test_fs_memory.py::test_load_checkpoint_for_layout_rejects_namespace_mismatch`
+
+Coverage notes:
+- Covers the documented canonical checkpoint fields: session id, namespace, last completed trial, current trial, current best, explorer state, random seed, token usage, and last updated timestamp.
+- Covers trial lifecycle stages including process-required active stages (`compiling`, `benchmarking`) and process-optional non-active stages.
+- Covers process identity defense: pid/pgid/create_time bounds, `sha256:` cmdline hash, `AGENT_SESSION_ID=` marker, and marker/session consistency.
+- Covers checkpoint namespace isolation for both write and load helpers.
+- Covers safe YAML loading with size cap, UTF-8 requirement, alias rejection, non-mapping rejection, missing-file errors, and hand-edited unquoted UTC timestamps.
+- Confirms checkpoint writes reuse shared `atomic_write_yaml`; no temporary files remain in the write round-trip test.
+- Windows full-suite skip is expected: `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter` requires Linux `fcntl`.

@@ -12,19 +12,26 @@ import agent.fs_memory as fs_memory
 from agent.config import AgentConfig
 from agent.fs_memory import (
     AtomicWriteError,
+    CheckpointError,
+    CheckpointLoadError,
+    CheckpointState,
     NamespaceLayout,
     TrialImmutableError,
     TrialRecord,
     TrialRecordError,
     atomic_write_yaml,
+    checkpoint_payload,
     compute_combo_hash,
     compute_payload_hash,
     compute_trial_payload_hash,
+    load_checkpoint_for_layout,
+    load_checkpoint_state,
     namespace_layout_for_config,
     trial_record_path,
     trial_record_payload,
     verify_trial_integrity,
     with_trial_integrity,
+    write_checkpoint_state,
     write_trial_record,
 )
 from agent.registry import ProjectNamespace
@@ -104,6 +111,39 @@ def trial_record_data() -> dict:
         "agent_reasoning": "Started from the previous best and added -fno-plt.",
         "trace_id": "events.jsonl#L12345",
         "kg_version_used": "v3",
+    }
+
+
+def checkpoint_data() -> dict:
+    return {
+        "session_id": "sess_20260430_abc",
+        "namespace": str(namespace()),
+        "last_completed_trial": "r12_t2",
+        "current_trial": {
+            "trial_id": "r12_t3",
+            "started_at": "2026-04-30T10:18:00Z",
+            "current_stage": "compiling",
+            "stage_started_at": "2026-04-30T10:23:21Z",
+            "spec_backup_path": "spec_backups/pre_trial_r12_t3.spec.bak",
+            "workspace_snapshot_pre": "ws_pre_xyz",
+            "build_dir": "~/.agent_workspace/build_dirs/r12_t3",
+            "artifact_staging": "~/.agent_workspace/artifacts/staging/r12_t3",
+            "process": {
+                "pid": 12345,
+                "pgid": 12345,
+                "create_time": 1730000000.123,
+                "cmdline_hash": "sha256:" + ("d" * 64),
+                "session_marker": "AGENT_SESSION_ID=sess_20260430_abc",
+            },
+        },
+        "current_best": {
+            "trial_id": "r12_t2",
+            "score": 1.231,
+        },
+        "explorer_state": {"frontier": ["r12_t4"], "cursor": 7},
+        "random_seed": 42,
+        "total_tokens_consumed": 152400,
+        "last_updated": "2026-04-30T10:30:22Z",
     }
 
 
@@ -407,3 +447,227 @@ def test_write_trial_record_rejects_layout_namespace_mismatch(tmp_path: Path) ->
         write_trial_record(layout, data)
 
     assert not list(layout.trial_data_dir.rglob("*.yaml"))
+
+
+def test_checkpoint_state_schema_accepts_documented_running_state() -> None:
+    checkpoint = CheckpointState.model_validate(checkpoint_data())
+
+    assert checkpoint.session_id == "sess_20260430_abc"
+    assert checkpoint.namespace == str(namespace())
+    assert checkpoint.current_trial is not None
+    assert checkpoint.current_trial.current_stage == "compiling"
+    assert checkpoint.current_trial.process is not None
+    assert checkpoint.current_trial.process.cmdline_hash == "sha256:" + ("d" * 64)
+    assert checkpoint.current_best is not None
+    assert checkpoint.current_best.score == 1.231
+
+
+def test_checkpoint_state_rejects_invalid_stage() -> None:
+    data = checkpoint_data()
+    data["current_trial"]["current_stage"] = "finished"
+
+    with pytest.raises(ValidationError, match="current_stage"):
+        CheckpointState.model_validate(data)
+
+
+@pytest.mark.parametrize(
+    "timestamp",
+    [
+        "2026-04-30T10:30:22",
+        "2026-04-30T10:30:22+05:00",
+        "not-a-time",
+    ],
+)
+def test_checkpoint_state_rejects_non_utc_timestamps(timestamp: str) -> None:
+    data = checkpoint_data()
+    data["last_updated"] = timestamp
+
+    with pytest.raises(ValidationError, match="last_updated"):
+        CheckpointState.model_validate(data)
+
+
+def test_checkpoint_current_trial_rejects_stage_before_start() -> None:
+    data = checkpoint_data()
+    data["current_trial"]["stage_started_at"] = "2026-04-30T10:00:00Z"
+
+    with pytest.raises(ValidationError, match="stage_started_at cannot be before started_at"):
+        CheckpointState.model_validate(data)
+
+
+def test_checkpoint_current_trial_requires_process_for_active_stage() -> None:
+    data = checkpoint_data()
+    data["current_trial"]["process"] = None
+
+    with pytest.raises(ValidationError, match="active process stages"):
+        CheckpointState.model_validate(data)
+
+
+def test_checkpoint_current_trial_allows_process_absent_for_non_process_stage() -> None:
+    data = checkpoint_data()
+    data["current_trial"]["current_stage"] = "memory_write"
+    data["current_trial"]["process"] = None
+
+    checkpoint = CheckpointState.model_validate(data)
+
+    assert checkpoint.current_trial is not None
+    assert checkpoint.current_trial.process is None
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("cmdline_hash", "sha256:short", "64-character sha256"),
+        ("session_marker", "SESSION=sess_20260430_abc", "AGENT_SESSION_ID"),
+    ],
+)
+def test_checkpoint_process_rejects_invalid_identity_fields(
+    field: str,
+    value: str,
+    message: str,
+) -> None:
+    data = checkpoint_data()
+    data["current_trial"]["process"][field] = value
+
+    with pytest.raises(ValidationError, match=message):
+        CheckpointState.model_validate(data)
+
+
+def test_checkpoint_state_rejects_process_session_marker_mismatch() -> None:
+    data = checkpoint_data()
+    data["session_id"] = "sess_other"
+
+    with pytest.raises(ValidationError, match="session_marker must match"):
+        CheckpointState.model_validate(data)
+
+
+def test_checkpoint_payload_omits_none_fields() -> None:
+    data = checkpoint_data()
+    data["current_trial"]["current_stage"] = "memory_write"
+    data["current_trial"]["process"] = None
+    data["current_trial"]["artifact_staging"] = None
+
+    payload = checkpoint_payload(data)
+
+    assert "process" not in payload["current_trial"]
+    assert "artifact_staging" not in payload["current_trial"]
+
+
+def test_write_checkpoint_state_round_trips_with_atomic_yaml(tmp_path: Path) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+
+    path = write_checkpoint_state(layout, checkpoint_data())
+
+    assert path == layout.checkpoint_path
+    raw = path.read_text(encoding="utf-8")
+    assert "&id" not in raw
+    assert "*id" not in raw
+    assert yaml.safe_load(raw)["current_trial"]["process"]["pid"] == 12345
+    loaded = load_checkpoint_for_layout(layout)
+    assert loaded.session_id == "sess_20260430_abc"
+    assert loaded.current_trial is not None
+    assert loaded.current_trial.trial_id == "r12_t3"
+    assert not list(path.parent.glob(".checkpoint.yaml.*.tmp"))
+
+
+def test_write_checkpoint_state_rejects_layout_namespace_mismatch(tmp_path: Path) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+    data = checkpoint_data()
+    data["namespace"] = "other/ffmpeg/gcc-13.2.0/code-a1b2c3d/kg-v3"
+
+    with pytest.raises(CheckpointError, match="does not match layout"):
+        write_checkpoint_state(layout, data)
+
+    assert not layout.checkpoint_path.exists()
+
+
+def test_load_checkpoint_state_accepts_unquoted_yaml_timestamps(tmp_path: Path) -> None:
+    path = tmp_path / "checkpoint.yaml"
+    payload = checkpoint_data()
+    payload["current_trial"]["current_stage"] = "memory_write"
+    payload["current_trial"]["process"] = None
+    path.write_text(
+        yaml.dump(payload, sort_keys=False).replace(
+            "'2026-04-30T10:30:22Z'",
+            "2026-04-30T10:30:22+00:00",
+        ),
+        encoding="utf-8",
+    )
+
+    loaded = load_checkpoint_state(path)
+
+    assert loaded.last_updated == "2026-04-30T10:30:22+00:00"
+
+
+@pytest.mark.parametrize(
+    ("raw", "message"),
+    [
+        ("", "empty"),
+        ("null\n", "empty"),
+        ("- not\n- mapping\n", "YAML mapping"),
+        ("!!python/object/apply:os.system ['echo unsafe']\n", "failed to parse YAML"),
+    ],
+)
+def test_load_checkpoint_state_rejects_invalid_yaml(
+    tmp_path: Path,
+    raw: str,
+    message: str,
+) -> None:
+    path = tmp_path / "checkpoint.yaml"
+    path.write_text(raw, encoding="utf-8")
+
+    with pytest.raises(CheckpointLoadError, match=message):
+        load_checkpoint_state(path)
+
+
+def test_load_checkpoint_state_rejects_missing_file(tmp_path: Path) -> None:
+    with pytest.raises(CheckpointLoadError, match="not found"):
+        load_checkpoint_state(tmp_path / "missing.yaml")
+
+
+def test_load_checkpoint_state_rejects_yaml_aliases(tmp_path: Path) -> None:
+    path = tmp_path / "checkpoint.yaml"
+    path.write_text(
+        """
+session_id: sess_20260430_abc
+namespace: &ns multimedia/ffmpeg/gcc-13.2.0/code-a1b2c3d/kg-v3
+last_completed_trial: r12_t2
+current_best:
+  trial_id: r12_t2
+  score: 1.231
+explorer_state: {}
+random_seed: 42
+total_tokens_consumed: 152400
+last_updated: 2026-04-30T10:30:22Z
+copy_namespace: *ns
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(CheckpointLoadError, match="aliases"):
+        load_checkpoint_state(path)
+
+
+def test_load_checkpoint_state_rejects_non_utf8_bytes(tmp_path: Path) -> None:
+    path = tmp_path / "checkpoint.yaml"
+    path.write_bytes(b"\xff\xfe\x00")
+
+    with pytest.raises(CheckpointLoadError, match="UTF-8"):
+        load_checkpoint_state(path)
+
+
+def test_load_checkpoint_state_rejects_oversized_file(tmp_path: Path) -> None:
+    path = tmp_path / "checkpoint.yaml"
+    path.write_text("x" * (fs_memory.MAX_CHECKPOINT_BYTES + 1), encoding="utf-8")
+
+    with pytest.raises(CheckpointLoadError, match="too large"):
+        load_checkpoint_state(path)
+
+
+def test_load_checkpoint_for_layout_rejects_namespace_mismatch(tmp_path: Path) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+    data = checkpoint_data()
+    data["namespace"] = "other/ffmpeg/gcc-13.2.0/code-a1b2c3d/kg-v3"
+    atomic_write_yaml(data, layout.checkpoint_path)
+
+    with pytest.raises(CheckpointLoadError, match="does not match layout"):
+        load_checkpoint_for_layout(layout)

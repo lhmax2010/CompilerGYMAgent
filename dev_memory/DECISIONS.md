@@ -310,3 +310,17 @@ Decision records must include:
 - alternatives_considered:
   - Replace `atomic_write_yaml` with an `O_EXCL`-based writer just for trial YAML, which would split SoT writer semantics and lose the shared section 4.7.5 path.
   - Add a `must_not_exist` flag to `atomic_write_yaml`, which may be useful later but is unnecessary until a real caller needs lock-free immutable creation.
+
+## 2026-05-09T03:35:10Z - Treat checkpoint.yaml as mutable canonical recovery state
+
+- affected_requirement:
+  - REQUIREMENTS.md section 3.3.4
+  - REQUIREMENTS.md section 4.11.2
+  - REQUIREMENTS.md section 4.7.5
+  - REQUIREMENTS.md section 4.15
+- decision: Model `state/checkpoint.yaml` as the mutable canonical recovery snapshot, validate it with strict Pydantic schemas, read it with bounded alias-free YAML loading, and write it through the shared `atomic_write_yaml` path. Writers must be called while holding `WorkspaceLock`.
+- rationale: Checkpoint state changes at each trial lifecycle stage, so it is not immutable historical fact like completed trial YAML and should not carry a self-referential integrity block. Its safety comes from strict schema validation, atomic replacement, the canonical `trace/events.jsonl` companion stream, and the section 4.15 workspace serialization boundary. Active process metadata also requires `AGENT_SESSION_ID=<session_id>` to match the checkpoint session so later process cleanup can fail conservative on drift.
+- alternatives_considered:
+  - Add a checkpoint integrity block like `TrialRecord`, which would churn on every live-state update and add little value while trace events remain the audit companion.
+  - Let LangGraph internal checkpoints be authoritative, which contradicts section 3.3.4 and would hide canonical recovery state from user-readable YAML.
+  - Write checkpoint YAML directly with `yaml.safe_dump`, which would bypass the section 4.7.5 atomic writer shared by all SoT YAML files.
