@@ -82,7 +82,9 @@ subtasks:
     patch_file: dev_memory/phases/phase_02_fs_memory/patches/04_checkpoint_schema.patch
     patch_generated: true
     commit_required: true
-    commit_pending: true
+    commit_pending: false
+    commit_hash: 33fa155
+    commit_message: "phase_02_fs_memory: 2.3 implement checkpoint schema (REQUIREMENTS sections 3.3.4, 4.11.2)"
     files_modified:
       - src/agent/fs_memory.py
       - tests/test_fs_memory.py
