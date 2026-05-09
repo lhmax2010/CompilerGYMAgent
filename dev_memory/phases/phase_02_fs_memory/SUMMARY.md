@@ -16,6 +16,7 @@ Completed:
 - Subtask 2.2 implemented the immutable `TrialRecord` schema, canonical payload hash helpers, combo hashing, monthly trial path resolution, and the immutable trial writer.
 - Subtask 2.2 targeted UT passed 22/22 and full UT passed 174/175 with the expected Windows skip for the Linux-only real-fcntl workspace lock test.
 - Subtask 2.2 external review returned Approve with minor changes. Review fixes documented the WorkspaceLock precondition for `write_trial_record`, moved namespace validation before integrity hashing, tightened direct `compute_combo_hash` validation, and raised local tests to 27 targeted / 179 full pass plus one expected Windows skip.
+- Subtask 2.2 review-fix received final external approval after independent 180/180 verification; it is clear to proceed to Subtask 2.3.
 
 Remaining:
 - Subtask 2.3 checkpoint schema and writer.

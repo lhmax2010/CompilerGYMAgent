@@ -114,3 +114,26 @@ Post-fix checklist:
 
 Review conclusion:
 - Subtask 2.2 review fixes are ready for Ubuntu validation.
+
+## Subtask 2.2 - external review-fix verification
+
+- timestamp_utc: 2026-05-09T01:49:36Z
+- reviewer: Claude
+- verdict: Approve
+- range: `aaed15c..993cad0`
+- tests: 180 passed, 0 failed
+
+Regression check:
+- [x] M-1: `write_trial_record` documents the section 4.15 `WorkspaceLock` precondition and DECISIONS.md records the architectural boundary.
+- [x] L-5: namespace mismatch validation happens before integrity hash computation.
+- [x] L-2: `compute_combo_hash` rejects untrimmed and control-character options in direct calls.
+- [x] Payload and integrity hash tamper detection remain correct.
+- [x] Round-trip trial write/load/verify remains correct.
+
+Remaining non-blocking follow-ups:
+- Clarify the exact error message contract for whitespace-only combo options if needed.
+- Add workflow-level concurrent write integration tests once CLI/workflow code wraps writers with `WorkspaceLock`.
+- Decide globally whether NonEmptyStr silent stripping remains the intended forgiving UX.
+
+Review conclusion:
+- Subtask 2.2 is approved and can proceed to Subtask 2.3.

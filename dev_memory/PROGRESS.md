@@ -397,3 +397,12 @@ Next action: commit/push the review-fix patch, then provide Ubuntu validation gu
   - `dev_memory/phases/phase_02_fs_memory/patches/03_trial_record_review_fixes.review.md`
 
 Next action: push review-fix sync commit to GitHub and prepare Ubuntu validation guide.
+
+## 2026-05-09T01:49:36Z - Phase 02 / Subtask 2.2 review-fix externally approved
+
+- Claude reviewed range `aaed15c..993cad0` and gave final verdict: Approve.
+- Independent test report: 180 passed, 0 failed.
+- Verified closure of M-1 (`write_trial_record` WorkspaceLock precondition), L-5 (namespace mismatch fail-fast), and L-2 (`compute_combo_hash` dirty input rejection).
+- Remaining gaps are low-priority polish/integration items and do not block Subtask 2.3.
+
+Next action: provide Ubuntu validation guide for Subtask 2.2 review fixes, then continue to Subtask 2.3 checkpoint schema.

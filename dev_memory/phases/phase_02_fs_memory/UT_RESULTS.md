@@ -124,3 +124,21 @@ Coverage notes:
 - Confirms direct `compute_combo_hash` calls reject dirty option strings instead of relying only on `TrialRecord` normalization.
 - Confirms a non-integrity payload edit causes `verify_trial_integrity` to return false.
 - Confirms the full suite remains green after documenting the WorkspaceLock precondition and moving namespace validation before integrity hashing.
+
+## Subtask 2.2 - external review-fix verification
+
+- timestamp_utc: 2026-05-09T01:49:36Z
+- reviewer: Claude
+- verified_range: `aaed15c..993cad0`
+- verified_fix_commit: `a61d44c`
+- verified_sync_commit: `993cad0`
+- reported_result: 180 passed, 0 failed
+- independently_verified:
+  - M-1 WorkspaceLock precondition is documented in `write_trial_record` and DECISIONS.md.
+  - L-5 namespace mismatch fails before `with_trial_integrity` is called.
+  - L-2 `compute_combo_hash` rejects leading/trailing whitespace and C0/DEL control characters while preserving legitimate compiler options.
+  - Payload tampering and integrity hash tampering make `verify_trial_integrity` return false.
+  - Normal write/load/verify round-trip still succeeds.
+
+Coverage notes:
+- Confirms Subtask 2.2 review-fix is externally approved and does not block Subtask 2.3.
