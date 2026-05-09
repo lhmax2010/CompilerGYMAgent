@@ -1,7 +1,7 @@
 phase_id: phase_02_fs_memory
 phase_title: "FS-Memory SoT + schema + atomic write"
 started_at: 2026-05-08T07:04:04Z
-last_updated: 2026-05-09T01:49:36Z
+last_updated: 2026-05-09T03:16:47Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 4.2
@@ -75,6 +75,17 @@ subtasks:
     review_fix_external_reviewed_at: 2026-05-09T01:49:36Z
     review_fix_external_tests: "180 passed, 0 failed"
     review_fix_external_notes: "Claude verified M-1/L-5/L-2 closure, independently probed tamper detection and combo validation, and approved moving to Subtask 2.3."
+    target_environment_validation:
+      os: Ubuntu/Linux
+      python: 3.11.15
+      targeted_pytest: "27 passed in 0.13s"
+      full_pytest: "180 passed in 0.61s"
+      manual_probe:
+        written_relative_path: "namespaces/multimedia/ffmpeg/gcc-13.2.0/code-a1b2c3d/kg-v3/trials/data/2026-04/trial_r12_t3.yaml"
+        integrity_hash_fields_excluded: "[integrity]"
+        verify_trial_integrity: true
+        temp_files: "[]"
+      runner: "venv + pip + pytest; uv not required"
   - id: "2.3"
     title: "Implement checkpoint schema and canonical checkpoint YAML read/write"
     status: todo
@@ -93,4 +104,4 @@ notes: |
   checkpoint.yaml, experience yaml, learned rule yaml) must reuse the same
   flush/fsync/os.replace/parent-fsync semantics from REQUIREMENTS.md section
   4.7.5.
-next_action: "Prepare Ubuntu validation guide for Subtask 2.2 review fixes, then continue to Subtask 2.3 checkpoint schema."
+next_action: "Record and push Subtask 2.2 Ubuntu validation, then continue to Subtask 2.3 checkpoint schema."

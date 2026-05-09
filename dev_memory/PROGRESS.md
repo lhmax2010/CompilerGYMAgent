@@ -406,3 +406,14 @@ Next action: push review-fix sync commit to GitHub and prepare Ubuntu validation
 - Remaining gaps are low-priority polish/integration items and do not block Subtask 2.3.
 
 Next action: provide Ubuntu validation guide for Subtask 2.2 review fixes, then continue to Subtask 2.3 checkpoint schema.
+
+## 2026-05-09T03:16:47Z - Phase 02 / Subtask 2.2 Ubuntu validation completed
+
+- User validated Subtask 2.2 review-fix state on the intended Ubuntu/Linux environment.
+- Environment: Ubuntu/Linux, Python 3.11.15, `.venv`, plain `pytest`.
+- Targeted command: `pytest tests/test_fs_memory.py -v` -> 27 passed in 0.13s.
+- Full command: `pytest -v` -> 180 passed in 0.61s.
+- Manual probe wrote a trial YAML to `namespaces/multimedia/ffmpeg/gcc-13.2.0/code-a1b2c3d/kg-v3/trials/data/2026-04/trial_r12_t3.yaml`.
+- Manual probe confirmed `hash_fields_excluded: ['integrity']`, `verify: True`, and `tmp_files: []`.
+
+Next action: commit/push the Ubuntu validation record, then continue to Subtask 2.3 checkpoint schema.

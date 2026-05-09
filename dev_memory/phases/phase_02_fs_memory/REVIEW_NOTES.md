@@ -137,3 +137,19 @@ Remaining non-blocking follow-ups:
 
 Review conclusion:
 - Subtask 2.2 is approved and can proceed to Subtask 2.3.
+
+## Subtask 2.2 - Ubuntu validation
+
+- timestamp_utc: 2026-05-09T03:16:47Z
+- environment: Ubuntu/Linux, Python 3.11.15, `.venv`
+- reporter: user on target Ubuntu server
+- targeted_pytest: 27 passed in 0.13s
+- full_pytest: 180 passed in 0.61s
+- manual_probe:
+  - trial path: `namespaces/multimedia/ffmpeg/gcc-13.2.0/code-a1b2c3d/kg-v3/trials/data/2026-04/trial_r12_t3.yaml`
+  - hash_fields_excluded: `[integrity]`
+  - verify_trial_integrity: true
+  - tmp_files: `[]`
+
+Conclusion:
+- Subtask 2.2 review-fix is validated on Ubuntu and can proceed to Subtask 2.3.

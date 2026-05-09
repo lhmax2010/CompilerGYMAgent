@@ -58,6 +58,13 @@ subtasks:
     review_fix_external_verdict: approve
     review_fix_external_reviewed_at: 2026-05-09T01:49:36Z
     review_fix_external_tests: "180 passed, 0 failed"
+    target_environment_validation:
+      os: Ubuntu/Linux
+      python: 3.11.15
+      targeted_pytest: "27 passed in 0.13s"
+      full_pytest: "180 passed in 0.61s"
+      manual_probe: "trial YAML wrote to 2026-04 path, integrity excluded [integrity], verify=True, tmp_files=[]"
+      runner: "venv + pip + pytest; uv not required"
     files_modified:
       - src/agent/fs_memory.py
       - src/agent/__init__.py

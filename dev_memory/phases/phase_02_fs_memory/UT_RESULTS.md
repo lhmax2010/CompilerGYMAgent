@@ -142,3 +142,35 @@ Coverage notes:
 
 Coverage notes:
 - Confirms Subtask 2.2 review-fix is externally approved and does not block Subtask 2.3.
+
+## Subtask 2.2 - Ubuntu target-environment validation
+
+- timestamp_utc: 2026-05-09T03:16:47Z
+- environment:
+  - os: Ubuntu/Linux
+  - python: 3.11.15
+  - virtualenv: `.venv`
+  - runner: plain `pytest` via `venv + pip`, no `uv` required
+- related_requirements:
+  - REQUIREMENTS.md section 1.2
+  - REQUIREMENTS.md section 4.2.6
+  - REQUIREMENTS.md section 4.7.5
+- targeted_command: `pytest tests/test_fs_memory.py -v`
+- targeted_duration: 0.13s
+- targeted_result: 27 passed, 0 failed
+- full_command: `pytest -v`
+- full_duration: 0.61s
+- full_result: 180 passed, 0 failed
+- manual_probe:
+  - command: `write_trial_record(NamespaceLayout(...), record)`
+  - written_relative_path: `namespaces/multimedia/ffmpeg/gcc-13.2.0/code-a1b2c3d/kg-v3/trials/data/2026-04/trial_r12_t3.yaml`
+  - integrity_hash_fields_excluded: `[integrity]`
+  - verify_trial_integrity: true
+  - temp_files: `[]`
+
+Coverage notes:
+- Confirms Subtask 2.2 review-fix tests pass on the intended Ubuntu environment.
+- Confirms the Linux-only real `fcntl` workspace lock regression test passes during the full suite.
+- Confirms completed trial YAML writes to the documented monthly partition and verifies integrity after loading.
+- Confirms no temporary files remain after the manual trial writer probe.
+- reported_by: user on intended Ubuntu server environment
