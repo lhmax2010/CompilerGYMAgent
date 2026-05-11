@@ -324,3 +324,16 @@ Decision records must include:
   - Add a checkpoint integrity block like `TrialRecord`, which would churn on every live-state update and add little value while trace events remain the audit companion.
   - Let LangGraph internal checkpoints be authoritative, which contradicts section 3.3.4 and would hide canonical recovery state from user-readable YAML.
   - Write checkpoint YAML directly with `yaml.safe_dump`, which would bypass the section 4.7.5 atomic writer shared by all SoT YAML files.
+
+## 2026-05-11T06:47:41Z - Derive startup trial facts from canonical trial YAML, not indexes
+
+- affected_requirement:
+  - REQUIREMENTS.md section 4.2.4
+  - REQUIREMENTS.md section 4.1.4
+  - REQUIREMENTS.md section 4.2.6
+- decision: `discover_trial_records(layout)` loads and verifies `trials/data/**/*.yaml` as the canonical completed-trial history, then startup-facing helpers derive existing `compiler.version` values from those verified records. `trials/_index.sqlite` remains a rebuildable derivative and is not required for startup validation.
+- rationale: Section 4.2.4 says YAML SoT files are authoritative while indexes are rebuildable. Startup compatibility checks must therefore fail or succeed based on verified immutable trial YAML, including integrity, namespace, and path checks, instead of trusting an index that may be absent, stale, or intentionally deleted.
+- alternatives_considered:
+  - Read `trials/_index.sqlite` for startup compatibility, which would make startup depend on a cache and require repair logic before the canonical scan exists.
+  - Trust YAML schema validation alone without integrity or layout checks, which would miss tampered trial payloads or files moved into the wrong month/namespace.
+  - Rebuild SQLite inside discovery, which would mix read-only validation with derived-index mutation and require WorkspaceLock/write semantics outside this subtask.

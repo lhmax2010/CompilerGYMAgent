@@ -16,16 +16,25 @@ from agent.fs_memory import (
     CheckpointLoadError,
     CheckpointState,
     NamespaceLayout,
+    TrialDiscoveryError,
     TrialImmutableError,
     TrialRecord,
     TrialRecordError,
+    TrialIntegrityError,
+    TrialLoadError,
     atomic_write_yaml,
     checkpoint_payload,
+    collect_trial_startup_validation_inputs,
     compute_combo_hash,
     compute_payload_hash,
     compute_trial_payload_hash,
+    discover_trial_records,
+    existing_trial_compiler_versions,
+    iter_trial_record_paths,
     load_checkpoint_for_layout,
     load_checkpoint_state,
+    load_trial_record,
+    load_trial_record_for_layout,
     namespace_layout_for_config,
     trial_record_path,
     trial_record_payload,
@@ -447,6 +456,179 @@ def test_write_trial_record_rejects_layout_namespace_mismatch(tmp_path: Path) ->
         write_trial_record(layout, data)
 
     assert not list(layout.trial_data_dir.rglob("*.yaml"))
+
+
+def test_load_trial_record_round_trips_with_integrity(tmp_path: Path) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+    path = write_trial_record(layout, trial_record_data())
+
+    loaded = load_trial_record(path)
+
+    assert loaded.trial_id == "r12_t3"
+    assert loaded.integrity is not None
+    assert verify_trial_integrity(loaded) is True
+
+
+@pytest.mark.parametrize(
+    ("raw", "message"),
+    [
+        ("", "empty"),
+        ("null\n", "empty"),
+        ("- not\n- mapping\n", "YAML mapping"),
+        ("!!python/object/apply:os.system ['echo unsafe']\n", "failed to parse YAML"),
+    ],
+)
+def test_load_trial_record_rejects_invalid_yaml(
+    tmp_path: Path,
+    raw: str,
+    message: str,
+) -> None:
+    path = tmp_path / "trial.yaml"
+    path.write_text(raw, encoding="utf-8")
+
+    with pytest.raises(TrialLoadError, match=message):
+        load_trial_record(path)
+
+
+def test_load_trial_record_rejects_missing_file(tmp_path: Path) -> None:
+    with pytest.raises(TrialLoadError, match="not found"):
+        load_trial_record(tmp_path / "missing.yaml")
+
+
+def test_load_trial_record_rejects_yaml_aliases(tmp_path: Path) -> None:
+    path = tmp_path / "trial.yaml"
+    path.write_text(
+        """
+trial_id: &trial_id r12_t3
+copy_trial_id: *trial_id
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(TrialLoadError, match="aliases"):
+        load_trial_record(path)
+
+
+def test_load_trial_record_rejects_non_utf8_bytes(tmp_path: Path) -> None:
+    path = tmp_path / "trial.yaml"
+    path.write_bytes(b"\xff\xfe\x00")
+
+    with pytest.raises(TrialLoadError, match="UTF-8"):
+        load_trial_record(path)
+
+
+def test_load_trial_record_rejects_oversized_file(tmp_path: Path) -> None:
+    path = tmp_path / "trial.yaml"
+    path.write_text("x" * (fs_memory.MAX_TRIAL_RECORD_BYTES + 1), encoding="utf-8")
+
+    with pytest.raises(TrialLoadError, match="too large"):
+        load_trial_record(path)
+
+
+def test_load_trial_record_rejects_missing_integrity(tmp_path: Path) -> None:
+    path = tmp_path / "trial.yaml"
+    atomic_write_yaml(trial_record_payload(trial_record_data(), include_integrity=False), path)
+
+    with pytest.raises(TrialIntegrityError, match="missing integrity"):
+        load_trial_record(path)
+
+
+def test_load_trial_record_rejects_integrity_tampering(tmp_path: Path) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+    path = write_trial_record(layout, trial_record_data())
+    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    payload["duration_sec"] = 9999.0
+    atomic_write_yaml(payload, path)
+
+    with pytest.raises(TrialIntegrityError, match="integrity"):
+        load_trial_record(path)
+
+
+def test_iter_trial_record_paths_returns_sorted_yaml_paths(tmp_path: Path) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+    later = trial_record_data()
+    earlier = trial_record_data()
+    earlier["trial_id"] = "r12_t1"
+    earlier["timestamp"] = "2026-04-30T10:20:00Z"
+
+    later_path = write_trial_record(layout, later)
+    earlier_path = write_trial_record(layout, earlier)
+    (layout.trial_data_dir / "2026-04" / "notes.txt").write_text("ignore", encoding="utf-8")
+
+    assert iter_trial_record_paths(layout) == (earlier_path, later_path)
+
+
+def test_iter_trial_record_paths_returns_empty_for_missing_trial_dir(tmp_path: Path) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+
+    assert iter_trial_record_paths(layout) == ()
+
+
+def test_load_trial_record_for_layout_rejects_wrong_month_partition(tmp_path: Path) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+    trial = with_trial_integrity(trial_record_data())
+    wrong_path = layout.trial_data_dir / "2026-05" / "trial_r12_t3.yaml"
+    atomic_write_yaml(trial_record_payload(trial), wrong_path)
+
+    with pytest.raises(TrialDiscoveryError, match="path does not match"):
+        load_trial_record_for_layout(layout, wrong_path)
+
+
+def test_discover_trial_records_returns_layout_checked_records(tmp_path: Path) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+    second = trial_record_data()
+    first = trial_record_data()
+    first["trial_id"] = "r12_t1"
+    first["timestamp"] = "2026-04-30T10:20:00Z"
+
+    write_trial_record(layout, second)
+    write_trial_record(layout, first)
+
+    discovered = discover_trial_records(layout)
+
+    assert [item.record.trial_id for item in discovered] == ["r12_t1", "r12_t3"]
+    assert [item.path.name for item in discovered] == ["trial_r12_t1.yaml", "trial_r12_t3.yaml"]
+
+
+def test_discover_trial_records_rejects_namespace_mismatch(tmp_path: Path) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+    data = trial_record_data()
+    data["namespace"] = "other/ffmpeg/gcc-13.2.0/code-a1b2c3d/kg-v3"
+    trial = with_trial_integrity(data)
+    path = layout.trial_data_dir / "2026-04" / "trial_r12_t3.yaml"
+    atomic_write_yaml(trial_record_payload(trial), path)
+
+    with pytest.raises(TrialDiscoveryError, match="does not match layout"):
+        discover_trial_records(layout)
+
+
+def test_collect_trial_startup_validation_inputs_extracts_compiler_versions(
+    tmp_path: Path,
+) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+    second = trial_record_data()
+    first = trial_record_data()
+    first["trial_id"] = "r12_t1"
+    first["timestamp"] = "2026-04-30T10:20:00Z"
+    write_trial_record(layout, second)
+    write_trial_record(layout, first)
+
+    inputs = collect_trial_startup_validation_inputs(layout, compiler_type="gcc")
+
+    assert inputs.compiler_versions == ("13.2.0",)
+    assert inputs.trial_count == 2
+    assert inputs.trial_ids == ("r12_t1", "r12_t3")
+    assert existing_trial_compiler_versions(layout, compiler_type="gcc") == ("13.2.0",)
+
+
+def test_collect_trial_startup_validation_inputs_rejects_compiler_type_mismatch(
+    tmp_path: Path,
+) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+    write_trial_record(layout, trial_record_data())
+
+    with pytest.raises(TrialDiscoveryError, match="compiler segment"):
+        collect_trial_startup_validation_inputs(layout, compiler_type="clang")
 
 
 def test_checkpoint_state_schema_accepts_documented_running_state() -> None:

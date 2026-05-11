@@ -43,6 +43,14 @@ class TrialIntegrityError(TrialRecordError):
     """Raised when trial record integrity data is missing or invalid."""
 
 
+class TrialLoadError(TrialRecordError):
+    """Raised when immutable trial YAML cannot be parsed or validated."""
+
+
+class TrialDiscoveryError(TrialLoadError):
+    """Raised when discovered trial YAML does not match its FS layout."""
+
+
 class CheckpointError(FsMemoryError):
     """Raised when checkpoint state is invalid for FS-Memory use."""
 
@@ -71,6 +79,16 @@ class CheckpointYamlLoader(yaml.SafeLoader):
         return super().compose_node(parent, index)
 
 
+class TrialYamlLoader(yaml.SafeLoader):
+    """Safe loader for user-readable immutable trial YAML."""
+
+    def compose_node(self, parent: Any, index: Any) -> yaml.Node:
+        if self.check_event(yaml.AliasEvent):
+            raise yaml.YAMLError("YAML aliases are not allowed in trial records")
+        return super().compose_node(parent, index)
+
+
+MAX_TRIAL_RECORD_BYTES = 1_048_576
 MAX_CHECKPOINT_BYTES = 1_048_576
 TRIAL_HASH_FIELDS_EXCLUDED = ("integrity",)
 TrialMode = Literal["exploit", "explore", "warmup", "canary", "mixed"]
@@ -376,6 +394,23 @@ class CheckpointState(StrictFsModel):
 
 
 @dataclass(frozen=True)
+class DiscoveredTrialRecord:
+    """One immutable trial YAML discovered from `trials/data`."""
+
+    path: Path
+    record: TrialRecord
+
+
+@dataclass(frozen=True)
+class TrialStartupValidationInputs:
+    """Trial-derived inputs for startup registry validation."""
+
+    compiler_versions: tuple[str, ...]
+    trial_count: int
+    trial_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class NamespaceLayout:
     """Resolved paths for one namespace under a workspace."""
 
@@ -607,6 +642,132 @@ def write_trial_record(
     return target
 
 
+def load_trial_record(path: str | Path) -> TrialRecord:
+    """Load one immutable trial YAML and verify its integrity block."""
+
+    trial_path = Path(path)
+    if trial_path.is_symlink():
+        raise TrialLoadError(f"trial record path must not be a symlink: {trial_path}")
+    try:
+        file_size = trial_path.stat().st_size
+    except FileNotFoundError as exc:
+        raise TrialLoadError(f"trial record file not found: {trial_path}") from exc
+    if file_size > MAX_TRIAL_RECORD_BYTES:
+        raise TrialLoadError(
+            f"trial record file {trial_path} is too large "
+            f"({file_size} bytes > {MAX_TRIAL_RECORD_BYTES} bytes)"
+        )
+
+    try:
+        raw_text = trial_path.read_text(encoding="utf-8")
+    except UnicodeDecodeError as exc:
+        raise TrialLoadError(f"trial record file {trial_path} is not valid UTF-8") from exc
+
+    try:
+        data = yaml.load(raw_text, Loader=TrialYamlLoader)
+    except yaml.YAMLError as exc:
+        raise TrialLoadError(
+            f"trial record file {trial_path} failed to parse YAML: {exc}"
+        ) from exc
+
+    if not data:
+        raise TrialLoadError(f"trial record file {trial_path} is empty")
+    if not isinstance(data, Mapping):
+        raise TrialLoadError(f"trial record file {trial_path} must contain a YAML mapping")
+
+    try:
+        trial = TrialRecord.model_validate(data)
+    except ValidationError as exc:
+        raise TrialLoadError(f"trial record file {trial_path} is invalid:\n{exc}") from exc
+
+    if trial.integrity is None:
+        raise TrialIntegrityError(f"trial record file {trial_path} is missing integrity")
+    if not verify_trial_integrity(trial):
+        raise TrialIntegrityError(f"trial record file {trial_path} failed integrity check")
+    return trial
+
+
+def load_trial_record_for_layout(layout: NamespaceLayout, path: str | Path) -> TrialRecord:
+    """Load one trial YAML and ensure namespace and path match the layout."""
+
+    trial_path = Path(path)
+    trial = load_trial_record(trial_path)
+    _validate_discovered_trial(layout, trial_path, trial)
+    return trial
+
+
+def iter_trial_record_paths(layout: NamespaceLayout) -> tuple[Path, ...]:
+    """Return canonical trial YAML paths under `trials/data`, sorted by path."""
+
+    if not layout.trial_data_dir.exists():
+        return ()
+    if not layout.trial_data_dir.is_dir():
+        raise TrialDiscoveryError(f"trial data path is not a directory: {layout.trial_data_dir}")
+    return tuple(
+        sorted(
+            (
+                path
+                for path in layout.trial_data_dir.rglob("*.yaml")
+                if path.is_file() or path.is_symlink()
+            ),
+            key=lambda path: path.as_posix(),
+        )
+    )
+
+
+def discover_trial_records(layout: NamespaceLayout) -> tuple[DiscoveredTrialRecord, ...]:
+    """Discover immutable trial YAML records from the canonical SoT directory."""
+
+    discovered: list[DiscoveredTrialRecord] = []
+    for path in iter_trial_record_paths(layout):
+        trial = load_trial_record_for_layout(layout, path)
+        discovered.append(DiscoveredTrialRecord(path=path, record=trial))
+    return tuple(discovered)
+
+
+def collect_trial_startup_validation_inputs(
+    layout: NamespaceLayout,
+    *,
+    compiler_type: str,
+) -> TrialStartupValidationInputs:
+    """Collect existing trial facts needed by startup registry validation."""
+
+    if not isinstance(compiler_type, str):
+        raise TrialDiscoveryError("compiler_type must be a string")
+    _validate_file_atom(compiler_type, "compiler_type")
+
+    discovered = discover_trial_records(layout)
+    compiler_versions = tuple(
+        sorted(
+            {
+                _compiler_version_from_namespace(
+                    item.record.namespace,
+                    compiler_type=compiler_type,
+                )
+                for item in discovered
+            }
+        )
+    )
+    return TrialStartupValidationInputs(
+        compiler_versions=compiler_versions,
+        trial_count=len(discovered),
+        trial_ids=tuple(item.record.trial_id for item in discovered),
+    )
+
+
+def existing_trial_compiler_versions(
+    layout: NamespaceLayout,
+    *,
+    compiler_type: str,
+) -> tuple[str, ...]:
+    """Return unique compiler.version values from existing trial YAML SoT files."""
+
+    return collect_trial_startup_validation_inputs(
+        layout,
+        compiler_type=compiler_type,
+    ).compiler_versions
+
+
 def checkpoint_payload(state: CheckpointState | Mapping[str, Any]) -> dict[str, Any]:
     checkpoint = CheckpointState.model_validate(state)
     return checkpoint.model_dump(mode="json", exclude_none=True)
@@ -815,3 +976,36 @@ def _validate_session_id_atom(value: str, label: str) -> None:
     _validate_file_atom(value, label)
     if not all(char.isascii() and (char.isalnum() or char in "_-") for char in value):
         raise ValueError(f"{label} can contain only ASCII letters, digits, '_' or '-'")
+
+
+def _validate_discovered_trial(
+    layout: NamespaceLayout,
+    path: Path,
+    trial: TrialRecord,
+) -> None:
+    expected_namespace = str(layout.namespace)
+    if trial.namespace != expected_namespace:
+        raise TrialDiscoveryError(
+            "trial namespace does not match layout "
+            f"(path={path}, expected={expected_namespace!r}, actual={trial.namespace!r})"
+        )
+    expected_path = trial_record_path(layout, trial)
+    if path != expected_path:
+        raise TrialDiscoveryError(
+            "trial record path does not match trial identity "
+            f"(expected={expected_path}, actual={path})"
+        )
+
+
+def _compiler_version_from_namespace(namespace: str, *, compiler_type: str) -> str:
+    _validate_namespace_string(namespace, "trial.namespace")
+    compiler_segment = namespace.split("/")[2]
+    prefix = f"{compiler_type}-"
+    if not compiler_segment.startswith(prefix) or compiler_segment == prefix:
+        raise TrialDiscoveryError(
+            "trial compiler segment does not match configured compiler_type "
+            f"(compiler_type={compiler_type!r}, compiler_segment={compiler_segment!r})"
+        )
+    compiler_version = compiler_segment[len(prefix) :]
+    _validate_file_atom(compiler_version, "compiler.version")
+    return compiler_version

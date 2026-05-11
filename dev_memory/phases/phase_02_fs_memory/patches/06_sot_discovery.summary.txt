@@ -1,0 +1,33 @@
+Phase 02 / Subtask 2.4 - SoT discovery helpers
+
+Requirements:
+- REQUIREMENTS.md section 4.2.4
+- REQUIREMENTS.md section 4.1.4
+- REQUIREMENTS.md section 4.2.6
+
+Code changes:
+- Added `TrialLoadError` and `TrialDiscoveryError` for trial YAML read/discovery failures.
+- Added alias-free `TrialYamlLoader` and a 1 MiB `MAX_TRIAL_RECORD_BYTES` cap.
+- Added `DiscoveredTrialRecord` and `TrialStartupValidationInputs` dataclasses.
+- Added `load_trial_record(path)`:
+  - rejects symlink paths
+  - rejects missing, oversized, non-UTF-8, empty, non-mapping, alias-bearing, unsafe-tag, and schema-invalid YAML
+  - requires the immutable trial `integrity` block
+  - verifies the payload hash before returning `TrialRecord`
+- Added `load_trial_record_for_layout(layout, path)`:
+  - enforces that record namespace matches `NamespaceLayout`
+  - enforces that path equals `trials/data/YYYY-MM/trial_<trial_id>.yaml`
+- Added `iter_trial_record_paths(layout)` and `discover_trial_records(layout)` for deterministic canonical SoT scanning.
+- Added `collect_trial_startup_validation_inputs(layout, compiler_type=...)` and `existing_trial_compiler_versions(...)` for section 4.1.4 startup compatibility inputs.
+- Exported the new public APIs from `agent.__init__`.
+
+Tests:
+- `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -v`
+  - 82 passed
+- `.venv\Scripts\python.exe -m pytest -v`
+  - 240 passed, 0 failed, 1 skipped
+- `.venv\Scripts\python.exe -m compileall src\agent`
+  - passed
+
+Notes:
+- This subtask intentionally does not rebuild `trials/_index.sqlite`; section 4.2.4 treats indexes as rebuildable derivatives. The new helpers provide the verified YAML scan that a later index rebuild can consume.

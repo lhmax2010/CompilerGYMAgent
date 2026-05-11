@@ -238,3 +238,34 @@ Remaining non-blocking follow-ups:
 
 Review conclusion:
 - Subtask 2.3 is approved and validated on Ubuntu. Proceed to Subtask 2.4.
+
+## Subtask 2.4 - SoT discovery helpers for existing trials
+
+- timestamp_utc: 2026-05-11T06:47:41Z
+- files_reviewed:
+  - src/agent/fs_memory.py
+  - src/agent/__init__.py
+  - tests/test_fs_memory.py
+
+Review checklist:
+- [x] `load_trial_record` treats immutable trial YAML as canonical SoT and rejects missing, empty, non-mapping, alias-bearing, non-UTF-8, oversized, unsafe-tag, and schema-invalid YAML.
+- [x] `load_trial_record` requires the `integrity` block and verifies the payload hash before returning a record.
+- [x] `iter_trial_record_paths` scans `trials/data` deterministically and returns only YAML files, with missing trial history represented as an empty tuple.
+- [x] `load_trial_record_for_layout` and `discover_trial_records` reject namespace drift between YAML content and `NamespaceLayout`.
+- [x] Discovery rejects path drift where a record is not stored at the path derived from its UTC completion month and `trial_id`.
+- [x] Startup validation inputs expose unique bare `compiler.version` values from discovered trial namespaces.
+- [x] Public exports in `src/agent/__init__.py` include the new discovery dataclasses, errors, and helpers.
+- [x] Targeted and full UT suites pass.
+
+Findings:
+- No blocking issues found.
+- The helpers intentionally remain read-only and do not create or rebuild `trials/_index.sqlite`; section 4.2.4 treats indexes as rebuildable derivatives, and this subtask supplies the canonical SoT scan needed by that future rebuild.
+- `TrialLoadError` covers read/parse/schema failures, while `TrialIntegrityError` remains the specific signal for missing or mismatched trial integrity.
+
+Deferred low-priority follow-ups:
+- Wire `existing_trial_compiler_versions(...)` into init/startup once startup owns the FS-Memory workspace context instead of test-injected version lists.
+- Add SQLite `_index.sqlite` rebuild helpers after the canonical discovery API is externally reviewed.
+- Consider extracting the alias-free bounded YAML loader pattern if more SoT YAML readers repeat the same structure.
+
+Review conclusion:
+- Subtask 2.4 is ready for external review.

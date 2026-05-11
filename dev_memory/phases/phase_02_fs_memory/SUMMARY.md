@@ -22,6 +22,7 @@ Completed:
 - Subtask 2.3 targeted UT passed 51/51 and full UT passed 203/204 with the expected Windows skip for the Linux-only real-fcntl workspace lock test.
 - Subtask 2.3 external review returned Approve with minor changes. Review fixes allowed zero/negative finite checkpoint best scores and tightened checkpoint/workspace-lock session IDs before Subtask 2.4 process-cleaner/discovery work.
 - Subtask 2.3 review-fix received final external approval and was validated by the user on Ubuntu/Linux with Python 3.11.15: full pytest passed 223/223, the Linux real-fcntl test executed, and manual score/session probes passed.
+- Subtask 2.4 implemented canonical trial YAML discovery: bounded alias-free loading, required integrity verification, namespace/path consistency checks, deterministic `trials/data` scanning, and startup validation inputs for existing trial compiler versions.
 
 Remaining:
-- Subtask 2.4 SoT discovery helpers.
+- External review and Ubuntu validation for Subtask 2.4.

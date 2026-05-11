@@ -277,3 +277,45 @@ Coverage notes:
 - Confirms the Linux-only real `fcntl` workspace lock regression test executes and passes.
 - Confirms score and session-id safety behavior through a manual end-to-end schema probe.
 - reported_by: user on intended Ubuntu server environment
+
+## Subtask 2.4 - SoT discovery helpers for existing trials
+
+- timestamp_utc: 2026-05-11T06:47:41Z
+- related_requirements:
+  - REQUIREMENTS.md section 4.2.4
+  - REQUIREMENTS.md section 4.1.4
+  - REQUIREMENTS.md section 4.2.6
+- targeted_command: `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -v`
+- targeted_result: 82 passed, 0 failed
+- full_command: `.venv\Scripts\python.exe -m pytest -v`
+- full_result: 240 passed, 0 failed, 1 skipped
+- compile_check: `.venv\Scripts\python.exe -m compileall src\agent` passed
+- manual_probe:
+  - wrote `trial_r1_t1.yaml` under `trials/data/2026-04`
+  - `discover_trial_records` returned `['r1_t1']`
+  - `collect_trial_startup_validation_inputs(..., compiler_type="gcc")` returned compiler_versions `('13.2.0',)`
+
+New trial discovery test coverage:
+- PASS `tests/test_fs_memory.py::test_load_trial_record_round_trips_with_integrity`
+- PASS `tests/test_fs_memory.py::test_load_trial_record_rejects_invalid_yaml[...]`
+- PASS `tests/test_fs_memory.py::test_load_trial_record_rejects_missing_file`
+- PASS `tests/test_fs_memory.py::test_load_trial_record_rejects_yaml_aliases`
+- PASS `tests/test_fs_memory.py::test_load_trial_record_rejects_non_utf8_bytes`
+- PASS `tests/test_fs_memory.py::test_load_trial_record_rejects_oversized_file`
+- PASS `tests/test_fs_memory.py::test_load_trial_record_rejects_missing_integrity`
+- PASS `tests/test_fs_memory.py::test_load_trial_record_rejects_integrity_tampering`
+- PASS `tests/test_fs_memory.py::test_iter_trial_record_paths_returns_sorted_yaml_paths`
+- PASS `tests/test_fs_memory.py::test_iter_trial_record_paths_returns_empty_for_missing_trial_dir`
+- PASS `tests/test_fs_memory.py::test_load_trial_record_for_layout_rejects_wrong_month_partition`
+- PASS `tests/test_fs_memory.py::test_discover_trial_records_returns_layout_checked_records`
+- PASS `tests/test_fs_memory.py::test_discover_trial_records_rejects_namespace_mismatch`
+- PASS `tests/test_fs_memory.py::test_collect_trial_startup_validation_inputs_extracts_compiler_versions`
+- PASS `tests/test_fs_memory.py::test_collect_trial_startup_validation_inputs_rejects_compiler_type_mismatch`
+
+Coverage notes:
+- Covers `trials/data/**/*.yaml` as the canonical source of completed trial history.
+- Covers safe trial YAML loading with 1 MiB cap, UTF-8 requirement, alias rejection, non-mapping rejection, missing-file errors, unsafe-tag rejection, schema validation, required integrity, and payload tamper detection.
+- Covers layout consistency checks: discovered records must claim the active namespace and live at the path derived from UTC completion month plus `trial_id`.
+- Covers deterministic sorted discovery and ignoring non-YAML files.
+- Covers startup validation inputs by deriving bare `compiler.version` values from discovered trial namespaces for the registry compatibility check.
+- Windows full-suite skip is expected: `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter` requires Linux `fcntl`.

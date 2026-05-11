@@ -494,3 +494,23 @@ Next action: push Subtask 2.3 review fixes to GitHub, then request external veri
 - Claude final verification verdict: Approve.
 
 Next action: commit/push the Ubuntu validation record, then start Subtask 2.4 SoT discovery helpers.
+
+## 2026-05-11T06:41:08Z - Phase 02 / Subtask 2.4 started
+
+- Started SoT discovery helpers for existing trial YAML and startup validation inputs.
+- Requirements in scope: REQUIREMENTS.md sections 4.2.4 and 4.1.4.
+- Planned files: `src/agent/fs_memory.py`, `tests/test_fs_memory.py`, and public exports in `src/agent/__init__.py`.
+- Baseline before implementation: clean `main` synced with `origin/main` at `f492284`.
+
+Next action: inspect trial discovery requirements and implement safe trial YAML scanning/loading helpers.
+
+## 2026-05-11T06:47:41Z - Phase 02 / Subtask 2.4 implemented
+
+- Implemented safe immutable trial YAML loading with size cap, UTF-8 decoding, alias rejection, YAML mapping enforcement, schema validation, required integrity, and payload hash verification.
+- Added `iter_trial_record_paths`, `load_trial_record_for_layout`, and `discover_trial_records` to rebuild canonical trial facts from `trials/data/**/*.yaml`.
+- Added startup-validation helpers that derive unique `compiler.version` values from discovered trial namespaces for the existing registry compatibility API.
+- Exported the new discovery dataclasses, errors, and helpers from `agent`.
+- Targeted UT: `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -v` -> 82 passed.
+- Full UT: `.venv\Scripts\python.exe -m pytest -v` -> 240 passed, 0 failed, 1 skipped (expected Windows skip for Linux-only real `fcntl`).
+
+Next action: generate Subtask 2.4 patch artifacts, commit/push, then request external review.
