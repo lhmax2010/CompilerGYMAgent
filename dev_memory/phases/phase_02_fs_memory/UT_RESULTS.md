@@ -319,3 +319,20 @@ Coverage notes:
 - Covers deterministic sorted discovery and ignoring non-YAML files.
 - Covers startup validation inputs by deriving bare `compiler.version` values from discovered trial namespaces for the registry compatibility check.
 - Windows full-suite skip is expected: `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter` requires Linux `fcntl`.
+
+## Subtask 2.4 - external review verification
+
+- timestamp_utc: 2026-05-11T11:01:40Z
+- reviewer: Claude
+- verdict: Approve
+- range: `f492284..1cff51d`
+- test_command: `PYTHONPATH=src python -m pytest tests/ -v`
+- test_result: 241 passed, 0 failed
+- targeted_command: `PYTHONPATH=src python -m pytest tests/test_fs_memory.py -v`
+- targeted_result: 80 passed, 0 failed
+
+Verification notes:
+- Linux real `fcntl` workspace lock path executed and did not skip.
+- Confirmed `trials/data/**/*.yaml` is treated as canonical SoT and `_index.sqlite` is not read.
+- Confirmed loader defenses cover size, encoding, alias, unsafe tags, schema, integrity, namespace drift, and path drift.
+- Independent probes found only Low/Info edge contracts around hidden `.yaml` files, partial compiler-type prefixes, and directory-level symlink behavior.

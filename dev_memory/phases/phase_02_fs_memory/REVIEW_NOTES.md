@@ -269,3 +269,29 @@ Deferred low-priority follow-ups:
 
 Review conclusion:
 - Subtask 2.4 is ready for external review.
+
+## Subtask 2.4 - external review verification
+
+- timestamp_utc: 2026-05-11T11:01:40Z
+- reviewer: Claude
+- verdict: Approve
+- range: `f492284..1cff51d`
+- tests: 241 passed, 0 failed
+
+Verification summary:
+- [x] `load_trial_record` safely loads immutable trial YAML with size, UTF-8, alias, unsafe-tag, mapping, schema, integrity, and tamper checks.
+- [x] `load_trial_record_for_layout` rejects namespace mismatch and wrong month/path placement.
+- [x] `iter_trial_record_paths` and `discover_trial_records` provide deterministic canonical YAML discovery without reading `_index.sqlite`.
+- [x] Startup helpers return bare compiler versions compatible with `validate_project_against_registry(existing_trial_compiler_versions=...)`.
+- [x] Public exports and error hierarchy are coherent.
+- [x] dev_memory and patch three-piece are complete.
+
+Low/Info follow-ups:
+- L-1: Decide whether hidden `.yaml` files under `trials/data` should be ignored or remain fail-fast discovery blockers.
+- L-2: Document or tighten partial-prefix `compiler_type` behavior for compiler types with hyphens.
+- L-3: Decide whether a directory-level symlink for `trials/data` is allowed or should be rejected.
+- L-4: Repeated namespace validation in compiler-version extraction is defensive but redundant.
+- L-5: Consider documenting lock-free discovery concurrency semantics; atomic replace means discovery sees before-or-after state rather than partial files.
+
+Review conclusion:
+- Subtask 2.4 is approved. Proceed to Ubuntu validation, then Subtask 2.5.

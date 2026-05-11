@@ -524,3 +524,18 @@ Next action: generate Subtask 2.4 patch artifacts, commit/push, then request ext
   - `dev_memory/phases/phase_02_fs_memory/patches/06_sot_discovery.review.md`
 
 Next action: push Subtask 2.4 to GitHub, then request external review.
+
+## 2026-05-11T11:01:40Z - Phase 02 / Subtask 2.4 external review completed
+
+- Reviewer: Claude.
+- Verdict: Approve.
+- Range: `f492284..1cff51d`.
+- Tests: 241 passed, 0 failed on Linux; the Linux real `fcntl` workspace lock path ran instead of skipping.
+- Review confirmed canonical trial discovery reads verified YAML SoT and does not depend on `trials/_index.sqlite`.
+- Low/Info follow-ups recorded:
+  - Decide hidden `.yaml` behavior under `trials/data`.
+  - Document or tighten partial-prefix `compiler_type` behavior.
+  - Decide whether `trials/data` directory symlink is intentionally allowed.
+  - Consider documenting lock-free discovery concurrency semantics.
+
+Next action: run Ubuntu validation for Subtask 2.4, then proceed to Subtask 2.5.

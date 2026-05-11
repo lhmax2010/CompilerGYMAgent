@@ -23,6 +23,7 @@ Completed:
 - Subtask 2.3 external review returned Approve with minor changes. Review fixes allowed zero/negative finite checkpoint best scores and tightened checkpoint/workspace-lock session IDs before Subtask 2.4 process-cleaner/discovery work.
 - Subtask 2.3 review-fix received final external approval and was validated by the user on Ubuntu/Linux with Python 3.11.15: full pytest passed 223/223, the Linux real-fcntl test executed, and manual score/session probes passed.
 - Subtask 2.4 implemented canonical trial YAML discovery: bounded alias-free loading, required integrity verification, namespace/path consistency checks, deterministic `trials/data` scanning, and startup validation inputs for existing trial compiler versions.
+- Subtask 2.4 received external approval after independent Linux verification: 241/241 tests passed and only Low/Info follow-ups remain.
 
 Remaining:
-- External review and Ubuntu validation for Subtask 2.4.
+- Ubuntu validation for Subtask 2.4, then Subtask 2.5.
