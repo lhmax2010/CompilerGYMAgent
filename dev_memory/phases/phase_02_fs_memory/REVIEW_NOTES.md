@@ -217,3 +217,24 @@ Post-fix checklist:
 
 Review conclusion:
 - Subtask 2.3 review fixes are ready for external verification.
+
+## Subtask 2.3 - review-fix external verification and Ubuntu validation
+
+- timestamp_utc: 2026-05-11T06:39:57Z
+- reviewer: Claude
+- verdict: Approve
+- range: `5de44e9..cd5aefa`
+- tests: 223 passed, 0 failed
+
+Verification summary:
+- [x] M-1 fixed: checkpoint best scores accept zero and negative finite values while rejecting NaN/Inf.
+- [x] M-2 fixed: checkpoint and workspace-lock session IDs share the ASCII-safe contract.
+- [x] Linux real-fcntl workspace lock regression executed and passed on Ubuntu.
+- [x] Manual probes confirmed negative checkpoint score acceptance and unsafe session-id rejection.
+
+Remaining non-blocking follow-ups:
+- Consider extracting duplicated session-id validation into a shared internal helper.
+- Consider documenting the intentional `pgid` constraint difference between checkpoint child processes and workspace lock holders.
+
+Review conclusion:
+- Subtask 2.3 is approved and validated on Ubuntu. Proceed to Subtask 2.4.

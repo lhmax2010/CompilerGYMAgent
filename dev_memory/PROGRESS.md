@@ -481,3 +481,16 @@ Next action: generate Subtask 2.3 review-fix patch artifacts, commit/push, then 
   - `dev_memory/phases/phase_02_fs_memory/patches/05_checkpoint_review_fixes.review.md`
 
 Next action: push Subtask 2.3 review fixes to GitHub, then request external verification.
+
+## 2026-05-11T06:39:57Z - Phase 02 / Subtask 2.3 review-fix Ubuntu validation completed
+
+- User validated Subtask 2.3 review-fix state on the intended Ubuntu/Linux environment.
+- Environment: Ubuntu/Linux, Python 3.11.15, `.venv`, plain `pytest`.
+- Full command: `pytest -v` -> 223 passed in 0.63s.
+- Linux real-fcntl workspace lock regression executed and passed.
+- Manual probe confirmed checkpoint `current_best.score=-3.14` is accepted.
+- Manual probe confirmed unsafe checkpoint session IDs are rejected: `sess abc`, `sess\nabc`, `../../etc`, and `sess=abc`.
+- Manual probe confirmed `WorkspaceLockHolder` accepts `sess_ok-123` and rejects `sess bad`.
+- Claude final verification verdict: Approve.
+
+Next action: commit/push the Ubuntu validation record, then start Subtask 2.4 SoT discovery helpers.

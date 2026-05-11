@@ -246,3 +246,34 @@ Coverage notes:
 - Confirms checkpoint and workspace-lock session IDs reject surrounding whitespace, spaces, shell metacharacters, equals signs, path traversal, separators, and control characters.
 - Confirms invalid workspace lock acquire attempts close their fd and leave `is_held` false.
 - Windows full-suite skip remains expected for the Linux-only real `fcntl` regression.
+
+## Subtask 2.3 - review-fix Ubuntu target-environment validation
+
+- timestamp_utc: 2026-05-11T06:39:57Z
+- environment:
+  - os: Ubuntu/Linux
+  - python: 3.11.15
+  - virtualenv: `.venv`
+  - runner: plain `pytest` via `venv + pip`, no `uv` required
+- related_requirements:
+  - REQUIREMENTS.md section 1.2
+  - REQUIREMENTS.md section 4.11.2
+  - REQUIREMENTS.md section 4.15
+- full_command: `pytest -v`
+- full_duration: 0.63s
+- full_result: 223 passed, 0 failed
+- manual_probe:
+  - checkpoint_negative_score: `-3.14` accepted
+  - rejected_checkpoint_sessions:
+    - `sess abc`
+    - `sess\nabc`
+    - `../../etc`
+    - `sess=abc`
+  - lock_holder_session: `sess_ok-123` accepted
+  - rejected_lock_session: `sess bad`
+
+Coverage notes:
+- Confirms the Subtask 2.3 review-fix suite passes on the intended Ubuntu environment.
+- Confirms the Linux-only real `fcntl` workspace lock regression test executes and passes.
+- Confirms score and session-id safety behavior through a manual end-to-end schema probe.
+- reported_by: user on intended Ubuntu server environment

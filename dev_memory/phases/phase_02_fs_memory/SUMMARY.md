@@ -21,6 +21,7 @@ Completed:
 - Subtask 2.3 implemented `state/checkpoint.yaml` schema, canonical checkpoint read/write helpers, namespace-bound writes, alias-free bounded loading, active process identity checks, and public exports.
 - Subtask 2.3 targeted UT passed 51/51 and full UT passed 203/204 with the expected Windows skip for the Linux-only real-fcntl workspace lock test.
 - Subtask 2.3 external review returned Approve with minor changes. Review fixes allowed zero/negative finite checkpoint best scores and tightened checkpoint/workspace-lock session IDs before Subtask 2.4 process-cleaner/discovery work.
+- Subtask 2.3 review-fix received final external approval and was validated by the user on Ubuntu/Linux with Python 3.11.15: full pytest passed 223/223, the Linux real-fcntl test executed, and manual score/session probes passed.
 
 Remaining:
 - Subtask 2.4 SoT discovery helpers.
