@@ -91,6 +91,19 @@ class WorkspaceLockHolder(StrictLockModel):
     hostname: NonEmptyStr
     agent_version: NonEmptyStr
 
+    @field_validator("session_id", mode="before")
+    @classmethod
+    def session_id_must_not_be_trimmed(cls, value: Any) -> Any:
+        if isinstance(value, str) and value != value.strip():
+            raise ValueError("session_id cannot contain surrounding whitespace")
+        return value
+
+    @field_validator("session_id")
+    @classmethod
+    def session_id_must_be_safe(cls, value: str) -> str:
+        _validate_session_id_atom(value, "session_id")
+        return value
+
     @field_validator("started_at", mode="before")
     @classmethod
     def started_at_datetime_to_string(cls, value: Any) -> Any:
@@ -359,6 +372,21 @@ def _agent_version() -> str:
         return importlib.metadata.version("compiler-gym-agent")
     except importlib.metadata.PackageNotFoundError:
         return "0.1.0"
+
+
+def _validate_session_id_atom(value: str, label: str) -> None:
+    if not value:
+        raise ValueError(f"{label} cannot be empty")
+    if value != value.strip():
+        raise ValueError(f"{label} cannot contain surrounding whitespace")
+    if value in {".", ".."}:
+        raise ValueError(f"{label} cannot be {value!r}")
+    if "/" in value or "\\" in value:
+        raise ValueError(f"{label} cannot contain path separators")
+    if any(ord(char) < 0x20 or ord(char) == 0x7F for char in value):
+        raise ValueError(f"{label} cannot contain control characters")
+    if not all(char.isascii() and (char.isalnum() or char in "_-") for char in value):
+        raise ValueError(f"{label} can contain only ASCII letters, digits, '_' or '-'")
 
 
 def _fsync_parent_dir(path: Path) -> None:

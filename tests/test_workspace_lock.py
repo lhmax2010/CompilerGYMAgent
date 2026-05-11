@@ -431,6 +431,26 @@ def test_acquire_rejects_empty_command_or_session(tmp_path: Path) -> None:
         make_lock(tmp_path).acquire("agent run", "")
 
 
+@pytest.mark.parametrize(
+    "session_id",
+    [
+        " sess_abc",
+        "sess abc",
+        "sess\nabc",
+        "sess=abc",
+        "sess$(rm-rf)",
+        "../../etc",
+    ],
+)
+def test_acquire_rejects_unsafe_session_id(tmp_path: Path, session_id: str) -> None:
+    lock = make_lock(tmp_path)
+
+    with pytest.raises(ValueError, match="session_id"):
+        lock.acquire("agent run", session_id)
+
+    assert lock.is_held is False
+
+
 def test_acquire_rejects_negative_timeout(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="timeout"):
         make_lock(tmp_path).acquire("agent run", "sess", timeout=-1)

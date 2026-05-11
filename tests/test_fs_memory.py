@@ -462,11 +462,53 @@ def test_checkpoint_state_schema_accepts_documented_running_state() -> None:
     assert checkpoint.current_best.score == 1.231
 
 
+@pytest.mark.parametrize("score", [0.0, -3.14])
+def test_checkpoint_best_accepts_zero_or_negative_score(score: float) -> None:
+    data = checkpoint_data()
+    data["current_best"]["score"] = score
+
+    checkpoint = CheckpointState.model_validate(data)
+
+    assert checkpoint.current_best is not None
+    assert checkpoint.current_best.score == score
+
+
+@pytest.mark.parametrize("score", [float("nan"), float("inf"), float("-inf")])
+def test_checkpoint_best_rejects_non_finite_score(score: float) -> None:
+    data = checkpoint_data()
+    data["current_best"]["score"] = score
+
+    with pytest.raises(ValidationError, match="score must be finite"):
+        CheckpointState.model_validate(data)
+
+
 def test_checkpoint_state_rejects_invalid_stage() -> None:
     data = checkpoint_data()
     data["current_trial"]["current_stage"] = "finished"
 
     with pytest.raises(ValidationError, match="current_stage"):
+        CheckpointState.model_validate(data)
+
+
+@pytest.mark.parametrize(
+    "session_id",
+    [
+        " sess_abc",
+        "sess abc",
+        "sess\nabc",
+        "sess=abc",
+        "sess$(rm-rf)",
+        "../../etc",
+        ".",
+        "..",
+    ],
+)
+def test_checkpoint_state_rejects_unsafe_session_id(session_id: str) -> None:
+    data = checkpoint_data()
+    data["session_id"] = session_id
+    data["current_trial"]["process"]["session_marker"] = f"AGENT_SESSION_ID={session_id}"
+
+    with pytest.raises(ValidationError, match="session_id"):
         CheckpointState.model_validate(data)
 
 

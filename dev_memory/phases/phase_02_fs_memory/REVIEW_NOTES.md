@@ -188,3 +188,32 @@ Deferred low-priority follow-ups:
 
 Review conclusion:
 - Subtask 2.3 is ready for external review.
+
+## Subtask 2.3 - external review and review fixes
+
+- timestamp_utc: 2026-05-11T05:54:15Z
+- reviewer: Claude
+- verdict: Approve with minor changes
+- files_reviewed:
+  - src/agent/fs_memory.py
+  - src/agent/workspace_lock.py
+  - tests/test_fs_memory.py
+  - tests/test_workspace_lock.py
+
+External findings addressed:
+- M-1: `CheckpointBest.score` used `Field(gt=0)`, which rejected valid zero or negative best scores.
+  - Fix: removed the positive bound and added finite-number validation to reject NaN/Inf.
+- M-2: `session_id` accepted control characters, shell metacharacters, and traversal-like values before process-cleaner work consumes `AGENT_SESSION_ID=...` markers.
+  - Fix: constrained both checkpoint and workspace lock session IDs to ASCII letters, digits, `_`, and `-`; added pre-strip whitespace rejection.
+
+Post-fix checklist:
+- [x] `current_best.score` accepts `0.0`.
+- [x] `current_best.score` accepts negative finite scores.
+- [x] `current_best.score` rejects NaN and +/-Inf.
+- [x] `CheckpointState.session_id` rejects unsafe values.
+- [x] `WorkspaceLockHolder.session_id` rejects unsafe values.
+- [x] Invalid `WorkspaceLock.acquire()` session IDs do not leave the lock held.
+- [x] Targeted and full UT suites pass.
+
+Review conclusion:
+- Subtask 2.3 review fixes are ready for external verification.

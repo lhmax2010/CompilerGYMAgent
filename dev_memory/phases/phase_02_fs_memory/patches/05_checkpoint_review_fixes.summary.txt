@@ -1,0 +1,26 @@
+Phase 02 / Subtask 2.3 Review Fixes - Checkpoint score and session safety
+
+Implemented:
+- Fixed `CheckpointBest.score` to accept zero and negative finite values while
+  rejecting NaN and positive/negative infinity.
+- Tightened `CheckpointState.session_id` to reject unsafe values before
+  process-cleaner work consumes `AGENT_SESSION_ID=<session_id>` markers.
+- Tightened `WorkspaceLockHolder.session_id` with the same session-id contract
+  so lock holder metadata and checkpoint process metadata stay aligned.
+- Added pre-strip validators so leading/trailing whitespace cannot be silently
+  normalized by `NonEmptyStr`.
+- Added focused tests for checkpoint score bounds and unsafe session IDs.
+- Added workspace-lock tests for unsafe acquire session IDs and verified invalid
+  acquire attempts leave the lock unheld.
+
+Tests:
+- `uv --native-tls run --extra dev pytest tests/test_fs_memory.py -v`
+  -> 64 passed, 0 failed.
+- `uv --native-tls run --extra dev pytest tests/test_workspace_lock.py -v`
+  -> 26 passed, 0 failed, 1 skipped.
+- `uv --native-tls run --extra dev pytest -v`
+  -> 222 passed, 0 failed, 1 skipped.
+
+Notes:
+- The skipped test is the expected Windows-local skip for the Linux-only real
+  fcntl workspace lock regression.

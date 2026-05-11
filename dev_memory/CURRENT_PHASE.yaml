@@ -1,7 +1,7 @@
 phase_id: phase_02_fs_memory
 phase_title: "FS-Memory SoT + schema + atomic write"
 started_at: 2026-05-08T07:04:04Z
-last_updated: 2026-05-09T03:37:48Z
+last_updated: 2026-05-11T05:54:15Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 4.2
@@ -105,6 +105,19 @@ subtasks:
     patch_generated: true
     commit_hash: 33fa155
     commit_message: "phase_02_fs_memory: 2.3 implement checkpoint schema (REQUIREMENTS sections 3.3.4, 4.11.2)"
+    external_review_verdict: approve_with_minor_changes
+    external_reviewed_at: 2026-05-11T05:50:59Z
+    external_review_notes: "Claude independently verified 204/204 on Linux and requested fixes for CheckpointBest score bounds plus checkpoint/workspace-lock session_id safety."
+    review_fix_status: done
+    review_fix_patch_file: dev_memory/phases/phase_02_fs_memory/patches/05_checkpoint_review_fixes.patch
+    review_fix_patch_generated: true
+    review_fix_summary:
+      - "Allowed checkpoint current_best.score to be zero or negative while rejecting NaN/Inf."
+      - "Constrained CheckpointState.session_id and WorkspaceLockHolder.session_id to ASCII letters, digits, '_' and '-'."
+      - "Added checkpoint and workspace lock UT coverage for unsafe session_id values."
+    review_fix_ut_passed: true
+    review_fix_targeted_ut: "64 fs_memory passed; 26 workspace_lock passed, 1 skipped"
+    review_fix_full_ut: "222 passed, 0 failed, 1 skipped"
   - id: "2.4"
     title: "Implement SoT discovery helpers for existing trials and startup validation inputs"
     status: todo
@@ -117,4 +130,4 @@ notes: |
   checkpoint.yaml, experience yaml, learned rule yaml) must reuse the same
   flush/fsync/os.replace/parent-fsync semantics from REQUIREMENTS.md section
   4.7.5.
-next_action: "Push Subtask 2.3 implementation to GitHub, then prepare external review prompt."
+next_action: "Generate Subtask 2.3 review-fix patch artifacts, commit/push, then request external verification."

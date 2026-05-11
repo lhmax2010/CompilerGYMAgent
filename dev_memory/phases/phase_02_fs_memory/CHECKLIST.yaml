@@ -85,10 +85,19 @@ subtasks:
     commit_pending: false
     commit_hash: 33fa155
     commit_message: "phase_02_fs_memory: 2.3 implement checkpoint schema (REQUIREMENTS sections 3.3.4, 4.11.2)"
+    external_review_verdict: approve_with_minor_changes
+    external_reviewed_at: 2026-05-11T05:50:59Z
+    review_fix_status: done
+    review_fix_patch_file: dev_memory/phases/phase_02_fs_memory/patches/05_checkpoint_review_fixes.patch
+    review_fix_patch_generated: true
+    review_fix_ut_passed: true
+    review_fix_targeted_ut: "64 fs_memory passed; 26 workspace_lock passed, 1 skipped"
+    review_fix_full_ut: "222 passed, 0 failed, 1 skipped"
     files_modified:
       - src/agent/fs_memory.py
       - tests/test_fs_memory.py
       - src/agent/__init__.py
+      - src/agent/workspace_lock.py
   - id: "2.4"
     title: "Implement SoT discovery helpers for existing trials and startup validation inputs"
     status: todo

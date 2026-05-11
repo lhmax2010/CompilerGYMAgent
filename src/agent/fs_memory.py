@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import hashlib
+import math
 import tempfile
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -297,12 +298,19 @@ class CheckpointCurrentTrial(StrictFsModel):
 
 class CheckpointBest(StrictFsModel):
     trial_id: NonEmptyStr
-    score: float = Field(gt=0)
+    score: float
 
     @field_validator("trial_id")
     @classmethod
     def trial_id_must_be_file_safe(cls, value: str) -> str:
         _validate_file_atom(value, "current_best.trial_id")
+        return value
+
+    @field_validator("score")
+    @classmethod
+    def score_must_be_finite(cls, value: float) -> float:
+        if not math.isfinite(value):
+            raise ValueError("current_best.score must be finite")
         return value
 
 
@@ -321,6 +329,19 @@ class CheckpointState(StrictFsModel):
     @classmethod
     def namespace_must_be_safe(cls, value: str) -> str:
         _validate_namespace_string(value, "namespace")
+        return value
+
+    @field_validator("session_id", mode="before")
+    @classmethod
+    def session_id_must_not_be_trimmed(cls, value: Any) -> Any:
+        if isinstance(value, str) and value != value.strip():
+            raise ValueError("session_id cannot contain surrounding whitespace")
+        return value
+
+    @field_validator("session_id")
+    @classmethod
+    def session_id_must_be_safe(cls, value: str) -> str:
+        _validate_session_id_atom(value, "session_id")
         return value
 
     @field_validator("last_completed_trial")
@@ -788,3 +809,9 @@ def _validate_namespace_string(value: str, label: str) -> None:
         raise ValueError(f"{label} must contain exactly 5 path segments")
     for index, part in enumerate(parts, start=1):
         _validate_file_atom(part, f"{label} segment {index}")
+
+
+def _validate_session_id_atom(value: str, label: str) -> None:
+    _validate_file_atom(value, label)
+    if not all(char.isascii() and (char.isalnum() or char in "_-") for char in value):
+        raise ValueError(f"{label} can contain only ASCII letters, digits, '_' or '-'")

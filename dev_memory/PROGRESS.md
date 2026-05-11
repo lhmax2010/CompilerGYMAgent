@@ -448,3 +448,26 @@ Next action: generate Subtask 2.3 patch artifacts, commit/push, then prepare ext
   - `dev_memory/phases/phase_02_fs_memory/patches/04_checkpoint_schema.review.md`
 
 Next action: push Subtask 2.3 to GitHub, then prepare external review prompt.
+
+## 2026-05-11T05:50:59Z - Phase 02 / Subtask 2.3 external review fix started
+
+- External review verdict: Approve with minor changes.
+- Accepted immediate fixes:
+  - Allow `CheckpointBest.score` to be zero or negative while rejecting NaN/Inf.
+  - Constrain checkpoint and workspace lock `session_id` values to safe file atoms before Subtask 2.4 process-cleaner work consumes them.
+- Subtask 2.4 remains pending until these review fixes pass UT and are committed.
+
+Next action: implement Subtask 2.3 review fixes.
+
+## 2026-05-11T05:54:15Z - Phase 02 / Subtask 2.3 review fixes completed
+
+- Fixed M-1 by allowing `CheckpointBest.score` to be zero or negative while explicitly rejecting NaN and +/-Inf.
+- Fixed M-2 by constraining both `CheckpointState.session_id` and `WorkspaceLockHolder.session_id` to ASCII letters, digits, `_`, and `-`, with pre-strip rejection of surrounding whitespace.
+- Added checkpoint tests for zero/negative/non-finite scores and unsafe session IDs.
+- Added workspace lock tests for unsafe session IDs and verified invalid acquire attempts release the fd/lock state.
+- Targeted UT:
+  - `uv --native-tls run --extra dev pytest tests/test_fs_memory.py -v` -> 64 passed.
+  - `uv --native-tls run --extra dev pytest tests/test_workspace_lock.py -v` -> 26 passed, 1 skipped.
+- Full UT: `uv --native-tls run --extra dev pytest -v` -> 222 passed, 1 skipped.
+
+Next action: generate Subtask 2.3 review-fix patch artifacts, commit/push, then request external verification.

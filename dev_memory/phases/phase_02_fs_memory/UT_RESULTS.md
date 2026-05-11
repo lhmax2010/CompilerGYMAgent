@@ -216,3 +216,33 @@ Coverage notes:
 - Covers safe YAML loading with size cap, UTF-8 requirement, alias rejection, non-mapping rejection, missing-file errors, and hand-edited unquoted UTC timestamps.
 - Confirms checkpoint writes reuse shared `atomic_write_yaml`; no temporary files remain in the write round-trip test.
 - Windows full-suite skip is expected: `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter` requires Linux `fcntl`.
+
+## Subtask 2.3 - external review fixes
+
+- timestamp_utc: 2026-05-11T05:54:15Z
+- related_requirements:
+  - REQUIREMENTS.md section 4.11.2
+  - REQUIREMENTS.md section 4.15
+- targeted_commands:
+  - `uv --native-tls run --extra dev pytest tests/test_fs_memory.py -v`
+  - `uv --native-tls run --extra dev pytest tests/test_workspace_lock.py -v`
+- targeted_results:
+  - `tests/test_fs_memory.py`: 64 passed, 0 failed
+  - `tests/test_workspace_lock.py`: 26 passed, 0 failed, 1 skipped
+- full_command: `uv --native-tls run --extra dev pytest -v`
+- full_result: 222 passed, 0 failed, 1 skipped
+
+New and updated test coverage:
+- PASS `tests/test_fs_memory.py::test_checkpoint_best_accepts_zero_or_negative_score[0.0]`
+- PASS `tests/test_fs_memory.py::test_checkpoint_best_accepts_zero_or_negative_score[-3.14]`
+- PASS `tests/test_fs_memory.py::test_checkpoint_best_rejects_non_finite_score[nan]`
+- PASS `tests/test_fs_memory.py::test_checkpoint_best_rejects_non_finite_score[inf]`
+- PASS `tests/test_fs_memory.py::test_checkpoint_best_rejects_non_finite_score[-inf]`
+- PASS `tests/test_fs_memory.py::test_checkpoint_state_rejects_unsafe_session_id[...]`
+- PASS `tests/test_workspace_lock.py::test_acquire_rejects_unsafe_session_id[...]`
+
+Coverage notes:
+- Confirms checkpoint `current_best.score` supports lower-is-better or delta-style metrics that can be zero or negative while rejecting NaN/Inf.
+- Confirms checkpoint and workspace-lock session IDs reject surrounding whitespace, spaces, shell metacharacters, equals signs, path traversal, separators, and control characters.
+- Confirms invalid workspace lock acquire attempts close their fd and leave `is_held` false.
+- Windows full-suite skip remains expected for the Linux-only real `fcntl` regression.

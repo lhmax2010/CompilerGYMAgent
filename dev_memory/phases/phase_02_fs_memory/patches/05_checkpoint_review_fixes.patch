@@ -1,0 +1,383 @@
+﻿diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index 5da98bc..8cc9ef9 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -1,7 +1,7 @@
+ phase_id: phase_02_fs_memory
+ phase_title: "FS-Memory SoT + schema + atomic write"
+ started_at: 2026-05-08T07:04:04Z
+-last_updated: 2026-05-09T03:37:48Z
++last_updated: 2026-05-11T05:54:15Z
+ target_milestone: M1
+ related_requirements:
+   - REQUIREMENTS.md section 4.2
+@@ -105,6 +105,19 @@ subtasks:
+     patch_generated: true
+     commit_hash: 33fa155
+     commit_message: "phase_02_fs_memory: 2.3 implement checkpoint schema (REQUIREMENTS sections 3.3.4, 4.11.2)"
++    external_review_verdict: approve_with_minor_changes
++    external_reviewed_at: 2026-05-11T05:50:59Z
++    external_review_notes: "Claude independently verified 204/204 on Linux and requested fixes for CheckpointBest score bounds plus checkpoint/workspace-lock session_id safety."
++    review_fix_status: done
++    review_fix_patch_file: dev_memory/phases/phase_02_fs_memory/patches/05_checkpoint_review_fixes.patch
++    review_fix_patch_generated: true
++    review_fix_summary:
++      - "Allowed checkpoint current_best.score to be zero or negative while rejecting NaN/Inf."
++      - "Constrained CheckpointState.session_id and WorkspaceLockHolder.session_id to ASCII letters, digits, '_' and '-'."
++      - "Added checkpoint and workspace lock UT coverage for unsafe session_id values."
++    review_fix_ut_passed: true
++    review_fix_targeted_ut: "64 fs_memory passed; 26 workspace_lock passed, 1 skipped"
++    review_fix_full_ut: "222 passed, 0 failed, 1 skipped"
+   - id: "2.4"
+     title: "Implement SoT discovery helpers for existing trials and startup validation inputs"
+     status: todo
+@@ -117,4 +130,4 @@ notes: |
+   checkpoint.yaml, experience yaml, learned rule yaml) must reuse the same
+   flush/fsync/os.replace/parent-fsync semantics from REQUIREMENTS.md section
+   4.7.5.
+-next_action: "Push Subtask 2.3 implementation to GitHub, then prepare external review prompt."
++next_action: "Generate Subtask 2.3 review-fix patch artifacts, commit/push, then request external verification."
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index 3d3d641..7db7620 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -448,3 +448,26 @@ Next action: generate Subtask 2.3 patch artifacts, commit/push, then prepare ext
+   - `dev_memory/phases/phase_02_fs_memory/patches/04_checkpoint_schema.review.md`
+ 
+ Next action: push Subtask 2.3 to GitHub, then prepare external review prompt.
++
++## 2026-05-11T05:50:59Z - Phase 02 / Subtask 2.3 external review fix started
++
++- External review verdict: Approve with minor changes.
++- Accepted immediate fixes:
++  - Allow `CheckpointBest.score` to be zero or negative while rejecting NaN/Inf.
++  - Constrain checkpoint and workspace lock `session_id` values to safe file atoms before Subtask 2.4 process-cleaner work consumes them.
++- Subtask 2.4 remains pending until these review fixes pass UT and are committed.
++
++Next action: implement Subtask 2.3 review fixes.
++
++## 2026-05-11T05:54:15Z - Phase 02 / Subtask 2.3 review fixes completed
++
++- Fixed M-1 by allowing `CheckpointBest.score` to be zero or negative while explicitly rejecting NaN and +/-Inf.
++- Fixed M-2 by constraining both `CheckpointState.session_id` and `WorkspaceLockHolder.session_id` to ASCII letters, digits, `_`, and `-`, with pre-strip rejection of surrounding whitespace.
++- Added checkpoint tests for zero/negative/non-finite scores and unsafe session IDs.
++- Added workspace lock tests for unsafe session IDs and verified invalid acquire attempts release the fd/lock state.
++- Targeted UT:
++  - `uv --native-tls run --extra dev pytest tests/test_fs_memory.py -v` -> 64 passed.
++  - `uv --native-tls run --extra dev pytest tests/test_workspace_lock.py -v` -> 26 passed, 1 skipped.
++- Full UT: `uv --native-tls run --extra dev pytest -v` -> 222 passed, 1 skipped.
++
++Next action: generate Subtask 2.3 review-fix patch artifacts, commit/push, then request external verification.
+diff --git a/dev_memory/phases/phase_02_fs_memory/CHECKLIST.yaml b/dev_memory/phases/phase_02_fs_memory/CHECKLIST.yaml
+index 9c99503..4c38e4a 100644
+--- a/dev_memory/phases/phase_02_fs_memory/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_02_fs_memory/CHECKLIST.yaml
+@@ -85,10 +85,19 @@ subtasks:
+     commit_pending: false
+     commit_hash: 33fa155
+     commit_message: "phase_02_fs_memory: 2.3 implement checkpoint schema (REQUIREMENTS sections 3.3.4, 4.11.2)"
++    external_review_verdict: approve_with_minor_changes
++    external_reviewed_at: 2026-05-11T05:50:59Z
++    review_fix_status: done
++    review_fix_patch_file: dev_memory/phases/phase_02_fs_memory/patches/05_checkpoint_review_fixes.patch
++    review_fix_patch_generated: true
++    review_fix_ut_passed: true
++    review_fix_targeted_ut: "64 fs_memory passed; 26 workspace_lock passed, 1 skipped"
++    review_fix_full_ut: "222 passed, 0 failed, 1 skipped"
+     files_modified:
+       - src/agent/fs_memory.py
+       - tests/test_fs_memory.py
+       - src/agent/__init__.py
++      - src/agent/workspace_lock.py
+   - id: "2.4"
+     title: "Implement SoT discovery helpers for existing trials and startup validation inputs"
+     status: todo
+diff --git a/dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md b/dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md
+index 86170df..7c2d214 100644
+--- a/dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md
++++ b/dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md
+@@ -188,3 +188,32 @@ Deferred low-priority follow-ups:
+ 
+ Review conclusion:
+ - Subtask 2.3 is ready for external review.
++
++## Subtask 2.3 - external review and review fixes
++
++- timestamp_utc: 2026-05-11T05:54:15Z
++- reviewer: Claude
++- verdict: Approve with minor changes
++- files_reviewed:
++  - src/agent/fs_memory.py
++  - src/agent/workspace_lock.py
++  - tests/test_fs_memory.py
++  - tests/test_workspace_lock.py
++
++External findings addressed:
++- M-1: `CheckpointBest.score` used `Field(gt=0)`, which rejected valid zero or negative best scores.
++  - Fix: removed the positive bound and added finite-number validation to reject NaN/Inf.
++- M-2: `session_id` accepted control characters, shell metacharacters, and traversal-like values before process-cleaner work consumes `AGENT_SESSION_ID=...` markers.
++  - Fix: constrained both checkpoint and workspace lock session IDs to ASCII letters, digits, `_`, and `-`; added pre-strip whitespace rejection.
++
++Post-fix checklist:
++- [x] `current_best.score` accepts `0.0`.
++- [x] `current_best.score` accepts negative finite scores.
++- [x] `current_best.score` rejects NaN and +/-Inf.
++- [x] `CheckpointState.session_id` rejects unsafe values.
++- [x] `WorkspaceLockHolder.session_id` rejects unsafe values.
++- [x] Invalid `WorkspaceLock.acquire()` session IDs do not leave the lock held.
++- [x] Targeted and full UT suites pass.
++
++Review conclusion:
++- Subtask 2.3 review fixes are ready for external verification.
+diff --git a/dev_memory/phases/phase_02_fs_memory/SUMMARY.md b/dev_memory/phases/phase_02_fs_memory/SUMMARY.md
+index 836f8f6..526d410 100644
+--- a/dev_memory/phases/phase_02_fs_memory/SUMMARY.md
++++ b/dev_memory/phases/phase_02_fs_memory/SUMMARY.md
+@@ -20,6 +20,7 @@ Completed:
+ - Subtask 2.2 review-fix was validated by the user on the intended Ubuntu/Linux environment with Python 3.11.15: targeted FS-Memory pytest passed 27/27, full pytest passed 180/180, and a manual trial writer integrity/tmp-cleanup probe passed.
+ - Subtask 2.3 implemented `state/checkpoint.yaml` schema, canonical checkpoint read/write helpers, namespace-bound writes, alias-free bounded loading, active process identity checks, and public exports.
+ - Subtask 2.3 targeted UT passed 51/51 and full UT passed 203/204 with the expected Windows skip for the Linux-only real-fcntl workspace lock test.
++- Subtask 2.3 external review returned Approve with minor changes. Review fixes allowed zero/negative finite checkpoint best scores and tightened checkpoint/workspace-lock session IDs before Subtask 2.4 process-cleaner/discovery work.
+ 
+ Remaining:
+ - Subtask 2.4 SoT discovery helpers.
+diff --git a/dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md b/dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md
+index 878ec31..adc0053 100644
+--- a/dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md
++++ b/dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md
+@@ -216,3 +216,33 @@ Coverage notes:
+ - Covers safe YAML loading with size cap, UTF-8 requirement, alias rejection, non-mapping rejection, missing-file errors, and hand-edited unquoted UTC timestamps.
+ - Confirms checkpoint writes reuse shared `atomic_write_yaml`; no temporary files remain in the write round-trip test.
+ - Windows full-suite skip is expected: `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter` requires Linux `fcntl`.
++
++## Subtask 2.3 - external review fixes
++
++- timestamp_utc: 2026-05-11T05:54:15Z
++- related_requirements:
++  - REQUIREMENTS.md section 4.11.2
++  - REQUIREMENTS.md section 4.15
++- targeted_commands:
++  - `uv --native-tls run --extra dev pytest tests/test_fs_memory.py -v`
++  - `uv --native-tls run --extra dev pytest tests/test_workspace_lock.py -v`
++- targeted_results:
++  - `tests/test_fs_memory.py`: 64 passed, 0 failed
++  - `tests/test_workspace_lock.py`: 26 passed, 0 failed, 1 skipped
++- full_command: `uv --native-tls run --extra dev pytest -v`
++- full_result: 222 passed, 0 failed, 1 skipped
++
++New and updated test coverage:
++- PASS `tests/test_fs_memory.py::test_checkpoint_best_accepts_zero_or_negative_score[0.0]`
++- PASS `tests/test_fs_memory.py::test_checkpoint_best_accepts_zero_or_negative_score[-3.14]`
++- PASS `tests/test_fs_memory.py::test_checkpoint_best_rejects_non_finite_score[nan]`
++- PASS `tests/test_fs_memory.py::test_checkpoint_best_rejects_non_finite_score[inf]`
++- PASS `tests/test_fs_memory.py::test_checkpoint_best_rejects_non_finite_score[-inf]`
++- PASS `tests/test_fs_memory.py::test_checkpoint_state_rejects_unsafe_session_id[...]`
++- PASS `tests/test_workspace_lock.py::test_acquire_rejects_unsafe_session_id[...]`
++
++Coverage notes:
++- Confirms checkpoint `current_best.score` supports lower-is-better or delta-style metrics that can be zero or negative while rejecting NaN/Inf.
++- Confirms checkpoint and workspace-lock session IDs reject surrounding whitespace, spaces, shell metacharacters, equals signs, path traversal, separators, and control characters.
++- Confirms invalid workspace lock acquire attempts close their fd and leave `is_held` false.
++- Windows full-suite skip remains expected for the Linux-only real `fcntl` regression.
+diff --git a/src/agent/fs_memory.py b/src/agent/fs_memory.py
+index 32e60a1..03a81de 100644
+--- a/src/agent/fs_memory.py
++++ b/src/agent/fs_memory.py
+@@ -9,6 +9,7 @@ from __future__ import annotations
+ 
+ import os
+ import hashlib
++import math
+ import tempfile
+ from dataclasses import dataclass
+ from datetime import UTC, datetime, timedelta
+@@ -297,7 +298,7 @@ class CheckpointCurrentTrial(StrictFsModel):
+ 
+ class CheckpointBest(StrictFsModel):
+     trial_id: NonEmptyStr
+-    score: float = Field(gt=0)
++    score: float
+ 
+     @field_validator("trial_id")
+     @classmethod
+@@ -305,6 +306,13 @@ class CheckpointBest(StrictFsModel):
+         _validate_file_atom(value, "current_best.trial_id")
+         return value
+ 
++    @field_validator("score")
++    @classmethod
++    def score_must_be_finite(cls, value: float) -> float:
++        if not math.isfinite(value):
++            raise ValueError("current_best.score must be finite")
++        return value
++
+ 
+ class CheckpointState(StrictFsModel):
+     session_id: NonEmptyStr
+@@ -323,6 +331,19 @@ class CheckpointState(StrictFsModel):
+         _validate_namespace_string(value, "namespace")
+         return value
+ 
++    @field_validator("session_id", mode="before")
++    @classmethod
++    def session_id_must_not_be_trimmed(cls, value: Any) -> Any:
++        if isinstance(value, str) and value != value.strip():
++            raise ValueError("session_id cannot contain surrounding whitespace")
++        return value
++
++    @field_validator("session_id")
++    @classmethod
++    def session_id_must_be_safe(cls, value: str) -> str:
++        _validate_session_id_atom(value, "session_id")
++        return value
++
+     @field_validator("last_completed_trial")
+     @classmethod
+     def last_completed_trial_must_be_file_safe(cls, value: str | None) -> str | None:
+@@ -788,3 +809,9 @@ def _validate_namespace_string(value: str, label: str) -> None:
+         raise ValueError(f"{label} must contain exactly 5 path segments")
+     for index, part in enumerate(parts, start=1):
+         _validate_file_atom(part, f"{label} segment {index}")
++
++
++def _validate_session_id_atom(value: str, label: str) -> None:
++    _validate_file_atom(value, label)
++    if not all(char.isascii() and (char.isalnum() or char in "_-") for char in value):
++        raise ValueError(f"{label} can contain only ASCII letters, digits, '_' or '-'")
+diff --git a/src/agent/workspace_lock.py b/src/agent/workspace_lock.py
+index 9745161..ee059d6 100644
+--- a/src/agent/workspace_lock.py
++++ b/src/agent/workspace_lock.py
+@@ -91,6 +91,19 @@ class WorkspaceLockHolder(StrictLockModel):
+     hostname: NonEmptyStr
+     agent_version: NonEmptyStr
+ 
++    @field_validator("session_id", mode="before")
++    @classmethod
++    def session_id_must_not_be_trimmed(cls, value: Any) -> Any:
++        if isinstance(value, str) and value != value.strip():
++            raise ValueError("session_id cannot contain surrounding whitespace")
++        return value
++
++    @field_validator("session_id")
++    @classmethod
++    def session_id_must_be_safe(cls, value: str) -> str:
++        _validate_session_id_atom(value, "session_id")
++        return value
++
+     @field_validator("started_at", mode="before")
+     @classmethod
+     def started_at_datetime_to_string(cls, value: Any) -> Any:
+@@ -361,6 +374,21 @@ def _agent_version() -> str:
+         return "0.1.0"
+ 
+ 
++def _validate_session_id_atom(value: str, label: str) -> None:
++    if not value:
++        raise ValueError(f"{label} cannot be empty")
++    if value != value.strip():
++        raise ValueError(f"{label} cannot contain surrounding whitespace")
++    if value in {".", ".."}:
++        raise ValueError(f"{label} cannot be {value!r}")
++    if "/" in value or "\\" in value:
++        raise ValueError(f"{label} cannot contain path separators")
++    if any(ord(char) < 0x20 or ord(char) == 0x7F for char in value):
++        raise ValueError(f"{label} cannot contain control characters")
++    if not all(char.isascii() and (char.isalnum() or char in "_-") for char in value):
++        raise ValueError(f"{label} can contain only ASCII letters, digits, '_' or '-'")
++
++
+ def _fsync_parent_dir(path: Path) -> None:
+     flags = getattr(os, "O_DIRECTORY", None)
+     if flags is None:
+diff --git a/tests/test_fs_memory.py b/tests/test_fs_memory.py
+index 4b8584b..50a72c4 100644
+--- a/tests/test_fs_memory.py
++++ b/tests/test_fs_memory.py
+@@ -462,6 +462,26 @@ def test_checkpoint_state_schema_accepts_documented_running_state() -> None:
+     assert checkpoint.current_best.score == 1.231
+ 
+ 
++@pytest.mark.parametrize("score", [0.0, -3.14])
++def test_checkpoint_best_accepts_zero_or_negative_score(score: float) -> None:
++    data = checkpoint_data()
++    data["current_best"]["score"] = score
++
++    checkpoint = CheckpointState.model_validate(data)
++
++    assert checkpoint.current_best is not None
++    assert checkpoint.current_best.score == score
++
++
++@pytest.mark.parametrize("score", [float("nan"), float("inf"), float("-inf")])
++def test_checkpoint_best_rejects_non_finite_score(score: float) -> None:
++    data = checkpoint_data()
++    data["current_best"]["score"] = score
++
++    with pytest.raises(ValidationError, match="score must be finite"):
++        CheckpointState.model_validate(data)
++
++
+ def test_checkpoint_state_rejects_invalid_stage() -> None:
+     data = checkpoint_data()
+     data["current_trial"]["current_stage"] = "finished"
+@@ -470,6 +490,28 @@ def test_checkpoint_state_rejects_invalid_stage() -> None:
+         CheckpointState.model_validate(data)
+ 
+ 
++@pytest.mark.parametrize(
++    "session_id",
++    [
++        " sess_abc",
++        "sess abc",
++        "sess\nabc",
++        "sess=abc",
++        "sess$(rm-rf)",
++        "../../etc",
++        ".",
++        "..",
++    ],
++)
++def test_checkpoint_state_rejects_unsafe_session_id(session_id: str) -> None:
++    data = checkpoint_data()
++    data["session_id"] = session_id
++    data["current_trial"]["process"]["session_marker"] = f"AGENT_SESSION_ID={session_id}"
++
++    with pytest.raises(ValidationError, match="session_id"):
++        CheckpointState.model_validate(data)
++
++
+ @pytest.mark.parametrize(
+     "timestamp",
+     [
+diff --git a/tests/test_workspace_lock.py b/tests/test_workspace_lock.py
+index 34cbf77..c503d6b 100644
+--- a/tests/test_workspace_lock.py
++++ b/tests/test_workspace_lock.py
+@@ -431,6 +431,26 @@ def test_acquire_rejects_empty_command_or_session(tmp_path: Path) -> None:
+         make_lock(tmp_path).acquire("agent run", "")
+ 
+ 
++@pytest.mark.parametrize(
++    "session_id",
++    [
++        " sess_abc",
++        "sess abc",
++        "sess\nabc",
++        "sess=abc",
++        "sess$(rm-rf)",
++        "../../etc",
++    ],
++)
++def test_acquire_rejects_unsafe_session_id(tmp_path: Path, session_id: str) -> None:
++    lock = make_lock(tmp_path)
++
++    with pytest.raises(ValueError, match="session_id"):
++        lock.acquire("agent run", session_id)
++
++    assert lock.is_held is False
++
++
+ def test_acquire_rejects_negative_timeout(tmp_path: Path) -> None:
+     with pytest.raises(ValueError, match="timeout"):
+         make_lock(tmp_path).acquire("agent run", "sess", timeout=-1)

@@ -20,6 +20,7 @@ Completed:
 - Subtask 2.2 review-fix was validated by the user on the intended Ubuntu/Linux environment with Python 3.11.15: targeted FS-Memory pytest passed 27/27, full pytest passed 180/180, and a manual trial writer integrity/tmp-cleanup probe passed.
 - Subtask 2.3 implemented `state/checkpoint.yaml` schema, canonical checkpoint read/write helpers, namespace-bound writes, alias-free bounded loading, active process identity checks, and public exports.
 - Subtask 2.3 targeted UT passed 51/51 and full UT passed 203/204 with the expected Windows skip for the Linux-only real-fcntl workspace lock test.
+- Subtask 2.3 external review returned Approve with minor changes. Review fixes allowed zero/negative finite checkpoint best scores and tightened checkpoint/workspace-lock session IDs before Subtask 2.4 process-cleaner/discovery work.
 
 Remaining:
 - Subtask 2.4 SoT discovery helpers.
