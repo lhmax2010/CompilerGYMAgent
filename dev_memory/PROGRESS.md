@@ -599,3 +599,14 @@ Next action: push Subtask 2.5 to GitHub, then request external review.
   - Document derivative index rebuild lock semantics: correctness versus efficiency.
 
 Next action: run Ubuntu validation for Subtask 2.5, then proceed to Subtask 2.6.
+
+## 2026-05-11T12:52:06Z - Phase 02 / Subtask 2.5 Ubuntu validation completed
+
+- User validated Subtask 2.5 on the intended Ubuntu/Linux environment.
+- Environment: Ubuntu/Linux, Python 3.11.15, `.venv`, plain `pytest`.
+- Full command: `pytest -v` -> 249 passed in 1.00s.
+- Linux real-fcntl workspace lock regression executed and passed:
+  `pytest tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter -v` -> 1 passed in 0.09s.
+- Manual probe note: the first guide sample omitted the required `score.vs_best` block and failed TrialRecord schema validation. This was a guide/sample issue, not an implementation failure.
+
+Next action: start Subtask 2.6.

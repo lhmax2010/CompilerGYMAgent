@@ -373,3 +373,15 @@ Low/Info follow-ups:
 
 Review conclusion:
 - Subtask 2.5 is approved. Proceed to Ubuntu validation, then Subtask 2.6.
+
+## Subtask 2.5 - Ubuntu validation
+
+- timestamp_utc: 2026-05-11T12:52:06Z
+- reporter: user on target Ubuntu server
+- environment: Ubuntu/Linux, Python 3.11.15, `.venv`
+- full_pytest: 249 passed in 1.00s
+- linux_fcntl_test: `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter PASSED` in 0.09s
+- manual_probe_note: Initial guide sample was incomplete (`score.vs_best` missing) and was rejected by schema validation; this was not an implementation failure.
+
+Conclusion:
+- Subtask 2.5 is externally approved and validated on Ubuntu. Proceed to Subtask 2.6.

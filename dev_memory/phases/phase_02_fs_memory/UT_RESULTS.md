@@ -420,3 +420,27 @@ Verification notes:
 - Confirmed existing usable indexes are preserved when discovery or SQLite population fails.
 - Confirmed schema metadata and trial row projection cover the documented trial fields needed by later query paths.
 - Independent probes found only Low/Info edge contracts around schema-bump auto-rebuild, stale SQLite sidecars, duplicate opens, target symlink behavior, per-row `source_mtime_ns`, and WorkspaceLock wording.
+
+## Subtask 2.5 - Ubuntu target-environment validation
+
+- timestamp_utc: 2026-05-11T12:52:06Z
+- environment:
+  - os: Ubuntu/Linux
+  - python: 3.11.15
+  - virtualenv: `.venv`
+  - runner: plain `pytest` via `venv + pip`, no `uv` required
+- related_requirements:
+  - REQUIREMENTS.md section 4.2.4
+  - REQUIREMENTS.md section 4.2.6
+- full_command: `pytest -v`
+- full_duration: 1.00s
+- full_result: 249 passed, 0 failed
+- linux_fcntl_command: `pytest tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter -v`
+- linux_fcntl_result: 1 passed in 0.09s
+- manual_probe_note: Initial guide sample omitted required `score.vs_best`; TrialRecord schema correctly rejected it, so no implementation failure was recorded.
+
+Coverage notes:
+- Confirms the Subtask 2.5 suite passes on the intended Ubuntu environment.
+- Confirms the Linux-only real `fcntl` workspace lock regression test executes and passes.
+- Confirms all trial index rebuild UTs pass inside the full suite on Linux.
+- reported_by: user on intended Ubuntu server environment

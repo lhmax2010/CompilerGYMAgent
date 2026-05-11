@@ -162,6 +162,12 @@ subtasks:
     external_review_verdict: approve
     external_reviewed_at: 2026-05-11T12:25:19Z
     external_review_tests: "249 passed, 0 failed"
+    target_environment_validation:
+      os: Ubuntu/Linux
+      python: 3.11.15
+      full_pytest: "249 passed in 1.00s"
+      linux_fcntl_test: "tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter PASSED in 0.09s"
+      manual_probe: "Initial probe failed because the guide sample omitted score.vs_best; not an implementation failure."
     files_modified:
       - src/agent/fs_memory.py
       - tests/test_fs_memory.py
