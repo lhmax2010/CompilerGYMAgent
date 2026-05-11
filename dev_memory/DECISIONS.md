@@ -349,3 +349,15 @@ Decision records must include:
   - Update the SQLite index in place, which risks leaving a partially rebuilt cache after a crash or validation failure.
   - Make `write_trial_record` incrementally update the index, which would couple immutable SoT writes to derived cache mutation and complicate failure recovery.
   - Treat a missing or stale index as harmless at read time only, which would defer startup's required reindex/fail-fast behavior.
+
+## 2026-05-11T13:00:06Z - Exclude learned rule user-editable fields from local integrity hashes
+
+- affected_requirement:
+  - REQUIREMENTS.md section 4.2.6
+  - REQUIREMENTS.md section 4.7.5
+- decision: Learned rule payload hashes are computed from strict `LearnedRule` schema dumps with `integrity`, `user_validated`, and `user_notes` removed. `write_learned_rule()` writes through shared `atomic_write_yaml` and refuses existing paths to avoid clobbering user edits.
+- rationale: Section 4.2.6 explicitly makes learned rules user-readable and user-editable while preserving integrity for agent-owned fields. Excluding only the documented user-editable fields lets users annotate or validate rules without breaking integrity, while changes to rule semantics, scope, evidence, or action hints remain tamper-detectable.
+- alternatives_considered:
+  - Hash every field except `integrity`, which would make harmless user notes require an integrity-accept flow immediately.
+  - Exclude the whole `evidence` or `scope` blocks, which would make meaningful rule drift invisible to doctor/integrity checks.
+  - Allow `write_learned_rule()` to overwrite existing files, which could silently discard user notes or validation state.

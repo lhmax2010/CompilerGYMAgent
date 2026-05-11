@@ -1,0 +1,817 @@
+﻿diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index 598a26b..510ed20 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -1,7 +1,7 @@
+ phase_id: phase_02_fs_memory
+ phase_title: "FS-Memory SoT + schema + atomic write"
+ started_at: 2026-05-08T07:04:04Z
+-last_updated: 2026-05-11T12:52:06Z
++last_updated: 2026-05-11T13:00:06Z
+ target_milestone: M1
+ related_requirements:
+   - REQUIREMENTS.md section 4.2
+@@ -211,10 +211,34 @@ subtasks:
+       linux_fcntl_test: "tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter PASSED in 0.09s"
+       manual_probe: "Initial manual probe used an incomplete sample record missing score.vs_best and failed schema validation; full Linux suite and real-fcntl regression passed."
+       runner: "venv + pip + pytest; uv not required"
++  - id: "2.6"
++    title: "Implement LearnedRule schema, integrity hash, and atomic learned rule writer"
++    status: done
++    related_requirements:
++      - REQUIREMENTS.md section 4.2.6
++      - REQUIREMENTS.md section 4.7.5
++    files_modified:
++      - src/agent/fs_memory.py
++      - tests/test_fs_memory.py
++      - src/agent/__init__.py
++    started_at: 2026-05-11T12:54:18Z
++    completed_at: 2026-05-11T13:00:06Z
++    ut_passed: true
++    targeted_ut: "101 passed, 0 failed"
++    full_ut: "259 passed, 0 failed, 1 skipped"
++    self_reviewed: true
++    patch_file: dev_memory/phases/phase_02_fs_memory/patches/08_learned_rule_writer.patch
++    patch_generated: true
++    manual_probe:
++      path: "learned/rules/rule_017.yaml"
++      integrity_hash_fields_excluded: "[integrity, user_validated, user_notes]"
++      verify_initial: true
++      user_notes_edit_loads: true
++      tamper_detected: true
+ notes: |
+   Phase 01 is complete and validated on Ubuntu. Phase 02 starts with the
+   shared atomic YAML writer because every later SoT writer (trial yaml,
+   checkpoint.yaml, experience yaml, learned rule yaml) must reuse the same
+   flush/fsync/os.replace/parent-fsync semantics from REQUIREMENTS.md section
+   4.7.5.
+-next_action: "Start Subtask 2.6."
++next_action: "Commit and push Subtask 2.6, then request external review."
+diff --git a/dev_memory/DECISIONS.md b/dev_memory/DECISIONS.md
+index 56b13fa..b68d649 100644
+--- a/dev_memory/DECISIONS.md
++++ b/dev_memory/DECISIONS.md
+@@ -349,3 +349,15 @@ Decision records must include:
+   - Update the SQLite index in place, which risks leaving a partially rebuilt cache after a crash or validation failure.
+   - Make `write_trial_record` incrementally update the index, which would couple immutable SoT writes to derived cache mutation and complicate failure recovery.
+   - Treat a missing or stale index as harmless at read time only, which would defer startup's required reindex/fail-fast behavior.
++
++## 2026-05-11T13:00:06Z - Exclude learned rule user-editable fields from local integrity hashes
++
++- affected_requirement:
++  - REQUIREMENTS.md section 4.2.6
++  - REQUIREMENTS.md section 4.7.5
++- decision: Learned rule payload hashes are computed from strict `LearnedRule` schema dumps with `integrity`, `user_validated`, and `user_notes` removed. `write_learned_rule()` writes through shared `atomic_write_yaml` and refuses existing paths to avoid clobbering user edits.
++- rationale: Section 4.2.6 explicitly makes learned rules user-readable and user-editable while preserving integrity for agent-owned fields. Excluding only the documented user-editable fields lets users annotate or validate rules without breaking integrity, while changes to rule semantics, scope, evidence, or action hints remain tamper-detectable.
++- alternatives_considered:
++  - Hash every field except `integrity`, which would make harmless user notes require an integrity-accept flow immediately.
++  - Exclude the whole `evidence` or `scope` blocks, which would make meaningful rule drift invisible to doctor/integrity checks.
++  - Allow `write_learned_rule()` to overwrite existing files, which could silently discard user notes or validation state.
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index bc4422a..4975699 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -610,3 +610,24 @@ Next action: run Ubuntu validation for Subtask 2.5, then proceed to Subtask 2.6.
+ - Manual probe note: the first guide sample omitted the required `score.vs_best` block and failed TrialRecord schema validation. This was a guide/sample issue, not an implementation failure.
+ 
+ Next action: start Subtask 2.6.
++
++## 2026-05-11T12:54:18Z - Phase 02 / Subtask 2.6 started
++
++- Started LearnedRule YAML schema and writer.
++- Requirements in scope: REQUIREMENTS.md sections 4.2.6 and 4.7.5.
++- Scope: model `learned/rules/*.yaml`, compute integrity while excluding user-editable fields (`integrity`, `user_validated`, `user_notes`), load with bounded alias-free YAML validation, and write through shared `atomic_write_yaml`.
++- Planned files: `src/agent/fs_memory.py`, `tests/test_fs_memory.py`, and public exports in `src/agent/__init__.py`.
++
++Next action: implement learned rule integrity helpers, loader, writer, and UT coverage.
++
++## 2026-05-11T13:00:06Z - Phase 02 / Subtask 2.6 implemented
++
++- Implemented `LearnedRule` schema models for `learned/rules/*.yaml`, including scope, evidence, user-editable fields, and integrity metadata.
++- Added learned-rule integrity helpers that hash canonical YAML while excluding `integrity`, `user_validated`, and `user_notes`.
++- Added `write_learned_rule`, `load_learned_rule`, `learned_rule_path`, payload helpers, public exports, and alias-free bounded YAML loading.
++- Added UT coverage for schema acceptance, path-safe IDs, evidence consistency, user-editable integrity exclusions, missing/tampered integrity, alias rejection, atomic write round-trip, and no-overwrite behavior.
++- Targeted UT: `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -v` -> 101 passed.
++- Full UT: `.venv\Scripts\python.exe -m pytest -v` -> 259 passed, 0 failed, 1 skipped.
++- Manual probe confirmed learned rule path, excluded fields, initial integrity verification, user_notes edit load success, and tamper detection.
++
++Next action: generate patch artifacts, commit/push, then request external review.
+diff --git a/dev_memory/phases/phase_02_fs_memory/CHECKLIST.yaml b/dev_memory/phases/phase_02_fs_memory/CHECKLIST.yaml
+index d4e753b..ead1186 100644
+--- a/dev_memory/phases/phase_02_fs_memory/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_02_fs_memory/CHECKLIST.yaml
+@@ -172,3 +172,24 @@ subtasks:
+       - src/agent/fs_memory.py
+       - tests/test_fs_memory.py
+       - src/agent/__init__.py
++  - id: "2.6"
++    title: "Implement LearnedRule schema, integrity hash, and atomic learned rule writer"
++    status: done
++    related_requirements:
++      - REQUIREMENTS.md section 4.2.6
++      - REQUIREMENTS.md section 4.7.5
++    ut_required: true
++    ut_passed: true
++    targeted_ut: "101 passed, 0 failed"
++    full_ut: "259 passed, 0 failed, 1 skipped"
++    self_review_required: true
++    self_reviewed: true
++    patch_required: true
++    patch_file: dev_memory/phases/phase_02_fs_memory/patches/08_learned_rule_writer.patch
++    patch_generated: true
++    commit_required: true
++    commit_pending: true
++    files_modified:
++      - src/agent/fs_memory.py
++      - tests/test_fs_memory.py
++      - src/agent/__init__.py
+diff --git a/dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md b/dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md
+index b45afe3..635f58e 100644
+--- a/dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md
++++ b/dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md
+@@ -385,3 +385,35 @@ Review conclusion:
+ 
+ Conclusion:
+ - Subtask 2.5 is externally approved and validated on Ubuntu. Proceed to Subtask 2.6.
++
++## Subtask 2.6 - LearnedRule YAML schema and writer
++
++- timestamp_utc: 2026-05-11T13:00:06Z
++- files_reviewed:
++  - src/agent/fs_memory.py
++  - src/agent/__init__.py
++  - tests/test_fs_memory.py
++
++Review checklist:
++- [x] `LearnedRule` covers the documented learned/rule fields from REQUIREMENTS.md section 4.2.6.
++- [x] `LearnedRuleIntegrity.hash_fields_excluded` is fixed to `[integrity, user_validated, user_notes]`.
++- [x] Learned rule payload hash excludes only the integrity block and documented user-editable fields.
++- [x] User edits to `user_validated` and `user_notes` do not invalidate integrity.
++- [x] Semantic edits to fields like `description` or `action_hint` are detected by integrity verification.
++- [x] `write_learned_rule` writes through shared `atomic_write_yaml` and refuses existing paths.
++- [x] `load_learned_rule` rejects missing, empty, non-mapping, alias-bearing, non-UTF-8, oversized, schema-invalid, missing-integrity, and tampered YAML.
++- [x] Public exports in `src/agent/__init__.py` include the learned rule models, errors, and helpers.
++- [x] Targeted and full UT suites pass.
++
++Findings:
++- No blocking issues found.
++- `LearnedRuleScope` is intentionally narrower than future experience scope metadata; it models the documented learned-rule fields and can be expanded when later workflow code produces more scope dimensions.
++- `write_learned_rule` refuses overwrite to protect user edits; future `agent integrity accept` can own explicit rewrite/accept flows.
++
++Deferred low-priority follow-ups:
++- Add learned-rule discovery/scanning helpers when doctor/integrity-check flows need to scan all rules.
++- Decide whether `evidence_count` must equal `supporting_trials` length forever or should become `>=` if future non-trial evidence types are added.
++- Consider extracting common integrity helper patterns once experience YAML and import local_integrity are implemented.
++
++Review conclusion:
++- Subtask 2.6 is ready for external review.
+diff --git a/dev_memory/phases/phase_02_fs_memory/SUMMARY.md b/dev_memory/phases/phase_02_fs_memory/SUMMARY.md
+index 132e07f..8ef2e0f 100644
+--- a/dev_memory/phases/phase_02_fs_memory/SUMMARY.md
++++ b/dev_memory/phases/phase_02_fs_memory/SUMMARY.md
+@@ -30,4 +30,4 @@ Completed:
+ - Subtask 2.5 was validated by the user on Ubuntu/Linux with Python 3.11.15: full pytest passed 249/249 and the Linux real-fcntl test executed and passed.
+ 
+ Remaining:
+-- Subtask 2.6.
++- Subtask 2.6 implemented LearnedRule YAML schema, integrity helpers, atomic writer/loader, public exports, and UT coverage. Commit and external review remain.
+diff --git a/dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md b/dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md
+index e1c8b8f..9c98be8 100644
+--- a/dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md
++++ b/dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md
+@@ -444,3 +444,41 @@ Coverage notes:
+ - Confirms the Linux-only real `fcntl` workspace lock regression test executes and passes.
+ - Confirms all trial index rebuild UTs pass inside the full suite on Linux.
+ - reported_by: user on intended Ubuntu server environment
++
++## Subtask 2.6 - LearnedRule YAML schema and writer
++
++- timestamp_utc: 2026-05-11T13:00:06Z
++- related_requirements:
++  - REQUIREMENTS.md section 4.2.6
++  - REQUIREMENTS.md section 4.7.5
++- targeted_command: `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -v`
++- targeted_result: 101 passed, 0 failed
++- full_command: `.venv\Scripts\python.exe -m pytest -v`
++- full_result: 259 passed, 0 failed, 1 skipped
++- compile_check: `.venv\Scripts\python.exe -m compileall src\agent` passed
++- manual_probe:
++  - path: `learned/rules/rule_017.yaml`
++  - integrity_hash_fields_excluded: `[integrity, user_validated, user_notes]`
++  - verify_initial: true
++  - user_notes_edit_loads: true
++  - tamper_detected: true
++
++New learned rule test coverage:
++- PASS `tests/test_fs_memory.py::test_learned_rule_schema_accepts_documented_rule`
++- PASS `tests/test_fs_memory.py::test_with_learned_rule_integrity_adds_hash_and_verifies`
++- PASS `tests/test_fs_memory.py::test_learned_rule_hash_excludes_user_editable_fields`
++- PASS `tests/test_fs_memory.py::test_learned_rule_rejects_invalid_identity_fields`
++- PASS `tests/test_fs_memory.py::test_learned_rule_rejects_evidence_count_mismatch`
++- PASS `tests/test_fs_memory.py::test_write_learned_rule_writes_atomic_yaml_without_overwrite`
++- PASS `tests/test_fs_memory.py::test_load_learned_rule_round_trips_and_allows_user_notes_edit`
++- PASS `tests/test_fs_memory.py::test_load_learned_rule_rejects_missing_integrity`
++- PASS `tests/test_fs_memory.py::test_load_learned_rule_rejects_integrity_tampering`
++- PASS `tests/test_fs_memory.py::test_load_learned_rule_rejects_invalid_yaml`
++- PASS `tests/test_fs_memory.py::test_learned_rule_path_uses_rule_id`
++
++Coverage notes:
++- Covers `learned/rules/*.yaml` as user-readable SoT.
++- Covers integrity exclusion of `integrity`, `user_validated`, and `user_notes` while detecting semantic payload tampering.
++- Covers atomic writer reuse and refusal to overwrite existing learned rule files.
++- Covers bounded alias-free UTF-8 YAML loading through the learned rule loader.
++- Windows full-suite skip is expected: `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter` requires Linux `fcntl`.
+diff --git a/src/agent/__init__.py b/src/agent/__init__.py
+index 18c53fe..e13d85e 100644
+--- a/src/agent/__init__.py
++++ b/src/agent/__init__.py
+@@ -12,6 +12,14 @@ from .fs_memory import (
+     CheckpointState,
+     DiscoveredTrialRecord,
+     FsMemoryError,
++    LearnedRule,
++    LearnedRuleError,
++    LearnedRuleEvidence,
++    LearnedRuleExistsError,
++    LearnedRuleIntegrity,
++    LearnedRuleIntegrityError,
++    LearnedRuleLoadError,
++    LearnedRuleScope,
+     NamespaceLayout,
+     ScoreVsBest,
+     SourceTreeChange,
+@@ -32,14 +40,18 @@ from .fs_memory import (
+     checkpoint_payload,
+     collect_trial_startup_validation_inputs,
+     compute_combo_hash,
++    compute_learned_rule_payload_hash,
+     compute_payload_hash,
+     compute_trial_payload_hash,
+     discover_trial_records,
+     existing_trial_compiler_versions,
+     ensure_trial_index_current,
+     iter_trial_record_paths,
++    learned_rule_path,
++    learned_rule_payload,
+     load_checkpoint_for_layout,
+     load_checkpoint_state,
++    load_learned_rule,
+     load_trial_index_rows,
+     load_trial_index_summary,
+     load_trial_record,
+@@ -47,11 +59,14 @@ from .fs_memory import (
+     namespace_layout_for_config,
+     rebuild_trial_index,
+     trial_index_is_stale,
++    verify_learned_rule_integrity,
+     trial_record_path,
+     trial_record_payload,
+     verify_trial_integrity,
++    with_learned_rule_integrity,
+     with_trial_integrity,
+     write_checkpoint_state,
++    write_learned_rule,
+     write_trial_record,
+ )
+ from .init import (
+@@ -116,6 +131,14 @@ __all__ = [
+     "InitializedLoadError",
+     "InitializedState",
+     "InitResult",
++    "LearnedRule",
++    "LearnedRuleError",
++    "LearnedRuleEvidence",
++    "LearnedRuleExistsError",
++    "LearnedRuleIntegrity",
++    "LearnedRuleIntegrityError",
++    "LearnedRuleLoadError",
++    "LearnedRuleScope",
+     "LockReadResult",
+     "ModulesRegistry",
+     "NamespaceMismatchError",
+@@ -149,6 +172,7 @@ __all__ = [
+     "collect_history_summary",
+     "collect_trial_startup_validation_inputs",
+     "compute_combo_hash",
++    "compute_learned_rule_payload_hash",
+     "compute_payload_hash",
+     "compute_project_namespace",
+     "compute_trial_payload_hash",
+@@ -156,10 +180,13 @@ __all__ = [
+     "existing_trial_compiler_versions",
+     "ensure_trial_index_current",
+     "iter_trial_record_paths",
++    "learned_rule_path",
++    "learned_rule_payload",
+     "load_config",
+     "load_checkpoint_for_layout",
+     "load_checkpoint_state",
+     "load_initialized_state",
++    "load_learned_rule",
+     "load_modules_registry",
+     "load_trial_index_rows",
+     "load_trial_index_summary",
+@@ -179,9 +206,12 @@ __all__ = [
+     "trial_record_payload",
+     "validate_project_against_registry",
+     "verify_initialized_for_startup",
++    "verify_learned_rule_integrity",
+     "verify_trial_integrity",
++    "with_learned_rule_integrity",
+     "with_trial_integrity",
+     "write_checkpoint_state",
+     "write_initialized_state",
++    "write_learned_rule",
+     "write_trial_record",
+ ]
+diff --git a/src/agent/fs_memory.py b/src/agent/fs_memory.py
+index 32d3a7b..703f3df 100644
+--- a/src/agent/fs_memory.py
++++ b/src/agent/fs_memory.py
+@@ -56,6 +56,22 @@ class TrialIndexError(TrialRecordError):
+     """Raised when the rebuildable trial SQLite index cannot be used."""
+ 
+ 
++class LearnedRuleError(FsMemoryError):
++    """Raised when learned rule data is invalid for FS-Memory use."""
++
++
++class LearnedRuleExistsError(LearnedRuleError):
++    """Raised when a learned rule YAML path already exists."""
++
++
++class LearnedRuleIntegrityError(LearnedRuleError):
++    """Raised when learned rule integrity data is missing or invalid."""
++
++
++class LearnedRuleLoadError(LearnedRuleError):
++    """Raised when learned rule YAML cannot be parsed or validated."""
++
++
+ class CheckpointError(FsMemoryError):
+     """Raised when checkpoint state is invalid for FS-Memory use."""
+ 
+@@ -93,10 +109,21 @@ class TrialYamlLoader(yaml.SafeLoader):
+         return super().compose_node(parent, index)
+ 
+ 
++class LearnedRuleYamlLoader(yaml.SafeLoader):
++    """Safe loader for user-readable learned rule YAML."""
++
++    def compose_node(self, parent: Any, index: Any) -> yaml.Node:
++        if self.check_event(yaml.AliasEvent):
++            raise yaml.YAMLError("YAML aliases are not allowed in learned rules")
++        return super().compose_node(parent, index)
++
++
+ MAX_TRIAL_RECORD_BYTES = 1_048_576
+ MAX_CHECKPOINT_BYTES = 1_048_576
++MAX_LEARNED_RULE_BYTES = 1_048_576
+ TRIAL_INDEX_SCHEMA_VERSION = 1
+ TRIAL_HASH_FIELDS_EXCLUDED = ("integrity",)
++LEARNED_RULE_HASH_FIELDS_EXCLUDED = ("integrity", "user_validated", "user_notes")
+ TrialMode = Literal["exploit", "explore", "warmup", "canary", "mixed"]
+ CandidateSource = Literal["llm_proposal", "local_mutation", "weighted_random", "ablation"]
+ ScheduleSlot = Literal["exploit", "mutation", "novelty", "warmup", "canary"]
+@@ -148,6 +175,32 @@ class TrialIntegrity(StrictFsModel):
+         return value
+ 
+ 
++class LearnedRuleIntegrity(StrictFsModel):
++    payload_hash: NonEmptyStr
++    hash_fields_excluded: list[NonEmptyStr] = Field(
++        default_factory=lambda: list(LEARNED_RULE_HASH_FIELDS_EXCLUDED)
++    )
++
++    @field_validator("payload_hash")
++    @classmethod
++    def payload_hash_must_be_sha256(cls, value: str) -> str:
++        _validate_sha256_digest(value, "integrity.payload_hash")
++        return value
++
++    @field_validator("hash_fields_excluded")
++    @classmethod
++    def excluded_fields_must_match_learned_rule_contract(
++        cls,
++        value: list[str],
++    ) -> list[str]:
++        if value != list(LEARNED_RULE_HASH_FIELDS_EXCLUDED):
++            raise ValueError(
++                "learned rule integrity must exclude exactly "
++                "['integrity', 'user_validated', 'user_notes']"
++            )
++        return value
++
++
+ class SourceTreeChange(StrictFsModel):
+     file: NonEmptyStr
+     action: NonEmptyStr
+@@ -257,6 +310,70 @@ class TrialRecord(StrictFsModel):
+         return self
+ 
+ 
++class LearnedRuleScope(StrictFsModel):
++    framework: NonEmptyStr | None = None
++    module: NonEmptyStr | None = None
++    options_involved: list[NonEmptyStr] = Field(default_factory=list)
++    context_hint: NonEmptyStr | None = None
++
++
++class LearnedRuleEvidence(StrictFsModel):
++    supporting_trials: list[NonEmptyStr] = Field(default_factory=list)
++    evidence_count: int = Field(ge=0)
++    confidence: float = Field(ge=0, le=1)
++
++    @field_validator("supporting_trials")
++    @classmethod
++    def supporting_trials_must_be_file_safe(cls, value: list[str]) -> list[str]:
++        for trial_id in value:
++            _validate_file_atom(trial_id, "evidence.supporting_trials")
++        return value
++
++
++class LearnedRule(StrictFsModel):
++    rule_id: NonEmptyStr
++    created_at: NonEmptyStr
++    created_by: NonEmptyStr
++    rule_type: NonEmptyStr
++    description: NonEmptyStr
++    scope: LearnedRuleScope
++    evidence: LearnedRuleEvidence
++    action_hint: NonEmptyStr
++    user_validated: bool = False
++    user_notes: str = ""
++    integrity: LearnedRuleIntegrity | None = None
++
++    @field_validator("rule_id", mode="before")
++    @classmethod
++    def rule_id_must_not_be_trimmed(cls, value: Any) -> Any:
++        if isinstance(value, str) and value != value.strip():
++            raise ValueError("rule_id cannot contain surrounding whitespace")
++        return value
++
++    @field_validator("rule_id")
++    @classmethod
++    def rule_id_must_be_file_safe(cls, value: str) -> str:
++        _validate_file_atom(value, "rule_id")
++        return value
++
++    @field_validator("created_at", mode="before")
++    @classmethod
++    def created_at_datetime_to_string(cls, value: Any) -> Any:
++        return _datetime_to_utc_isoformat(value, "created_at")
++
++    @field_validator("created_at")
++    @classmethod
++    def created_at_must_be_utc_isoformat(cls, value: str) -> str:
++        _parse_utc_isoformat(value, "created_at")
++        return value
++
++    @model_validator(mode="after")
++    def evidence_count_must_match_supporting_trials(self) -> LearnedRule:
++        if self.evidence.evidence_count != len(self.evidence.supporting_trials):
++            raise ValueError("evidence_count must match supporting_trials length")
++        return self
++
++
+ class CheckpointProcess(StrictFsModel):
+     pid: int = Field(gt=0)
+     pgid: int = Field(gt=0)
+@@ -647,6 +764,51 @@ def verify_trial_integrity(record: TrialRecord | Mapping[str, Any]) -> bool:
+     return trial.integrity.payload_hash == compute_trial_payload_hash(trial)
+ 
+ 
++def compute_learned_rule_payload_hash(rule: LearnedRule | Mapping[str, Any]) -> str:
++    learned_rule = LearnedRule.model_validate(rule)
++    payload = learned_rule_payload(learned_rule, include_integrity=False)
++    return compute_payload_hash(payload, excluded_fields=LEARNED_RULE_HASH_FIELDS_EXCLUDED)
++
++
++def learned_rule_payload(
++    rule: LearnedRule | Mapping[str, Any],
++    *,
++    include_integrity: bool = True,
++) -> dict[str, Any]:
++    learned_rule = LearnedRule.model_validate(rule)
++    payload = learned_rule.model_dump(mode="json", exclude_none=True)
++    if not include_integrity:
++        payload.pop("integrity", None)
++    return payload
++
++
++def with_learned_rule_integrity(rule: LearnedRule | Mapping[str, Any]) -> LearnedRule:
++    learned_rule = LearnedRule.model_validate(rule)
++    payload = learned_rule_payload(learned_rule, include_integrity=False)
++    payload["integrity"] = {
++        "payload_hash": compute_payload_hash(
++            payload,
++            excluded_fields=LEARNED_RULE_HASH_FIELDS_EXCLUDED,
++        ),
++        "hash_fields_excluded": list(LEARNED_RULE_HASH_FIELDS_EXCLUDED),
++    }
++    return LearnedRule.model_validate(payload)
++
++
++def verify_learned_rule_integrity(rule: LearnedRule | Mapping[str, Any]) -> bool:
++    learned_rule = LearnedRule.model_validate(rule)
++    if learned_rule.integrity is None:
++        return False
++    return learned_rule.integrity.payload_hash == compute_learned_rule_payload_hash(
++        learned_rule
++    )
++
++
++def learned_rule_path(layout: NamespaceLayout, rule: LearnedRule | Mapping[str, Any]) -> Path:
++    learned_rule = LearnedRule.model_validate(rule)
++    return layout.learned_rules_dir / f"{learned_rule.rule_id}.yaml"
++
++
+ def trial_record_path(layout: NamespaceLayout, record: TrialRecord | Mapping[str, Any]) -> Path:
+     trial = TrialRecord.model_validate(record)
+     timestamp = _parse_utc_isoformat(trial.timestamp, "timestamp")
+@@ -683,6 +845,25 @@ def write_trial_record(
+     return target
+ 
+ 
++def write_learned_rule(
++    layout: NamespaceLayout,
++    rule: LearnedRule | Mapping[str, Any],
++) -> Path:
++    """Write one learned rule YAML.
++
++    Callers must hold the workspace lock before invoking this function. The
++    helper refuses existing paths to avoid clobbering user edits to learned
++    rule files.
++    """
++
++    learned_rule = with_learned_rule_integrity(rule)
++    target = learned_rule_path(layout, learned_rule)
++    if target.exists() or target.is_symlink():
++        raise LearnedRuleExistsError(f"learned rule already exists: {target}")
++    atomic_write_yaml(learned_rule_payload(learned_rule), target)
++    return target
++
++
+ def load_trial_record(path: str | Path) -> TrialRecord:
+     """Load one immutable trial YAML and verify its integrity block."""
+ 
+@@ -737,6 +918,59 @@ def load_trial_record_for_layout(layout: NamespaceLayout, path: str | Path) -> T
+     return trial
+ 
+ 
++def load_learned_rule(path: str | Path) -> LearnedRule:
++    """Load one learned rule YAML and verify its integrity block."""
++
++    rule_path = Path(path)
++    if rule_path.is_symlink():
++        raise LearnedRuleLoadError(f"learned rule path must not be a symlink: {rule_path}")
++    try:
++        file_size = rule_path.stat().st_size
++    except FileNotFoundError as exc:
++        raise LearnedRuleLoadError(f"learned rule file not found: {rule_path}") from exc
++    if file_size > MAX_LEARNED_RULE_BYTES:
++        raise LearnedRuleLoadError(
++            f"learned rule file {rule_path} is too large "
++            f"({file_size} bytes > {MAX_LEARNED_RULE_BYTES} bytes)"
++        )
++
++    try:
++        raw_text = rule_path.read_text(encoding="utf-8")
++    except UnicodeDecodeError as exc:
++        raise LearnedRuleLoadError(f"learned rule file {rule_path} is not valid UTF-8") from exc
++
++    try:
++        data = yaml.load(raw_text, Loader=LearnedRuleYamlLoader)
++    except yaml.YAMLError as exc:
++        raise LearnedRuleLoadError(
++            f"learned rule file {rule_path} failed to parse YAML: {exc}"
++        ) from exc
++
++    if not data:
++        raise LearnedRuleLoadError(f"learned rule file {rule_path} is empty")
++    if not isinstance(data, Mapping):
++        raise LearnedRuleLoadError(
++            f"learned rule file {rule_path} must contain a YAML mapping"
++        )
++
++    try:
++        learned_rule = LearnedRule.model_validate(data)
++    except ValidationError as exc:
++        raise LearnedRuleLoadError(
++            f"learned rule file {rule_path} is invalid:\n{exc}"
++        ) from exc
++
++    if learned_rule.integrity is None:
++        raise LearnedRuleIntegrityError(
++            f"learned rule file {rule_path} is missing integrity"
++        )
++    if not verify_learned_rule_integrity(learned_rule):
++        raise LearnedRuleIntegrityError(
++            f"learned rule file {rule_path} failed integrity check"
++        )
++    return learned_rule
++
++
+ def iter_trial_record_paths(layout: NamespaceLayout) -> tuple[Path, ...]:
+     """Return canonical trial YAML paths under `trials/data`, sorted by path."""
+ 
+diff --git a/tests/test_fs_memory.py b/tests/test_fs_memory.py
+index 78a9d71..5a296ea 100644
+--- a/tests/test_fs_memory.py
++++ b/tests/test_fs_memory.py
+@@ -15,6 +15,10 @@ from agent.fs_memory import (
+     CheckpointError,
+     CheckpointLoadError,
+     CheckpointState,
++    LearnedRule,
++    LearnedRuleExistsError,
++    LearnedRuleIntegrityError,
++    LearnedRuleLoadError,
+     NamespaceLayout,
+     TrialDiscoveryError,
+     TrialImmutableError,
+@@ -27,14 +31,18 @@ from agent.fs_memory import (
+     checkpoint_payload,
+     collect_trial_startup_validation_inputs,
+     compute_combo_hash,
++    compute_learned_rule_payload_hash,
+     compute_payload_hash,
+     compute_trial_payload_hash,
+     discover_trial_records,
+     ensure_trial_index_current,
+     existing_trial_compiler_versions,
+     iter_trial_record_paths,
++    learned_rule_path,
++    learned_rule_payload,
+     load_checkpoint_for_layout,
+     load_checkpoint_state,
++    load_learned_rule,
+     load_trial_index_rows,
+     load_trial_index_summary,
+     load_trial_record,
+@@ -44,9 +52,12 @@ from agent.fs_memory import (
+     trial_index_is_stale,
+     trial_record_path,
+     trial_record_payload,
++    verify_learned_rule_integrity,
+     verify_trial_integrity,
++    with_learned_rule_integrity,
+     with_trial_integrity,
+     write_checkpoint_state,
++    write_learned_rule,
+     write_trial_record,
+ )
+ from agent.registry import ProjectNamespace
+@@ -129,6 +140,28 @@ def trial_record_data() -> dict:
+     }
+ 
+ 
++def learned_rule_data() -> dict:
++    return {
++        "rule_id": "rule_017",
++        "created_at": "2026-04-30T11:00:00Z",
++        "created_by": "agent_auto",
++        "rule_type": "interaction",
++        "description": "In ffmpeg decoder, -funroll-loops with -O3 lowers score.",
++        "scope": {
++            "framework": "ffmpeg",
++            "options_involved": ["-funroll-loops", "-O3"],
++        },
++        "evidence": {
++            "supporting_trials": ["r5_t2", "r8_t1", "r11_t3"],
++            "evidence_count": 3,
++            "confidence": 0.78,
++        },
++        "action_hint": "avoid_combination",
++        "user_validated": False,
++        "user_notes": "",
++    }
++
++
+ def checkpoint_data() -> dict:
+     return {
+         "session_id": "sess_20260430_abc",
+@@ -771,6 +804,123 @@ def test_load_trial_index_summary_rejects_missing_or_bad_schema(tmp_path: Path)
+         load_trial_index_summary(layout)
+ 
+ 
++def test_learned_rule_schema_accepts_documented_rule() -> None:
++    rule = LearnedRule.model_validate(learned_rule_data())
++
++    assert rule.rule_id == "rule_017"
++    assert rule.scope.options_involved == ["-funroll-loops", "-O3"]
++    assert rule.evidence.evidence_count == 3
++    assert rule.integrity is None
++
++
++def test_with_learned_rule_integrity_adds_hash_and_verifies() -> None:
++    rule = with_learned_rule_integrity(learned_rule_data())
++
++    assert rule.integrity is not None
++    assert rule.integrity.payload_hash.startswith("sha256:")
++    assert rule.integrity.hash_fields_excluded == [
++        "integrity",
++        "user_validated",
++        "user_notes",
++    ]
++    assert verify_learned_rule_integrity(rule) is True
++    assert compute_learned_rule_payload_hash(rule) == rule.integrity.payload_hash
++
++
++def test_learned_rule_hash_excludes_user_editable_fields() -> None:
++    rule = with_learned_rule_integrity(learned_rule_data())
++    payload = learned_rule_payload(rule)
++    payload["user_validated"] = True
++    payload["user_notes"] = "User accepted this after manual review."
++
++    assert verify_learned_rule_integrity(payload) is True
++
++    payload["description"] = "Tampered non-user-editable description."
++    assert verify_learned_rule_integrity(payload) is False
++
++
++def test_learned_rule_rejects_invalid_identity_fields() -> None:
++    data = learned_rule_data()
++    data["rule_id"] = "../rule_017"
++
++    with pytest.raises(ValidationError, match="path separators"):
++        LearnedRule.model_validate(data)
++
++
++def test_learned_rule_rejects_evidence_count_mismatch() -> None:
++    data = learned_rule_data()
++    data["evidence"]["evidence_count"] = 2
++
++    with pytest.raises(ValidationError, match="evidence_count"):
++        LearnedRule.model_validate(data)
++
++
++def test_write_learned_rule_writes_atomic_yaml_without_overwrite(tmp_path: Path) -> None:
++    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
++
++    path = write_learned_rule(layout, learned_rule_data())
++    stored = yaml.safe_load(path.read_text(encoding="utf-8"))
++
++    assert path == layout.learned_rules_dir / "rule_017.yaml"
++    assert stored["integrity"]["hash_fields_excluded"] == [
++        "integrity",
++        "user_validated",
++        "user_notes",
++    ]
++    assert verify_learned_rule_integrity(stored) is True
++    assert list(path.parent.glob("*.tmp")) == []
++    with pytest.raises(LearnedRuleExistsError, match="already exists"):
++        write_learned_rule(layout, learned_rule_data())
++
++
++def test_load_learned_rule_round_trips_and_allows_user_notes_edit(tmp_path: Path) -> None:
++    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
++    path = write_learned_rule(layout, learned_rule_data())
++    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
++    payload["user_notes"] = "Reviewed by a human."
++    atomic_write_yaml(payload, path)
++
++    loaded = load_learned_rule(path)
++
++    assert loaded.rule_id == "rule_017"
++    assert loaded.user_notes == "Reviewed by a human."
++    assert verify_learned_rule_integrity(loaded) is True
++
++
++def test_load_learned_rule_rejects_missing_integrity(tmp_path: Path) -> None:
++    path = tmp_path / "rule_017.yaml"
++    atomic_write_yaml(learned_rule_payload(learned_rule_data(), include_integrity=False), path)
++
++    with pytest.raises(LearnedRuleIntegrityError, match="missing integrity"):
++        load_learned_rule(path)
++
++
++def test_load_learned_rule_rejects_integrity_tampering(tmp_path: Path) -> None:
++    path = tmp_path / "rule_017.yaml"
++    rule = with_learned_rule_integrity(learned_rule_data())
++    payload = learned_rule_payload(rule)
++    payload["action_hint"] = "try_anyway"
++    atomic_write_yaml(payload, path)
++
++    with pytest.raises(LearnedRuleIntegrityError, match="integrity"):
++        load_learned_rule(path)
++
++
++def test_load_learned_rule_rejects_invalid_yaml(tmp_path: Path) -> None:
++    path = tmp_path / "rule_017.yaml"
++    path.write_text("anchors: &anchor value\nalias: *anchor\n", encoding="utf-8")
++
++    with pytest.raises(LearnedRuleLoadError, match="aliases"):
++        load_learned_rule(path)
++
++
++def test_learned_rule_path_uses_rule_id(tmp_path: Path) -> None:
++    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
++    rule = with_learned_rule_integrity(learned_rule_data())
++
++    assert learned_rule_path(layout, rule) == layout.learned_rules_dir / "rule_017.yaml"
++
++
+ def test_checkpoint_state_schema_accepts_documented_running_state() -> None:
+     checkpoint = CheckpointState.model_validate(checkpoint_data())
+ 

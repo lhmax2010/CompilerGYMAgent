@@ -385,3 +385,35 @@ Review conclusion:
 
 Conclusion:
 - Subtask 2.5 is externally approved and validated on Ubuntu. Proceed to Subtask 2.6.
+
+## Subtask 2.6 - LearnedRule YAML schema and writer
+
+- timestamp_utc: 2026-05-11T13:00:06Z
+- files_reviewed:
+  - src/agent/fs_memory.py
+  - src/agent/__init__.py
+  - tests/test_fs_memory.py
+
+Review checklist:
+- [x] `LearnedRule` covers the documented learned/rule fields from REQUIREMENTS.md section 4.2.6.
+- [x] `LearnedRuleIntegrity.hash_fields_excluded` is fixed to `[integrity, user_validated, user_notes]`.
+- [x] Learned rule payload hash excludes only the integrity block and documented user-editable fields.
+- [x] User edits to `user_validated` and `user_notes` do not invalidate integrity.
+- [x] Semantic edits to fields like `description` or `action_hint` are detected by integrity verification.
+- [x] `write_learned_rule` writes through shared `atomic_write_yaml` and refuses existing paths.
+- [x] `load_learned_rule` rejects missing, empty, non-mapping, alias-bearing, non-UTF-8, oversized, schema-invalid, missing-integrity, and tampered YAML.
+- [x] Public exports in `src/agent/__init__.py` include the learned rule models, errors, and helpers.
+- [x] Targeted and full UT suites pass.
+
+Findings:
+- No blocking issues found.
+- `LearnedRuleScope` is intentionally narrower than future experience scope metadata; it models the documented learned-rule fields and can be expanded when later workflow code produces more scope dimensions.
+- `write_learned_rule` refuses overwrite to protect user edits; future `agent integrity accept` can own explicit rewrite/accept flows.
+
+Deferred low-priority follow-ups:
+- Add learned-rule discovery/scanning helpers when doctor/integrity-check flows need to scan all rules.
+- Decide whether `evidence_count` must equal `supporting_trials` length forever or should become `>=` if future non-trial evidence types are added.
+- Consider extracting common integrity helper patterns once experience YAML and import local_integrity are implemented.
+
+Review conclusion:
+- Subtask 2.6 is ready for external review.

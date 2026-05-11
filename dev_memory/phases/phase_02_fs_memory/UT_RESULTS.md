@@ -444,3 +444,41 @@ Coverage notes:
 - Confirms the Linux-only real `fcntl` workspace lock regression test executes and passes.
 - Confirms all trial index rebuild UTs pass inside the full suite on Linux.
 - reported_by: user on intended Ubuntu server environment
+
+## Subtask 2.6 - LearnedRule YAML schema and writer
+
+- timestamp_utc: 2026-05-11T13:00:06Z
+- related_requirements:
+  - REQUIREMENTS.md section 4.2.6
+  - REQUIREMENTS.md section 4.7.5
+- targeted_command: `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -v`
+- targeted_result: 101 passed, 0 failed
+- full_command: `.venv\Scripts\python.exe -m pytest -v`
+- full_result: 259 passed, 0 failed, 1 skipped
+- compile_check: `.venv\Scripts\python.exe -m compileall src\agent` passed
+- manual_probe:
+  - path: `learned/rules/rule_017.yaml`
+  - integrity_hash_fields_excluded: `[integrity, user_validated, user_notes]`
+  - verify_initial: true
+  - user_notes_edit_loads: true
+  - tamper_detected: true
+
+New learned rule test coverage:
+- PASS `tests/test_fs_memory.py::test_learned_rule_schema_accepts_documented_rule`
+- PASS `tests/test_fs_memory.py::test_with_learned_rule_integrity_adds_hash_and_verifies`
+- PASS `tests/test_fs_memory.py::test_learned_rule_hash_excludes_user_editable_fields`
+- PASS `tests/test_fs_memory.py::test_learned_rule_rejects_invalid_identity_fields`
+- PASS `tests/test_fs_memory.py::test_learned_rule_rejects_evidence_count_mismatch`
+- PASS `tests/test_fs_memory.py::test_write_learned_rule_writes_atomic_yaml_without_overwrite`
+- PASS `tests/test_fs_memory.py::test_load_learned_rule_round_trips_and_allows_user_notes_edit`
+- PASS `tests/test_fs_memory.py::test_load_learned_rule_rejects_missing_integrity`
+- PASS `tests/test_fs_memory.py::test_load_learned_rule_rejects_integrity_tampering`
+- PASS `tests/test_fs_memory.py::test_load_learned_rule_rejects_invalid_yaml`
+- PASS `tests/test_fs_memory.py::test_learned_rule_path_uses_rule_id`
+
+Coverage notes:
+- Covers `learned/rules/*.yaml` as user-readable SoT.
+- Covers integrity exclusion of `integrity`, `user_validated`, and `user_notes` while detecting semantic payload tampering.
+- Covers atomic writer reuse and refusal to overwrite existing learned rule files.
+- Covers bounded alias-free UTF-8 YAML loading through the learned rule loader.
+- Windows full-suite skip is expected: `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter` requires Linux `fcntl`.

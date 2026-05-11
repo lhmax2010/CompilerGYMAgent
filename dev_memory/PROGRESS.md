@@ -610,3 +610,24 @@ Next action: run Ubuntu validation for Subtask 2.5, then proceed to Subtask 2.6.
 - Manual probe note: the first guide sample omitted the required `score.vs_best` block and failed TrialRecord schema validation. This was a guide/sample issue, not an implementation failure.
 
 Next action: start Subtask 2.6.
+
+## 2026-05-11T12:54:18Z - Phase 02 / Subtask 2.6 started
+
+- Started LearnedRule YAML schema and writer.
+- Requirements in scope: REQUIREMENTS.md sections 4.2.6 and 4.7.5.
+- Scope: model `learned/rules/*.yaml`, compute integrity while excluding user-editable fields (`integrity`, `user_validated`, `user_notes`), load with bounded alias-free YAML validation, and write through shared `atomic_write_yaml`.
+- Planned files: `src/agent/fs_memory.py`, `tests/test_fs_memory.py`, and public exports in `src/agent/__init__.py`.
+
+Next action: implement learned rule integrity helpers, loader, writer, and UT coverage.
+
+## 2026-05-11T13:00:06Z - Phase 02 / Subtask 2.6 implemented
+
+- Implemented `LearnedRule` schema models for `learned/rules/*.yaml`, including scope, evidence, user-editable fields, and integrity metadata.
+- Added learned-rule integrity helpers that hash canonical YAML while excluding `integrity`, `user_validated`, and `user_notes`.
+- Added `write_learned_rule`, `load_learned_rule`, `learned_rule_path`, payload helpers, public exports, and alias-free bounded YAML loading.
+- Added UT coverage for schema acceptance, path-safe IDs, evidence consistency, user-editable integrity exclusions, missing/tampered integrity, alias rejection, atomic write round-trip, and no-overwrite behavior.
+- Targeted UT: `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -v` -> 101 passed.
+- Full UT: `.venv\Scripts\python.exe -m pytest -v` -> 259 passed, 0 failed, 1 skipped.
+- Manual probe confirmed learned rule path, excluded fields, initial integrity verification, user_notes edit load success, and tamper detection.
+
+Next action: generate patch artifacts, commit/push, then request external review.

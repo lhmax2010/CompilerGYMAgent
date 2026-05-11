@@ -15,6 +15,10 @@ from agent.fs_memory import (
     CheckpointError,
     CheckpointLoadError,
     CheckpointState,
+    LearnedRule,
+    LearnedRuleExistsError,
+    LearnedRuleIntegrityError,
+    LearnedRuleLoadError,
     NamespaceLayout,
     TrialDiscoveryError,
     TrialImmutableError,
@@ -27,14 +31,18 @@ from agent.fs_memory import (
     checkpoint_payload,
     collect_trial_startup_validation_inputs,
     compute_combo_hash,
+    compute_learned_rule_payload_hash,
     compute_payload_hash,
     compute_trial_payload_hash,
     discover_trial_records,
     ensure_trial_index_current,
     existing_trial_compiler_versions,
     iter_trial_record_paths,
+    learned_rule_path,
+    learned_rule_payload,
     load_checkpoint_for_layout,
     load_checkpoint_state,
+    load_learned_rule,
     load_trial_index_rows,
     load_trial_index_summary,
     load_trial_record,
@@ -44,9 +52,12 @@ from agent.fs_memory import (
     trial_index_is_stale,
     trial_record_path,
     trial_record_payload,
+    verify_learned_rule_integrity,
     verify_trial_integrity,
+    with_learned_rule_integrity,
     with_trial_integrity,
     write_checkpoint_state,
+    write_learned_rule,
     write_trial_record,
 )
 from agent.registry import ProjectNamespace
@@ -126,6 +137,28 @@ def trial_record_data() -> dict:
         "agent_reasoning": "Started from the previous best and added -fno-plt.",
         "trace_id": "events.jsonl#L12345",
         "kg_version_used": "v3",
+    }
+
+
+def learned_rule_data() -> dict:
+    return {
+        "rule_id": "rule_017",
+        "created_at": "2026-04-30T11:00:00Z",
+        "created_by": "agent_auto",
+        "rule_type": "interaction",
+        "description": "In ffmpeg decoder, -funroll-loops with -O3 lowers score.",
+        "scope": {
+            "framework": "ffmpeg",
+            "options_involved": ["-funroll-loops", "-O3"],
+        },
+        "evidence": {
+            "supporting_trials": ["r5_t2", "r8_t1", "r11_t3"],
+            "evidence_count": 3,
+            "confidence": 0.78,
+        },
+        "action_hint": "avoid_combination",
+        "user_validated": False,
+        "user_notes": "",
     }
 
 
@@ -769,6 +802,123 @@ def test_load_trial_index_summary_rejects_missing_or_bad_schema(tmp_path: Path) 
 
     with pytest.raises(TrialIndexError, match="schema version"):
         load_trial_index_summary(layout)
+
+
+def test_learned_rule_schema_accepts_documented_rule() -> None:
+    rule = LearnedRule.model_validate(learned_rule_data())
+
+    assert rule.rule_id == "rule_017"
+    assert rule.scope.options_involved == ["-funroll-loops", "-O3"]
+    assert rule.evidence.evidence_count == 3
+    assert rule.integrity is None
+
+
+def test_with_learned_rule_integrity_adds_hash_and_verifies() -> None:
+    rule = with_learned_rule_integrity(learned_rule_data())
+
+    assert rule.integrity is not None
+    assert rule.integrity.payload_hash.startswith("sha256:")
+    assert rule.integrity.hash_fields_excluded == [
+        "integrity",
+        "user_validated",
+        "user_notes",
+    ]
+    assert verify_learned_rule_integrity(rule) is True
+    assert compute_learned_rule_payload_hash(rule) == rule.integrity.payload_hash
+
+
+def test_learned_rule_hash_excludes_user_editable_fields() -> None:
+    rule = with_learned_rule_integrity(learned_rule_data())
+    payload = learned_rule_payload(rule)
+    payload["user_validated"] = True
+    payload["user_notes"] = "User accepted this after manual review."
+
+    assert verify_learned_rule_integrity(payload) is True
+
+    payload["description"] = "Tampered non-user-editable description."
+    assert verify_learned_rule_integrity(payload) is False
+
+
+def test_learned_rule_rejects_invalid_identity_fields() -> None:
+    data = learned_rule_data()
+    data["rule_id"] = "../rule_017"
+
+    with pytest.raises(ValidationError, match="path separators"):
+        LearnedRule.model_validate(data)
+
+
+def test_learned_rule_rejects_evidence_count_mismatch() -> None:
+    data = learned_rule_data()
+    data["evidence"]["evidence_count"] = 2
+
+    with pytest.raises(ValidationError, match="evidence_count"):
+        LearnedRule.model_validate(data)
+
+
+def test_write_learned_rule_writes_atomic_yaml_without_overwrite(tmp_path: Path) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+
+    path = write_learned_rule(layout, learned_rule_data())
+    stored = yaml.safe_load(path.read_text(encoding="utf-8"))
+
+    assert path == layout.learned_rules_dir / "rule_017.yaml"
+    assert stored["integrity"]["hash_fields_excluded"] == [
+        "integrity",
+        "user_validated",
+        "user_notes",
+    ]
+    assert verify_learned_rule_integrity(stored) is True
+    assert list(path.parent.glob("*.tmp")) == []
+    with pytest.raises(LearnedRuleExistsError, match="already exists"):
+        write_learned_rule(layout, learned_rule_data())
+
+
+def test_load_learned_rule_round_trips_and_allows_user_notes_edit(tmp_path: Path) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+    path = write_learned_rule(layout, learned_rule_data())
+    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    payload["user_notes"] = "Reviewed by a human."
+    atomic_write_yaml(payload, path)
+
+    loaded = load_learned_rule(path)
+
+    assert loaded.rule_id == "rule_017"
+    assert loaded.user_notes == "Reviewed by a human."
+    assert verify_learned_rule_integrity(loaded) is True
+
+
+def test_load_learned_rule_rejects_missing_integrity(tmp_path: Path) -> None:
+    path = tmp_path / "rule_017.yaml"
+    atomic_write_yaml(learned_rule_payload(learned_rule_data(), include_integrity=False), path)
+
+    with pytest.raises(LearnedRuleIntegrityError, match="missing integrity"):
+        load_learned_rule(path)
+
+
+def test_load_learned_rule_rejects_integrity_tampering(tmp_path: Path) -> None:
+    path = tmp_path / "rule_017.yaml"
+    rule = with_learned_rule_integrity(learned_rule_data())
+    payload = learned_rule_payload(rule)
+    payload["action_hint"] = "try_anyway"
+    atomic_write_yaml(payload, path)
+
+    with pytest.raises(LearnedRuleIntegrityError, match="integrity"):
+        load_learned_rule(path)
+
+
+def test_load_learned_rule_rejects_invalid_yaml(tmp_path: Path) -> None:
+    path = tmp_path / "rule_017.yaml"
+    path.write_text("anchors: &anchor value\nalias: *anchor\n", encoding="utf-8")
+
+    with pytest.raises(LearnedRuleLoadError, match="aliases"):
+        load_learned_rule(path)
+
+
+def test_learned_rule_path_uses_rule_id(tmp_path: Path) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+    rule = with_learned_rule_integrity(learned_rule_data())
+
+    assert learned_rule_path(layout, rule) == layout.learned_rules_dir / "rule_017.yaml"
 
 
 def test_checkpoint_state_schema_accepts_documented_running_state() -> None:

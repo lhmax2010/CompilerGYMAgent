@@ -1,7 +1,7 @@
 phase_id: phase_02_fs_memory
 phase_title: "FS-Memory SoT + schema + atomic write"
 started_at: 2026-05-08T07:04:04Z
-last_updated: 2026-05-11T12:52:06Z
+last_updated: 2026-05-11T13:00:06Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 4.2
@@ -211,10 +211,34 @@ subtasks:
       linux_fcntl_test: "tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter PASSED in 0.09s"
       manual_probe: "Initial manual probe used an incomplete sample record missing score.vs_best and failed schema validation; full Linux suite and real-fcntl regression passed."
       runner: "venv + pip + pytest; uv not required"
+  - id: "2.6"
+    title: "Implement LearnedRule schema, integrity hash, and atomic learned rule writer"
+    status: done
+    related_requirements:
+      - REQUIREMENTS.md section 4.2.6
+      - REQUIREMENTS.md section 4.7.5
+    files_modified:
+      - src/agent/fs_memory.py
+      - tests/test_fs_memory.py
+      - src/agent/__init__.py
+    started_at: 2026-05-11T12:54:18Z
+    completed_at: 2026-05-11T13:00:06Z
+    ut_passed: true
+    targeted_ut: "101 passed, 0 failed"
+    full_ut: "259 passed, 0 failed, 1 skipped"
+    self_reviewed: true
+    patch_file: dev_memory/phases/phase_02_fs_memory/patches/08_learned_rule_writer.patch
+    patch_generated: true
+    manual_probe:
+      path: "learned/rules/rule_017.yaml"
+      integrity_hash_fields_excluded: "[integrity, user_validated, user_notes]"
+      verify_initial: true
+      user_notes_edit_loads: true
+      tamper_detected: true
 notes: |
   Phase 01 is complete and validated on Ubuntu. Phase 02 starts with the
   shared atomic YAML writer because every later SoT writer (trial yaml,
   checkpoint.yaml, experience yaml, learned rule yaml) must reuse the same
   flush/fsync/os.replace/parent-fsync semantics from REQUIREMENTS.md section
   4.7.5.
-next_action: "Start Subtask 2.6."
+next_action: "Commit and push Subtask 2.6, then request external review."

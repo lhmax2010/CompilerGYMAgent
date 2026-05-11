@@ -56,6 +56,22 @@ class TrialIndexError(TrialRecordError):
     """Raised when the rebuildable trial SQLite index cannot be used."""
 
 
+class LearnedRuleError(FsMemoryError):
+    """Raised when learned rule data is invalid for FS-Memory use."""
+
+
+class LearnedRuleExistsError(LearnedRuleError):
+    """Raised when a learned rule YAML path already exists."""
+
+
+class LearnedRuleIntegrityError(LearnedRuleError):
+    """Raised when learned rule integrity data is missing or invalid."""
+
+
+class LearnedRuleLoadError(LearnedRuleError):
+    """Raised when learned rule YAML cannot be parsed or validated."""
+
+
 class CheckpointError(FsMemoryError):
     """Raised when checkpoint state is invalid for FS-Memory use."""
 
@@ -93,10 +109,21 @@ class TrialYamlLoader(yaml.SafeLoader):
         return super().compose_node(parent, index)
 
 
+class LearnedRuleYamlLoader(yaml.SafeLoader):
+    """Safe loader for user-readable learned rule YAML."""
+
+    def compose_node(self, parent: Any, index: Any) -> yaml.Node:
+        if self.check_event(yaml.AliasEvent):
+            raise yaml.YAMLError("YAML aliases are not allowed in learned rules")
+        return super().compose_node(parent, index)
+
+
 MAX_TRIAL_RECORD_BYTES = 1_048_576
 MAX_CHECKPOINT_BYTES = 1_048_576
+MAX_LEARNED_RULE_BYTES = 1_048_576
 TRIAL_INDEX_SCHEMA_VERSION = 1
 TRIAL_HASH_FIELDS_EXCLUDED = ("integrity",)
+LEARNED_RULE_HASH_FIELDS_EXCLUDED = ("integrity", "user_validated", "user_notes")
 TrialMode = Literal["exploit", "explore", "warmup", "canary", "mixed"]
 CandidateSource = Literal["llm_proposal", "local_mutation", "weighted_random", "ablation"]
 ScheduleSlot = Literal["exploit", "mutation", "novelty", "warmup", "canary"]
@@ -145,6 +172,32 @@ class TrialIntegrity(StrictFsModel):
     def excluded_fields_must_match_trial_contract(cls, value: list[str]) -> list[str]:
         if value != list(TRIAL_HASH_FIELDS_EXCLUDED):
             raise ValueError("trial integrity must exclude exactly ['integrity']")
+        return value
+
+
+class LearnedRuleIntegrity(StrictFsModel):
+    payload_hash: NonEmptyStr
+    hash_fields_excluded: list[NonEmptyStr] = Field(
+        default_factory=lambda: list(LEARNED_RULE_HASH_FIELDS_EXCLUDED)
+    )
+
+    @field_validator("payload_hash")
+    @classmethod
+    def payload_hash_must_be_sha256(cls, value: str) -> str:
+        _validate_sha256_digest(value, "integrity.payload_hash")
+        return value
+
+    @field_validator("hash_fields_excluded")
+    @classmethod
+    def excluded_fields_must_match_learned_rule_contract(
+        cls,
+        value: list[str],
+    ) -> list[str]:
+        if value != list(LEARNED_RULE_HASH_FIELDS_EXCLUDED):
+            raise ValueError(
+                "learned rule integrity must exclude exactly "
+                "['integrity', 'user_validated', 'user_notes']"
+            )
         return value
 
 
@@ -254,6 +307,70 @@ class TrialRecord(StrictFsModel):
             raise ValueError("successful trials must include score")
         if self.mode == "canary" and self.canary is None:
             raise ValueError("canary trials must include canary details")
+        return self
+
+
+class LearnedRuleScope(StrictFsModel):
+    framework: NonEmptyStr | None = None
+    module: NonEmptyStr | None = None
+    options_involved: list[NonEmptyStr] = Field(default_factory=list)
+    context_hint: NonEmptyStr | None = None
+
+
+class LearnedRuleEvidence(StrictFsModel):
+    supporting_trials: list[NonEmptyStr] = Field(default_factory=list)
+    evidence_count: int = Field(ge=0)
+    confidence: float = Field(ge=0, le=1)
+
+    @field_validator("supporting_trials")
+    @classmethod
+    def supporting_trials_must_be_file_safe(cls, value: list[str]) -> list[str]:
+        for trial_id in value:
+            _validate_file_atom(trial_id, "evidence.supporting_trials")
+        return value
+
+
+class LearnedRule(StrictFsModel):
+    rule_id: NonEmptyStr
+    created_at: NonEmptyStr
+    created_by: NonEmptyStr
+    rule_type: NonEmptyStr
+    description: NonEmptyStr
+    scope: LearnedRuleScope
+    evidence: LearnedRuleEvidence
+    action_hint: NonEmptyStr
+    user_validated: bool = False
+    user_notes: str = ""
+    integrity: LearnedRuleIntegrity | None = None
+
+    @field_validator("rule_id", mode="before")
+    @classmethod
+    def rule_id_must_not_be_trimmed(cls, value: Any) -> Any:
+        if isinstance(value, str) and value != value.strip():
+            raise ValueError("rule_id cannot contain surrounding whitespace")
+        return value
+
+    @field_validator("rule_id")
+    @classmethod
+    def rule_id_must_be_file_safe(cls, value: str) -> str:
+        _validate_file_atom(value, "rule_id")
+        return value
+
+    @field_validator("created_at", mode="before")
+    @classmethod
+    def created_at_datetime_to_string(cls, value: Any) -> Any:
+        return _datetime_to_utc_isoformat(value, "created_at")
+
+    @field_validator("created_at")
+    @classmethod
+    def created_at_must_be_utc_isoformat(cls, value: str) -> str:
+        _parse_utc_isoformat(value, "created_at")
+        return value
+
+    @model_validator(mode="after")
+    def evidence_count_must_match_supporting_trials(self) -> LearnedRule:
+        if self.evidence.evidence_count != len(self.evidence.supporting_trials):
+            raise ValueError("evidence_count must match supporting_trials length")
         return self
 
 
@@ -647,6 +764,51 @@ def verify_trial_integrity(record: TrialRecord | Mapping[str, Any]) -> bool:
     return trial.integrity.payload_hash == compute_trial_payload_hash(trial)
 
 
+def compute_learned_rule_payload_hash(rule: LearnedRule | Mapping[str, Any]) -> str:
+    learned_rule = LearnedRule.model_validate(rule)
+    payload = learned_rule_payload(learned_rule, include_integrity=False)
+    return compute_payload_hash(payload, excluded_fields=LEARNED_RULE_HASH_FIELDS_EXCLUDED)
+
+
+def learned_rule_payload(
+    rule: LearnedRule | Mapping[str, Any],
+    *,
+    include_integrity: bool = True,
+) -> dict[str, Any]:
+    learned_rule = LearnedRule.model_validate(rule)
+    payload = learned_rule.model_dump(mode="json", exclude_none=True)
+    if not include_integrity:
+        payload.pop("integrity", None)
+    return payload
+
+
+def with_learned_rule_integrity(rule: LearnedRule | Mapping[str, Any]) -> LearnedRule:
+    learned_rule = LearnedRule.model_validate(rule)
+    payload = learned_rule_payload(learned_rule, include_integrity=False)
+    payload["integrity"] = {
+        "payload_hash": compute_payload_hash(
+            payload,
+            excluded_fields=LEARNED_RULE_HASH_FIELDS_EXCLUDED,
+        ),
+        "hash_fields_excluded": list(LEARNED_RULE_HASH_FIELDS_EXCLUDED),
+    }
+    return LearnedRule.model_validate(payload)
+
+
+def verify_learned_rule_integrity(rule: LearnedRule | Mapping[str, Any]) -> bool:
+    learned_rule = LearnedRule.model_validate(rule)
+    if learned_rule.integrity is None:
+        return False
+    return learned_rule.integrity.payload_hash == compute_learned_rule_payload_hash(
+        learned_rule
+    )
+
+
+def learned_rule_path(layout: NamespaceLayout, rule: LearnedRule | Mapping[str, Any]) -> Path:
+    learned_rule = LearnedRule.model_validate(rule)
+    return layout.learned_rules_dir / f"{learned_rule.rule_id}.yaml"
+
+
 def trial_record_path(layout: NamespaceLayout, record: TrialRecord | Mapping[str, Any]) -> Path:
     trial = TrialRecord.model_validate(record)
     timestamp = _parse_utc_isoformat(trial.timestamp, "timestamp")
@@ -680,6 +842,25 @@ def write_trial_record(
     if target.exists() or target.is_symlink():
         raise TrialImmutableError(f"trial record already exists and is immutable: {target}")
     atomic_write_yaml(trial_record_payload(trial), target)
+    return target
+
+
+def write_learned_rule(
+    layout: NamespaceLayout,
+    rule: LearnedRule | Mapping[str, Any],
+) -> Path:
+    """Write one learned rule YAML.
+
+    Callers must hold the workspace lock before invoking this function. The
+    helper refuses existing paths to avoid clobbering user edits to learned
+    rule files.
+    """
+
+    learned_rule = with_learned_rule_integrity(rule)
+    target = learned_rule_path(layout, learned_rule)
+    if target.exists() or target.is_symlink():
+        raise LearnedRuleExistsError(f"learned rule already exists: {target}")
+    atomic_write_yaml(learned_rule_payload(learned_rule), target)
     return target
 
 
@@ -735,6 +916,59 @@ def load_trial_record_for_layout(layout: NamespaceLayout, path: str | Path) -> T
     trial = load_trial_record(trial_path)
     _validate_discovered_trial(layout, trial_path, trial)
     return trial
+
+
+def load_learned_rule(path: str | Path) -> LearnedRule:
+    """Load one learned rule YAML and verify its integrity block."""
+
+    rule_path = Path(path)
+    if rule_path.is_symlink():
+        raise LearnedRuleLoadError(f"learned rule path must not be a symlink: {rule_path}")
+    try:
+        file_size = rule_path.stat().st_size
+    except FileNotFoundError as exc:
+        raise LearnedRuleLoadError(f"learned rule file not found: {rule_path}") from exc
+    if file_size > MAX_LEARNED_RULE_BYTES:
+        raise LearnedRuleLoadError(
+            f"learned rule file {rule_path} is too large "
+            f"({file_size} bytes > {MAX_LEARNED_RULE_BYTES} bytes)"
+        )
+
+    try:
+        raw_text = rule_path.read_text(encoding="utf-8")
+    except UnicodeDecodeError as exc:
+        raise LearnedRuleLoadError(f"learned rule file {rule_path} is not valid UTF-8") from exc
+
+    try:
+        data = yaml.load(raw_text, Loader=LearnedRuleYamlLoader)
+    except yaml.YAMLError as exc:
+        raise LearnedRuleLoadError(
+            f"learned rule file {rule_path} failed to parse YAML: {exc}"
+        ) from exc
+
+    if not data:
+        raise LearnedRuleLoadError(f"learned rule file {rule_path} is empty")
+    if not isinstance(data, Mapping):
+        raise LearnedRuleLoadError(
+            f"learned rule file {rule_path} must contain a YAML mapping"
+        )
+
+    try:
+        learned_rule = LearnedRule.model_validate(data)
+    except ValidationError as exc:
+        raise LearnedRuleLoadError(
+            f"learned rule file {rule_path} is invalid:\n{exc}"
+        ) from exc
+
+    if learned_rule.integrity is None:
+        raise LearnedRuleIntegrityError(
+            f"learned rule file {rule_path} is missing integrity"
+        )
+    if not verify_learned_rule_integrity(learned_rule):
+        raise LearnedRuleIntegrityError(
+            f"learned rule file {rule_path} failed integrity check"
+        )
+    return learned_rule
 
 
 def iter_trial_record_paths(layout: NamespaceLayout) -> tuple[Path, ...]:
