@@ -336,3 +336,31 @@ Verification notes:
 - Confirmed `trials/data/**/*.yaml` is treated as canonical SoT and `_index.sqlite` is not read.
 - Confirmed loader defenses cover size, encoding, alias, unsafe tags, schema, integrity, namespace drift, and path drift.
 - Independent probes found only Low/Info edge contracts around hidden `.yaml` files, partial compiler-type prefixes, and directory-level symlink behavior.
+
+## Subtask 2.4 - Ubuntu target-environment validation
+
+- timestamp_utc: 2026-05-11T11:08:54Z
+- environment:
+  - os: Ubuntu/Linux
+  - python: 3.11.15
+  - virtualenv: `.venv`
+  - runner: plain `pytest` via `venv + pip`, no `uv` required
+- related_requirements:
+  - REQUIREMENTS.md section 1.2
+  - REQUIREMENTS.md section 4.2.4
+  - REQUIREMENTS.md section 4.1.4
+  - REQUIREMENTS.md section 4.2.6
+- full_command: `pytest -v`
+- full_duration: 0.72s
+- full_result: 241 passed, 0 failed
+- linux_fcntl_test: `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter PASSED`
+- manual_probe:
+  - written_relative_path: `namespaces/multimedia/ffmpeg/gcc-13.2.0/code-a1b2c3d/kg-v3/trials/data/2026-04/trial_r1_t1.yaml`
+  - discovered_trial_ids: `['r1_t1']`
+  - compiler_versions: `('13.2.0',)`
+
+Coverage notes:
+- Confirms the Subtask 2.4 suite passes on the intended Ubuntu environment.
+- Confirms the Linux-only real `fcntl` workspace lock regression test executes and passes.
+- Confirms canonical trial discovery and startup compiler-version extraction through a manual probe.
+- reported_by: user on intended Ubuntu server environment

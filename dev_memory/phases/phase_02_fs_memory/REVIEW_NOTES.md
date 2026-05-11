@@ -295,3 +295,18 @@ Low/Info follow-ups:
 
 Review conclusion:
 - Subtask 2.4 is approved. Proceed to Ubuntu validation, then Subtask 2.5.
+
+## Subtask 2.4 - Ubuntu validation
+
+- timestamp_utc: 2026-05-11T11:08:54Z
+- reporter: user on target Ubuntu server
+- environment: Ubuntu/Linux, Python 3.11.15, `.venv`
+- full_pytest: 241 passed in 0.72s
+- linux_fcntl_test: `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter PASSED`
+- manual_probe:
+  - trial path: `namespaces/multimedia/ffmpeg/gcc-13.2.0/code-a1b2c3d/kg-v3/trials/data/2026-04/trial_r1_t1.yaml`
+  - discovered trial ids: `['r1_t1']`
+  - compiler_versions: `('13.2.0',)`
+
+Conclusion:
+- Subtask 2.4 is externally approved and validated on Ubuntu. Proceed to Subtask 2.5.

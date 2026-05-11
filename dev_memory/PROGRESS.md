@@ -539,3 +539,15 @@ Next action: push Subtask 2.4 to GitHub, then request external review.
   - Consider documenting lock-free discovery concurrency semantics.
 
 Next action: run Ubuntu validation for Subtask 2.4, then proceed to Subtask 2.5.
+
+## 2026-05-11T11:08:54Z - Phase 02 / Subtask 2.4 Ubuntu validation completed
+
+- User validated Subtask 2.4 on the intended Ubuntu/Linux environment.
+- Environment: Ubuntu/Linux, Python 3.11.15, `.venv`, plain `pytest`.
+- Full command: `pytest -v` -> 241 passed in 0.72s.
+- Linux real-fcntl workspace lock regression executed and passed.
+- Manual probe wrote `trial_r1_t1.yaml` under `trials/data/2026-04`.
+- Manual probe confirmed `discover_trial_records` returned `['r1_t1']`.
+- Manual probe confirmed `collect_trial_startup_validation_inputs(..., compiler_type="gcc")` returned compiler_versions `('13.2.0',)`.
+
+Next action: commit/push the Ubuntu validation record, then proceed to Subtask 2.5.

@@ -131,6 +131,11 @@ subtasks:
     external_review_verdict: approve
     external_reviewed_at: 2026-05-11T11:01:40Z
     external_review_tests: "241 passed, 0 failed"
+    target_environment_validation:
+      os: Ubuntu/Linux
+      python: 3.11.15
+      full_pytest: "241 passed in 0.72s"
+      manual_probe: "trial discovery found ['r1_t1'] and compiler_versions ('13.2.0',)"
     files_modified:
       - src/agent/fs_memory.py
       - tests/test_fs_memory.py
