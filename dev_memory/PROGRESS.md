@@ -514,3 +514,13 @@ Next action: inspect trial discovery requirements and implement safe trial YAML 
 - Full UT: `.venv\Scripts\python.exe -m pytest -v` -> 240 passed, 0 failed, 1 skipped (expected Windows skip for Linux-only real `fcntl`).
 
 Next action: generate Subtask 2.4 patch artifacts, commit/push, then request external review.
+
+## 2026-05-11T06:52:18Z - Phase 02 / Subtask 2.4 committed
+
+- Commit: `201d045 phase_02_fs_memory: 2.4 implement trial SoT discovery (REQUIREMENTS sections 4.2.4, 4.1.4)`.
+- Patch files:
+  - `dev_memory/phases/phase_02_fs_memory/patches/06_sot_discovery.patch`
+  - `dev_memory/phases/phase_02_fs_memory/patches/06_sot_discovery.summary.txt`
+  - `dev_memory/phases/phase_02_fs_memory/patches/06_sot_discovery.review.md`
+
+Next action: push Subtask 2.4 to GitHub, then request external review.

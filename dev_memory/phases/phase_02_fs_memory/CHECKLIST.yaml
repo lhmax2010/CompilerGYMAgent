@@ -121,7 +121,9 @@ subtasks:
     patch_file: dev_memory/phases/phase_02_fs_memory/patches/06_sot_discovery.patch
     patch_generated: true
     commit_required: true
-    commit_pending: true
+    commit_pending: false
+    commit_hash: 201d045
+    commit_message: "phase_02_fs_memory: 2.4 implement trial SoT discovery (REQUIREMENTS sections 4.2.4, 4.1.4)"
     files_modified:
       - src/agent/fs_memory.py
       - tests/test_fs_memory.py
