@@ -1,7 +1,7 @@
 phase_id: phase_02_fs_memory
 phase_title: "FS-Memory SoT + schema + atomic write"
 started_at: 2026-05-08T07:04:04Z
-last_updated: 2026-05-11T05:54:15Z
+last_updated: 2026-05-11T05:55:53Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 4.2
@@ -118,6 +118,8 @@ subtasks:
     review_fix_ut_passed: true
     review_fix_targeted_ut: "64 fs_memory passed; 26 workspace_lock passed, 1 skipped"
     review_fix_full_ut: "222 passed, 0 failed, 1 skipped"
+    review_fix_commit_hash: 233747a
+    review_fix_commit_message: "phase_02_fs_memory: 2.3 review fixes (REQUIREMENTS sections 4.11.2, 4.15)"
   - id: "2.4"
     title: "Implement SoT discovery helpers for existing trials and startup validation inputs"
     status: todo
@@ -130,4 +132,4 @@ notes: |
   checkpoint.yaml, experience yaml, learned rule yaml) must reuse the same
   flush/fsync/os.replace/parent-fsync semantics from REQUIREMENTS.md section
   4.7.5.
-next_action: "Generate Subtask 2.3 review-fix patch artifacts, commit/push, then request external verification."
+next_action: "Push Subtask 2.3 review fixes to GitHub, then request external verification."

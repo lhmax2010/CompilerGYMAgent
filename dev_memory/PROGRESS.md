@@ -471,3 +471,13 @@ Next action: implement Subtask 2.3 review fixes.
 - Full UT: `uv --native-tls run --extra dev pytest -v` -> 222 passed, 1 skipped.
 
 Next action: generate Subtask 2.3 review-fix patch artifacts, commit/push, then request external verification.
+
+## 2026-05-11T05:55:53Z - Phase 02 / Subtask 2.3 review fixes committed
+
+- Commit: `233747a phase_02_fs_memory: 2.3 review fixes (REQUIREMENTS sections 4.11.2, 4.15)`.
+- Patch files:
+  - `dev_memory/phases/phase_02_fs_memory/patches/05_checkpoint_review_fixes.patch`
+  - `dev_memory/phases/phase_02_fs_memory/patches/05_checkpoint_review_fixes.summary.txt`
+  - `dev_memory/phases/phase_02_fs_memory/patches/05_checkpoint_review_fixes.review.md`
+
+Next action: push Subtask 2.3 review fixes to GitHub, then request external verification.

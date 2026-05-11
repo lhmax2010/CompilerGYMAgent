@@ -93,6 +93,8 @@ subtasks:
     review_fix_ut_passed: true
     review_fix_targeted_ut: "64 fs_memory passed; 26 workspace_lock passed, 1 skipped"
     review_fix_full_ut: "222 passed, 0 failed, 1 skipped"
+    review_fix_commit_hash: 233747a
+    review_fix_commit_message: "phase_02_fs_memory: 2.3 review fixes (REQUIREMENTS sections 4.11.2, 4.15)"
     files_modified:
       - src/agent/fs_memory.py
       - tests/test_fs_memory.py
