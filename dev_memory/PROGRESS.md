@@ -631,3 +631,14 @@ Next action: implement learned rule integrity helpers, loader, writer, and UT co
 - Manual probe confirmed learned rule path, excluded fields, initial integrity verification, user_notes edit load success, and tamper detection.
 
 Next action: generate patch artifacts, commit/push, then request external review.
+
+## 2026-05-11T13:02:08Z - Phase 02 / Subtask 2.6 committed
+
+- Commit: `73c7fcb phase_02_fs_memory: 2.6 implement learned rule writer (REQUIREMENTS section 4.2.6)`.
+- Patch files:
+  - `dev_memory/phases/phase_02_fs_memory/patches/08_learned_rule_writer.patch`
+  - `dev_memory/phases/phase_02_fs_memory/patches/08_learned_rule_writer.summary.txt`
+  - `dev_memory/phases/phase_02_fs_memory/patches/08_learned_rule_writer.review.md`
+- Pushed to `origin/main`.
+
+Next action: request external review for Subtask 2.6.
