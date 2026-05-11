@@ -573,3 +573,13 @@ Next action: implement atomic trial index rebuild and read helpers.
 - Manual probe confirmed stale-before=true, `_index.sqlite` row projection, summary count/schema, and stale-after=false.
 
 Next action: generate Subtask 2.5 patch artifacts, commit/push, then request external review.
+
+## 2026-05-11T11:49:42Z - Phase 02 / Subtask 2.5 committed
+
+- Commit: `a2ae23b phase_02_fs_memory: 2.5 implement trial index rebuild (REQUIREMENTS section 4.2.4)`.
+- Patch files:
+  - `dev_memory/phases/phase_02_fs_memory/patches/07_trial_index_rebuild.patch`
+  - `dev_memory/phases/phase_02_fs_memory/patches/07_trial_index_rebuild.summary.txt`
+  - `dev_memory/phases/phase_02_fs_memory/patches/07_trial_index_rebuild.review.md`
+
+Next action: push Subtask 2.5 to GitHub, then request external review.

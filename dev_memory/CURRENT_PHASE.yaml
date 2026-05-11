@@ -1,7 +1,7 @@
 phase_id: phase_02_fs_memory
 phase_title: "FS-Memory SoT + schema + atomic write"
 started_at: 2026-05-08T07:04:04Z
-last_updated: 2026-05-11T11:47:47Z
+last_updated: 2026-05-11T11:49:42Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 4.2
@@ -192,6 +192,7 @@ subtasks:
     self_reviewed: true
     patch_file: dev_memory/phases/phase_02_fs_memory/patches/07_trial_index_rebuild.patch
     patch_generated: true
+    commit_hash: a2ae23b
     commit_message: "phase_02_fs_memory: 2.5 implement trial index rebuild (REQUIREMENTS section 4.2.4)"
 notes: |
   Phase 01 is complete and validated on Ubuntu. Phase 02 starts with the
@@ -199,4 +200,4 @@ notes: |
   checkpoint.yaml, experience yaml, learned rule yaml) must reuse the same
   flush/fsync/os.replace/parent-fsync semantics from REQUIREMENTS.md section
   4.7.5.
-next_action: "Commit and sync Subtask 2.5 implementation, then send it for external review."
+next_action: "Send Subtask 2.5 implementation for external review."

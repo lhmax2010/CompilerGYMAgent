@@ -156,7 +156,8 @@ subtasks:
     patch_file: dev_memory/phases/phase_02_fs_memory/patches/07_trial_index_rebuild.patch
     patch_generated: true
     commit_required: true
-    commit_pending: true
+    commit_pending: false
+    commit_hash: a2ae23b
     commit_message: "phase_02_fs_memory: 2.5 implement trial index rebuild (REQUIREMENTS section 4.2.4)"
     files_modified:
       - src/agent/fs_memory.py
