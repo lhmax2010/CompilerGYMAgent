@@ -1,0 +1,38 @@
+Phase 02 / Subtask 2.5 - Rebuildable trial SQLite index
+
+Requirements:
+- REQUIREMENTS.md section 4.2.4
+- REQUIREMENTS.md section 4.2.6
+
+Code changes:
+- Added `TrialIndexError`, `TrialIndexRow`, and `TrialIndexSummary`.
+- Added `rebuild_trial_index(layout)`:
+  - reads verified canonical trial YAML via `discover_trial_records`
+  - builds a fresh same-directory temporary SQLite database
+  - writes schema metadata and projected trial rows
+  - fsyncs the temp database
+  - atomically replaces `trials/_index.sqlite`
+  - fsyncs the parent directory
+  - preserves any existing index if discovery or SQLite population fails
+- Added index readers:
+  - `load_trial_index_summary(layout)`
+  - `load_trial_index_rows(layout)`
+- Added startup/reindex support helpers:
+  - `trial_index_is_stale(layout)`
+  - `ensure_trial_index_current(layout)`
+- Exported the new index APIs from `agent.__init__`.
+
+Tests:
+- `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -v`
+  - 90 passed
+- `.venv\Scripts\python.exe -m pytest -v`
+  - 248 passed, 0 failed, 1 skipped
+- `.venv\Scripts\python.exe -m compileall src\agent`
+  - passed
+
+Manual probe:
+- Before rebuild: `trial_index_is_stale(layout) == True`
+- Rebuilt `trials/_index.sqlite`
+- Loaded summary: `trial_count=1`, `schema_version=1`
+- Loaded row: `('r1_t1', 'trials/data/2026-04/trial_r1_t1.yaml', 1.1)`
+- After rebuild: `trial_index_is_stale(layout) == False`

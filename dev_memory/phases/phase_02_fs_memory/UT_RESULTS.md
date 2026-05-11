@@ -364,3 +364,39 @@ Coverage notes:
 - Confirms the Linux-only real `fcntl` workspace lock regression test executes and passes.
 - Confirms canonical trial discovery and startup compiler-version extraction through a manual probe.
 - reported_by: user on intended Ubuntu server environment
+
+## Subtask 2.5 - Rebuildable trial SQLite index
+
+- timestamp_utc: 2026-05-11T11:47:47Z
+- related_requirements:
+  - REQUIREMENTS.md section 4.2.4
+  - REQUIREMENTS.md section 4.2.6
+- targeted_command: `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -v`
+- targeted_result: 90 passed, 0 failed
+- full_command: `.venv\Scripts\python.exe -m pytest -v`
+- full_result: 248 passed, 0 failed, 1 skipped
+- compile_check: `.venv\Scripts\python.exe -m compileall src\agent` passed
+- manual_probe:
+  - stale_before: true
+  - index_path: `namespaces/multimedia/ffmpeg/gcc-13.2.0/code-a1b2c3d/kg-v3/trials/_index.sqlite`
+  - summary: `trial_count=1`, `schema_version=1`
+  - rows: `[('r1_t1', 'trials/data/2026-04/trial_r1_t1.yaml', 1.1)]`
+  - stale_after: false
+
+New trial index test coverage:
+- PASS `tests/test_fs_memory.py::test_rebuild_trial_index_creates_sqlite_from_canonical_trials`
+- PASS `tests/test_fs_memory.py::test_rebuild_trial_index_writes_empty_rebuildable_index`
+- PASS `tests/test_fs_memory.py::test_rebuild_trial_index_replaces_stale_or_invalid_index`
+- PASS `tests/test_fs_memory.py::test_rebuild_trial_index_preserves_existing_index_on_discovery_failure`
+- PASS `tests/test_fs_memory.py::test_rebuild_trial_index_preserves_existing_index_on_sqlite_failure`
+- PASS `tests/test_fs_memory.py::test_trial_index_is_stale_tracks_missing_and_newer_yaml`
+- PASS `tests/test_fs_memory.py::test_ensure_trial_index_current_rebuilds_only_when_stale`
+- PASS `tests/test_fs_memory.py::test_load_trial_index_summary_rejects_missing_or_bad_schema`
+
+Coverage notes:
+- Covers `_index.sqlite` as rebuildable derived state, not canonical SoT.
+- Covers temp SQLite build followed by atomic replacement and parent fsync.
+- Covers projection of trial id, path, namespace, round, timestamp, duration, combo hash, combo, mode, candidate source, schedule slot, bench level, outcome, score fields, integrity hash, and source mtime.
+- Covers stale detection for missing indexes and trial YAML newer than the index.
+- Covers preserving an existing index when canonical discovery fails or SQLite population fails.
+- Windows full-suite skip is expected: `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter` requires Linux `fcntl`.

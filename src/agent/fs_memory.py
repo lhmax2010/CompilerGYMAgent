@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 import hashlib
 import math
+import sqlite3
 import tempfile
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -51,6 +52,10 @@ class TrialDiscoveryError(TrialLoadError):
     """Raised when discovered trial YAML does not match its FS layout."""
 
 
+class TrialIndexError(TrialRecordError):
+    """Raised when the rebuildable trial SQLite index cannot be used."""
+
+
 class CheckpointError(FsMemoryError):
     """Raised when checkpoint state is invalid for FS-Memory use."""
 
@@ -90,6 +95,7 @@ class TrialYamlLoader(yaml.SafeLoader):
 
 MAX_TRIAL_RECORD_BYTES = 1_048_576
 MAX_CHECKPOINT_BYTES = 1_048_576
+TRIAL_INDEX_SCHEMA_VERSION = 1
 TRIAL_HASH_FIELDS_EXCLUDED = ("integrity",)
 TrialMode = Literal["exploit", "explore", "warmup", "canary", "mixed"]
 CandidateSource = Literal["llm_proposal", "local_mutation", "weighted_random", "ablation"]
@@ -408,6 +414,41 @@ class TrialStartupValidationInputs:
     compiler_versions: tuple[str, ...]
     trial_count: int
     trial_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class TrialIndexRow:
+    """One row projected from immutable trial YAML into `_index.sqlite`."""
+
+    trial_id: str
+    relative_path: str
+    namespace: str
+    round: int
+    timestamp: str
+    duration_sec: float
+    combo_hash: str
+    combo: tuple[str, ...]
+    mode: str
+    candidate_source: str
+    schedule_slot: str
+    bench_level: str
+    outcome: str
+    score_geomean: float | None
+    baseline_normalized: float | None
+    objective_direction: str | None
+    integrity_hash: str
+    source_mtime_ns: int
+
+
+@dataclass(frozen=True)
+class TrialIndexSummary:
+    """Metadata for the rebuildable trial SQLite index."""
+
+    index_path: Path
+    schema_version: int
+    trial_count: int
+    rebuilt_at: str
+    source_latest_mtime_ns: int | None
 
 
 @dataclass(frozen=True)
@@ -768,6 +809,121 @@ def existing_trial_compiler_versions(
     ).compiler_versions
 
 
+def rebuild_trial_index(
+    layout: NamespaceLayout,
+    *,
+    discovered: Sequence[DiscoveredTrialRecord] | None = None,
+) -> TrialIndexSummary:
+    """Rebuild `trials/_index.sqlite` from canonical trial YAML.
+
+    The index is derived state. Callers that rebuild during startup or a run
+    should hold the workspace lock so readers never coordinate through a stale
+    cache while another process is replacing it.
+    """
+
+    records = tuple(discovered) if discovered is not None else discover_trial_records(layout)
+    target = layout.trial_index_path
+    if target.exists() and target.is_dir():
+        raise TrialIndexError(f"trial index path is a directory: {target}")
+    target.parent.mkdir(parents=True, exist_ok=True)
+
+    fd, temp_name = tempfile.mkstemp(
+        prefix=f".{target.name}.{os.getpid()}.",
+        suffix=".tmp",
+        dir=target.parent,
+    )
+    os.close(fd)
+    temp_path = Path(temp_name)
+    rebuilt_at = datetime.now(UTC).isoformat()
+
+    try:
+        rows = [_trial_index_row_for_discovered(layout, item) for item in records]
+        summary = TrialIndexSummary(
+            index_path=target,
+            schema_version=TRIAL_INDEX_SCHEMA_VERSION,
+            trial_count=len(rows),
+            rebuilt_at=rebuilt_at,
+            source_latest_mtime_ns=max((row.source_mtime_ns for row in rows), default=None),
+        )
+        _write_trial_index_database(temp_path, rows, summary)
+        _fsync_file(temp_path)
+        os.replace(temp_path, target)
+        _fsync_parent_dir(target.parent)
+        return summary
+    except Exception as exc:
+        _cleanup_sqlite_temp_files(temp_path)
+        if isinstance(exc, TrialRecordError):
+            raise
+        raise TrialIndexError(f"failed to rebuild trial index {target}: {exc}") from exc
+
+
+def load_trial_index_summary(layout: NamespaceLayout) -> TrialIndexSummary:
+    """Load metadata from the rebuildable trial SQLite index."""
+
+    conn = _open_trial_index(layout.trial_index_path)
+    try:
+        meta = dict(conn.execute("SELECT key, value FROM trial_index_meta").fetchall())
+        schema_version = int(meta.get("schema_version", "0"))
+        if schema_version != TRIAL_INDEX_SCHEMA_VERSION:
+            raise TrialIndexError(
+                "unsupported trial index schema version "
+                f"{schema_version!r}; expected {TRIAL_INDEX_SCHEMA_VERSION}"
+            )
+        source_latest = meta.get("source_latest_mtime_ns")
+        return TrialIndexSummary(
+            index_path=layout.trial_index_path,
+            schema_version=schema_version,
+            trial_count=int(meta.get("trial_count", "0")),
+            rebuilt_at=meta.get("rebuilt_at", ""),
+            source_latest_mtime_ns=int(source_latest) if source_latest else None,
+        )
+    except (sqlite3.Error, ValueError) as exc:
+        raise TrialIndexError(f"failed to load trial index summary: {exc}") from exc
+    finally:
+        conn.close()
+
+
+def load_trial_index_rows(layout: NamespaceLayout) -> tuple[TrialIndexRow, ...]:
+    """Load rows from the rebuildable trial SQLite index."""
+
+    _ = load_trial_index_summary(layout)
+    conn = _open_trial_index(layout.trial_index_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute(
+            """
+            SELECT trial_id, relative_path, namespace, round, timestamp, duration_sec,
+                   combo_hash, combo_yaml, mode, candidate_source, schedule_slot,
+                   bench_level, outcome, score_geomean, baseline_normalized,
+                   objective_direction, integrity_hash, source_mtime_ns
+            FROM trials
+            ORDER BY timestamp, trial_id
+            """
+        ).fetchall()
+        return tuple(_trial_index_row_from_sql(row) for row in rows)
+    except (sqlite3.Error, yaml.YAMLError, TypeError, ValueError) as exc:
+        raise TrialIndexError(f"failed to load trial index rows: {exc}") from exc
+    finally:
+        conn.close()
+
+
+def trial_index_is_stale(layout: NamespaceLayout) -> bool:
+    """Return true when trial YAML is newer than the derived SQLite index."""
+
+    if not layout.trial_index_path.exists():
+        return True
+    index_mtime_ns = layout.trial_index_path.stat().st_mtime_ns
+    return any(path.stat().st_mtime_ns > index_mtime_ns for path in iter_trial_record_paths(layout))
+
+
+def ensure_trial_index_current(layout: NamespaceLayout) -> TrialIndexSummary:
+    """Rebuild the trial index if missing or older than canonical trial YAML."""
+
+    if trial_index_is_stale(layout):
+        return rebuild_trial_index(layout)
+    return load_trial_index_summary(layout)
+
+
 def checkpoint_payload(state: CheckpointState | Mapping[str, Any]) -> dict[str, Any]:
     checkpoint = CheckpointState.model_validate(state)
     return checkpoint.model_dump(mode="json", exclude_none=True)
@@ -976,6 +1132,196 @@ def _validate_session_id_atom(value: str, label: str) -> None:
     _validate_file_atom(value, label)
     if not all(char.isascii() and (char.isalnum() or char in "_-") for char in value):
         raise ValueError(f"{label} can contain only ASCII letters, digits, '_' or '-'")
+
+
+def _write_trial_index_database(
+    path: Path,
+    rows: Sequence[TrialIndexRow],
+    summary: TrialIndexSummary,
+) -> None:
+    conn = sqlite3.connect(path)
+    try:
+        conn.execute("PRAGMA foreign_keys = ON")
+        conn.execute(f"PRAGMA user_version = {TRIAL_INDEX_SCHEMA_VERSION}")
+        conn.executescript(
+            """
+            CREATE TABLE trial_index_meta (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
+
+            CREATE TABLE trials (
+                trial_id TEXT PRIMARY KEY,
+                relative_path TEXT NOT NULL UNIQUE,
+                namespace TEXT NOT NULL,
+                round INTEGER NOT NULL,
+                timestamp TEXT NOT NULL,
+                duration_sec REAL NOT NULL,
+                combo_hash TEXT NOT NULL,
+                combo_yaml TEXT NOT NULL,
+                mode TEXT NOT NULL,
+                candidate_source TEXT NOT NULL,
+                schedule_slot TEXT NOT NULL,
+                bench_level TEXT NOT NULL,
+                outcome TEXT NOT NULL,
+                score_geomean REAL,
+                baseline_normalized REAL,
+                objective_direction TEXT,
+                integrity_hash TEXT NOT NULL,
+                source_mtime_ns INTEGER NOT NULL
+            );
+
+            CREATE INDEX trials_timestamp_idx ON trials(timestamp);
+            CREATE INDEX trials_outcome_idx ON trials(outcome);
+            CREATE INDEX trials_combo_hash_idx ON trials(combo_hash);
+            """
+        )
+        _insert_trial_index_rows(conn, rows)
+        conn.executemany(
+            "INSERT INTO trial_index_meta(key, value) VALUES (?, ?)",
+            [
+                ("schema_version", str(summary.schema_version)),
+                ("index_type", "trials"),
+                ("rebuilt_at", summary.rebuilt_at),
+                ("trial_count", str(summary.trial_count)),
+                (
+                    "source_latest_mtime_ns",
+                    "" if summary.source_latest_mtime_ns is None else str(summary.source_latest_mtime_ns),
+                ),
+            ],
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _insert_trial_index_rows(conn: sqlite3.Connection, rows: Sequence[TrialIndexRow]) -> None:
+    conn.executemany(
+        """
+        INSERT INTO trials(
+            trial_id, relative_path, namespace, round, timestamp, duration_sec,
+            combo_hash, combo_yaml, mode, candidate_source, schedule_slot,
+            bench_level, outcome, score_geomean, baseline_normalized,
+            objective_direction, integrity_hash, source_mtime_ns
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        [
+            (
+                row.trial_id,
+                row.relative_path,
+                row.namespace,
+                row.round,
+                row.timestamp,
+                row.duration_sec,
+                row.combo_hash,
+                yaml.dump(
+                    list(row.combo),
+                    Dumper=SotYamlDumper,
+                    sort_keys=False,
+                    allow_unicode=True,
+                ),
+                row.mode,
+                row.candidate_source,
+                row.schedule_slot,
+                row.bench_level,
+                row.outcome,
+                row.score_geomean,
+                row.baseline_normalized,
+                row.objective_direction,
+                row.integrity_hash,
+                row.source_mtime_ns,
+            )
+            for row in rows
+        ],
+    )
+
+
+def _open_trial_index(path: Path) -> sqlite3.Connection:
+    if not path.exists():
+        raise TrialIndexError(f"trial index file not found: {path}")
+    try:
+        return sqlite3.connect(path)
+    except sqlite3.Error as exc:
+        raise TrialIndexError(f"failed to open trial index {path}: {exc}") from exc
+
+
+def _trial_index_row_for_discovered(
+    layout: NamespaceLayout,
+    discovered: DiscoveredTrialRecord,
+) -> TrialIndexRow:
+    trial = discovered.record
+    if trial.integrity is None:
+        raise TrialIntegrityError(f"trial {trial.trial_id!r} is missing integrity")
+    try:
+        relative_path = discovered.path.relative_to(layout.namespace_dir).as_posix()
+        source_mtime_ns = discovered.path.stat().st_mtime_ns
+    except (OSError, ValueError) as exc:
+        raise TrialIndexError(
+            f"cannot index trial {trial.trial_id!r} at {discovered.path}: {exc}"
+        ) from exc
+    return TrialIndexRow(
+        trial_id=trial.trial_id,
+        relative_path=relative_path,
+        namespace=trial.namespace,
+        round=trial.round,
+        timestamp=trial.timestamp,
+        duration_sec=trial.duration_sec,
+        combo_hash=trial.combo_hash,
+        combo=tuple(trial.combo),
+        mode=trial.mode,
+        candidate_source=trial.candidate_source,
+        schedule_slot=trial.schedule_slot,
+        bench_level=trial.bench_level,
+        outcome=trial.outcome,
+        score_geomean=trial.score.geomean if trial.score is not None else None,
+        baseline_normalized=trial.score.baseline_normalized if trial.score is not None else None,
+        objective_direction=trial.score.objective_direction if trial.score is not None else None,
+        integrity_hash=trial.integrity.payload_hash,
+        source_mtime_ns=source_mtime_ns,
+    )
+
+
+def _trial_index_row_from_sql(row: sqlite3.Row) -> TrialIndexRow:
+    combo = yaml.safe_load(row["combo_yaml"])
+    if not isinstance(combo, list) or not all(isinstance(option, str) for option in combo):
+        raise ValueError("trial index combo_yaml must decode to a list of strings")
+    return TrialIndexRow(
+        trial_id=row["trial_id"],
+        relative_path=row["relative_path"],
+        namespace=row["namespace"],
+        round=row["round"],
+        timestamp=row["timestamp"],
+        duration_sec=row["duration_sec"],
+        combo_hash=row["combo_hash"],
+        combo=tuple(combo),
+        mode=row["mode"],
+        candidate_source=row["candidate_source"],
+        schedule_slot=row["schedule_slot"],
+        bench_level=row["bench_level"],
+        outcome=row["outcome"],
+        score_geomean=row["score_geomean"],
+        baseline_normalized=row["baseline_normalized"],
+        objective_direction=row["objective_direction"],
+        integrity_hash=row["integrity_hash"],
+        source_mtime_ns=row["source_mtime_ns"],
+    )
+
+
+def _fsync_file(path: Path) -> None:
+    fd = os.open(path, os.O_RDWR)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+def _cleanup_sqlite_temp_files(path: Path) -> None:
+    for candidate in (path, Path(f"{path}-journal"), Path(f"{path}-wal"), Path(f"{path}-shm")):
+        try:
+            candidate.unlink()
+        except OSError:
+            pass
 
 
 def _validate_discovered_trial(

@@ -25,6 +25,7 @@ Completed:
 - Subtask 2.4 implemented canonical trial YAML discovery: bounded alias-free loading, required integrity verification, namespace/path consistency checks, deterministic `trials/data` scanning, and startup validation inputs for existing trial compiler versions.
 - Subtask 2.4 received external approval after independent Linux verification: 241/241 tests passed and only Low/Info follow-ups remain.
 - Subtask 2.4 was validated by the user on Ubuntu/Linux with Python 3.11.15: full pytest passed 241/241, the Linux real-fcntl test executed, and manual trial discovery/startup-input probes passed.
+- Subtask 2.5 implemented rebuildable `trials/_index.sqlite` helpers from canonical trial YAML, including atomic replacement, stale detection, summary/row readers, and failure preservation for existing indexes.
 
 Remaining:
-- Subtask 2.5.
+- External review and Ubuntu validation for Subtask 2.5.

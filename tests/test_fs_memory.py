@@ -18,6 +18,7 @@ from agent.fs_memory import (
     NamespaceLayout,
     TrialDiscoveryError,
     TrialImmutableError,
+    TrialIndexError,
     TrialRecord,
     TrialRecordError,
     TrialIntegrityError,
@@ -29,13 +30,18 @@ from agent.fs_memory import (
     compute_payload_hash,
     compute_trial_payload_hash,
     discover_trial_records,
+    ensure_trial_index_current,
     existing_trial_compiler_versions,
     iter_trial_record_paths,
     load_checkpoint_for_layout,
     load_checkpoint_state,
+    load_trial_index_rows,
+    load_trial_index_summary,
     load_trial_record,
     load_trial_record_for_layout,
     namespace_layout_for_config,
+    rebuild_trial_index,
+    trial_index_is_stale,
     trial_record_path,
     trial_record_payload,
     verify_trial_integrity,
@@ -629,6 +635,140 @@ def test_collect_trial_startup_validation_inputs_rejects_compiler_type_mismatch(
 
     with pytest.raises(TrialDiscoveryError, match="compiler segment"):
         collect_trial_startup_validation_inputs(layout, compiler_type="clang")
+
+
+def test_rebuild_trial_index_creates_sqlite_from_canonical_trials(tmp_path: Path) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+    second = trial_record_data()
+    first = trial_record_data()
+    first["trial_id"] = "r12_t1"
+    first["timestamp"] = "2026-04-30T10:20:00Z"
+    first_path = write_trial_record(layout, first)
+    second_path = write_trial_record(layout, second)
+
+    summary = rebuild_trial_index(layout)
+    rows = load_trial_index_rows(layout)
+
+    assert summary.index_path == layout.trial_index_path
+    assert summary.schema_version == fs_memory.TRIAL_INDEX_SCHEMA_VERSION
+    assert summary.trial_count == 2
+    assert summary.source_latest_mtime_ns == max(
+        first_path.stat().st_mtime_ns,
+        second_path.stat().st_mtime_ns,
+    )
+    assert [row.trial_id for row in rows] == ["r12_t1", "r12_t3"]
+    assert rows[0].relative_path == "trials/data/2026-04/trial_r12_t1.yaml"
+    assert rows[1].combo == tuple(second["combo"])
+    assert rows[1].score_geomean == second["score"]["geomean"]
+    assert rows[1].integrity_hash.startswith("sha256:")
+
+
+def test_rebuild_trial_index_writes_empty_rebuildable_index(tmp_path: Path) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+
+    summary = rebuild_trial_index(layout)
+
+    assert summary.trial_count == 0
+    assert load_trial_index_summary(layout).trial_count == 0
+    assert load_trial_index_rows(layout) == ()
+
+
+def test_rebuild_trial_index_replaces_stale_or_invalid_index(tmp_path: Path) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+    layout.trial_index_path.parent.mkdir(parents=True)
+    layout.trial_index_path.write_text("not sqlite", encoding="utf-8")
+    write_trial_record(layout, trial_record_data())
+
+    summary = rebuild_trial_index(layout)
+
+    assert summary.trial_count == 1
+    assert load_trial_index_rows(layout)[0].trial_id == "r12_t3"
+
+
+def test_rebuild_trial_index_preserves_existing_index_on_discovery_failure(
+    tmp_path: Path,
+) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+    rebuild_trial_index(layout)
+    before = layout.trial_index_path.read_bytes()
+    bad_path = layout.trial_data_dir / "2026-04" / "trial_bad.yaml"
+    bad_path.parent.mkdir(parents=True)
+    bad_path.write_text("not: a valid trial\n", encoding="utf-8")
+
+    with pytest.raises(TrialLoadError):
+        rebuild_trial_index(layout)
+
+    assert layout.trial_index_path.read_bytes() == before
+
+
+def test_rebuild_trial_index_preserves_existing_index_on_sqlite_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+    rebuild_trial_index(layout)
+    before = layout.trial_index_path.read_bytes()
+    write_trial_record(layout, trial_record_data())
+
+    def fail_insert(conn, rows):  # type: ignore[no-untyped-def]
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(fs_memory, "_insert_trial_index_rows", fail_insert)
+
+    with pytest.raises(TrialIndexError, match="boom"):
+        rebuild_trial_index(layout)
+
+    assert layout.trial_index_path.read_bytes() == before
+    assert not list(layout.trial_index_path.parent.glob("._index.sqlite.*.tmp*"))
+
+
+def test_trial_index_is_stale_tracks_missing_and_newer_yaml(tmp_path: Path) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+    path = write_trial_record(layout, trial_record_data())
+
+    assert trial_index_is_stale(layout) is True
+
+    rebuild_trial_index(layout)
+    assert trial_index_is_stale(layout) is False
+
+    newer = layout.trial_index_path.stat().st_mtime_ns + 1_000_000_000
+    os.utime(path, ns=(newer, newer))
+
+    assert trial_index_is_stale(layout) is True
+
+
+def test_ensure_trial_index_current_rebuilds_only_when_stale(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+    write_trial_record(layout, trial_record_data())
+
+    summary = ensure_trial_index_current(layout)
+
+    assert summary.trial_count == 1
+
+    def fail_rebuild(_layout):  # type: ignore[no-untyped-def]
+        raise AssertionError("should not rebuild")
+
+    monkeypatch.setattr(fs_memory, "rebuild_trial_index", fail_rebuild)
+
+    assert ensure_trial_index_current(layout).trial_count == 1
+
+
+def test_load_trial_index_summary_rejects_missing_or_bad_schema(tmp_path: Path) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+
+    with pytest.raises(TrialIndexError, match="not found"):
+        load_trial_index_summary(layout)
+
+    rebuild_trial_index(layout)
+    with fs_memory.sqlite3.connect(layout.trial_index_path) as conn:
+        conn.execute("UPDATE trial_index_meta SET value = '999' WHERE key = 'schema_version'")
+        conn.commit()
+
+    with pytest.raises(TrialIndexError, match="schema version"):
+        load_trial_index_summary(layout)
 
 
 def test_checkpoint_state_schema_accepts_documented_running_state() -> None:

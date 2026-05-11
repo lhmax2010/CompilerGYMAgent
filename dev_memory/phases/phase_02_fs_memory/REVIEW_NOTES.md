@@ -310,3 +310,37 @@ Review conclusion:
 
 Conclusion:
 - Subtask 2.4 is externally approved and validated on Ubuntu. Proceed to Subtask 2.5.
+
+## Subtask 2.5 - Rebuildable trial SQLite index
+
+- timestamp_utc: 2026-05-11T11:47:47Z
+- files_reviewed:
+  - src/agent/fs_memory.py
+  - src/agent/__init__.py
+  - tests/test_fs_memory.py
+
+Review checklist:
+- [x] `rebuild_trial_index` uses canonical `discover_trial_records`, not an existing index, as the source of truth.
+- [x] Rebuild writes a fresh same-directory temp SQLite database and atomically replaces `trials/_index.sqlite`.
+- [x] Rebuild fsyncs the temp database and parent directory.
+- [x] Existing indexes are preserved when trial discovery fails.
+- [x] Existing indexes are preserved when SQLite population fails.
+- [x] Index metadata records schema version, type, rebuild timestamp, trial count, and latest source mtime.
+- [x] Index rows project documented trial search fields, including trial id, combo, score fields, and integrity hash.
+- [x] `trial_index_is_stale` detects missing indexes and newer trial YAML.
+- [x] `ensure_trial_index_current` rebuilds only when stale.
+- [x] Public exports include the new index dataclasses, errors, and helpers.
+- [x] Targeted and full UT suites pass.
+
+Findings:
+- No blocking issues found.
+- `rebuild_trial_index` documents that callers should hold `WorkspaceLock` when mutating the derived index during startup or workflow execution.
+- The index intentionally remains derived cache state; reads can fail if the database is missing or schema-incompatible, while callers can rebuild from YAML.
+
+Deferred low-priority follow-ups:
+- Integrate `ensure_trial_index_current` into startup once startup owns the FS-Memory workspace layout and lock boundary.
+- Add CLI-facing `agent reindex --type trials` command around this helper in the CLI phase.
+- Add cross-process index reader/writer integration tests once workflow-level locking exists.
+
+Review conclusion:
+- Subtask 2.5 is ready for external review.

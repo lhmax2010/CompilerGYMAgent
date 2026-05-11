@@ -337,3 +337,15 @@ Decision records must include:
   - Read `trials/_index.sqlite` for startup compatibility, which would make startup depend on a cache and require repair logic before the canonical scan exists.
   - Trust YAML schema validation alone without integrity or layout checks, which would miss tampered trial payloads or files moved into the wrong month/namespace.
   - Rebuild SQLite inside discovery, which would mix read-only validation with derived-index mutation and require WorkspaceLock/write semantics outside this subtask.
+
+## 2026-05-11T11:47:47Z - Rebuild trial SQLite indexes from verified YAML in a replace-only transaction
+
+- affected_requirement:
+  - REQUIREMENTS.md section 4.2.4
+  - REQUIREMENTS.md section 4.2.6
+- decision: `rebuild_trial_index(layout)` creates a fresh same-directory temporary SQLite database from `discover_trial_records(layout)`, fsyncs it, atomically replaces `trials/_index.sqlite`, and fsyncs the parent directory. Existing indexes are preserved if discovery or SQLite population fails.
+- rationale: Section 4.2.4 defines `_index.sqlite` as rebuildable derived state, so rebuilding should never mutate canonical trial YAML and should not partially corrupt an existing usable cache. Building a complete temp database before replace keeps readers on either the old complete index or the new complete index.
+- alternatives_considered:
+  - Update the SQLite index in place, which risks leaving a partially rebuilt cache after a crash or validation failure.
+  - Make `write_trial_record` incrementally update the index, which would couple immutable SoT writes to derived cache mutation and complicate failure recovery.
+  - Treat a missing or stale index as harmless at read time only, which would defer startup's required reindex/fail-fast behavior.

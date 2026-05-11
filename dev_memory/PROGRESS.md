@@ -551,3 +551,25 @@ Next action: run Ubuntu validation for Subtask 2.4, then proceed to Subtask 2.5.
 - Manual probe confirmed `collect_trial_startup_validation_inputs(..., compiler_type="gcc")` returned compiler_versions `('13.2.0',)`.
 
 Next action: commit/push the Ubuntu validation record, then proceed to Subtask 2.5.
+
+## 2026-05-11T11:43:24Z - Phase 02 / Subtask 2.5 started
+
+- Started rebuildable trial SQLite index helpers.
+- Requirements in scope: REQUIREMENTS.md sections 4.2.4 and 4.2.6.
+- Scope: build `trials/_index.sqlite` from verified canonical trial YAML discovery; the index remains derived/cache state and must never be treated as source of truth.
+- Planned files: `src/agent/fs_memory.py`, `tests/test_fs_memory.py`, and public exports in `src/agent/__init__.py`.
+- Baseline before implementation: clean `main` synced with `origin/main` at `fd52bc8`.
+
+Next action: implement atomic trial index rebuild and read helpers.
+
+## 2026-05-11T11:47:47Z - Phase 02 / Subtask 2.5 implemented
+
+- Implemented rebuildable `trials/_index.sqlite` helpers that project verified canonical trial YAML into SQLite.
+- Added trial index schema metadata, row dataclasses, atomic temp-db replacement, stale detection, and `ensure_trial_index_current`.
+- Added read helpers for trial index summaries and rows.
+- Added UT coverage for normal rebuild, empty index, stale/invalid replacement, preserving existing index on discovery/write failures, stale mtime detection, ensure-current behavior, and schema rejection.
+- Targeted UT: `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -v` -> 90 passed.
+- Full UT: `.venv\Scripts\python.exe -m pytest -v` -> 248 passed, 0 failed, 1 skipped.
+- Manual probe confirmed stale-before=true, `_index.sqlite` row projection, summary count/schema, and stale-after=false.
+
+Next action: generate Subtask 2.5 patch artifacts, commit/push, then request external review.
