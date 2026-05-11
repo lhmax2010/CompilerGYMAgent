@@ -583,3 +583,19 @@ Next action: generate Subtask 2.5 patch artifacts, commit/push, then request ext
   - `dev_memory/phases/phase_02_fs_memory/patches/07_trial_index_rebuild.review.md`
 
 Next action: push Subtask 2.5 to GitHub, then request external review.
+
+## 2026-05-11T12:25:19Z - Phase 02 / Subtask 2.5 external review completed
+
+- Reviewer: Claude.
+- Verdict: Approve.
+- Range: `fd52bc8..a3e7edf`.
+- Tests: 249 passed, 0 failed on Linux; the Linux real `fcntl` workspace lock path ran instead of skipping.
+- Review confirmed `trials/_index.sqlite` is rebuilt from verified canonical trial YAML, uses atomic temp-db replacement, preserves existing indexes on discovery/SQLite failures, and keeps `_index.sqlite` as derived state rather than source of truth.
+- Low/Info follow-ups recorded:
+  - Decide whether `ensure_trial_index_current` should auto-rebuild on schema mismatch.
+  - Consider cleaning stale SQLite sidecars (`-journal`, `-wal`, `-shm`) after successful rebuild.
+  - Consider reusing the SQLite connection in `load_trial_index_rows`.
+  - Decide whether `_index.sqlite` symlinks should be rejected or replaced by design.
+  - Document derivative index rebuild lock semantics: correctness versus efficiency.
+
+Next action: run Ubuntu validation for Subtask 2.5, then proceed to Subtask 2.6.

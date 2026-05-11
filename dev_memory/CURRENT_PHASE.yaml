@@ -1,7 +1,7 @@
 phase_id: phase_02_fs_memory
 phase_title: "FS-Memory SoT + schema + atomic write"
 started_at: 2026-05-08T07:04:04Z
-last_updated: 2026-05-11T11:49:42Z
+last_updated: 2026-05-11T12:25:19Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 4.2
@@ -194,10 +194,20 @@ subtasks:
     patch_generated: true
     commit_hash: a2ae23b
     commit_message: "phase_02_fs_memory: 2.5 implement trial index rebuild (REQUIREMENTS section 4.2.4)"
+    external_review_verdict: approve
+    external_reviewed_at: 2026-05-11T12:25:19Z
+    external_review_tests: "249 passed, 0 failed"
+    external_review_notes: "Claude independently verified Subtask 2.5 on Linux, confirmed trial index rebuild uses canonical YAML and atomic replace, and found only Low/Info follow-ups."
+    deferred_low_priority_followups:
+      - "Decide whether ensure_trial_index_current should auto-rebuild on schema mismatch or keep raising for explicit repair."
+      - "Consider cleaning stale _index.sqlite sidecars (-journal, -wal, -shm) after successful rebuild."
+      - "Consider reusing one SQLite connection in load_trial_index_rows instead of opening summary then rows."
+      - "Decide whether trial_index_path symlinks should be rejected or replaced by design."
+      - "Document derivative index rebuild WorkspaceLock semantics: correctness vs efficiency."
 notes: |
   Phase 01 is complete and validated on Ubuntu. Phase 02 starts with the
   shared atomic YAML writer because every later SoT writer (trial yaml,
   checkpoint.yaml, experience yaml, learned rule yaml) must reuse the same
   flush/fsync/os.replace/parent-fsync semantics from REQUIREMENTS.md section
   4.7.5.
-next_action: "Send Subtask 2.5 implementation for external review."
+next_action: "Run Ubuntu validation for Subtask 2.5, then proceed to Subtask 2.6."

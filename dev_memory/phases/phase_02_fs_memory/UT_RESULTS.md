@@ -400,3 +400,23 @@ Coverage notes:
 - Covers stale detection for missing indexes and trial YAML newer than the index.
 - Covers preserving an existing index when canonical discovery fails or SQLite population fails.
 - Windows full-suite skip is expected: `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter` requires Linux `fcntl`.
+
+## Subtask 2.5 - external review verification
+
+- timestamp_utc: 2026-05-11T12:25:19Z
+- reviewer: Claude
+- verdict: Approve
+- range: `fd52bc8..a3e7edf`
+- test_command: `PYTHONPATH=src python -m pytest tests/ -v`
+- test_result: 249 passed, 0 failed
+- targeted_command: `PYTHONPATH=src python -m pytest tests/test_fs_memory.py -v`
+- targeted_result: 88 passed, 0 failed
+- linux_fcntl_test: PASSED, not skipped
+
+Verification notes:
+- Confirmed `_index.sqlite` is rebuildable derived state and not source of truth.
+- Confirmed rebuild uses verified canonical trial YAML from discovery, not an existing index.
+- Confirmed temp SQLite build plus atomic replacement and parent fsync semantics.
+- Confirmed existing usable indexes are preserved when discovery or SQLite population fails.
+- Confirmed schema metadata and trial row projection cover the documented trial fields needed by later query paths.
+- Independent probes found only Low/Info edge contracts around schema-bump auto-rebuild, stale SQLite sidecars, duplicate opens, target symlink behavior, per-row `source_mtime_ns`, and WorkspaceLock wording.

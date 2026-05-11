@@ -344,3 +344,32 @@ Deferred low-priority follow-ups:
 
 Review conclusion:
 - Subtask 2.5 is ready for external review.
+
+## Subtask 2.5 - external review verification
+
+- timestamp_utc: 2026-05-11T12:25:19Z
+- reviewer: Claude
+- verdict: Approve
+- range: `fd52bc8..a3e7edf`
+- tests: 249 passed, 0 failed
+
+Verification summary:
+- [x] `rebuild_trial_index` uses `discover_trial_records` as the canonical YAML source and never treats an existing index as authoritative.
+- [x] Rebuild creates a same-directory temp SQLite database and atomically replaces `trials/_index.sqlite`.
+- [x] Existing indexes are preserved on discovery failure and SQLite population failure.
+- [x] Index metadata records schema version, index type, rebuild timestamp, trial count, and latest source mtime.
+- [x] Trial rows project the documented trial fields, score fields, integrity hash, relative path, and source mtime.
+- [x] `trial_index_is_stale` and `ensure_trial_index_current` cover missing/stale index behavior.
+- [x] Public exports and error hierarchy are coherent.
+- [x] dev_memory and patch three-piece are complete.
+
+Low/Info follow-ups:
+- L-1: Decide whether `ensure_trial_index_current` should auto-rebuild on schema mismatch or keep raising `TrialIndexError`.
+- L-2: Consider cleaning stale SQLite sidecars (`-journal`, `-wal`, `-shm`) after successful rebuild.
+- L-3: Consider avoiding the duplicate SQLite open in `load_trial_index_rows`.
+- L-4: Decide whether `trials/_index.sqlite` symlinks should be rejected before rebuild or replaced by design.
+- L-5: Keep or consume per-row `source_mtime_ns` in future doctor/drift checks.
+- L-6: Document that WorkspaceLock is recommended for derived-index rebuild efficiency/coordination, not required for SoT correctness.
+
+Review conclusion:
+- Subtask 2.5 is approved. Proceed to Ubuntu validation, then Subtask 2.6.

@@ -26,6 +26,7 @@ Completed:
 - Subtask 2.4 received external approval after independent Linux verification: 241/241 tests passed and only Low/Info follow-ups remain.
 - Subtask 2.4 was validated by the user on Ubuntu/Linux with Python 3.11.15: full pytest passed 241/241, the Linux real-fcntl test executed, and manual trial discovery/startup-input probes passed.
 - Subtask 2.5 implemented rebuildable `trials/_index.sqlite` helpers from canonical trial YAML, including atomic replacement, stale detection, summary/row readers, and failure preservation for existing indexes.
+- Subtask 2.5 received external approval after independent Linux verification: 249/249 tests passed, the Linux real-fcntl test executed, and only Low/Info follow-ups remain.
 
 Remaining:
-- External review and Ubuntu validation for Subtask 2.5.
+- Ubuntu validation for Subtask 2.5, then Subtask 2.6.
