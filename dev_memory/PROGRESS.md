@@ -702,3 +702,20 @@ Next action: generate patch files, commit Subtask 2.7, push, then request extern
   - `dev_memory/phases/phase_02_fs_memory/patches/09_experience_writer.review.md`
 
 Next action: push Subtask 2.7 sync, then request external review.
+
+## 2026-05-13T14:50:52Z - Phase 02 / Subtask 2.7 external review completed
+
+- Reviewer: Claude.
+- Verdict: Approve.
+- Range: `156a2b9..7add623`.
+- Tests: 272 passed, 0 failed on Linux; the Linux real `fcntl` workspace lock path passed.
+- Review confirmed experience schema coverage, source/local integrity split, dotted excluded-field hashing, path routing, imported/local origin consistency, source manifest item path validation, public exports, and dev_memory workflow.
+- Low/Info follow-ups recorded:
+  - NonEmptyStr silent-strip behavior should be handled consistently across Phase 02 rather than patched only in this subtask.
+  - Decide whether `source_integrity.original_file` should reject hidden `.yaml` filenames or embedded spaces.
+  - Document strict-before-validator policy for path-derived fields versus metadata fields.
+  - Consider optimizing `compute_payload_hash` to avoid `deepcopy` for top-level-only excluded fields.
+  - Document `_remove_mapping_path` scope: dict-only dotted paths, no list-index excluded paths.
+  - Periodically review public exports to avoid over-exposure.
+
+Next action: run Ubuntu validation for Subtask 2.7, then proceed to the next Phase 02 subtask or Phase 02 polish.

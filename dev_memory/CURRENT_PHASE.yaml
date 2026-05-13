@@ -1,7 +1,7 @@
 phase_id: phase_02_fs_memory
 phase_title: "FS-Memory SoT + schema + atomic write"
 started_at: 2026-05-08T07:04:04Z
-last_updated: 2026-05-13T14:09:25Z
+last_updated: 2026-05-13T14:50:52Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 4.2
@@ -281,6 +281,17 @@ subtasks:
     patch_generated: true
     commit_hash: 0ad33c3
     commit_message: "phase_02_fs_memory: 2.7 implement experience writer (REQUIREMENTS sections 4.3, 4.4.2)"
+    external_review_verdict: approve
+    external_reviewed_at: 2026-05-13T14:50:52Z
+    external_review_tests: "272 passed, 0 failed"
+    external_review_notes: "Claude independently verified Subtask 2.7 on Linux, confirmed experience schema/local-source integrity/path routing coverage, and found only Low/Info follow-ups."
+    deferred_low_priority_followups:
+      - "Handle NonEmptyStr silent-strip policy consistently across Phase 02 fields that intend strict surrounding-whitespace rejection."
+      - "Decide whether experience manifest item paths should reject hidden .yaml filenames or embedded spaces."
+      - "Document strict-before-validator policy for path-derived fields versus metadata fields."
+      - "Consider optimizing compute_payload_hash to avoid deepcopy when excluded fields are top-level only."
+      - "Document that _remove_mapping_path currently supports dict paths, not list-index excluded paths."
+      - "Review public exports periodically to ensure internal helpers and constants are not over-exposed."
     notes:
       - "Added Experience schema for local and imported experiences, trust/origin validation, local/source integrity models, and alias-free bounded loading."
       - "Extended compute_payload_hash to support dotted excluded fields needed by experience local integrity."
@@ -291,4 +302,4 @@ notes: |
   checkpoint.yaml, experience yaml, learned rule yaml) must reuse the same
   flush/fsync/os.replace/parent-fsync semantics from REQUIREMENTS.md section
   4.7.5.
-next_action: "Push Subtask 2.7 sync, then request external review."
+next_action: "Run Ubuntu validation for Subtask 2.7, then proceed to the next Phase 02 subtask or Phase 02 polish."

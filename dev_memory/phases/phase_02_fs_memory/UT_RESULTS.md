@@ -559,3 +559,21 @@ Coverage notes:
   - `write_experience` writes through shared atomic YAML and refuses existing paths.
   - Local experiences route to `experiences/<trust_level>/<id>.yaml`; imported experiences route to `experiences/imported/<id>.yaml`.
   - `load_experience` rejects missing local integrity, integrity tampering, and YAML aliases.
+
+## Subtask 2.7 - external review verification
+
+- timestamp_utc: 2026-05-13T14:50:52Z
+- reviewer: Claude
+- verdict: Approve
+- test_command: `PYTHONPATH=src python -m pytest tests/ -v`
+- test_result: 272 passed, 0 failed
+- targeted_command: `PYTHONPATH=src python -m pytest tests/test_fs_memory.py -v`
+- targeted_result: 113 passed, 0 failed
+- linux_fcntl_test: PASSED
+
+Verification notes:
+- Confirmed REQUIREMENTS.md sections 4.2.6, 4.3, 4.4.2, and 4.7.5 experience writer coverage.
+- Confirmed `compute_payload_hash` dotted-field support did not regress TrialRecord or LearnedRule integrity.
+- Confirmed imported/local origin consistency and experience path routing.
+- Confirmed local integrity excludes only source/local integrity, validation counters, audit, and user notes.
+- Independent probes found only Low/Info edge contracts around NonEmptyStr silent strip, hidden or spaced manifest item filenames, deepcopy cost, dict-only dotted path removal, and public export hygiene.

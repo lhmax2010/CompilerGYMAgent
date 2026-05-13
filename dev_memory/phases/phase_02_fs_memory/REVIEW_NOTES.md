@@ -498,3 +498,33 @@ Self-review notes:
 
 Verdict:
 - Subtask 2.7 is ready for external review after commit/push.
+
+## Subtask 2.7 - external review verification
+
+- timestamp_utc: 2026-05-13T14:50:52Z
+- reviewer: Claude
+- verdict: Approve
+- range: `156a2b9..7add623`
+- tests: 272 passed, 0 failed
+- linux_fcntl_test: PASSED
+
+Verification summary:
+- [x] `Experience` covers the documented local/imported experience fields from REQUIREMENTS.md sections 4.2.6, 4.3, and 4.4.2.
+- [x] Imported/local origin consistency is strict in both directions.
+- [x] `source_integrity.original_file` validates the `experiences/*.yaml` manifest item contract and rejects unsafe path forms.
+- [x] `local_integrity.hash_fields_excluded` is fixed and tamper-resistant.
+- [x] Dotted excluded fields preserve validation counter/audit/user-note edits while semantic fields remain tamper-detectable.
+- [x] `compute_payload_hash` remained backward-compatible with TrialRecord and LearnedRule integrity.
+- [x] `write_experience` uses shared `atomic_write_yaml`, refuses overwrite, and routes local/imported buckets correctly.
+- [x] `load_experience` verifies safe YAML parsing, schema, and local integrity.
+- [x] Public exports and dev_memory workflow are coherent.
+
+Low/Info follow-ups:
+- L-1/L-3: NonEmptyStr silent-strip behavior should be handled consistently across Phase 02; do not patch only Experience fields unless doing a broader policy pass.
+- L-2: Decide whether `source_integrity.original_file` should reject hidden `.yaml` filenames or embedded spaces.
+- L-4: Consider optimizing `compute_payload_hash` to avoid `deepcopy` for top-level-only excluded fields.
+- L-5: Document that `_remove_mapping_path` supports dict paths, not list-index excluded paths.
+- L-6: Keep public export review as routine hygiene; no internal `_` helpers were reported as exposed.
+
+Review conclusion:
+- Subtask 2.7 is approved. Proceed to Ubuntu validation, then the next Phase 02 subtask or a Phase 02 polish pass.
