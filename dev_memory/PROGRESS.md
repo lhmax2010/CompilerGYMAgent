@@ -642,3 +642,19 @@ Next action: generate patch artifacts, commit/push, then request external review
 - Pushed to `origin/main`.
 
 Next action: request external review for Subtask 2.6.
+
+## 2026-05-13T13:50:20Z - Phase 02 / Subtask 2.6 external review completed
+
+- Reviewer: Claude.
+- Verdict: Approve.
+- Range: `7ebdd06..96320f0`.
+- Tests: 260 passed, 0 failed on Linux; the Linux real `fcntl` workspace lock path passed.
+- Review confirmed learned rule schema, integrity exclusions, tamper detection, atomic write reuse, no-overwrite behavior, public exports, and dev_memory workflow.
+- Low/Info follow-ups recorded:
+  - Decide whether an entirely empty `LearnedRule.scope` should be rejected.
+  - Document that learned rules intentionally do not carry a namespace field so users can promote/copy rules across namespace directories.
+  - Consider whether `user_validated` should become a three-state review status later.
+  - Keep cross-rule duplicate/semantic consistency checks out of the writer layer.
+  - Document lock wording: SoT writers use "must hold WorkspaceLock"; derived index rebuilds use weaker coordination semantics.
+
+Next action: run Ubuntu validation for Subtask 2.6, then proceed to Subtask 2.7.

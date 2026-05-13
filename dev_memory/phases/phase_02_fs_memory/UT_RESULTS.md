@@ -482,3 +482,23 @@ Coverage notes:
 - Covers atomic writer reuse and refusal to overwrite existing learned rule files.
 - Covers bounded alias-free UTF-8 YAML loading through the learned rule loader.
 - Windows full-suite skip is expected: `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter` requires Linux `fcntl`.
+
+## Subtask 2.6 - external review verification
+
+- timestamp_utc: 2026-05-13T13:50:20Z
+- reviewer: Claude
+- verdict: Approve
+- range: `7ebdd06..96320f0`
+- test_command: `PYTHONPATH=src python -m pytest tests/ -v`
+- test_result: 260 passed, 0 failed
+- targeted_command: `PYTHONPATH=src python -m pytest tests/test_fs_memory.py -v`
+- targeted_result: 99 passed, 0 failed
+- linux_fcntl_test: PASSED
+
+Verification notes:
+- Confirmed REQUIREMENTS.md section 4.2.6 learned-rule field coverage.
+- Confirmed learned-rule integrity excludes exactly `integrity`, `user_validated`, and `user_notes`.
+- Confirmed user-editable field changes preserve integrity, while semantic field tampering is detected.
+- Confirmed `write_learned_rule` reuses shared `atomic_write_yaml` and refuses existing files.
+- Confirmed write/load symlink behavior is fail-fast.
+- Independent probes found only Low/Info edge contracts around empty scope, namespace-less learned rules, review status granularity, cross-rule deduplication, and lock wording.

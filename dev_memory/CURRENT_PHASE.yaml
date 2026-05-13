@@ -1,7 +1,7 @@
 phase_id: phase_02_fs_memory
 phase_title: "FS-Memory SoT + schema + atomic write"
 started_at: 2026-05-08T07:04:04Z
-last_updated: 2026-05-11T13:02:08Z
+last_updated: 2026-05-13T13:50:20Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 4.2
@@ -231,6 +231,16 @@ subtasks:
     patch_generated: true
     commit_hash: 73c7fcb
     commit_message: "phase_02_fs_memory: 2.6 implement learned rule writer (REQUIREMENTS section 4.2.6)"
+    external_review_verdict: approve
+    external_reviewed_at: 2026-05-13T13:50:20Z
+    external_review_tests: "260 passed, 0 failed"
+    external_review_notes: "Claude independently verified Subtask 2.6 on Linux, confirmed learned rule schema/integrity/atomic writer coverage, and found only Low/Info follow-ups."
+    deferred_low_priority_followups:
+      - "Decide whether LearnedRule.scope should reject an entirely empty scope or keep accepting it by contract."
+      - "Document that LearnedRule intentionally has no namespace field to support manual promotion/copying across namespace directories."
+      - "Consider whether user_validated should eventually become a three-state review status."
+      - "Leave cross-rule duplicate/semantic consistency checks to future doctor or dedup tooling."
+      - "Document writer lock wording: SoT writers must hold WorkspaceLock; derived index rebuilds only should hold it for coordination."
     manual_probe:
       path: "learned/rules/rule_017.yaml"
       integrity_hash_fields_excluded: "[integrity, user_validated, user_notes]"
@@ -243,4 +253,4 @@ notes: |
   checkpoint.yaml, experience yaml, learned rule yaml) must reuse the same
   flush/fsync/os.replace/parent-fsync semantics from REQUIREMENTS.md section
   4.7.5.
-next_action: "Send Subtask 2.6 implementation for external review."
+next_action: "Run Ubuntu validation for Subtask 2.6, then proceed to Subtask 2.7."

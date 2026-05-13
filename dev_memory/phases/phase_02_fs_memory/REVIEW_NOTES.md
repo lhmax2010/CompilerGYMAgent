@@ -417,3 +417,35 @@ Deferred low-priority follow-ups:
 
 Review conclusion:
 - Subtask 2.6 is ready for external review.
+
+## Subtask 2.6 - external review verification
+
+- timestamp_utc: 2026-05-13T13:50:20Z
+- reviewer: Claude
+- verdict: Approve
+- range: `7ebdd06..96320f0`
+- tests: 260 passed, 0 failed
+
+Verification summary:
+- [x] `LearnedRule` covers the documented learned-rule fields from REQUIREMENTS.md section 4.2.6.
+- [x] `rule_id` and `evidence.supporting_trials` are path-safe.
+- [x] `created_at` uses strict UTC ISO 8601 validation.
+- [x] `evidence_count` matches `supporting_trials` length.
+- [x] `confidence` is bounded to `[0, 1]`.
+- [x] `user_validated` and `user_notes` are user-editable and excluded from integrity.
+- [x] `integrity.hash_fields_excluded` is fixed and tamper-resistant.
+- [x] `write_learned_rule` uses shared `atomic_write_yaml`, refuses overwrite, and refuses symlink overwrite.
+- [x] `load_learned_rule` verifies safe YAML parsing, schema, and integrity.
+- [x] Public exports and error hierarchy are coherent.
+- [x] dev_memory and patch three-piece are complete.
+
+Low/Info follow-ups:
+- L-1: Decide whether an entirely empty `LearnedRule.scope` should be accepted or rejected.
+- L-2: Document that learned rules intentionally omit a namespace field to support manual promotion/copying across namespace directories.
+- L-3: Direct hash helpers validate through `LearnedRule.model_validate`, so there is no bypass path for evidence-count consistency.
+- L-4: Consider whether `user_validated` should later become a three-state review status.
+- L-5: Keep cross-rule duplicate/semantic consistency checks in future doctor/dedup tooling, not the writer.
+- L-6: Document WorkspaceLock wording differences between SoT writers and derived-index rebuilds.
+
+Review conclusion:
+- Subtask 2.6 is approved. Proceed to Ubuntu validation, then Subtask 2.7.

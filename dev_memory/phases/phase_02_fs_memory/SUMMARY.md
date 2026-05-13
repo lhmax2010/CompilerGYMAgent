@@ -28,6 +28,8 @@ Completed:
 - Subtask 2.5 implemented rebuildable `trials/_index.sqlite` helpers from canonical trial YAML, including atomic replacement, stale detection, summary/row readers, and failure preservation for existing indexes.
 - Subtask 2.5 received external approval after independent Linux verification: 249/249 tests passed, the Linux real-fcntl test executed, and only Low/Info follow-ups remain.
 - Subtask 2.5 was validated by the user on Ubuntu/Linux with Python 3.11.15: full pytest passed 249/249 and the Linux real-fcntl test executed and passed.
+- Subtask 2.6 implemented and committed LearnedRule YAML schema, integrity helpers, atomic writer/loader, public exports, and UT coverage.
+- Subtask 2.6 received external approval after independent Linux verification: 260/260 tests passed and only Low/Info follow-ups remain.
 
 Remaining:
-- Subtask 2.6 implemented and committed LearnedRule YAML schema, integrity helpers, atomic writer/loader, public exports, and UT coverage.
+- Ubuntu validation for Subtask 2.6, then Subtask 2.7.
