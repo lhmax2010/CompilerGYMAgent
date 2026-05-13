@@ -194,6 +194,12 @@ subtasks:
     external_review_verdict: approve
     external_reviewed_at: 2026-05-13T13:50:20Z
     external_review_tests: "260 passed, 0 failed"
+    target_environment_validation:
+      os: Ubuntu/Linux
+      python: 3.11.15
+      full_pytest: "260 passed in 1.19s"
+      linux_fcntl_test: "tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter PASSED in 0.10s"
+      manual_probe: "learned rule write/verify, user_notes edit, and tamper detection passed"
     files_modified:
       - src/agent/fs_memory.py
       - tests/test_fs_memory.py

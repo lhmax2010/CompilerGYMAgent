@@ -449,3 +449,20 @@ Low/Info follow-ups:
 
 Review conclusion:
 - Subtask 2.6 is approved. Proceed to Ubuntu validation, then Subtask 2.7.
+
+## Subtask 2.6 - Ubuntu validation
+
+- timestamp_utc: 2026-05-13T14:00:24Z
+- reporter: user on target Ubuntu server
+- environment: Ubuntu/Linux, Python 3.11.15, `.venv`
+- full_pytest: 260 passed in 1.19s
+- linux_fcntl_test: `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter PASSED` in 0.10s
+- manual_probe:
+  - path: `learned/rules/rule_017.yaml`
+  - excluded: `[integrity, user_validated, user_notes]`
+  - verify_initial: true
+  - loaded_notes: `accepted after manual review`
+  - tamper_detected: true
+
+Conclusion:
+- Subtask 2.6 is externally approved and validated on Ubuntu. Proceed to Subtask 2.7.

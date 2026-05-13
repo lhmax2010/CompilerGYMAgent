@@ -658,3 +658,16 @@ Next action: request external review for Subtask 2.6.
   - Document lock wording: SoT writers use "must hold WorkspaceLock"; derived index rebuilds use weaker coordination semantics.
 
 Next action: run Ubuntu validation for Subtask 2.6, then proceed to Subtask 2.7.
+
+## 2026-05-13T14:00:24Z - Phase 02 / Subtask 2.6 Ubuntu validation completed
+
+- User validated Subtask 2.6 on the intended Ubuntu/Linux environment.
+- Environment: Ubuntu/Linux, Python 3.11.15, `.venv`, plain `pytest`.
+- Full command: `pytest -v` -> 260 passed in 1.19s.
+- Linux real-fcntl workspace lock regression executed and passed:
+  `pytest tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter -v` -> 1 passed in 0.10s.
+- Manual learned-rule probe wrote `learned/rules/rule_017.yaml`.
+- Manual probe confirmed integrity excludes `[integrity, user_validated, user_notes]`.
+- Manual probe confirmed `verify_initial=True`, `user_notes` edit loads, and `tamper_detected=true` for an `action_hint` edit.
+
+Next action: start Subtask 2.7.

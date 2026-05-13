@@ -502,3 +502,32 @@ Verification notes:
 - Confirmed `write_learned_rule` reuses shared `atomic_write_yaml` and refuses existing files.
 - Confirmed write/load symlink behavior is fail-fast.
 - Independent probes found only Low/Info edge contracts around empty scope, namespace-less learned rules, review status granularity, cross-rule deduplication, and lock wording.
+
+## Subtask 2.6 - Ubuntu target-environment validation
+
+- timestamp_utc: 2026-05-13T14:00:24Z
+- environment:
+  - os: Ubuntu/Linux
+  - python: 3.11.15
+  - virtualenv: `.venv`
+  - runner: plain `pytest` via `venv + pip`, no `uv` required
+- related_requirements:
+  - REQUIREMENTS.md section 4.2.6
+  - REQUIREMENTS.md section 4.7.5
+- full_command: `pytest -v`
+- full_duration: 1.19s
+- full_result: 260 passed, 0 failed
+- linux_fcntl_command: `pytest tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter -v`
+- linux_fcntl_result: 1 passed in 0.10s
+- manual_probe:
+  - path: `learned/rules/rule_017.yaml`
+  - integrity_hash_fields_excluded: `[integrity, user_validated, user_notes]`
+  - verify_initial: true
+  - loaded_notes: `accepted after manual review`
+  - tamper_detected: true
+
+Coverage notes:
+- Confirms the Subtask 2.6 suite passes on the intended Ubuntu environment.
+- Confirms the Linux-only real `fcntl` workspace lock regression test executes and passes.
+- Confirms learned-rule write/load integrity behavior through a manual probe.
+- reported_by: user on intended Ubuntu server environment

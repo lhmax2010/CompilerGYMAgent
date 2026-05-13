@@ -30,6 +30,7 @@ Completed:
 - Subtask 2.5 was validated by the user on Ubuntu/Linux with Python 3.11.15: full pytest passed 249/249 and the Linux real-fcntl test executed and passed.
 - Subtask 2.6 implemented and committed LearnedRule YAML schema, integrity helpers, atomic writer/loader, public exports, and UT coverage.
 - Subtask 2.6 received external approval after independent Linux verification: 260/260 tests passed and only Low/Info follow-ups remain.
+- Subtask 2.6 was validated by the user on Ubuntu/Linux with Python 3.11.15: full pytest passed 260/260, the Linux real-fcntl test executed, and manual learned-rule integrity/user-notes/tamper probes passed.
 
 Remaining:
-- Ubuntu validation for Subtask 2.6, then Subtask 2.7.
+- Subtask 2.7.
