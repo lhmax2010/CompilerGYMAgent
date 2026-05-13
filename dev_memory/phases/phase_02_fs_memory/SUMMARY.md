@@ -31,6 +31,7 @@ Completed:
 - Subtask 2.6 implemented and committed LearnedRule YAML schema, integrity helpers, atomic writer/loader, public exports, and UT coverage.
 - Subtask 2.6 received external approval after independent Linux verification: 260/260 tests passed and only Low/Info follow-ups remain.
 - Subtask 2.6 was validated by the user on Ubuntu/Linux with Python 3.11.15: full pytest passed 260/260, the Linux real-fcntl test executed, and manual learned-rule integrity/user-notes/tamper probes passed.
+- Subtask 2.7 implemented Experience YAML schema, local/source integrity helpers, atomic writer/loader, path routing for local/imported buckets, public exports, and UT coverage.
 
 Remaining:
-- Subtask 2.7.
+- Commit and push Subtask 2.7, then request external review.

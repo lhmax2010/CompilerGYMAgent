@@ -1,0 +1,1184 @@
+﻿diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index 1e5eae6..2f28ec9 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -1,7 +1,7 @@
+ phase_id: phase_02_fs_memory
+ phase_title: "FS-Memory SoT + schema + atomic write"
+ started_at: 2026-05-08T07:04:04Z
+-last_updated: 2026-05-13T14:00:24Z
++last_updated: 2026-05-13T14:09:25Z
+ target_milestone: M1
+ related_requirements:
+   - REQUIREMENTS.md section 4.2
+@@ -259,10 +259,36 @@ subtasks:
+       verify_initial: true
+       user_notes_edit_loads: true
+       tamper_detected: true
++  - id: "2.7"
++    title: "Implement Experience schema, local/source integrity, and atomic experience writer"
++    status: done
++    related_requirements:
++      - REQUIREMENTS.md section 4.2.6
++      - REQUIREMENTS.md section 4.3
++      - REQUIREMENTS.md section 4.4.2
++      - REQUIREMENTS.md section 4.7.5
++    files_modified:
++      - src/agent/fs_memory.py
++      - tests/test_fs_memory.py
++      - src/agent/__init__.py
++    started_at: 2026-05-13T14:09:25Z
++    completed_at: 2026-05-13T14:09:25Z
++    ut_passed: true
++    targeted_ut: "113 passed, 0 failed"
++    full_ut: "271 passed, 0 failed, 1 skipped"
++    self_reviewed: true
++    patch_file: dev_memory/phases/phase_02_fs_memory/patches/09_experience_writer.patch
++    patch_generated: true
++    commit_hash: pending
++    commit_message: "phase_02_fs_memory: 2.7 implement experience writer (REQUIREMENTS sections 4.3, 4.4.2)"
++    notes:
++      - "Added Experience schema for local and imported experiences, trust/origin validation, local/source integrity models, and alias-free bounded loading."
++      - "Extended compute_payload_hash to support dotted excluded fields needed by experience local integrity."
++      - "Added write/load/path helpers and public exports for experience YAML."
+ notes: |
+   Phase 01 is complete and validated on Ubuntu. Phase 02 starts with the
+   shared atomic YAML writer because every later SoT writer (trial yaml,
+   checkpoint.yaml, experience yaml, learned rule yaml) must reuse the same
+   flush/fsync/os.replace/parent-fsync semantics from REQUIREMENTS.md section
+   4.7.5.
+-next_action: "Start Subtask 2.7."
++next_action: "Commit/push Subtask 2.7, then request external review."
+diff --git a/dev_memory/DECISIONS.md b/dev_memory/DECISIONS.md
+index b68d649..3e8f4c6 100644
+--- a/dev_memory/DECISIONS.md
++++ b/dev_memory/DECISIONS.md
+@@ -361,3 +361,17 @@ Decision records must include:
+   - Hash every field except `integrity`, which would make harmless user notes require an integrity-accept flow immediately.
+   - Exclude the whole `evidence` or `scope` blocks, which would make meaningful rule drift invisible to doctor/integrity checks.
+   - Allow `write_learned_rule()` to overwrite existing files, which could silently discard user notes or validation state.
++
++## 2026-05-13T14:09:25Z - Split imported experience source integrity from local mutable integrity
++
++- affected_requirement:
++  - REQUIREMENTS.md section 4.2.6
++  - REQUIREMENTS.md section 4.3
++  - REQUIREMENTS.md section 4.4.2
++  - REQUIREMENTS.md section 4.7.5
++- decision: Model experience YAML with separate `source_integrity` and `local_integrity` blocks. Local hashes exclude `source_integrity`, `local_integrity`, `validation.evidence_count`, `validation.contradictions`, `validation.canary_attempts`, `audit`, and `user_notes`, while semantic rule content, trust level, origin, author, timestamps, and import metadata remain hash-covered.
++- rationale: Imported experiences are rewritten on local import, so package-origin proof and local file integrity have different scopes. Validation counters and audit events are expected to change as canary evidence accumulates; excluding only those user/agent-maintained counters keeps normal evidence updates cheap while still detecting rule drift or identity tampering.
++- alternatives_considered:
++  - Keep the older single `integrity` block for experiences, which would conflate source package verification with local mutable state.
++  - Exclude the whole `validation` block, which would hide changes to `plausibility_score` and `required_evidence`.
++  - Put imported experiences into trust-level directories immediately, which would blur imported/untrusted prompt-safety handling and make import provenance harder to inspect.
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index 79c3dc4..191b364 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -671,3 +671,24 @@ Next action: run Ubuntu validation for Subtask 2.6, then proceed to Subtask 2.7.
+ - Manual probe confirmed `verify_initial=True`, `user_notes` edit loads, and `tamper_detected=true` for an `action_hint` edit.
+ 
+ Next action: start Subtask 2.7.
++
++## 2026-05-13T14:09:25Z - Phase 02 / Subtask 2.7 started
++
++- Started Subtask 2.7: Experience YAML schema, local/source integrity, and atomic experience writer.
++- Requirements in scope: REQUIREMENTS.md sections 4.2.6, 4.3, 4.4.2, and 4.7.5.
++- Baseline before implementation: clean `main` synced with `origin/main` at `156a2b9`.
++- Planned files: `src/agent/fs_memory.py`, `tests/test_fs_memory.py`, `src/agent/__init__.py`, and Phase 02 dev_memory artifacts.
++
++## 2026-05-13T14:09:25Z - Phase 02 / Subtask 2.7 implemented
++
++- Added `Experience` schema and nested models for rule, scope, validation counters, audit events, import metadata, source integrity, and local integrity.
++- Added local/imported origin consistency rules: imported experiences require import metadata and source integrity; local experiences reject imported-only fields.
++- Added `ExperienceYamlLoader`, bounded UTF-8 loading, alias rejection, local integrity verification, and no-overwrite atomic writes.
++- Added `experience_path`, `experience_payload`, `with_experience_local_integrity`, `verify_experience_local_integrity`, and `compute_experience_local_payload_hash`.
++- Extended `compute_payload_hash` to support dotted excluded fields such as `validation.evidence_count`.
++- Public exports added in `src/agent/__init__.py`.
++- UT results:
++  - `python -m pytest tests/test_fs_memory.py -v` -> 113 passed.
++  - `python -m pytest -v` -> 271 passed, 1 skipped on Windows; the skipped test is the Linux-only real `fcntl` regression.
++
++Next action: generate patch files, commit Subtask 2.7, push, then request external review.
+diff --git a/dev_memory/phases/phase_02_fs_memory/CHECKLIST.yaml b/dev_memory/phases/phase_02_fs_memory/CHECKLIST.yaml
+index e94df10..3636d0b 100644
+--- a/dev_memory/phases/phase_02_fs_memory/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_02_fs_memory/CHECKLIST.yaml
+@@ -204,3 +204,28 @@ subtasks:
+       - src/agent/fs_memory.py
+       - tests/test_fs_memory.py
+       - src/agent/__init__.py
++  - id: "2.7"
++    title: "Implement Experience schema, local/source integrity, and atomic experience writer"
++    status: done
++    related_requirements:
++      - REQUIREMENTS.md section 4.2.6
++      - REQUIREMENTS.md section 4.3
++      - REQUIREMENTS.md section 4.4.2
++      - REQUIREMENTS.md section 4.7.5
++    ut_required: true
++    ut_passed: true
++    targeted_ut: "113 passed, 0 failed"
++    full_ut: "271 passed, 0 failed, 1 skipped"
++    self_review_required: true
++    self_reviewed: true
++    patch_required: true
++    patch_file: dev_memory/phases/phase_02_fs_memory/patches/09_experience_writer.patch
++    patch_generated: true
++    commit_required: true
++    commit_pending: true
++    commit_hash: pending
++    commit_message: "phase_02_fs_memory: 2.7 implement experience writer (REQUIREMENTS sections 4.3, 4.4.2)"
++    files_modified:
++      - src/agent/fs_memory.py
++      - tests/test_fs_memory.py
++      - src/agent/__init__.py
+diff --git a/dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md b/dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md
+index fc3292d..bb8fe2a 100644
+--- a/dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md
++++ b/dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md
+@@ -466,3 +466,35 @@ Review conclusion:
+ 
+ Conclusion:
+ - Subtask 2.6 is externally approved and validated on Ubuntu. Proceed to Subtask 2.7.
++
++## Subtask 2.7 - Experience YAML schema and writer
++
++Scope:
++- REQUIREMENTS.md section 4.2.6 user experience YAML shape.
++- REQUIREMENTS.md section 4.3 trust levels, validation counters, and canary evidence fields.
++- REQUIREMENTS.md section 4.4.2 imported experience source/local integrity split.
++- REQUIREMENTS.md section 4.7.5 shared atomic YAML writer.
++
++Implementation checklist:
++- [x] `Experience` covers local and imported experience fields: identity, author, timestamps, trust level, origin, rule, validation counters, audit, and notes.
++- [x] Imported experiences require `imported_by`, `imported_at`, `import_metadata`, and `source_integrity`.
++- [x] Local experiences reject imported-only fields.
++- [x] `source_integrity.original_file` enforces the `experiences/*.yaml` manifest item path contract.
++- [x] `local_integrity.hash_fields_excluded` is strict and covers `source_integrity`, `local_integrity`, validation counters, audit, and `user_notes`.
++- [x] `compute_payload_hash` supports dotted excluded fields without mutating caller payloads.
++- [x] `write_experience` writes through shared `atomic_write_yaml`, routes local/imported paths, and refuses existing files.
++- [x] `load_experience` is bounded, UTF-8, alias-free, schema-validated, and local-integrity-verified.
++- [x] Public exports added in `src/agent/__init__.py`.
++
++Tests:
++- `python -m pytest tests/test_fs_memory.py -v` -> 113 passed.
++- `python -m pytest -v` -> 271 passed, 1 skipped on Windows.
++
++Self-review notes:
++- Local integrity intentionally excludes validation counters and audit so canary/evidence updates do not require re-signing semantic rule content.
++- `trust_level` remains integrity-covered. Promotion workflows can use future integrity accept/update flows rather than silent manual edits.
++- Imported experiences are routed to `experiences/imported/<id>.yaml`; local experiences use `experiences/<trust_level>/<id>.yaml`.
++- Source package integrity is modeled and format-validated, while full package verification remains import workflow scope.
++
++Verdict:
++- Subtask 2.7 is ready for external review after commit/push.
+diff --git a/dev_memory/phases/phase_02_fs_memory/SUMMARY.md b/dev_memory/phases/phase_02_fs_memory/SUMMARY.md
+index 9832115..10a2286 100644
+--- a/dev_memory/phases/phase_02_fs_memory/SUMMARY.md
++++ b/dev_memory/phases/phase_02_fs_memory/SUMMARY.md
+@@ -31,6 +31,7 @@ Completed:
+ - Subtask 2.6 implemented and committed LearnedRule YAML schema, integrity helpers, atomic writer/loader, public exports, and UT coverage.
+ - Subtask 2.6 received external approval after independent Linux verification: 260/260 tests passed and only Low/Info follow-ups remain.
+ - Subtask 2.6 was validated by the user on Ubuntu/Linux with Python 3.11.15: full pytest passed 260/260, the Linux real-fcntl test executed, and manual learned-rule integrity/user-notes/tamper probes passed.
++- Subtask 2.7 implemented Experience YAML schema, local/source integrity helpers, atomic writer/loader, path routing for local/imported buckets, public exports, and UT coverage.
+ 
+ Remaining:
+-- Subtask 2.7.
++- Commit and push Subtask 2.7, then request external review.
+diff --git a/dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md b/dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md
+index c5d905f..7df6a2f 100644
+--- a/dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md
++++ b/dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md
+@@ -531,3 +531,31 @@ Coverage notes:
+ - Confirms the Linux-only real `fcntl` workspace lock regression test executes and passes.
+ - Confirms learned-rule write/load integrity behavior through a manual probe.
+ - reported_by: user on intended Ubuntu server environment
++
++## Subtask 2.7 - Experience YAML schema and writer
++
++- environment:
++  - os: Windows development host
++  - python: 3.14.3
++  - runner: `.venv\Scripts\python.exe -m pytest`
++- requirements:
++  - REQUIREMENTS.md section 4.2.6
++  - REQUIREMENTS.md section 4.3
++  - REQUIREMENTS.md section 4.4.2
++  - REQUIREMENTS.md section 4.7.5
++- targeted_command: `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -v`
++- targeted_result: 113 passed, 0 failed
++- full_command: `.venv\Scripts\python.exe -m pytest -v`
++- full_result: 271 passed, 0 failed, 1 skipped
++- skipped:
++  - `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter` requires Linux fcntl and must be covered by Ubuntu validation.
++- new_coverage:
++  - Experience schema accepts the documented local experience shape.
++  - Experience local integrity excludes `source_integrity`, `local_integrity`, validation counters, audit, and `user_notes`.
++  - Agent-owned rule fields remain tamper-detectable.
++  - Imported experiences require import metadata and source integrity.
++  - `source_integrity.original_file` follows the `experiences/*.yaml` manifest item path contract.
++  - Experience IDs are path-safe.
++  - `write_experience` writes through shared atomic YAML and refuses existing paths.
++  - Local experiences route to `experiences/<trust_level>/<id>.yaml`; imported experiences route to `experiences/imported/<id>.yaml`.
++  - `load_experience` rejects missing local integrity, integrity tampering, and YAML aliases.
+diff --git a/dev_memory/phases/phase_02_fs_memory/patches/09_experience_writer.review.md b/dev_memory/phases/phase_02_fs_memory/patches/09_experience_writer.review.md
+new file mode 100644
+index 0000000..9e0271c
+--- /dev/null
++++ b/dev_memory/phases/phase_02_fs_memory/patches/09_experience_writer.review.md
+@@ -0,0 +1,27 @@
++# Phase 02 / Subtask 2.7 Self-Review
++
++Scope:
++- REQUIREMENTS.md section 4.2.6 user experience YAML fields.
++- REQUIREMENTS.md section 4.3 trust and validation counter semantics.
++- REQUIREMENTS.md section 4.4.2 source/local integrity split for imported experiences.
++- REQUIREMENTS.md section 4.7.5 shared atomic YAML writer.
++
++Checklist:
++- [x] `Experience` covers local experience identity, rule, validation, audit, notes, and local integrity.
++- [x] Imported experiences require `imported_by`, `imported_at`, `import_metadata`, and `source_integrity`.
++- [x] `source_integrity.original_file` enforces the import manifest `experiences/*.yaml` item path contract.
++- [x] Local integrity excludes only source/local integrity, validation counters, audit, and `user_notes`.
++- [x] Semantic rule content remains covered by local integrity and tamper-detectable.
++- [x] `compute_payload_hash` supports dotted excluded fields without mutating input mappings.
++- [x] `write_experience` uses shared `atomic_write_yaml`, refuses existing paths, and routes local/imported buckets.
++- [x] `load_experience` enforces bounded UTF-8 YAML, alias rejection, schema validation, and local integrity verification.
++- [x] Public exports were added.
++
++Risks / Follow-ups:
++- Trust-level promotion currently requires rewriting local integrity through a future integrity accept/update flow; manual trust edits without rehashing will fail integrity as intended.
++- Full source package hash verification remains import workflow scope; this subtask validates source integrity shape and preserves provenance fields.
++- Imported experience prompt quoting/search behavior is not implemented here; this subtask only lands the canonical YAML writer/loader.
++
++Verification:
++- `python -m pytest tests/test_fs_memory.py -v` -> 113 passed.
++- `python -m pytest -v` -> 271 passed, 1 skipped on Windows.
+diff --git a/dev_memory/phases/phase_02_fs_memory/patches/09_experience_writer.summary.txt b/dev_memory/phases/phase_02_fs_memory/patches/09_experience_writer.summary.txt
+new file mode 100644
+index 0000000..5e61681
+--- /dev/null
++++ b/dev_memory/phases/phase_02_fs_memory/patches/09_experience_writer.summary.txt
+@@ -0,0 +1,25 @@
++Phase 02 / Subtask 2.7 - Experience YAML schema and writer
++
++Requirements:
++- REQUIREMENTS.md section 4.2.6
++- REQUIREMENTS.md section 4.3
++- REQUIREMENTS.md section 4.4.2
++- REQUIREMENTS.md section 4.7.5
++
++Summary:
++- Added Experience schema models for local and imported experience YAML,
++  including rule, scope, validation counters, audit events, import metadata,
++  source integrity, and local integrity.
++- Added local/imported consistency checks so imported experiences require
++  import metadata and source integrity, while local experiences reject
++  imported-only fields.
++- Added local integrity helpers and a dotted-field exclusion path for
++  compute_payload_hash so validation counters, audit, user notes, and integrity
++  blocks can be excluded while semantic rule fields remain tamper-detectable.
++- Added alias-free bounded Experience YAML loader, atomic no-overwrite writer,
++  path routing for local trust buckets and imported experiences, and public
++  exports.
++
++Tests:
++- `python -m pytest tests/test_fs_memory.py -v` -> 113 passed.
++- `python -m pytest -v` -> 271 passed, 1 skipped on Windows.
+diff --git a/src/agent/__init__.py b/src/agent/__init__.py
+index e13d85e..d1505fc 100644
+--- a/src/agent/__init__.py
++++ b/src/agent/__init__.py
+@@ -11,6 +11,18 @@ from .fs_memory import (
+     CheckpointProcess,
+     CheckpointState,
+     DiscoveredTrialRecord,
++    Experience,
++    ExperienceAuditEvent,
++    ExperienceError,
++    ExperienceExistsError,
++    ExperienceImportMetadata,
++    ExperienceIntegrityError,
++    ExperienceLoadError,
++    ExperienceLocalIntegrity,
++    ExperienceRule,
++    ExperienceRuleScope,
++    ExperienceSourceIntegrity,
++    ExperienceValidation,
+     FsMemoryError,
+     LearnedRule,
+     LearnedRuleError,
+@@ -40,10 +52,13 @@ from .fs_memory import (
+     checkpoint_payload,
+     collect_trial_startup_validation_inputs,
+     compute_combo_hash,
++    compute_experience_local_payload_hash,
+     compute_learned_rule_payload_hash,
+     compute_payload_hash,
+     compute_trial_payload_hash,
+     discover_trial_records,
++    experience_path,
++    experience_payload,
+     existing_trial_compiler_versions,
+     ensure_trial_index_current,
+     iter_trial_record_paths,
+@@ -51,6 +66,7 @@ from .fs_memory import (
+     learned_rule_payload,
+     load_checkpoint_for_layout,
+     load_checkpoint_state,
++    load_experience,
+     load_learned_rule,
+     load_trial_index_rows,
+     load_trial_index_summary,
+@@ -59,13 +75,16 @@ from .fs_memory import (
+     namespace_layout_for_config,
+     rebuild_trial_index,
+     trial_index_is_stale,
++    verify_experience_local_integrity,
+     verify_learned_rule_integrity,
+     trial_record_path,
+     trial_record_payload,
+     verify_trial_integrity,
++    with_experience_local_integrity,
+     with_learned_rule_integrity,
+     with_trial_integrity,
+     write_checkpoint_state,
++    write_experience,
+     write_learned_rule,
+     write_trial_record,
+ )
+@@ -122,6 +141,18 @@ __all__ = [
+     "CheckpointState",
+     "ConfigLoadError",
+     "DiscoveredTrialRecord",
++    "Experience",
++    "ExperienceAuditEvent",
++    "ExperienceError",
++    "ExperienceExistsError",
++    "ExperienceImportMetadata",
++    "ExperienceIntegrityError",
++    "ExperienceLoadError",
++    "ExperienceLocalIntegrity",
++    "ExperienceRule",
++    "ExperienceRuleScope",
++    "ExperienceSourceIntegrity",
++    "ExperienceValidation",
+     "FsMemoryError",
+     "HistorySummary",
+     "InitAborted",
+@@ -172,11 +203,14 @@ __all__ = [
+     "collect_history_summary",
+     "collect_trial_startup_validation_inputs",
+     "compute_combo_hash",
++    "compute_experience_local_payload_hash",
+     "compute_learned_rule_payload_hash",
+     "compute_payload_hash",
+     "compute_project_namespace",
+     "compute_trial_payload_hash",
+     "discover_trial_records",
++    "experience_path",
++    "experience_payload",
+     "existing_trial_compiler_versions",
+     "ensure_trial_index_current",
+     "iter_trial_record_paths",
+@@ -185,6 +219,7 @@ __all__ = [
+     "load_config",
+     "load_checkpoint_for_layout",
+     "load_checkpoint_state",
++    "load_experience",
+     "load_initialized_state",
+     "load_learned_rule",
+     "load_modules_registry",
+@@ -205,12 +240,15 @@ __all__ = [
+     "trial_record_path",
+     "trial_record_payload",
+     "validate_project_against_registry",
++    "verify_experience_local_integrity",
+     "verify_initialized_for_startup",
+     "verify_learned_rule_integrity",
+     "verify_trial_integrity",
++    "with_experience_local_integrity",
+     "with_learned_rule_integrity",
+     "with_trial_integrity",
+     "write_checkpoint_state",
++    "write_experience",
+     "write_initialized_state",
+     "write_learned_rule",
+     "write_trial_record",
+diff --git a/src/agent/fs_memory.py b/src/agent/fs_memory.py
+index 703f3df..cbdce3f 100644
+--- a/src/agent/fs_memory.py
++++ b/src/agent/fs_memory.py
+@@ -8,13 +8,14 @@ caches must be rebuildable from these paths.
+ from __future__ import annotations
+ 
+ import os
++import copy
+ import hashlib
+ import math
+ import sqlite3
+ import tempfile
+ from dataclasses import dataclass
+ from datetime import UTC, datetime, timedelta
+-from pathlib import Path
++from pathlib import Path, PurePosixPath
+ from typing import Any, Literal, Mapping, Sequence
+ 
+ import yaml
+@@ -72,6 +73,22 @@ class LearnedRuleLoadError(LearnedRuleError):
+     """Raised when learned rule YAML cannot be parsed or validated."""
+ 
+ 
++class ExperienceError(FsMemoryError):
++    """Raised when experience data is invalid for FS-Memory use."""
++
++
++class ExperienceExistsError(ExperienceError):
++    """Raised when an experience YAML path already exists."""
++
++
++class ExperienceIntegrityError(ExperienceError):
++    """Raised when experience integrity data is missing or invalid."""
++
++
++class ExperienceLoadError(ExperienceError):
++    """Raised when experience YAML cannot be parsed or validated."""
++
++
+ class CheckpointError(FsMemoryError):
+     """Raised when checkpoint state is invalid for FS-Memory use."""
+ 
+@@ -118,18 +135,40 @@ class LearnedRuleYamlLoader(yaml.SafeLoader):
+         return super().compose_node(parent, index)
+ 
+ 
++class ExperienceYamlLoader(yaml.SafeLoader):
++    """Safe loader for user-readable experience YAML."""
++
++    def compose_node(self, parent: Any, index: Any) -> yaml.Node:
++        if self.check_event(yaml.AliasEvent):
++            raise yaml.YAMLError("YAML aliases are not allowed in experiences")
++        return super().compose_node(parent, index)
++
++
+ MAX_TRIAL_RECORD_BYTES = 1_048_576
+ MAX_CHECKPOINT_BYTES = 1_048_576
+ MAX_LEARNED_RULE_BYTES = 1_048_576
++MAX_EXPERIENCE_BYTES = 1_048_576
+ TRIAL_INDEX_SCHEMA_VERSION = 1
+ TRIAL_HASH_FIELDS_EXCLUDED = ("integrity",)
+ LEARNED_RULE_HASH_FIELDS_EXCLUDED = ("integrity", "user_validated", "user_notes")
++EXPERIENCE_LOCAL_HASH_FIELDS_EXCLUDED = (
++    "source_integrity",
++    "local_integrity",
++    "validation.evidence_count",
++    "validation.contradictions",
++    "validation.canary_attempts",
++    "audit",
++    "user_notes",
++)
+ TrialMode = Literal["exploit", "explore", "warmup", "canary", "mixed"]
+ CandidateSource = Literal["llm_proposal", "local_mutation", "weighted_random", "ablation"]
+ ScheduleSlot = Literal["exploit", "mutation", "novelty", "warmup", "canary"]
+ BenchLevel = Literal["build_only", "quick", "full"]
+ ObjectiveDirection = Literal["higher_is_better", "lower_is_better"]
+ BootstrapMode = Literal["paired", "unpaired"]
++ExperienceTrustLevel = Literal["tentative", "verified", "authoritative", "disputed"]
++ExperienceOrigin = Literal["local", "imported"]
++ExperienceHardness = Literal["soft", "hard"]
+ TrialOutcome = Literal[
+     "success",
+     "compile_failed",
+@@ -201,6 +240,63 @@ class LearnedRuleIntegrity(StrictFsModel):
+         return value
+ 
+ 
++class ExperienceLocalIntegrity(StrictFsModel):
++    payload_hash: NonEmptyStr
++    hash_fields_excluded: list[NonEmptyStr] = Field(
++        default_factory=lambda: list(EXPERIENCE_LOCAL_HASH_FIELDS_EXCLUDED)
++    )
++
++    @field_validator("payload_hash")
++    @classmethod
++    def payload_hash_must_be_sha256(cls, value: str) -> str:
++        _validate_sha256_digest(value, "local_integrity.payload_hash")
++        return value
++
++    @field_validator("hash_fields_excluded")
++    @classmethod
++    def excluded_fields_must_match_experience_contract(
++        cls,
++        value: list[str],
++    ) -> list[str]:
++        if value != list(EXPERIENCE_LOCAL_HASH_FIELDS_EXCLUDED):
++            raise ValueError(
++                "experience local_integrity must exclude exactly "
++                f"{list(EXPERIENCE_LOCAL_HASH_FIELDS_EXCLUDED)!r}"
++            )
++        return value
++
++
++class ExperienceSourceIntegrity(StrictFsModel):
++    source_payload_hash: NonEmptyStr
++    source_package_hash: NonEmptyStr
++    verified_at_import: bool
++    verified_at: NonEmptyStr
++    original_file: NonEmptyStr
++
++    @field_validator("source_payload_hash", "source_package_hash")
++    @classmethod
++    def source_hash_must_be_sha256(cls, value: str, info: Any) -> str:
++        _validate_sha256_digest(value, f"source_integrity.{info.field_name}")
++        return value
++
++    @field_validator("verified_at", mode="before")
++    @classmethod
++    def verified_at_datetime_to_string(cls, value: Any) -> Any:
++        return _datetime_to_utc_isoformat(value, "source_integrity.verified_at")
++
++    @field_validator("verified_at")
++    @classmethod
++    def verified_at_must_be_utc_isoformat(cls, value: str) -> str:
++        _parse_utc_isoformat(value, "source_integrity.verified_at")
++        return value
++
++    @field_validator("original_file")
++    @classmethod
++    def original_file_must_be_manifest_item_path(cls, value: str) -> str:
++        _validate_experience_item_file(value, "source_integrity.original_file")
++        return value
++
++
+ class SourceTreeChange(StrictFsModel):
+     file: NonEmptyStr
+     action: NonEmptyStr
+@@ -374,6 +470,130 @@ class LearnedRule(StrictFsModel):
+         return self
+ 
+ 
++class ExperienceRuleScope(StrictFsModel):
++    options: list[NonEmptyStr] = Field(default_factory=list)
++    context_hint: NonEmptyStr | None = None
++
++    @field_validator("options")
++    @classmethod
++    def options_must_be_safe_strings(cls, value: list[str]) -> list[str]:
++        for option in value:
++            _validate_option_string(option, "rule.scope.options")
++        return value
++
++
++class ExperienceRule(StrictFsModel):
++    type: NonEmptyStr
++    description: NonEmptyStr
++    scope: ExperienceRuleScope
++    expected_outcome: NonEmptyStr
++    hardness: ExperienceHardness
++
++
++class ExperienceValidation(StrictFsModel):
++    plausibility_score: float | None = Field(default=None, ge=0, le=1)
++    evidence_count: int = Field(ge=0)
++    required_evidence: int = Field(ge=0)
++    contradictions: int = Field(ge=0)
++    canary_attempts: int = Field(ge=0)
++
++
++class ExperienceAuditEvent(StrictFsModel):
++    ts: NonEmptyStr
++    action: NonEmptyStr
++    by: NonEmptyStr
++
++    @field_validator("ts", mode="before")
++    @classmethod
++    def ts_datetime_to_string(cls, value: Any) -> Any:
++        return _datetime_to_utc_isoformat(value, "audit.ts")
++
++    @field_validator("ts")
++    @classmethod
++    def ts_must_be_utc_isoformat(cls, value: str) -> str:
++        _parse_utc_isoformat(value, "audit.ts")
++        return value
++
++
++class ExperienceImportMetadata(StrictFsModel):
++    original_trust: ExperienceTrustLevel
++    original_namespace: NonEmptyStr
++    original_evidence_count: int = Field(ge=0)
++    original_machine_info: NonEmptyStr
++
++    @field_validator("original_namespace")
++    @classmethod
++    def original_namespace_must_be_safe(cls, value: str) -> str:
++        _validate_namespace_string(value, "import_metadata.original_namespace")
++        return value
++
++
++class Experience(StrictFsModel):
++    id: NonEmptyStr
++    author: NonEmptyStr
++    submitted_at: NonEmptyStr
++    trust_level: ExperienceTrustLevel
++    origin: ExperienceOrigin
++    imported_by: NonEmptyStr | None = None
++    imported_at: NonEmptyStr | None = None
++    import_metadata: ExperienceImportMetadata | None = None
++    rule: ExperienceRule
++    validation: ExperienceValidation
++    audit: list[ExperienceAuditEvent] = Field(min_length=1)
++    user_notes: str = ""
++    source_integrity: ExperienceSourceIntegrity | None = None
++    local_integrity: ExperienceLocalIntegrity | None = None
++
++    @field_validator("id", mode="before")
++    @classmethod
++    def id_must_not_be_trimmed(cls, value: Any) -> Any:
++        if isinstance(value, str) and value != value.strip():
++            raise ValueError("id cannot contain surrounding whitespace")
++        return value
++
++    @field_validator("id")
++    @classmethod
++    def id_must_be_file_safe(cls, value: str) -> str:
++        _validate_file_atom(value, "id")
++        return value
++
++    @field_validator("submitted_at", "imported_at", mode="before")
++    @classmethod
++    def timestamp_datetime_to_string(cls, value: Any, info: Any) -> Any:
++        if value is None:
++            return value
++        return _datetime_to_utc_isoformat(value, info.field_name)
++
++    @field_validator("submitted_at", "imported_at")
++    @classmethod
++    def timestamp_must_be_utc_isoformat(cls, value: str | None, info: Any) -> str | None:
++        if value is not None:
++            _parse_utc_isoformat(value, info.field_name)
++        return value
++
++    @model_validator(mode="after")
++    def import_fields_match_origin(self) -> Experience:
++        imported_fields = (
++            self.imported_by,
++            self.imported_at,
++            self.import_metadata,
++            self.source_integrity,
++        )
++        if self.origin == "imported":
++            if any(field is None for field in imported_fields):
++                raise ValueError(
++                    "imported experiences must include imported_by, imported_at, "
++                    "import_metadata, and source_integrity"
++                )
++        else:
++            if any(field is not None for field in imported_fields):
++                raise ValueError(
++                    "local experiences must not include imported_by, imported_at, "
++                    "import_metadata, or source_integrity"
++                )
++        return self
++
++
+ class CheckpointProcess(StrictFsModel):
+     pid: int = Field(gt=0)
+     pgid: int = Field(gt=0)
+@@ -725,9 +945,9 @@ def compute_payload_hash(
+     *,
+     excluded_fields: Sequence[str] = TRIAL_HASH_FIELDS_EXCLUDED,
+ ) -> str:
+-    canonical_payload = {
+-        key: value for key, value in dict(payload).items() if key not in set(excluded_fields)
+-    }
++    canonical_payload = copy.deepcopy(dict(payload))
++    for field_path in excluded_fields:
++        _remove_mapping_path(canonical_payload, field_path)
+     digest = hashlib.sha256(_canonical_yaml_bytes(canonical_payload)).hexdigest()
+     return f"sha256:{digest}"
+ 
+@@ -804,6 +1024,63 @@ def verify_learned_rule_integrity(rule: LearnedRule | Mapping[str, Any]) -> bool
+     )
+ 
+ 
++def compute_experience_local_payload_hash(
++    experience: Experience | Mapping[str, Any],
++) -> str:
++    validated = Experience.model_validate(experience)
++    payload = experience_payload(validated, include_local_integrity=False)
++    return compute_payload_hash(
++        payload,
++        excluded_fields=EXPERIENCE_LOCAL_HASH_FIELDS_EXCLUDED,
++    )
++
++
++def experience_payload(
++    experience: Experience | Mapping[str, Any],
++    *,
++    include_local_integrity: bool = True,
++    include_source_integrity: bool = True,
++) -> dict[str, Any]:
++    validated = Experience.model_validate(experience)
++    payload = validated.model_dump(mode="json", exclude_none=True)
++    if not include_local_integrity:
++        payload.pop("local_integrity", None)
++    if not include_source_integrity:
++        payload.pop("source_integrity", None)
++    return payload
++
++
++def with_experience_local_integrity(
++    experience: Experience | Mapping[str, Any],
++) -> Experience:
++    validated = Experience.model_validate(experience)
++    payload = experience_payload(validated, include_local_integrity=False)
++    payload["local_integrity"] = {
++        "payload_hash": compute_payload_hash(
++            payload,
++            excluded_fields=EXPERIENCE_LOCAL_HASH_FIELDS_EXCLUDED,
++        ),
++        "hash_fields_excluded": list(EXPERIENCE_LOCAL_HASH_FIELDS_EXCLUDED),
++    }
++    return Experience.model_validate(payload)
++
++
++def verify_experience_local_integrity(experience: Experience | Mapping[str, Any]) -> bool:
++    validated = Experience.model_validate(experience)
++    if validated.local_integrity is None:
++        return False
++    return (
++        validated.local_integrity.payload_hash
++        == compute_experience_local_payload_hash(validated)
++    )
++
++
++def experience_path(layout: NamespaceLayout, experience: Experience | Mapping[str, Any]) -> Path:
++    validated = Experience.model_validate(experience)
++    bucket = "imported" if validated.origin == "imported" else validated.trust_level
++    return layout.experiences_dir / bucket / f"{validated.id}.yaml"
++
++
+ def learned_rule_path(layout: NamespaceLayout, rule: LearnedRule | Mapping[str, Any]) -> Path:
+     learned_rule = LearnedRule.model_validate(rule)
+     return layout.learned_rules_dir / f"{learned_rule.rule_id}.yaml"
+@@ -864,6 +1141,25 @@ def write_learned_rule(
+     return target
+ 
+ 
++def write_experience(
++    layout: NamespaceLayout,
++    experience: Experience | Mapping[str, Any],
++) -> Path:
++    """Write one user experience YAML.
++
++    Callers must hold the workspace lock before invoking this function. The
++    helper refuses existing paths so agent writes do not clobber user-edited
++    validation counters, audit notes, or trust state.
++    """
++
++    validated = with_experience_local_integrity(experience)
++    target = experience_path(layout, validated)
++    if target.exists() or target.is_symlink():
++        raise ExperienceExistsError(f"experience already exists: {target}")
++    atomic_write_yaml(experience_payload(validated), target)
++    return target
++
++
+ def load_trial_record(path: str | Path) -> TrialRecord:
+     """Load one immutable trial YAML and verify its integrity block."""
+ 
+@@ -971,6 +1267,59 @@ def load_learned_rule(path: str | Path) -> LearnedRule:
+     return learned_rule
+ 
+ 
++def load_experience(path: str | Path) -> Experience:
++    """Load one experience YAML and verify its local integrity block."""
++
++    experience_file = Path(path)
++    if experience_file.is_symlink():
++        raise ExperienceLoadError(f"experience path must not be a symlink: {experience_file}")
++    try:
++        file_size = experience_file.stat().st_size
++    except FileNotFoundError as exc:
++        raise ExperienceLoadError(f"experience file not found: {experience_file}") from exc
++    if file_size > MAX_EXPERIENCE_BYTES:
++        raise ExperienceLoadError(
++            f"experience file {experience_file} is too large "
++            f"({file_size} bytes > {MAX_EXPERIENCE_BYTES} bytes)"
++        )
++
++    try:
++        raw_text = experience_file.read_text(encoding="utf-8")
++    except UnicodeDecodeError as exc:
++        raise ExperienceLoadError(f"experience file {experience_file} is not valid UTF-8") from exc
++
++    try:
++        data = yaml.load(raw_text, Loader=ExperienceYamlLoader)
++    except yaml.YAMLError as exc:
++        raise ExperienceLoadError(
++            f"experience file {experience_file} failed to parse YAML: {exc}"
++        ) from exc
++
++    if not data:
++        raise ExperienceLoadError(f"experience file {experience_file} is empty")
++    if not isinstance(data, Mapping):
++        raise ExperienceLoadError(
++            f"experience file {experience_file} must contain a YAML mapping"
++        )
++
++    try:
++        experience = Experience.model_validate(data)
++    except ValidationError as exc:
++        raise ExperienceLoadError(
++            f"experience file {experience_file} is invalid:\n{exc}"
++        ) from exc
++
++    if experience.local_integrity is None:
++        raise ExperienceIntegrityError(
++            f"experience file {experience_file} is missing local_integrity"
++        )
++    if not verify_experience_local_integrity(experience):
++        raise ExperienceIntegrityError(
++            f"experience file {experience_file} failed local integrity check"
++        )
++    return experience
++
++
+ def iter_trial_record_paths(layout: NamespaceLayout) -> tuple[Path, ...]:
+     """Return canonical trial YAML paths under `trials/data`, sorted by path."""
+ 
+@@ -1309,6 +1658,17 @@ def _canonical_yaml_bytes(payload: Any) -> bytes:
+     return text.encode("utf-8")
+ 
+ 
++def _remove_mapping_path(payload: dict[str, Any], field_path: str) -> None:
++    current: Any = payload
++    parts = field_path.split(".")
++    for part in parts[:-1]:
++        if not isinstance(current, dict) or part not in current:
++            return
++        current = current[part]
++    if isinstance(current, dict):
++        current.pop(parts[-1], None)
++
++
+ def _validate_sha256_digest(value: str, label: str) -> None:
+     prefix = "sha256:"
+     if not value.startswith(prefix):
+@@ -1354,6 +1714,32 @@ def _validate_file_atom(value: str, label: str) -> None:
+         raise ValueError(f"{label} cannot contain control characters")
+ 
+ 
++def _validate_option_string(value: str, label: str) -> None:
++    if not isinstance(value, str) or not value.strip():
++        raise ValueError(f"{label} must contain non-empty strings")
++    if value != value.strip():
++        raise ValueError(f"{label} cannot contain surrounding whitespace")
++    if any(ord(char) < 0x20 or ord(char) == 0x7F for char in value):
++        raise ValueError(f"{label} cannot contain control characters")
++
++
++def _validate_experience_item_file(value: str, label: str) -> None:
++    if "\\" in value:
++        raise ValueError(f"{label} must use POSIX separators")
++    path = PurePosixPath(value)
++    if path.is_absolute():
++        raise ValueError(f"{label} cannot be absolute")
++    if ".." in path.parts:
++        raise ValueError(f"{label} cannot contain parent segments")
++    if path.as_posix() != value:
++        raise ValueError(f"{label} must be normalized")
++    if len(path.parts) != 2 or path.parts[0] != "experiences":
++        raise ValueError(f"{label} must match experiences/*.yaml")
++    if path.suffix != ".yaml":
++        raise ValueError(f"{label} must end with .yaml")
++    _validate_file_atom(path.name, label)
++
++
+ def _validate_namespace_string(value: str, label: str) -> None:
+     parts = value.split("/")
+     if len(parts) != 5:
+diff --git a/tests/test_fs_memory.py b/tests/test_fs_memory.py
+index 5a296ea..35f7bbd 100644
+--- a/tests/test_fs_memory.py
++++ b/tests/test_fs_memory.py
+@@ -15,6 +15,10 @@ from agent.fs_memory import (
+     CheckpointError,
+     CheckpointLoadError,
+     CheckpointState,
++    Experience,
++    ExperienceExistsError,
++    ExperienceIntegrityError,
++    ExperienceLoadError,
+     LearnedRule,
+     LearnedRuleExistsError,
+     LearnedRuleIntegrityError,
+@@ -31,17 +35,21 @@ from agent.fs_memory import (
+     checkpoint_payload,
+     collect_trial_startup_validation_inputs,
+     compute_combo_hash,
++    compute_experience_local_payload_hash,
+     compute_learned_rule_payload_hash,
+     compute_payload_hash,
+     compute_trial_payload_hash,
+     discover_trial_records,
+     ensure_trial_index_current,
++    experience_path,
++    experience_payload,
+     existing_trial_compiler_versions,
+     iter_trial_record_paths,
+     learned_rule_path,
+     learned_rule_payload,
+     load_checkpoint_for_layout,
+     load_checkpoint_state,
++    load_experience,
+     load_learned_rule,
+     load_trial_index_rows,
+     load_trial_index_summary,
+@@ -54,9 +62,12 @@ from agent.fs_memory import (
+     trial_record_payload,
+     verify_learned_rule_integrity,
+     verify_trial_integrity,
++    verify_experience_local_integrity,
++    with_experience_local_integrity,
+     with_learned_rule_integrity,
+     with_trial_integrity,
+     write_checkpoint_state,
++    write_experience,
+     write_learned_rule,
+     write_trial_record,
+ )
+@@ -162,6 +173,63 @@ def learned_rule_data() -> dict:
+     }
+ 
+ 
++def experience_data(*, origin: str = "local") -> dict:
++    data = {
++        "id": "exp_001",
++        "author": "zhangsan@team",
++        "submitted_at": "2026-04-30T09:00:00Z",
++        "trust_level": "tentative",
++        "origin": origin,
++        "rule": {
++            "type": "module_incompatible",
++            "description": "V8 subdir is incompatible with -flto=thin.",
++            "scope": {
++                "options": ["-flto=thin"],
++                "context_hint": "v8 subdir",
++            },
++            "expected_outcome": "compile_error",
++            "hardness": "soft",
++        },
++        "validation": {
++            "plausibility_score": 0.85,
++            "evidence_count": 0,
++            "required_evidence": 3,
++            "contradictions": 0,
++            "canary_attempts": 0,
++        },
++        "audit": [
++            {
++                "ts": "2026-04-30T09:00:00Z",
++                "action": "submitted",
++                "by": "zhangsan@team",
++            }
++        ],
++        "user_notes": "",
++    }
++    if origin == "imported":
++        data.update(
++            {
++                "id": "exp_001_imported_from_zhangsan_a3f9",
++                "imported_by": "lisi@local",
++                "imported_at": "2026-04-30T14:00:00Z",
++                "import_metadata": {
++                    "original_trust": "verified",
++                    "original_namespace": str(namespace()),
++                    "original_evidence_count": 5,
++                    "original_machine_info": "Ubuntu 22.04 / 12 cores",
++                },
++                "source_integrity": {
++                    "source_payload_hash": "sha256:" + ("a" * 64),
++                    "source_package_hash": "sha256:" + ("b" * 64),
++                    "verified_at_import": True,
++                    "verified_at": "2026-04-30T14:00:00Z",
++                    "original_file": "experiences/exp_001.yaml",
++                },
++            }
++        )
++    return data
++
++
+ def checkpoint_data() -> dict:
+     return {
+         "session_id": "sess_20260430_abc",
+@@ -921,6 +989,168 @@ def test_learned_rule_path_uses_rule_id(tmp_path: Path) -> None:
+     assert learned_rule_path(layout, rule) == layout.learned_rules_dir / "rule_017.yaml"
+ 
+ 
++def test_experience_schema_accepts_documented_local_experience() -> None:
++    experience = Experience.model_validate(experience_data())
++
++    assert experience.id == "exp_001"
++    assert experience.trust_level == "tentative"
++    assert experience.origin == "local"
++    assert experience.rule.scope.options == ["-flto=thin"]
++    assert experience.local_integrity is None
++
++
++def test_with_experience_local_integrity_adds_hash_and_verifies() -> None:
++    experience = with_experience_local_integrity(experience_data())
++
++    assert experience.local_integrity is not None
++    assert experience.local_integrity.payload_hash.startswith("sha256:")
++    assert experience.local_integrity.hash_fields_excluded == [
++        "source_integrity",
++        "local_integrity",
++        "validation.evidence_count",
++        "validation.contradictions",
++        "validation.canary_attempts",
++        "audit",
++        "user_notes",
++    ]
++    assert verify_experience_local_integrity(experience) is True
++    assert compute_experience_local_payload_hash(experience) == (
++        experience.local_integrity.payload_hash
++    )
++
++
++def test_experience_hash_excludes_validation_counters_audit_and_user_notes() -> None:
++    experience = with_experience_local_integrity(experience_data())
++    payload = experience_payload(experience)
++    payload["validation"]["evidence_count"] = 3
++    payload["validation"]["contradictions"] = 1
++    payload["validation"]["canary_attempts"] = 5
++    payload["audit"].append(
++        {"ts": "2026-04-30T10:00:00Z", "action": "verified", "by": "agent_auto"}
++    )
++    payload["user_notes"] = "Reviewed by a human."
++
++    assert verify_experience_local_integrity(payload) is True
++
++    payload["rule"]["description"] = "Tampered semantic rule text."
++    assert verify_experience_local_integrity(payload) is False
++
++
++def test_imported_experience_requires_source_import_fields() -> None:
++    imported = with_experience_local_integrity(experience_data(origin="imported"))
++
++    assert imported.source_integrity is not None
++    assert imported.import_metadata is not None
++    assert verify_experience_local_integrity(imported) is True
++
++    missing_source = experience_data(origin="imported")
++    missing_source.pop("source_integrity")
++    with pytest.raises(ValidationError, match="imported experiences"):
++        Experience.model_validate(missing_source)
++
++    invalid_path = experience_data(origin="imported")
++    invalid_path["source_integrity"]["original_file"] = "scripts/payload.py"
++    with pytest.raises(ValidationError, match=r"experiences/\*\.yaml"):
++        Experience.model_validate(invalid_path)
++
++
++def test_experience_rejects_invalid_identity_fields() -> None:
++    data = experience_data()
++    data["id"] = "../exp_001"
++
++    with pytest.raises(ValidationError, match="path separators"):
++        Experience.model_validate(data)
++
++
++def test_write_experience_writes_atomic_yaml_without_overwrite(tmp_path: Path) -> None:
++    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
++
++    path = write_experience(layout, experience_data())
++    stored = yaml.safe_load(path.read_text(encoding="utf-8"))
++
++    assert path == layout.experiences_dir / "tentative" / "exp_001.yaml"
++    assert stored["local_integrity"]["hash_fields_excluded"] == [
++        "source_integrity",
++        "local_integrity",
++        "validation.evidence_count",
++        "validation.contradictions",
++        "validation.canary_attempts",
++        "audit",
++        "user_notes",
++    ]
++    assert verify_experience_local_integrity(stored) is True
++    assert list(path.parent.glob("*.tmp")) == []
++    with pytest.raises(ExperienceExistsError, match="already exists"):
++        write_experience(layout, experience_data())
++
++
++def test_write_imported_experience_uses_imported_bucket(tmp_path: Path) -> None:
++    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
++
++    path = write_experience(layout, experience_data(origin="imported"))
++
++    assert path == (
++        layout.experiences_dir / "imported" / "exp_001_imported_from_zhangsan_a3f9.yaml"
++    )
++
++
++def test_load_experience_round_trips_and_allows_user_owned_edits(tmp_path: Path) -> None:
++    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
++    path = write_experience(layout, experience_data())
++    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
++    payload["validation"]["evidence_count"] = 2
++    payload["audit"].append(
++        {"ts": "2026-04-30T10:00:00Z", "action": "canary_passed", "by": "agent_auto"}
++    )
++    payload["user_notes"] = "Promoted after local validation."
++    atomic_write_yaml(payload, path)
++
++    loaded = load_experience(path)
++
++    assert loaded.id == "exp_001"
++    assert loaded.validation.evidence_count == 2
++    assert loaded.user_notes == "Promoted after local validation."
++    assert verify_experience_local_integrity(loaded) is True
++
++
++def test_load_experience_rejects_missing_local_integrity(tmp_path: Path) -> None:
++    path = tmp_path / "exp_001.yaml"
++    atomic_write_yaml(experience_payload(experience_data(), include_local_integrity=False), path)
++
++    with pytest.raises(ExperienceIntegrityError, match="missing local_integrity"):
++        load_experience(path)
++
++
++def test_load_experience_rejects_integrity_tampering(tmp_path: Path) -> None:
++    path = tmp_path / "exp_001.yaml"
++    experience = with_experience_local_integrity(experience_data())
++    payload = experience_payload(experience)
++    payload["rule"]["expected_outcome"] = "benchmark_error"
++    atomic_write_yaml(payload, path)
++
++    with pytest.raises(ExperienceIntegrityError, match="integrity"):
++        load_experience(path)
++
++
++def test_load_experience_rejects_yaml_aliases(tmp_path: Path) -> None:
++    path = tmp_path / "exp_001.yaml"
++    path.write_text("id: &id exp_001\ncopy_id: *id\n", encoding="utf-8")
++
++    with pytest.raises(ExperienceLoadError, match="aliases"):
++        load_experience(path)
++
++
++def test_experience_path_uses_origin_and_trust_bucket(tmp_path: Path) -> None:
++    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
++    local = with_experience_local_integrity(experience_data())
++    imported = with_experience_local_integrity(experience_data(origin="imported"))
++
++    assert experience_path(layout, local) == layout.experiences_dir / "tentative" / "exp_001.yaml"
++    assert experience_path(layout, imported) == (
++        layout.experiences_dir / "imported" / "exp_001_imported_from_zhangsan_a3f9.yaml"
++    )
++
++
+ def test_checkpoint_state_schema_accepts_documented_running_state() -> None:
+     checkpoint = CheckpointState.model_validate(checkpoint_data())
+ 

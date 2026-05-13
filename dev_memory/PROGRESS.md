@@ -671,3 +671,24 @@ Next action: run Ubuntu validation for Subtask 2.6, then proceed to Subtask 2.7.
 - Manual probe confirmed `verify_initial=True`, `user_notes` edit loads, and `tamper_detected=true` for an `action_hint` edit.
 
 Next action: start Subtask 2.7.
+
+## 2026-05-13T14:09:25Z - Phase 02 / Subtask 2.7 started
+
+- Started Subtask 2.7: Experience YAML schema, local/source integrity, and atomic experience writer.
+- Requirements in scope: REQUIREMENTS.md sections 4.2.6, 4.3, 4.4.2, and 4.7.5.
+- Baseline before implementation: clean `main` synced with `origin/main` at `156a2b9`.
+- Planned files: `src/agent/fs_memory.py`, `tests/test_fs_memory.py`, `src/agent/__init__.py`, and Phase 02 dev_memory artifacts.
+
+## 2026-05-13T14:09:25Z - Phase 02 / Subtask 2.7 implemented
+
+- Added `Experience` schema and nested models for rule, scope, validation counters, audit events, import metadata, source integrity, and local integrity.
+- Added local/imported origin consistency rules: imported experiences require import metadata and source integrity; local experiences reject imported-only fields.
+- Added `ExperienceYamlLoader`, bounded UTF-8 loading, alias rejection, local integrity verification, and no-overwrite atomic writes.
+- Added `experience_path`, `experience_payload`, `with_experience_local_integrity`, `verify_experience_local_integrity`, and `compute_experience_local_payload_hash`.
+- Extended `compute_payload_hash` to support dotted excluded fields such as `validation.evidence_count`.
+- Public exports added in `src/agent/__init__.py`.
+- UT results:
+  - `python -m pytest tests/test_fs_memory.py -v` -> 113 passed.
+  - `python -m pytest -v` -> 271 passed, 1 skipped on Windows; the skipped test is the Linux-only real `fcntl` regression.
+
+Next action: generate patch files, commit Subtask 2.7, push, then request external review.

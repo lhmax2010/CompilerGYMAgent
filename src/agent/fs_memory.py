@@ -8,13 +8,14 @@ caches must be rebuildable from these paths.
 from __future__ import annotations
 
 import os
+import copy
 import hashlib
 import math
 import sqlite3
 import tempfile
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Literal, Mapping, Sequence
 
 import yaml
@@ -72,6 +73,22 @@ class LearnedRuleLoadError(LearnedRuleError):
     """Raised when learned rule YAML cannot be parsed or validated."""
 
 
+class ExperienceError(FsMemoryError):
+    """Raised when experience data is invalid for FS-Memory use."""
+
+
+class ExperienceExistsError(ExperienceError):
+    """Raised when an experience YAML path already exists."""
+
+
+class ExperienceIntegrityError(ExperienceError):
+    """Raised when experience integrity data is missing or invalid."""
+
+
+class ExperienceLoadError(ExperienceError):
+    """Raised when experience YAML cannot be parsed or validated."""
+
+
 class CheckpointError(FsMemoryError):
     """Raised when checkpoint state is invalid for FS-Memory use."""
 
@@ -118,18 +135,40 @@ class LearnedRuleYamlLoader(yaml.SafeLoader):
         return super().compose_node(parent, index)
 
 
+class ExperienceYamlLoader(yaml.SafeLoader):
+    """Safe loader for user-readable experience YAML."""
+
+    def compose_node(self, parent: Any, index: Any) -> yaml.Node:
+        if self.check_event(yaml.AliasEvent):
+            raise yaml.YAMLError("YAML aliases are not allowed in experiences")
+        return super().compose_node(parent, index)
+
+
 MAX_TRIAL_RECORD_BYTES = 1_048_576
 MAX_CHECKPOINT_BYTES = 1_048_576
 MAX_LEARNED_RULE_BYTES = 1_048_576
+MAX_EXPERIENCE_BYTES = 1_048_576
 TRIAL_INDEX_SCHEMA_VERSION = 1
 TRIAL_HASH_FIELDS_EXCLUDED = ("integrity",)
 LEARNED_RULE_HASH_FIELDS_EXCLUDED = ("integrity", "user_validated", "user_notes")
+EXPERIENCE_LOCAL_HASH_FIELDS_EXCLUDED = (
+    "source_integrity",
+    "local_integrity",
+    "validation.evidence_count",
+    "validation.contradictions",
+    "validation.canary_attempts",
+    "audit",
+    "user_notes",
+)
 TrialMode = Literal["exploit", "explore", "warmup", "canary", "mixed"]
 CandidateSource = Literal["llm_proposal", "local_mutation", "weighted_random", "ablation"]
 ScheduleSlot = Literal["exploit", "mutation", "novelty", "warmup", "canary"]
 BenchLevel = Literal["build_only", "quick", "full"]
 ObjectiveDirection = Literal["higher_is_better", "lower_is_better"]
 BootstrapMode = Literal["paired", "unpaired"]
+ExperienceTrustLevel = Literal["tentative", "verified", "authoritative", "disputed"]
+ExperienceOrigin = Literal["local", "imported"]
+ExperienceHardness = Literal["soft", "hard"]
 TrialOutcome = Literal[
     "success",
     "compile_failed",
@@ -198,6 +237,63 @@ class LearnedRuleIntegrity(StrictFsModel):
                 "learned rule integrity must exclude exactly "
                 "['integrity', 'user_validated', 'user_notes']"
             )
+        return value
+
+
+class ExperienceLocalIntegrity(StrictFsModel):
+    payload_hash: NonEmptyStr
+    hash_fields_excluded: list[NonEmptyStr] = Field(
+        default_factory=lambda: list(EXPERIENCE_LOCAL_HASH_FIELDS_EXCLUDED)
+    )
+
+    @field_validator("payload_hash")
+    @classmethod
+    def payload_hash_must_be_sha256(cls, value: str) -> str:
+        _validate_sha256_digest(value, "local_integrity.payload_hash")
+        return value
+
+    @field_validator("hash_fields_excluded")
+    @classmethod
+    def excluded_fields_must_match_experience_contract(
+        cls,
+        value: list[str],
+    ) -> list[str]:
+        if value != list(EXPERIENCE_LOCAL_HASH_FIELDS_EXCLUDED):
+            raise ValueError(
+                "experience local_integrity must exclude exactly "
+                f"{list(EXPERIENCE_LOCAL_HASH_FIELDS_EXCLUDED)!r}"
+            )
+        return value
+
+
+class ExperienceSourceIntegrity(StrictFsModel):
+    source_payload_hash: NonEmptyStr
+    source_package_hash: NonEmptyStr
+    verified_at_import: bool
+    verified_at: NonEmptyStr
+    original_file: NonEmptyStr
+
+    @field_validator("source_payload_hash", "source_package_hash")
+    @classmethod
+    def source_hash_must_be_sha256(cls, value: str, info: Any) -> str:
+        _validate_sha256_digest(value, f"source_integrity.{info.field_name}")
+        return value
+
+    @field_validator("verified_at", mode="before")
+    @classmethod
+    def verified_at_datetime_to_string(cls, value: Any) -> Any:
+        return _datetime_to_utc_isoformat(value, "source_integrity.verified_at")
+
+    @field_validator("verified_at")
+    @classmethod
+    def verified_at_must_be_utc_isoformat(cls, value: str) -> str:
+        _parse_utc_isoformat(value, "source_integrity.verified_at")
+        return value
+
+    @field_validator("original_file")
+    @classmethod
+    def original_file_must_be_manifest_item_path(cls, value: str) -> str:
+        _validate_experience_item_file(value, "source_integrity.original_file")
         return value
 
 
@@ -371,6 +467,130 @@ class LearnedRule(StrictFsModel):
     def evidence_count_must_match_supporting_trials(self) -> LearnedRule:
         if self.evidence.evidence_count != len(self.evidence.supporting_trials):
             raise ValueError("evidence_count must match supporting_trials length")
+        return self
+
+
+class ExperienceRuleScope(StrictFsModel):
+    options: list[NonEmptyStr] = Field(default_factory=list)
+    context_hint: NonEmptyStr | None = None
+
+    @field_validator("options")
+    @classmethod
+    def options_must_be_safe_strings(cls, value: list[str]) -> list[str]:
+        for option in value:
+            _validate_option_string(option, "rule.scope.options")
+        return value
+
+
+class ExperienceRule(StrictFsModel):
+    type: NonEmptyStr
+    description: NonEmptyStr
+    scope: ExperienceRuleScope
+    expected_outcome: NonEmptyStr
+    hardness: ExperienceHardness
+
+
+class ExperienceValidation(StrictFsModel):
+    plausibility_score: float | None = Field(default=None, ge=0, le=1)
+    evidence_count: int = Field(ge=0)
+    required_evidence: int = Field(ge=0)
+    contradictions: int = Field(ge=0)
+    canary_attempts: int = Field(ge=0)
+
+
+class ExperienceAuditEvent(StrictFsModel):
+    ts: NonEmptyStr
+    action: NonEmptyStr
+    by: NonEmptyStr
+
+    @field_validator("ts", mode="before")
+    @classmethod
+    def ts_datetime_to_string(cls, value: Any) -> Any:
+        return _datetime_to_utc_isoformat(value, "audit.ts")
+
+    @field_validator("ts")
+    @classmethod
+    def ts_must_be_utc_isoformat(cls, value: str) -> str:
+        _parse_utc_isoformat(value, "audit.ts")
+        return value
+
+
+class ExperienceImportMetadata(StrictFsModel):
+    original_trust: ExperienceTrustLevel
+    original_namespace: NonEmptyStr
+    original_evidence_count: int = Field(ge=0)
+    original_machine_info: NonEmptyStr
+
+    @field_validator("original_namespace")
+    @classmethod
+    def original_namespace_must_be_safe(cls, value: str) -> str:
+        _validate_namespace_string(value, "import_metadata.original_namespace")
+        return value
+
+
+class Experience(StrictFsModel):
+    id: NonEmptyStr
+    author: NonEmptyStr
+    submitted_at: NonEmptyStr
+    trust_level: ExperienceTrustLevel
+    origin: ExperienceOrigin
+    imported_by: NonEmptyStr | None = None
+    imported_at: NonEmptyStr | None = None
+    import_metadata: ExperienceImportMetadata | None = None
+    rule: ExperienceRule
+    validation: ExperienceValidation
+    audit: list[ExperienceAuditEvent] = Field(min_length=1)
+    user_notes: str = ""
+    source_integrity: ExperienceSourceIntegrity | None = None
+    local_integrity: ExperienceLocalIntegrity | None = None
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def id_must_not_be_trimmed(cls, value: Any) -> Any:
+        if isinstance(value, str) and value != value.strip():
+            raise ValueError("id cannot contain surrounding whitespace")
+        return value
+
+    @field_validator("id")
+    @classmethod
+    def id_must_be_file_safe(cls, value: str) -> str:
+        _validate_file_atom(value, "id")
+        return value
+
+    @field_validator("submitted_at", "imported_at", mode="before")
+    @classmethod
+    def timestamp_datetime_to_string(cls, value: Any, info: Any) -> Any:
+        if value is None:
+            return value
+        return _datetime_to_utc_isoformat(value, info.field_name)
+
+    @field_validator("submitted_at", "imported_at")
+    @classmethod
+    def timestamp_must_be_utc_isoformat(cls, value: str | None, info: Any) -> str | None:
+        if value is not None:
+            _parse_utc_isoformat(value, info.field_name)
+        return value
+
+    @model_validator(mode="after")
+    def import_fields_match_origin(self) -> Experience:
+        imported_fields = (
+            self.imported_by,
+            self.imported_at,
+            self.import_metadata,
+            self.source_integrity,
+        )
+        if self.origin == "imported":
+            if any(field is None for field in imported_fields):
+                raise ValueError(
+                    "imported experiences must include imported_by, imported_at, "
+                    "import_metadata, and source_integrity"
+                )
+        else:
+            if any(field is not None for field in imported_fields):
+                raise ValueError(
+                    "local experiences must not include imported_by, imported_at, "
+                    "import_metadata, or source_integrity"
+                )
         return self
 
 
@@ -725,9 +945,9 @@ def compute_payload_hash(
     *,
     excluded_fields: Sequence[str] = TRIAL_HASH_FIELDS_EXCLUDED,
 ) -> str:
-    canonical_payload = {
-        key: value for key, value in dict(payload).items() if key not in set(excluded_fields)
-    }
+    canonical_payload = copy.deepcopy(dict(payload))
+    for field_path in excluded_fields:
+        _remove_mapping_path(canonical_payload, field_path)
     digest = hashlib.sha256(_canonical_yaml_bytes(canonical_payload)).hexdigest()
     return f"sha256:{digest}"
 
@@ -804,6 +1024,63 @@ def verify_learned_rule_integrity(rule: LearnedRule | Mapping[str, Any]) -> bool
     )
 
 
+def compute_experience_local_payload_hash(
+    experience: Experience | Mapping[str, Any],
+) -> str:
+    validated = Experience.model_validate(experience)
+    payload = experience_payload(validated, include_local_integrity=False)
+    return compute_payload_hash(
+        payload,
+        excluded_fields=EXPERIENCE_LOCAL_HASH_FIELDS_EXCLUDED,
+    )
+
+
+def experience_payload(
+    experience: Experience | Mapping[str, Any],
+    *,
+    include_local_integrity: bool = True,
+    include_source_integrity: bool = True,
+) -> dict[str, Any]:
+    validated = Experience.model_validate(experience)
+    payload = validated.model_dump(mode="json", exclude_none=True)
+    if not include_local_integrity:
+        payload.pop("local_integrity", None)
+    if not include_source_integrity:
+        payload.pop("source_integrity", None)
+    return payload
+
+
+def with_experience_local_integrity(
+    experience: Experience | Mapping[str, Any],
+) -> Experience:
+    validated = Experience.model_validate(experience)
+    payload = experience_payload(validated, include_local_integrity=False)
+    payload["local_integrity"] = {
+        "payload_hash": compute_payload_hash(
+            payload,
+            excluded_fields=EXPERIENCE_LOCAL_HASH_FIELDS_EXCLUDED,
+        ),
+        "hash_fields_excluded": list(EXPERIENCE_LOCAL_HASH_FIELDS_EXCLUDED),
+    }
+    return Experience.model_validate(payload)
+
+
+def verify_experience_local_integrity(experience: Experience | Mapping[str, Any]) -> bool:
+    validated = Experience.model_validate(experience)
+    if validated.local_integrity is None:
+        return False
+    return (
+        validated.local_integrity.payload_hash
+        == compute_experience_local_payload_hash(validated)
+    )
+
+
+def experience_path(layout: NamespaceLayout, experience: Experience | Mapping[str, Any]) -> Path:
+    validated = Experience.model_validate(experience)
+    bucket = "imported" if validated.origin == "imported" else validated.trust_level
+    return layout.experiences_dir / bucket / f"{validated.id}.yaml"
+
+
 def learned_rule_path(layout: NamespaceLayout, rule: LearnedRule | Mapping[str, Any]) -> Path:
     learned_rule = LearnedRule.model_validate(rule)
     return layout.learned_rules_dir / f"{learned_rule.rule_id}.yaml"
@@ -861,6 +1138,25 @@ def write_learned_rule(
     if target.exists() or target.is_symlink():
         raise LearnedRuleExistsError(f"learned rule already exists: {target}")
     atomic_write_yaml(learned_rule_payload(learned_rule), target)
+    return target
+
+
+def write_experience(
+    layout: NamespaceLayout,
+    experience: Experience | Mapping[str, Any],
+) -> Path:
+    """Write one user experience YAML.
+
+    Callers must hold the workspace lock before invoking this function. The
+    helper refuses existing paths so agent writes do not clobber user-edited
+    validation counters, audit notes, or trust state.
+    """
+
+    validated = with_experience_local_integrity(experience)
+    target = experience_path(layout, validated)
+    if target.exists() or target.is_symlink():
+        raise ExperienceExistsError(f"experience already exists: {target}")
+    atomic_write_yaml(experience_payload(validated), target)
     return target
 
 
@@ -969,6 +1265,59 @@ def load_learned_rule(path: str | Path) -> LearnedRule:
             f"learned rule file {rule_path} failed integrity check"
         )
     return learned_rule
+
+
+def load_experience(path: str | Path) -> Experience:
+    """Load one experience YAML and verify its local integrity block."""
+
+    experience_file = Path(path)
+    if experience_file.is_symlink():
+        raise ExperienceLoadError(f"experience path must not be a symlink: {experience_file}")
+    try:
+        file_size = experience_file.stat().st_size
+    except FileNotFoundError as exc:
+        raise ExperienceLoadError(f"experience file not found: {experience_file}") from exc
+    if file_size > MAX_EXPERIENCE_BYTES:
+        raise ExperienceLoadError(
+            f"experience file {experience_file} is too large "
+            f"({file_size} bytes > {MAX_EXPERIENCE_BYTES} bytes)"
+        )
+
+    try:
+        raw_text = experience_file.read_text(encoding="utf-8")
+    except UnicodeDecodeError as exc:
+        raise ExperienceLoadError(f"experience file {experience_file} is not valid UTF-8") from exc
+
+    try:
+        data = yaml.load(raw_text, Loader=ExperienceYamlLoader)
+    except yaml.YAMLError as exc:
+        raise ExperienceLoadError(
+            f"experience file {experience_file} failed to parse YAML: {exc}"
+        ) from exc
+
+    if not data:
+        raise ExperienceLoadError(f"experience file {experience_file} is empty")
+    if not isinstance(data, Mapping):
+        raise ExperienceLoadError(
+            f"experience file {experience_file} must contain a YAML mapping"
+        )
+
+    try:
+        experience = Experience.model_validate(data)
+    except ValidationError as exc:
+        raise ExperienceLoadError(
+            f"experience file {experience_file} is invalid:\n{exc}"
+        ) from exc
+
+    if experience.local_integrity is None:
+        raise ExperienceIntegrityError(
+            f"experience file {experience_file} is missing local_integrity"
+        )
+    if not verify_experience_local_integrity(experience):
+        raise ExperienceIntegrityError(
+            f"experience file {experience_file} failed local integrity check"
+        )
+    return experience
 
 
 def iter_trial_record_paths(layout: NamespaceLayout) -> tuple[Path, ...]:
@@ -1309,6 +1658,17 @@ def _canonical_yaml_bytes(payload: Any) -> bytes:
     return text.encode("utf-8")
 
 
+def _remove_mapping_path(payload: dict[str, Any], field_path: str) -> None:
+    current: Any = payload
+    parts = field_path.split(".")
+    for part in parts[:-1]:
+        if not isinstance(current, dict) or part not in current:
+            return
+        current = current[part]
+    if isinstance(current, dict):
+        current.pop(parts[-1], None)
+
+
 def _validate_sha256_digest(value: str, label: str) -> None:
     prefix = "sha256:"
     if not value.startswith(prefix):
@@ -1352,6 +1712,32 @@ def _validate_file_atom(value: str, label: str) -> None:
         raise ValueError(f"{label} cannot contain path separators")
     if any(ord(char) < 0x20 or ord(char) == 0x7F for char in value):
         raise ValueError(f"{label} cannot contain control characters")
+
+
+def _validate_option_string(value: str, label: str) -> None:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{label} must contain non-empty strings")
+    if value != value.strip():
+        raise ValueError(f"{label} cannot contain surrounding whitespace")
+    if any(ord(char) < 0x20 or ord(char) == 0x7F for char in value):
+        raise ValueError(f"{label} cannot contain control characters")
+
+
+def _validate_experience_item_file(value: str, label: str) -> None:
+    if "\\" in value:
+        raise ValueError(f"{label} must use POSIX separators")
+    path = PurePosixPath(value)
+    if path.is_absolute():
+        raise ValueError(f"{label} cannot be absolute")
+    if ".." in path.parts:
+        raise ValueError(f"{label} cannot contain parent segments")
+    if path.as_posix() != value:
+        raise ValueError(f"{label} must be normalized")
+    if len(path.parts) != 2 or path.parts[0] != "experiences":
+        raise ValueError(f"{label} must match experiences/*.yaml")
+    if path.suffix != ".yaml":
+        raise ValueError(f"{label} must end with .yaml")
+    _validate_file_atom(path.name, label)
 
 
 def _validate_namespace_string(value: str, label: str) -> None:

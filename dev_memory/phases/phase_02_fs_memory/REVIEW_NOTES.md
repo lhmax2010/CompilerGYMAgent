@@ -466,3 +466,35 @@ Review conclusion:
 
 Conclusion:
 - Subtask 2.6 is externally approved and validated on Ubuntu. Proceed to Subtask 2.7.
+
+## Subtask 2.7 - Experience YAML schema and writer
+
+Scope:
+- REQUIREMENTS.md section 4.2.6 user experience YAML shape.
+- REQUIREMENTS.md section 4.3 trust levels, validation counters, and canary evidence fields.
+- REQUIREMENTS.md section 4.4.2 imported experience source/local integrity split.
+- REQUIREMENTS.md section 4.7.5 shared atomic YAML writer.
+
+Implementation checklist:
+- [x] `Experience` covers local and imported experience fields: identity, author, timestamps, trust level, origin, rule, validation counters, audit, and notes.
+- [x] Imported experiences require `imported_by`, `imported_at`, `import_metadata`, and `source_integrity`.
+- [x] Local experiences reject imported-only fields.
+- [x] `source_integrity.original_file` enforces the `experiences/*.yaml` manifest item path contract.
+- [x] `local_integrity.hash_fields_excluded` is strict and covers `source_integrity`, `local_integrity`, validation counters, audit, and `user_notes`.
+- [x] `compute_payload_hash` supports dotted excluded fields without mutating caller payloads.
+- [x] `write_experience` writes through shared `atomic_write_yaml`, routes local/imported paths, and refuses existing files.
+- [x] `load_experience` is bounded, UTF-8, alias-free, schema-validated, and local-integrity-verified.
+- [x] Public exports added in `src/agent/__init__.py`.
+
+Tests:
+- `python -m pytest tests/test_fs_memory.py -v` -> 113 passed.
+- `python -m pytest -v` -> 271 passed, 1 skipped on Windows.
+
+Self-review notes:
+- Local integrity intentionally excludes validation counters and audit so canary/evidence updates do not require re-signing semantic rule content.
+- `trust_level` remains integrity-covered. Promotion workflows can use future integrity accept/update flows rather than silent manual edits.
+- Imported experiences are routed to `experiences/imported/<id>.yaml`; local experiences use `experiences/<trust_level>/<id>.yaml`.
+- Source package integrity is modeled and format-validated, while full package verification remains import workflow scope.
+
+Verdict:
+- Subtask 2.7 is ready for external review after commit/push.

@@ -204,3 +204,28 @@ subtasks:
       - src/agent/fs_memory.py
       - tests/test_fs_memory.py
       - src/agent/__init__.py
+  - id: "2.7"
+    title: "Implement Experience schema, local/source integrity, and atomic experience writer"
+    status: done
+    related_requirements:
+      - REQUIREMENTS.md section 4.2.6
+      - REQUIREMENTS.md section 4.3
+      - REQUIREMENTS.md section 4.4.2
+      - REQUIREMENTS.md section 4.7.5
+    ut_required: true
+    ut_passed: true
+    targeted_ut: "113 passed, 0 failed"
+    full_ut: "271 passed, 0 failed, 1 skipped"
+    self_review_required: true
+    self_reviewed: true
+    patch_required: true
+    patch_file: dev_memory/phases/phase_02_fs_memory/patches/09_experience_writer.patch
+    patch_generated: true
+    commit_required: true
+    commit_pending: true
+    commit_hash: pending
+    commit_message: "phase_02_fs_memory: 2.7 implement experience writer (REQUIREMENTS sections 4.3, 4.4.2)"
+    files_modified:
+      - src/agent/fs_memory.py
+      - tests/test_fs_memory.py
+      - src/agent/__init__.py

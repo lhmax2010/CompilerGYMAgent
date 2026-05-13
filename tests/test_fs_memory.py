@@ -15,6 +15,10 @@ from agent.fs_memory import (
     CheckpointError,
     CheckpointLoadError,
     CheckpointState,
+    Experience,
+    ExperienceExistsError,
+    ExperienceIntegrityError,
+    ExperienceLoadError,
     LearnedRule,
     LearnedRuleExistsError,
     LearnedRuleIntegrityError,
@@ -31,17 +35,21 @@ from agent.fs_memory import (
     checkpoint_payload,
     collect_trial_startup_validation_inputs,
     compute_combo_hash,
+    compute_experience_local_payload_hash,
     compute_learned_rule_payload_hash,
     compute_payload_hash,
     compute_trial_payload_hash,
     discover_trial_records,
     ensure_trial_index_current,
+    experience_path,
+    experience_payload,
     existing_trial_compiler_versions,
     iter_trial_record_paths,
     learned_rule_path,
     learned_rule_payload,
     load_checkpoint_for_layout,
     load_checkpoint_state,
+    load_experience,
     load_learned_rule,
     load_trial_index_rows,
     load_trial_index_summary,
@@ -54,9 +62,12 @@ from agent.fs_memory import (
     trial_record_payload,
     verify_learned_rule_integrity,
     verify_trial_integrity,
+    verify_experience_local_integrity,
+    with_experience_local_integrity,
     with_learned_rule_integrity,
     with_trial_integrity,
     write_checkpoint_state,
+    write_experience,
     write_learned_rule,
     write_trial_record,
 )
@@ -160,6 +171,63 @@ def learned_rule_data() -> dict:
         "user_validated": False,
         "user_notes": "",
     }
+
+
+def experience_data(*, origin: str = "local") -> dict:
+    data = {
+        "id": "exp_001",
+        "author": "zhangsan@team",
+        "submitted_at": "2026-04-30T09:00:00Z",
+        "trust_level": "tentative",
+        "origin": origin,
+        "rule": {
+            "type": "module_incompatible",
+            "description": "V8 subdir is incompatible with -flto=thin.",
+            "scope": {
+                "options": ["-flto=thin"],
+                "context_hint": "v8 subdir",
+            },
+            "expected_outcome": "compile_error",
+            "hardness": "soft",
+        },
+        "validation": {
+            "plausibility_score": 0.85,
+            "evidence_count": 0,
+            "required_evidence": 3,
+            "contradictions": 0,
+            "canary_attempts": 0,
+        },
+        "audit": [
+            {
+                "ts": "2026-04-30T09:00:00Z",
+                "action": "submitted",
+                "by": "zhangsan@team",
+            }
+        ],
+        "user_notes": "",
+    }
+    if origin == "imported":
+        data.update(
+            {
+                "id": "exp_001_imported_from_zhangsan_a3f9",
+                "imported_by": "lisi@local",
+                "imported_at": "2026-04-30T14:00:00Z",
+                "import_metadata": {
+                    "original_trust": "verified",
+                    "original_namespace": str(namespace()),
+                    "original_evidence_count": 5,
+                    "original_machine_info": "Ubuntu 22.04 / 12 cores",
+                },
+                "source_integrity": {
+                    "source_payload_hash": "sha256:" + ("a" * 64),
+                    "source_package_hash": "sha256:" + ("b" * 64),
+                    "verified_at_import": True,
+                    "verified_at": "2026-04-30T14:00:00Z",
+                    "original_file": "experiences/exp_001.yaml",
+                },
+            }
+        )
+    return data
 
 
 def checkpoint_data() -> dict:
@@ -919,6 +987,168 @@ def test_learned_rule_path_uses_rule_id(tmp_path: Path) -> None:
     rule = with_learned_rule_integrity(learned_rule_data())
 
     assert learned_rule_path(layout, rule) == layout.learned_rules_dir / "rule_017.yaml"
+
+
+def test_experience_schema_accepts_documented_local_experience() -> None:
+    experience = Experience.model_validate(experience_data())
+
+    assert experience.id == "exp_001"
+    assert experience.trust_level == "tentative"
+    assert experience.origin == "local"
+    assert experience.rule.scope.options == ["-flto=thin"]
+    assert experience.local_integrity is None
+
+
+def test_with_experience_local_integrity_adds_hash_and_verifies() -> None:
+    experience = with_experience_local_integrity(experience_data())
+
+    assert experience.local_integrity is not None
+    assert experience.local_integrity.payload_hash.startswith("sha256:")
+    assert experience.local_integrity.hash_fields_excluded == [
+        "source_integrity",
+        "local_integrity",
+        "validation.evidence_count",
+        "validation.contradictions",
+        "validation.canary_attempts",
+        "audit",
+        "user_notes",
+    ]
+    assert verify_experience_local_integrity(experience) is True
+    assert compute_experience_local_payload_hash(experience) == (
+        experience.local_integrity.payload_hash
+    )
+
+
+def test_experience_hash_excludes_validation_counters_audit_and_user_notes() -> None:
+    experience = with_experience_local_integrity(experience_data())
+    payload = experience_payload(experience)
+    payload["validation"]["evidence_count"] = 3
+    payload["validation"]["contradictions"] = 1
+    payload["validation"]["canary_attempts"] = 5
+    payload["audit"].append(
+        {"ts": "2026-04-30T10:00:00Z", "action": "verified", "by": "agent_auto"}
+    )
+    payload["user_notes"] = "Reviewed by a human."
+
+    assert verify_experience_local_integrity(payload) is True
+
+    payload["rule"]["description"] = "Tampered semantic rule text."
+    assert verify_experience_local_integrity(payload) is False
+
+
+def test_imported_experience_requires_source_import_fields() -> None:
+    imported = with_experience_local_integrity(experience_data(origin="imported"))
+
+    assert imported.source_integrity is not None
+    assert imported.import_metadata is not None
+    assert verify_experience_local_integrity(imported) is True
+
+    missing_source = experience_data(origin="imported")
+    missing_source.pop("source_integrity")
+    with pytest.raises(ValidationError, match="imported experiences"):
+        Experience.model_validate(missing_source)
+
+    invalid_path = experience_data(origin="imported")
+    invalid_path["source_integrity"]["original_file"] = "scripts/payload.py"
+    with pytest.raises(ValidationError, match=r"experiences/\*\.yaml"):
+        Experience.model_validate(invalid_path)
+
+
+def test_experience_rejects_invalid_identity_fields() -> None:
+    data = experience_data()
+    data["id"] = "../exp_001"
+
+    with pytest.raises(ValidationError, match="path separators"):
+        Experience.model_validate(data)
+
+
+def test_write_experience_writes_atomic_yaml_without_overwrite(tmp_path: Path) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+
+    path = write_experience(layout, experience_data())
+    stored = yaml.safe_load(path.read_text(encoding="utf-8"))
+
+    assert path == layout.experiences_dir / "tentative" / "exp_001.yaml"
+    assert stored["local_integrity"]["hash_fields_excluded"] == [
+        "source_integrity",
+        "local_integrity",
+        "validation.evidence_count",
+        "validation.contradictions",
+        "validation.canary_attempts",
+        "audit",
+        "user_notes",
+    ]
+    assert verify_experience_local_integrity(stored) is True
+    assert list(path.parent.glob("*.tmp")) == []
+    with pytest.raises(ExperienceExistsError, match="already exists"):
+        write_experience(layout, experience_data())
+
+
+def test_write_imported_experience_uses_imported_bucket(tmp_path: Path) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+
+    path = write_experience(layout, experience_data(origin="imported"))
+
+    assert path == (
+        layout.experiences_dir / "imported" / "exp_001_imported_from_zhangsan_a3f9.yaml"
+    )
+
+
+def test_load_experience_round_trips_and_allows_user_owned_edits(tmp_path: Path) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+    path = write_experience(layout, experience_data())
+    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    payload["validation"]["evidence_count"] = 2
+    payload["audit"].append(
+        {"ts": "2026-04-30T10:00:00Z", "action": "canary_passed", "by": "agent_auto"}
+    )
+    payload["user_notes"] = "Promoted after local validation."
+    atomic_write_yaml(payload, path)
+
+    loaded = load_experience(path)
+
+    assert loaded.id == "exp_001"
+    assert loaded.validation.evidence_count == 2
+    assert loaded.user_notes == "Promoted after local validation."
+    assert verify_experience_local_integrity(loaded) is True
+
+
+def test_load_experience_rejects_missing_local_integrity(tmp_path: Path) -> None:
+    path = tmp_path / "exp_001.yaml"
+    atomic_write_yaml(experience_payload(experience_data(), include_local_integrity=False), path)
+
+    with pytest.raises(ExperienceIntegrityError, match="missing local_integrity"):
+        load_experience(path)
+
+
+def test_load_experience_rejects_integrity_tampering(tmp_path: Path) -> None:
+    path = tmp_path / "exp_001.yaml"
+    experience = with_experience_local_integrity(experience_data())
+    payload = experience_payload(experience)
+    payload["rule"]["expected_outcome"] = "benchmark_error"
+    atomic_write_yaml(payload, path)
+
+    with pytest.raises(ExperienceIntegrityError, match="integrity"):
+        load_experience(path)
+
+
+def test_load_experience_rejects_yaml_aliases(tmp_path: Path) -> None:
+    path = tmp_path / "exp_001.yaml"
+    path.write_text("id: &id exp_001\ncopy_id: *id\n", encoding="utf-8")
+
+    with pytest.raises(ExperienceLoadError, match="aliases"):
+        load_experience(path)
+
+
+def test_experience_path_uses_origin_and_trust_bucket(tmp_path: Path) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+    local = with_experience_local_integrity(experience_data())
+    imported = with_experience_local_integrity(experience_data(origin="imported"))
+
+    assert experience_path(layout, local) == layout.experiences_dir / "tentative" / "exp_001.yaml"
+    assert experience_path(layout, imported) == (
+        layout.experiences_dir / "imported" / "exp_001_imported_from_zhangsan_a3f9.yaml"
+    )
 
 
 def test_checkpoint_state_schema_accepts_documented_running_state() -> None:

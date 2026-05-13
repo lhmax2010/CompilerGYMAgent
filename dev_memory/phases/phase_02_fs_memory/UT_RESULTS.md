@@ -531,3 +531,31 @@ Coverage notes:
 - Confirms the Linux-only real `fcntl` workspace lock regression test executes and passes.
 - Confirms learned-rule write/load integrity behavior through a manual probe.
 - reported_by: user on intended Ubuntu server environment
+
+## Subtask 2.7 - Experience YAML schema and writer
+
+- environment:
+  - os: Windows development host
+  - python: 3.14.3
+  - runner: `.venv\Scripts\python.exe -m pytest`
+- requirements:
+  - REQUIREMENTS.md section 4.2.6
+  - REQUIREMENTS.md section 4.3
+  - REQUIREMENTS.md section 4.4.2
+  - REQUIREMENTS.md section 4.7.5
+- targeted_command: `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -v`
+- targeted_result: 113 passed, 0 failed
+- full_command: `.venv\Scripts\python.exe -m pytest -v`
+- full_result: 271 passed, 0 failed, 1 skipped
+- skipped:
+  - `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter` requires Linux fcntl and must be covered by Ubuntu validation.
+- new_coverage:
+  - Experience schema accepts the documented local experience shape.
+  - Experience local integrity excludes `source_integrity`, `local_integrity`, validation counters, audit, and `user_notes`.
+  - Agent-owned rule fields remain tamper-detectable.
+  - Imported experiences require import metadata and source integrity.
+  - `source_integrity.original_file` follows the `experiences/*.yaml` manifest item path contract.
+  - Experience IDs are path-safe.
+  - `write_experience` writes through shared atomic YAML and refuses existing paths.
+  - Local experiences route to `experiences/<trust_level>/<id>.yaml`; imported experiences route to `experiences/imported/<id>.yaml`.
+  - `load_experience` rejects missing local integrity, integrity tampering, and YAML aliases.

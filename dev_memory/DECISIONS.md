@@ -361,3 +361,17 @@ Decision records must include:
   - Hash every field except `integrity`, which would make harmless user notes require an integrity-accept flow immediately.
   - Exclude the whole `evidence` or `scope` blocks, which would make meaningful rule drift invisible to doctor/integrity checks.
   - Allow `write_learned_rule()` to overwrite existing files, which could silently discard user notes or validation state.
+
+## 2026-05-13T14:09:25Z - Split imported experience source integrity from local mutable integrity
+
+- affected_requirement:
+  - REQUIREMENTS.md section 4.2.6
+  - REQUIREMENTS.md section 4.3
+  - REQUIREMENTS.md section 4.4.2
+  - REQUIREMENTS.md section 4.7.5
+- decision: Model experience YAML with separate `source_integrity` and `local_integrity` blocks. Local hashes exclude `source_integrity`, `local_integrity`, `validation.evidence_count`, `validation.contradictions`, `validation.canary_attempts`, `audit`, and `user_notes`, while semantic rule content, trust level, origin, author, timestamps, and import metadata remain hash-covered.
+- rationale: Imported experiences are rewritten on local import, so package-origin proof and local file integrity have different scopes. Validation counters and audit events are expected to change as canary evidence accumulates; excluding only those user/agent-maintained counters keeps normal evidence updates cheap while still detecting rule drift or identity tampering.
+- alternatives_considered:
+  - Keep the older single `integrity` block for experiences, which would conflate source package verification with local mutable state.
+  - Exclude the whole `validation` block, which would hide changes to `plausibility_score` and `required_evidence`.
+  - Put imported experiences into trust-level directories immediately, which would blur imported/untrusted prompt-safety handling and make import provenance harder to inspect.
