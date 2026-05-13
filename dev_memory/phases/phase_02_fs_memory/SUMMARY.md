@@ -34,4 +34,4 @@ Completed:
 - Subtask 2.7 implemented Experience YAML schema, local/source integrity helpers, atomic writer/loader, path routing for local/imported buckets, public exports, and UT coverage.
 
 Remaining:
-- Commit and push Subtask 2.7, then request external review.
+- Request external review for Subtask 2.7.
