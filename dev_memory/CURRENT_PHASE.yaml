@@ -1,7 +1,7 @@
 phase_id: phase_02_fs_memory
 phase_title: "FS-Memory SoT + schema + atomic write"
 started_at: 2026-05-08T07:04:04Z
-last_updated: 2026-05-18T13:13:46Z
+last_updated: 2026-05-18T13:18:32Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 4.2
@@ -323,7 +323,9 @@ subtasks:
     self_reviewed: true
     patch_file: dev_memory/phases/phase_02_fs_memory/patches/10_phase_02_polish.patch
     patch_generated: true
-    commit_pending: true
+    commit_pending: false
+    commit_hash: 4f4b675
+    commit_message: "phase_02_fs_memory: 2.8 polish review followups (REQUIREMENTS sections 4.2.4, 4.2.6, 4.7.5)"
     polish_closures:
       - "Documented and tested atomic_write_yaml symlink replacement behavior."
       - "Hidden .yaml files under trials/data are ignored by canonical trial discovery."

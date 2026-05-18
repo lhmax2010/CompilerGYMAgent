@@ -251,7 +251,9 @@ subtasks:
     patch_file: dev_memory/phases/phase_02_fs_memory/patches/10_phase_02_polish.patch
     patch_generated: true
     commit_required: true
-    commit_pending: true
+    commit_pending: false
+    commit_hash: 4f4b675
+    commit_message: "phase_02_fs_memory: 2.8 polish review followups (REQUIREMENTS sections 4.2.4, 4.2.6, 4.7.5)"
     polish_closures:
       - "atomic_write_yaml symlink replacement behavior covered by UT."
       - "trial discovery ignores hidden .yaml files under trials/data."
