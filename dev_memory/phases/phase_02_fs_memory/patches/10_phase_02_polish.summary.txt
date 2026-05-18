@@ -1,0 +1,24 @@
+Phase 02 / Subtask 2.8 - Review polish pass
+
+Requirements:
+- REQUIREMENTS.md section 4.2.4
+- REQUIREMENTS.md section 4.2.6
+- REQUIREMENTS.md section 4.3
+- REQUIREMENTS.md section 4.4.2
+- REQUIREMENTS.md section 4.7.5
+
+Summary:
+- Closed accumulated Low/TG follow-ups from Subtasks 2.1 through 2.7 where the
+  contract was small and deterministic.
+- Added explicit contracts for atomic symlink replacement, hidden trial YAML
+  side files, schema-incompatible derived indexes, stale SQLite sidecars,
+  empty learned-rule scopes, and strict experience path/identity fields.
+- Kept Phase 02 layering decisions documented: learned rules stay portable,
+  derived indexes stay rebuildable, process pgid semantics remain contextual,
+  and dotted hash exclusions remain mapping-path only.
+- Optimized `compute_payload_hash` to avoid `deepcopy` for top-level-only
+  exclusions while preserving dotted mapping-path support for experiences.
+
+Tests:
+- `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q` -> 123 passed.
+- `.venv\Scripts\python.exe -m pytest -q` -> 281 passed, 1 skipped on Windows.

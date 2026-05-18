@@ -719,3 +719,21 @@ Next action: push Subtask 2.7 sync, then request external review.
   - Periodically review public exports to avoid over-exposure.
 
 Next action: run Ubuntu validation for Subtask 2.7, then proceed to the next Phase 02 subtask or Phase 02 polish.
+
+## 2026-05-18T13:13:46Z - Phase 02 polish pass implemented
+
+- Started and completed Subtask 2.8: Phase 02 review-polish pass for accumulated Claude Low/TG follow-ups.
+- Closed small deterministic follow-ups from Subtasks 2.1 through 2.7:
+  - `atomic_write_yaml` symlink replacement behavior is now covered by a regression test.
+  - Hidden `.yaml` files under `trials/data` are ignored by canonical trial discovery.
+  - `ensure_trial_index_current` rebuilds schema-incompatible derived SQLite indexes.
+  - Successful trial index rebuild removes stale SQLite sidecars.
+  - `LearnedRule.scope` rejects an entirely empty scope.
+  - Experience scope options and imported `original_namespace` reject untrimmed values before `NonEmptyStr` can silently strip.
+  - Experience `source_integrity.original_file` rejects hidden filenames and embedded whitespace.
+  - `compute_payload_hash` avoids `deepcopy` for top-level-only excluded fields while retaining dotted mapping-path support.
+- Local UT results:
+  - `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q` -> 123 passed.
+  - `.venv\Scripts\python.exe -m pytest -q` -> 281 passed, 1 skipped on Windows; the skipped test is the Linux-only real-fcntl regression.
+
+Next action: generate patch artifacts, commit/push Subtask 2.8, then request external review and Ubuntu validation.

@@ -33,6 +33,7 @@ Completed:
 - Subtask 2.6 was validated by the user on Ubuntu/Linux with Python 3.11.15: full pytest passed 260/260, the Linux real-fcntl test executed, and manual learned-rule integrity/user-notes/tamper probes passed.
 - Subtask 2.7 implemented Experience YAML schema, local/source integrity helpers, atomic writer/loader, path routing for local/imported buckets, public exports, and UT coverage.
 - Subtask 2.7 received external approval after independent Linux verification: 272/272 tests passed, the Linux real-fcntl test executed, and only Low/Info follow-ups remain.
+- Subtask 2.8 performed a Phase 02 polish pass across accumulated Low/TG items: hidden trial YAML is ignored, schema-incompatible trial indexes rebuild, stale SQLite sidecars are cleaned, empty learned-rule scopes are rejected, experience strict fields now defeat `NonEmptyStr` silent strip where needed, experience manifest filenames reject hidden/spaced names, atomic symlink replacement behavior is tested, and top-level integrity hashing avoids unnecessary deep copies.
 
 Remaining:
-- Run Ubuntu validation for Subtask 2.7, then decide whether to continue with another Phase 02 SoT helper or do Phase 02 polish.
+- Request external review for the Phase 02 polish pass, then run Ubuntu validation.

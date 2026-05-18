@@ -577,3 +577,32 @@ Verification notes:
 - Confirmed imported/local origin consistency and experience path routing.
 - Confirmed local integrity excludes only source/local integrity, validation counters, audit, and user notes.
 - Independent probes found only Low/Info edge contracts around NonEmptyStr silent strip, hidden or spaced manifest item filenames, deepcopy cost, dict-only dotted path removal, and public export hygiene.
+
+## Subtask 2.8 - Phase 02 review-polish pass
+
+- timestamp_utc: 2026-05-18T13:13:46Z
+- environment:
+  - os: Windows development host
+  - python: 3.14.3
+  - runner: `.venv\Scripts\python.exe -m pytest`
+- requirements:
+  - REQUIREMENTS.md section 4.2.4
+  - REQUIREMENTS.md section 4.2.6
+  - REQUIREMENTS.md section 4.3
+  - REQUIREMENTS.md section 4.4.2
+  - REQUIREMENTS.md section 4.7.5
+- targeted_command: `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q`
+- targeted_result: 123 passed, 0 failed
+- full_command: `.venv\Scripts\python.exe -m pytest -q`
+- full_result: 281 passed, 0 failed, 1 skipped
+- skipped:
+  - `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter` requires Linux fcntl and must be covered by Ubuntu validation.
+- new_coverage:
+  - `atomic_write_yaml` replaces a symlink path itself rather than writing through to the symlink target.
+  - Hidden `.yaml` files under `trials/data` are ignored by canonical trial discovery.
+  - `ensure_trial_index_current` rebuilds a schema-incompatible derived SQLite index.
+  - Successful trial index rebuild removes stale `-journal`, `-wal`, and `-shm` sidecars.
+  - `LearnedRule.scope` rejects an entirely empty scope.
+  - Experience rule scope options reject surrounding whitespace before `NonEmptyStr` can silently strip.
+  - Imported experience `original_namespace` rejects untrimmed/control-character values before `NonEmptyStr` can silently strip.
+  - Imported experience `source_integrity.original_file` rejects hidden filenames and embedded whitespace.

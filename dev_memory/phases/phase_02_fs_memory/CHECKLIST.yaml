@@ -232,3 +232,42 @@ subtasks:
       - src/agent/fs_memory.py
       - tests/test_fs_memory.py
       - src/agent/__init__.py
+  - id: "2.8"
+    title: "Phase 02 review-polish pass for accumulated Low/TG follow-ups"
+    status: done
+    related_requirements:
+      - REQUIREMENTS.md section 4.2.4
+      - REQUIREMENTS.md section 4.2.6
+      - REQUIREMENTS.md section 4.3
+      - REQUIREMENTS.md section 4.4.2
+      - REQUIREMENTS.md section 4.7.5
+    ut_required: true
+    ut_passed: true
+    targeted_ut: "123 passed, 0 failed"
+    full_ut: "281 passed, 0 failed, 1 skipped"
+    self_review_required: true
+    self_reviewed: true
+    patch_required: true
+    patch_file: dev_memory/phases/phase_02_fs_memory/patches/10_phase_02_polish.patch
+    patch_generated: true
+    commit_required: true
+    commit_pending: true
+    polish_closures:
+      - "atomic_write_yaml symlink replacement behavior covered by UT."
+      - "trial discovery ignores hidden .yaml files under trials/data."
+      - "trial index ensure rebuilds schema-incompatible derived indexes."
+      - "successful trial index rebuild removes stale sqlite sidecars."
+      - "LearnedRule.scope rejects empty scope."
+      - "Experience options and import original_namespace reject untrimmed strings before NonEmptyStr strip."
+      - "Experience source original_file rejects hidden or whitespace-containing filenames."
+      - "compute_payload_hash avoids deepcopy for top-level-only exclusions."
+    files_modified:
+      - src/agent/fs_memory.py
+      - tests/test_fs_memory.py
+      - dev_memory/CURRENT_PHASE.yaml
+      - dev_memory/DECISIONS.md
+      - dev_memory/PROGRESS.md
+      - dev_memory/phases/phase_02_fs_memory/CHECKLIST.yaml
+      - dev_memory/phases/phase_02_fs_memory/SUMMARY.md
+      - dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md
+      - dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md

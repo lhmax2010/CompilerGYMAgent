@@ -528,3 +528,34 @@ Low/Info follow-ups:
 
 Review conclusion:
 - Subtask 2.7 is approved. Proceed to Ubuntu validation, then the next Phase 02 subtask or a Phase 02 polish pass.
+
+## Subtask 2.8 - Phase 02 review-polish pass
+
+Scope:
+- Close accumulated Claude Low/TG follow-ups from Subtasks 2.1 through 2.7 where the fix is small, deterministic, and belongs in Phase 02.
+- Prefer explicit contracts and tests for edge behavior over broad architectural refactors.
+
+Implementation checklist:
+- [x] Added a symlink contract UT for `atomic_write_yaml`: replace the symlink path, leave the target file unchanged.
+- [x] Filter hidden `.yaml` files from `iter_trial_record_paths`, so user/editor side files under `trials/data` do not block canonical discovery.
+- [x] Made `ensure_trial_index_current` rebuild schema-incompatible or otherwise unusable derived indexes.
+- [x] Removed stale SQLite `-journal`, `-wal`, and `-shm` sidecars after a successful trial index rebuild.
+- [x] Rejected entirely empty `LearnedRule.scope` values.
+- [x] Added strict-before validation for experience scope options and imported original namespaces to avoid accidental `NonEmptyStr` silent-strip acceptance.
+- [x] Rejected hidden or whitespace-containing `source_integrity.original_file` manifest filenames.
+- [x] Optimized `compute_payload_hash` so top-level-only excluded fields use a shallow copy while dotted paths keep defensive `deepcopy`.
+- [x] Documented `_compiler_version_from_namespace` as requiring the exact compiler type used to construct the namespace segment.
+
+Tests:
+- `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q` -> 123 passed.
+- `.venv\Scripts\python.exe -m pytest -q` -> 281 passed, 1 skipped on Windows.
+
+Self-review notes:
+- This pass intentionally keeps learned rules namespace-less; that is still the right shape for manual promotion/copy workflows.
+- Cross-rule semantic deduplication and three-state learned-rule review remain future doctor/workflow concerns, not writer-layer validation.
+- `WorkspaceLockHolder.pgid >= 0` and `CheckpointProcess.pgid > 0` remain intentionally different because lock holders can describe broader process contexts while checkpoint child processes must be real nonzero child groups.
+- `_remove_mapping_path` remains mapping-path-only; list-index exclusions are not part of the current integrity contract.
+- Public exports were not expanded in this polish pass.
+
+Review conclusion:
+- Phase 02 polish is ready for external review after patch generation, commit, and push.

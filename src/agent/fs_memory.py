@@ -412,6 +412,20 @@ class LearnedRuleScope(StrictFsModel):
     options_involved: list[NonEmptyStr] = Field(default_factory=list)
     context_hint: NonEmptyStr | None = None
 
+    @model_validator(mode="after")
+    def scope_must_specify_something(self) -> LearnedRuleScope:
+        if (
+            self.framework is None
+            and self.module is None
+            and not self.options_involved
+            and self.context_hint is None
+        ):
+            raise ValueError(
+                "scope must specify at least one of framework, module, "
+                "options_involved, or context_hint"
+            )
+        return self
+
 
 class LearnedRuleEvidence(StrictFsModel):
     supporting_trials: list[NonEmptyStr] = Field(default_factory=list)
@@ -474,6 +488,15 @@ class ExperienceRuleScope(StrictFsModel):
     options: list[NonEmptyStr] = Field(default_factory=list)
     context_hint: NonEmptyStr | None = None
 
+    @field_validator("options", mode="before")
+    @classmethod
+    def options_must_be_strict_before_strip(cls, value: Any) -> Any:
+        if isinstance(value, list):
+            for option in value:
+                if isinstance(option, str):
+                    _validate_option_string(option, "rule.scope.options")
+        return value
+
     @field_validator("options")
     @classmethod
     def options_must_be_safe_strings(cls, value: list[str]) -> list[str]:
@@ -520,6 +543,13 @@ class ExperienceImportMetadata(StrictFsModel):
     original_namespace: NonEmptyStr
     original_evidence_count: int = Field(ge=0)
     original_machine_info: NonEmptyStr
+
+    @field_validator("original_namespace", mode="before")
+    @classmethod
+    def original_namespace_must_be_strict_before_strip(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            _validate_untrimmed_non_control_string(value, "import_metadata.original_namespace")
+        return value
 
     @field_validator("original_namespace")
     @classmethod
@@ -945,9 +975,15 @@ def compute_payload_hash(
     *,
     excluded_fields: Sequence[str] = TRIAL_HASH_FIELDS_EXCLUDED,
 ) -> str:
-    canonical_payload = copy.deepcopy(dict(payload))
-    for field_path in excluded_fields:
-        _remove_mapping_path(canonical_payload, field_path)
+    if any("." in field_path for field_path in excluded_fields):
+        canonical_payload = copy.deepcopy(dict(payload))
+        for field_path in excluded_fields:
+            _remove_mapping_path(canonical_payload, field_path)
+    else:
+        excluded = set(excluded_fields)
+        canonical_payload = {
+            key: value for key, value in dict(payload).items() if key not in excluded
+        }
     digest = hashlib.sha256(_canonical_yaml_bytes(canonical_payload)).hexdigest()
     return f"sha256:{digest}"
 
@@ -1332,7 +1368,7 @@ def iter_trial_record_paths(layout: NamespaceLayout) -> tuple[Path, ...]:
             (
                 path
                 for path in layout.trial_data_dir.rglob("*.yaml")
-                if path.is_file() or path.is_symlink()
+                if (path.is_file() or path.is_symlink()) and not path.name.startswith(".")
             ),
             key=lambda path: path.as_posix(),
         )
@@ -1431,6 +1467,7 @@ def rebuild_trial_index(
         _write_trial_index_database(temp_path, rows, summary)
         _fsync_file(temp_path)
         os.replace(temp_path, target)
+        _cleanup_sqlite_sidecars(target)
         _fsync_parent_dir(target.parent)
         return summary
     except Exception as exc:
@@ -1500,11 +1537,14 @@ def trial_index_is_stale(layout: NamespaceLayout) -> bool:
 
 
 def ensure_trial_index_current(layout: NamespaceLayout) -> TrialIndexSummary:
-    """Rebuild the trial index if missing or older than canonical trial YAML."""
+    """Rebuild the trial index if missing, stale, corrupt, or schema-incompatible."""
 
     if trial_index_is_stale(layout):
         return rebuild_trial_index(layout)
-    return load_trial_index_summary(layout)
+    try:
+        return load_trial_index_summary(layout)
+    except TrialIndexError:
+        return rebuild_trial_index(layout)
 
 
 def checkpoint_payload(state: CheckpointState | Mapping[str, Any]) -> dict[str, Any]:
@@ -1723,6 +1763,13 @@ def _validate_option_string(value: str, label: str) -> None:
         raise ValueError(f"{label} cannot contain control characters")
 
 
+def _validate_untrimmed_non_control_string(value: str, label: str) -> None:
+    if value != value.strip():
+        raise ValueError(f"{label} cannot contain surrounding whitespace")
+    if any(ord(char) < 0x20 or ord(char) == 0x7F for char in value):
+        raise ValueError(f"{label} cannot contain control characters")
+
+
 def _validate_experience_item_file(value: str, label: str) -> None:
     if "\\" in value:
         raise ValueError(f"{label} must use POSIX separators")
@@ -1737,6 +1784,10 @@ def _validate_experience_item_file(value: str, label: str) -> None:
         raise ValueError(f"{label} must match experiences/*.yaml")
     if path.suffix != ".yaml":
         raise ValueError(f"{label} must end with .yaml")
+    if path.name.startswith("."):
+        raise ValueError(f"{label} cannot use hidden file names")
+    if any(char.isspace() for char in path.name):
+        raise ValueError(f"{label} cannot contain whitespace")
     _validate_file_atom(path.name, label)
 
 
@@ -1944,6 +1995,14 @@ def _cleanup_sqlite_temp_files(path: Path) -> None:
             pass
 
 
+def _cleanup_sqlite_sidecars(path: Path) -> None:
+    for candidate in (Path(f"{path}-journal"), Path(f"{path}-wal"), Path(f"{path}-shm")):
+        try:
+            candidate.unlink()
+        except OSError:
+            pass
+
+
 def _validate_discovered_trial(
     layout: NamespaceLayout,
     path: Path,
@@ -1964,6 +2023,8 @@ def _validate_discovered_trial(
 
 
 def _compiler_version_from_namespace(namespace: str, *, compiler_type: str) -> str:
+    """Extract compiler.version when compiler_type exactly matches namespace construction."""
+
     _validate_namespace_string(namespace, "trial.namespace")
     compiler_segment = namespace.split("/")[2]
     prefix = f"{compiler_type}-"

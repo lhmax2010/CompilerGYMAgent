@@ -375,3 +375,34 @@ Decision records must include:
   - Keep the older single `integrity` block for experiences, which would conflate source package verification with local mutable state.
   - Exclude the whole `validation` block, which would hide changes to `plausibility_score` and `required_evidence`.
   - Put imported experiences into trust-level directories immediately, which would blur imported/untrusted prompt-safety handling and make import provenance harder to inspect.
+
+## 2026-05-18T13:13:46Z - Make Phase 02 edge contracts explicit during polish
+
+- affected_requirement:
+  - REQUIREMENTS.md section 4.2.4
+  - REQUIREMENTS.md section 4.2.6
+  - REQUIREMENTS.md section 4.3
+  - REQUIREMENTS.md section 4.4.2
+  - REQUIREMENTS.md section 4.7.5
+- decision: Close Phase 02 review-polish items by turning ambiguous edge behavior into explicit contracts: ignore hidden trial `.yaml` side files during discovery, rebuild schema-incompatible derived trial indexes, clean stale SQLite sidecars after successful index replacement, reject empty learned-rule scopes, reject hidden or whitespace-containing imported experience manifest filenames, and use strict-before validators only on fields whose stored identity/path semantics must not be silently stripped.
+- rationale: The canonical SoT files should remain strict where identity, path routing, or later process/discovery behavior depends on exact strings. Derived caches can be repaired by rebuild instead of surfacing stale schema errors to users. Hidden/editor side files should not break canonical scans, while imported manifest item names stay narrow so later import/export tooling receives predictable paths.
+- alternatives_considered:
+  - Leave all Low/TG items deferred until future doctor/import/CLI work, which would keep repeated review noise around small contracts that are cheap to settle now.
+  - Apply strict-before validation to every `NonEmptyStr` metadata field, which would be a broad behavioral shift and could reject harmless user-facing whitespace that is currently normalized.
+  - Treat any hidden trial YAML as dirty state and fail discovery, which would make editor/backup side files block startup even though canonical trial filenames already have a strict `trial_<id>.yaml` identity check.
+  - Keep schema-incompatible `_index.sqlite` files as hard errors, which would force manual deletion even though indexes are explicitly rebuildable derived state.
+
+## 2026-05-18T13:13:46Z - Keep Phase 02 layered responsibility boundaries
+
+- affected_requirement:
+  - REQUIREMENTS.md section 4.1.3
+  - REQUIREMENTS.md section 4.2.4
+  - REQUIREMENTS.md section 4.11.2
+  - REQUIREMENTS.md section 4.15
+- decision: Preserve the existing layering for Low/Info items that are design boundaries rather than bugs: learned rules remain namespace-less to support manual promotion/copying; cross-rule deduplication remains future doctor/workflow scope; SoT writers must hold `WorkspaceLock` while derived index rebuilds only need it for coordination efficiency; `WorkspaceLockHolder.pgid >= 0` and `CheckpointProcess.pgid > 0` remain intentionally different; dotted integrity exclusions address mapping paths, not list-index paths.
+- rationale: These choices keep Phase 02 writers narrow and predictable. Namespace binding belongs on immutable trial/checkpoint records, while learned rules are meant to be portable. Derived indexes should never become a second SoT. Process metadata has different semantics in lock-holder metadata versus active child-process checkpoint metadata. Expanding hash-exclusion path syntax before a real list-index use case would add complexity without a current requirement.
+- alternatives_considered:
+  - Add a mandatory namespace field to learned rules, which would make manual promotion across namespace directories require editing rule YAML and re-accepting integrity.
+  - Enforce cross-rule semantic uniqueness in `write_learned_rule`, which would move fuzzy doctor/dedup policy into a low-level atomic writer.
+  - Require `WorkspaceLock` as a correctness precondition for all derived index rebuilds, which would overstate the role of a rebuildable cache and blur the SoT/cache boundary.
+  - Generalize dotted integrity exclusions to list indexes now, which would add unused path syntax and new edge cases before any current schema needs it.

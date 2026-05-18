@@ -345,6 +345,22 @@ def test_atomic_write_yaml_preserves_existing_target_on_dump_failure(
     assert not list(target.parent.glob(".checkpoint.yaml.*.tmp"))
 
 
+def test_atomic_write_yaml_replaces_symlink_path_not_symlink_target(tmp_path: Path) -> None:
+    real_target = tmp_path / "real.yaml"
+    real_target.write_text("status: old\n", encoding="utf-8")
+    symlink_target = tmp_path / "link.yaml"
+    try:
+        symlink_target.symlink_to(real_target)
+    except (NotImplementedError, OSError):
+        pytest.skip("filesystem does not allow creating symlinks")
+
+    atomic_write_yaml({"status": "new"}, symlink_target)
+
+    assert symlink_target.is_symlink() is False
+    assert yaml.safe_load(symlink_target.read_text(encoding="utf-8")) == {"status": "new"}
+    assert real_target.read_text(encoding="utf-8") == "status: old\n"
+
+
 def test_atomic_write_yaml_rejects_directory_target(tmp_path: Path) -> None:
     target = tmp_path / "checkpoint.yaml"
     target.mkdir()
@@ -661,8 +677,16 @@ def test_iter_trial_record_paths_returns_sorted_yaml_paths(tmp_path: Path) -> No
     later_path = write_trial_record(layout, later)
     earlier_path = write_trial_record(layout, earlier)
     (layout.trial_data_dir / "2026-04" / "notes.txt").write_text("ignore", encoding="utf-8")
+    (layout.trial_data_dir / "2026-04" / ".trial_hidden.yaml").write_text(
+        "not: a trial\n",
+        encoding="utf-8",
+    )
 
     assert iter_trial_record_paths(layout) == (earlier_path, later_path)
+    assert [item.record.trial_id for item in discover_trial_records(layout)] == [
+        "r12_t1",
+        "r12_t3",
+    ]
 
 
 def test_iter_trial_record_paths_returns_empty_for_missing_trial_dir(tmp_path: Path) -> None:
@@ -786,6 +810,24 @@ def test_rebuild_trial_index_replaces_stale_or_invalid_index(tmp_path: Path) -> 
     assert load_trial_index_rows(layout)[0].trial_id == "r12_t3"
 
 
+def test_rebuild_trial_index_removes_stale_sqlite_sidecars(tmp_path: Path) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+    write_trial_record(layout, trial_record_data())
+    layout.trial_index_path.parent.mkdir(parents=True, exist_ok=True)
+    sidecars = [
+        Path(f"{layout.trial_index_path}-journal"),
+        Path(f"{layout.trial_index_path}-wal"),
+        Path(f"{layout.trial_index_path}-shm"),
+    ]
+    for sidecar in sidecars:
+        sidecar.write_text("stale", encoding="utf-8")
+
+    rebuild_trial_index(layout)
+
+    assert all(not sidecar.exists() for sidecar in sidecars)
+    assert load_trial_index_rows(layout)[0].trial_id == "r12_t3"
+
+
 def test_rebuild_trial_index_preserves_existing_index_on_discovery_failure(
     tmp_path: Path,
 ) -> None:
@@ -857,6 +899,24 @@ def test_ensure_trial_index_current_rebuilds_only_when_stale(
     assert ensure_trial_index_current(layout).trial_count == 1
 
 
+def test_ensure_trial_index_current_rebuilds_schema_mismatch(tmp_path: Path) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+    write_trial_record(layout, trial_record_data())
+    rebuild_trial_index(layout)
+    conn = fs_memory.sqlite3.connect(layout.trial_index_path)
+    try:
+        conn.execute("UPDATE trial_index_meta SET value = '999' WHERE key = 'schema_version'")
+        conn.commit()
+    finally:
+        conn.close()
+
+    summary = ensure_trial_index_current(layout)
+
+    assert summary.schema_version == fs_memory.TRIAL_INDEX_SCHEMA_VERSION
+    assert summary.trial_count == 1
+    assert load_trial_index_rows(layout)[0].trial_id == "r12_t3"
+
+
 def test_load_trial_index_summary_rejects_missing_or_bad_schema(tmp_path: Path) -> None:
     layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
 
@@ -920,6 +980,14 @@ def test_learned_rule_rejects_evidence_count_mismatch() -> None:
     data["evidence"]["evidence_count"] = 2
 
     with pytest.raises(ValidationError, match="evidence_count"):
+        LearnedRule.model_validate(data)
+
+
+def test_learned_rule_rejects_empty_scope() -> None:
+    data = learned_rule_data()
+    data["scope"] = {}
+
+    with pytest.raises(ValidationError, match="scope must specify"):
         LearnedRule.model_validate(data)
 
 
@@ -1059,6 +1127,41 @@ def test_experience_rejects_invalid_identity_fields() -> None:
     data["id"] = "../exp_001"
 
     with pytest.raises(ValidationError, match="path separators"):
+        Experience.model_validate(data)
+
+
+@pytest.mark.parametrize("option", [" -flto=thin", "-flto=thin ", "-flto=thin\n"])
+def test_experience_rejects_untrimmed_scope_options(option: str) -> None:
+    data = experience_data()
+    data["rule"]["scope"]["options"] = [option]
+
+    with pytest.raises(ValidationError, match="rule.scope.options"):
+        Experience.model_validate(data)
+
+
+def test_imported_experience_rejects_untrimmed_original_namespace() -> None:
+    data = experience_data(origin="imported")
+    data["import_metadata"]["original_namespace"] = f"{namespace()}\n"
+
+    with pytest.raises(ValidationError, match="import_metadata.original_namespace"):
+        Experience.model_validate(data)
+
+
+@pytest.mark.parametrize(
+    ("original_file", "message"),
+    [
+        ("experiences/.exp_001.yaml", "hidden"),
+        ("experiences/exp 001.yaml", "whitespace"),
+    ],
+)
+def test_imported_experience_rejects_hidden_or_spaced_original_file(
+    original_file: str,
+    message: str,
+) -> None:
+    data = experience_data(origin="imported")
+    data["source_integrity"]["original_file"] = original_file
+
+    with pytest.raises(ValidationError, match=message):
         Experience.model_validate(data)
 
 
