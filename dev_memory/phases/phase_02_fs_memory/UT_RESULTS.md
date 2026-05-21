@@ -606,3 +606,21 @@ Verification notes:
   - Experience rule scope options reject surrounding whitespace before `NonEmptyStr` can silently strip.
   - Imported experience `original_namespace` rejects untrimmed/control-character values before `NonEmptyStr` can silently strip.
   - Imported experience `source_integrity.original_file` rejects hidden filenames and embedded whitespace.
+
+## Subtask 2.8 - external review verification
+
+- timestamp_utc: 2026-05-21T12:35:44Z
+- reviewer: Claude
+- verdict: Approve
+- range: `4cf1f7a..a1a2988`
+- test_command: `PYTHONPATH=src python -m pytest tests/ -v`
+- test_result: 282 passed, 0 failed
+- targeted_command: `PYTHONPATH=src python -m pytest tests/test_fs_memory.py -v`
+- targeted_result: 123 passed, 0 failed
+- linux_fcntl_test: PASSED
+
+Verification notes:
+- Confirmed the Windows report of `281 passed, 1 skipped` maps exactly to Linux `282 passed` because the real `fcntl` workspace-lock test runs on Linux.
+- Independently verified the eight polish closures and cross-SoT integrity regression for TrialRecord, LearnedRule, and Experience.
+- Found no Critical/High/Medium issues.
+- Remaining Info notes are future-facing: revisit sidecar cleanup if SQLite WAL mode is introduced, and keep the `compute_payload_hash` dotted-path heuristic in mind if a future schema ever uses literal dots in top-level field names.

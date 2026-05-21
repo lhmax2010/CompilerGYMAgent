@@ -559,3 +559,30 @@ Self-review notes:
 
 Review conclusion:
 - Phase 02 polish is ready for external review after patch generation, commit, and push.
+
+## Subtask 2.8 - external review verification
+
+- timestamp_utc: 2026-05-21T12:35:44Z
+- reviewer: Claude
+- verdict: Approve
+- range: `4cf1f7a..a1a2988`
+- tests: 282 passed, 0 failed
+- linux_fcntl_test: PASSED
+
+Verification summary:
+- [x] Hidden trial YAML side files do not block discovery.
+- [x] `ensure_trial_index_current` rebuilds schema-incompatible and corrupt derived indexes.
+- [x] Successful index rebuild removes stale SQLite sidecars.
+- [x] Empty `LearnedRule.scope` is rejected while any single scope field remains valid.
+- [x] Experience scope options and imported original namespaces reject untrimmed values before `NonEmptyStr` strip.
+- [x] Imported experience manifest filenames reject hidden names and embedded whitespace.
+- [x] `compute_payload_hash` remains backward-compatible across TrialRecord, LearnedRule, and Experience integrity.
+- [x] `atomic_write_yaml` symlink replacement behavior is tested and documented.
+- [x] dev_memory and patch artifacts are complete.
+
+Low/Info notes:
+- Future WAL-mode index rebuilds would need to revisit unconditional `-wal/-shm` cleanup.
+- The `compute_payload_hash` dotted-path heuristic may choose the slower `deepcopy` path for a hypothetical top-level field name containing a dot; current schema field names do not do this.
+
+Review conclusion:
+- Phase 02 polish is approved. Phase 02 has no remaining blocking items and is ready for Phase 03 or the next milestone.

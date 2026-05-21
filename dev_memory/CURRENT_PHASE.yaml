@@ -1,7 +1,7 @@
 phase_id: phase_02_fs_memory
 phase_title: "FS-Memory SoT + schema + atomic write"
 started_at: 2026-05-08T07:04:04Z
-last_updated: 2026-05-18T13:18:32Z
+last_updated: 2026-05-21T12:35:44Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 4.2
@@ -326,6 +326,10 @@ subtasks:
     commit_pending: false
     commit_hash: 4f4b675
     commit_message: "phase_02_fs_memory: 2.8 polish review followups (REQUIREMENTS sections 4.2.4, 4.2.6, 4.7.5)"
+    external_review_verdict: approve
+    external_reviewed_at: 2026-05-21T12:35:44Z
+    external_review_tests: "282 passed, 0 failed"
+    external_review_notes: "Claude independently verified all eight polish closures on Linux, including the real fcntl workspace-lock regression; only future-facing Info notes remain."
     polish_closures:
       - "Documented and tested atomic_write_yaml symlink replacement behavior."
       - "Hidden .yaml files under trials/data are ignored by canonical trial discovery."
@@ -340,4 +344,4 @@ notes: |
   checkpoint.yaml, experience yaml, learned rule yaml) must reuse the same
   flush/fsync/os.replace/parent-fsync semantics from REQUIREMENTS.md section
   4.7.5.
-next_action: "Commit/push Phase 02 polish, request external review, then run Ubuntu validation."
+next_action: "Phase 02 is externally approved after polish; prepare Phase 03 or the next milestone."

@@ -747,3 +747,23 @@ Next action: generate patch artifacts, commit/push Subtask 2.8, then request ext
   - `dev_memory/phases/phase_02_fs_memory/patches/10_phase_02_polish.review.md`
 
 Next action: commit this sync record, push, then request external review.
+
+## 2026-05-21T12:35:44Z - Phase 02 / Subtask 2.8 external review completed
+
+- Reviewer: Claude.
+- Verdict: Approve.
+- Range: `4cf1f7a..a1a2988`.
+- Implementation: `4f4b675`; sync: `a1a2988`.
+- Tests: 282 passed, 0 failed on Linux; the Linux real `fcntl` workspace lock path passed.
+- Review independently verified all eight polish closures:
+  - hidden trial YAML ignored by discovery,
+  - schema-incompatible trial indexes self-heal,
+  - stale SQLite sidecars are removed,
+  - empty learned-rule scopes are rejected,
+  - experience option and original-namespace strict-before validators defeat silent strip,
+  - imported experience manifest filenames reject hidden/spaced names,
+  - top-level-only payload hashing avoids unnecessary `deepcopy`,
+  - atomic symlink replacement behavior is contract-tested.
+- Remaining observations are Info-only: stale sidecar cleanup should be revisited before any future WAL-mode switch, and the `compute_payload_hash` dotted-path heuristic may over-select `deepcopy` only if a future top-level field name contains a dot.
+
+Next action: record this sync commit and proceed to Phase 03 or the next milestone.
