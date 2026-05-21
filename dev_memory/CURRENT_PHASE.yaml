@@ -366,7 +366,9 @@ subtasks:
     self_reviewed: true
     patch_file: dev_memory/phases/phase_02_fs_memory/patches/11_kimi_review_fixes.patch
     patch_generated: true
-    commit_pending: true
+    commit_pending: false
+    commit_hash: 2bca4a4
+    commit_message: "phase_02_fs_memory: 2.9 fix kimi review findings (REQUIREMENTS sections 4.2.4, 4.2.6)"
     review_fix_summary:
       - "Filtered symlinks out of trial discovery so batch discovery matches load_trial_record's no-symlink contract."
       - "Made compute_payload_hash remove exact top-level keys before dotted mapping paths, covering literal-dot top-level field names."
@@ -378,4 +380,4 @@ notes: |
   checkpoint.yaml, experience yaml, learned rule yaml) must reuse the same
   flush/fsync/os.replace/parent-fsync semantics from REQUIREMENTS.md section
   4.7.5.
-next_action: "Commit/push Kimi review fixes, request final verification, then proceed to Phase 03 or the next milestone."
+next_action: "Push Kimi review fix sync, request final verification, then proceed to Phase 03 or the next milestone."
