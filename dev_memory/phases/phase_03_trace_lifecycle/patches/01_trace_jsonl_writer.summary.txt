@@ -1,0 +1,14 @@
+Subtask 3.1 implements the canonical trace/events.jsonl foundation.
+
+Changes:
+- Added TraceEvent, TraceAppendResult, TraceError, TraceWriteError, and TraceLoadError.
+- Added append_trace_event with O_APPEND, newline-terminated compact JSON, fsync, per-event size cap, symlink/directory rejection, and line-reference metadata.
+- Added load_trace_events and iter_trace_events with bounded UTF-8 JSONL validation.
+- Exported trace public APIs from agent.__init__.
+- Added focused trace tests covering happy path, dry-run marker payloads, invalid schema, unsafe files, invalid JSONL, oversized lines/events, and missing trace files.
+- Created Phase 03 dev_memory scaffold and recorded the trace JSONL design decision.
+
+Verification:
+- .venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -v -> 18 passed.
+- .venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q -> 128 passed.
+- .venv\Scripts\python.exe -m pytest -q -> 304 passed, 1 skipped on Windows.

@@ -1,13 +1,13 @@
 phase_id: phase_03_trace_lifecycle
 phase_title: "Trace JSONL canonical event stream"
+status: in_progress
 started_at: 2026-05-21T14:06:00Z
-last_updated: 2026-05-21T14:06:00Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 3.3
   - REQUIREMENTS.md section 4.13
   - REQUIREMENTS.md section 5.1
-status: in_progress
+
 subtasks:
   - id: "3.1"
     title: "Implement append-only trace/events.jsonl schema, writer, and loader"
@@ -17,15 +17,6 @@ subtasks:
       - REQUIREMENTS.md section 5.1.2
       - REQUIREMENTS.md section 5.1.3
       - REQUIREMENTS.md section 4.13
-    files_modified:
-      - src/agent/fs_memory.py
-      - src/agent/__init__.py
-    files_created:
-      - tests/test_trace_memory.py
-      - dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml
-      - dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
-      - dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
-      - dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
     ut_required: true
     ut_passed: true
     targeted_ut: "18 passed, 0 failed"
@@ -38,10 +29,18 @@ subtasks:
     patch_generated: true
     commit_required: true
     commit_pending: true
-notes: |
-  Phase 03 starts with the canonical `trace/events.jsonl` append-only event
-  stream because REQUIREMENTS.md defines runtime recovery state as
-  `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
-  trace storage primitive before wiring lifecycle stages, rejected candidates,
-  dry-run injection, or process/user-action event producers.
-next_action: "Generate Phase 03 patch artifacts, commit/push Subtask 3.1, then request external review."
+    files_modified:
+      - src/agent/fs_memory.py
+      - src/agent/__init__.py
+    files_created:
+      - tests/test_trace_memory.py
+      - dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml
+      - dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
+      - dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
+      - dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
+
+phase_exit_criteria:
+  - "Trace events are append-only JSONL with strict common fields and flexible event-specific payloads."
+  - "Trace append rejects unsafe targets, writes one newline-terminated JSON object, fsyncs the file, and returns a stable line reference."
+  - "Trace loading validates UTF-8, JSON object shape, UTC timestamps, safe event kinds, finite numbers, and per-line size caps."
+  - "Future lifecycle producers can write dry-run, rejected-candidate, process, user-action, memory, and KG events through the same primitive."

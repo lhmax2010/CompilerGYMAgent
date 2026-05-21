@@ -10,13 +10,14 @@ from __future__ import annotations
 import os
 import copy
 import hashlib
+import json
 import math
 import sqlite3
 import tempfile
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path, PurePosixPath
-from typing import Any, Literal, Mapping, Sequence
+from typing import Any, Iterator, Literal, Mapping, Sequence
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
@@ -89,6 +90,18 @@ class ExperienceLoadError(ExperienceError):
     """Raised when experience YAML cannot be parsed or validated."""
 
 
+class TraceError(FsMemoryError):
+    """Raised when canonical trace data is invalid for FS-Memory use."""
+
+
+class TraceWriteError(TraceError):
+    """Raised when `trace/events.jsonl` cannot be appended safely."""
+
+
+class TraceLoadError(TraceError):
+    """Raised when `trace/events.jsonl` cannot be parsed or validated."""
+
+
 class CheckpointError(FsMemoryError):
     """Raised when checkpoint state is invalid for FS-Memory use."""
 
@@ -148,6 +161,7 @@ MAX_TRIAL_RECORD_BYTES = 1_048_576
 MAX_CHECKPOINT_BYTES = 1_048_576
 MAX_LEARNED_RULE_BYTES = 1_048_576
 MAX_EXPERIENCE_BYTES = 1_048_576
+MAX_TRACE_EVENT_BYTES = 1_048_576
 TRIAL_INDEX_SCHEMA_VERSION = 1
 TRIAL_HASH_FIELDS_EXCLUDED = ("integrity",)
 LEARNED_RULE_HASH_FIELDS_EXCLUDED = ("integrity", "user_validated", "user_notes")
@@ -768,6 +782,49 @@ class CheckpointState(StrictFsModel):
         return self
 
 
+class TraceEvent(BaseModel):
+    """One canonical JSONL trace event.
+
+    Common trace fields are strict; event-specific keys remain open so later
+    workflow layers can add rejected-candidate, process, memory, or dry-run
+    payloads without changing this base schema.
+    """
+
+    model_config = ConfigDict(extra="allow", validate_assignment=True)
+
+    ts: NonEmptyStr
+    kind: NonEmptyStr
+
+    @field_validator("ts", mode="before")
+    @classmethod
+    def ts_datetime_to_string(cls, value: Any) -> Any:
+        return _datetime_to_utc_isoformat(value, "ts")
+
+    @field_validator("ts")
+    @classmethod
+    def ts_must_be_utc_isoformat(cls, value: str) -> str:
+        _parse_utc_isoformat(value, "ts")
+        return value
+
+    @field_validator("kind", mode="before")
+    @classmethod
+    def kind_must_not_be_trimmed(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            _validate_untrimmed_non_control_string(value, "kind")
+        return value
+
+    @field_validator("kind")
+    @classmethod
+    def kind_must_be_trace_atom(cls, value: str) -> str:
+        _validate_trace_kind(value, "kind")
+        return value
+
+    @model_validator(mode="after")
+    def event_payload_must_be_json_compatible(self) -> TraceEvent:
+        _validate_json_value(self.model_dump(mode="python"), "trace event")
+        return self
+
+
 @dataclass(frozen=True)
 class DiscoveredTrialRecord:
     """One immutable trial YAML discovered from `trials/data`."""
@@ -818,6 +875,19 @@ class TrialIndexSummary:
     trial_count: int
     rebuilt_at: str
     source_latest_mtime_ns: int | None
+
+
+@dataclass(frozen=True)
+class TraceAppendResult:
+    """Location metadata for one appended trace event."""
+
+    path: Path
+    line_number: int
+    byte_offset: int
+
+    @property
+    def trace_id(self) -> str:
+        return f"{self.path.name}#L{self.line_number}"
 
 
 @dataclass(frozen=True)
@@ -1557,6 +1627,124 @@ def ensure_trial_index_current(layout: NamespaceLayout) -> TrialIndexSummary:
         return rebuild_trial_index(layout)
 
 
+def trace_event_payload(event: TraceEvent | Mapping[str, Any]) -> dict[str, Any]:
+    """Return the canonical JSON-compatible mapping for one trace event."""
+
+    validated = TraceEvent.model_validate(event)
+    return validated.model_dump(mode="json")
+
+
+def append_trace_event(
+    layout: NamespaceLayout,
+    event: TraceEvent | Mapping[str, Any],
+) -> TraceAppendResult:
+    """Append one canonical event to `trace/events.jsonl`.
+
+    Callers must hold the workspace lock before invoking this function during
+    normal runs. The append path uses `O_APPEND`, writes exactly one LF-terminated
+    JSON object, fsyncs the file, and rejects symlink targets.
+    """
+
+    payload = trace_event_payload(event)
+    line = _trace_event_line(payload)
+    target = layout.trace_path
+    if len(line) > MAX_TRACE_EVENT_BYTES:
+        raise TraceWriteError(
+            f"trace event is too large ({len(line)} bytes > {MAX_TRACE_EVENT_BYTES} bytes)"
+        )
+    if target.is_symlink():
+        raise TraceWriteError(f"trace path must not be a symlink: {target}")
+    if target.exists() and target.is_dir():
+        raise TraceWriteError(f"trace path is a directory: {target}")
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        existed = target.exists()
+        byte_offset = target.stat().st_size if existed else 0
+        if byte_offset > 0 and not _file_ends_with_newline(target):
+            raise TraceWriteError(f"trace file is not newline-terminated: {target}")
+        line_number = _count_trace_lines(target) + 1 if existed else 1
+        fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
+        try:
+            _write_all(fd, line)
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+        if not existed:
+            _fsync_parent_dir(target.parent)
+        return TraceAppendResult(
+            path=target,
+            line_number=line_number,
+            byte_offset=byte_offset,
+        )
+    except TraceWriteError:
+        raise
+    except OSError as exc:
+        raise TraceWriteError(f"failed to append trace event to {target}: {exc}") from exc
+
+
+def iter_trace_events(path: str | Path) -> Iterator[TraceEvent]:
+    """Yield validated events from one canonical `events.jsonl` file."""
+
+    yield from load_trace_events(path)
+
+
+def load_trace_events(path: str | Path) -> tuple[TraceEvent, ...]:
+    """Load and validate all events from one canonical `events.jsonl` file."""
+
+    trace_path = Path(path)
+    if trace_path.is_symlink():
+        raise TraceLoadError(f"trace path must not be a symlink: {trace_path}")
+    if not trace_path.exists():
+        return ()
+    if trace_path.is_dir():
+        raise TraceLoadError(f"trace path is a directory: {trace_path}")
+
+    events: list[TraceEvent] = []
+    try:
+        with trace_path.open("rb") as handle:
+            for line_number, raw_line in enumerate(handle, start=1):
+                if len(raw_line) > MAX_TRACE_EVENT_BYTES:
+                    raise TraceLoadError(
+                        f"trace line {line_number} is too large "
+                        f"({len(raw_line)} bytes > {MAX_TRACE_EVENT_BYTES} bytes)"
+                    )
+                if not raw_line.endswith(b"\n"):
+                    raise TraceLoadError(
+                        f"trace line {line_number} is not newline-terminated"
+                    )
+                try:
+                    text = raw_line.decode("utf-8")
+                except UnicodeDecodeError as exc:
+                    raise TraceLoadError(
+                        f"trace line {line_number} is not valid UTF-8"
+                    ) from exc
+                text = text[:-1]
+                if not text.strip():
+                    raise TraceLoadError(f"trace line {line_number} is empty")
+                try:
+                    data = json.loads(text, parse_constant=_reject_json_constant)
+                except (json.JSONDecodeError, ValueError) as exc:
+                    raise TraceLoadError(
+                        f"trace line {line_number} failed to parse JSON: {exc}"
+                    ) from exc
+                if not isinstance(data, Mapping):
+                    raise TraceLoadError(
+                        f"trace line {line_number} must contain a JSON object"
+                    )
+                try:
+                    events.append(TraceEvent.model_validate(data))
+                except ValidationError as exc:
+                    raise TraceLoadError(
+                        f"trace line {line_number} is invalid:\n{exc}"
+                    ) from exc
+    except TraceLoadError:
+        raise
+    except OSError as exc:
+        raise TraceLoadError(f"failed to load trace file {trace_path}: {exc}") from exc
+    return tuple(events)
+
+
 def checkpoint_payload(state: CheckpointState | Mapping[str, Any]) -> dict[str, Any]:
     checkpoint = CheckpointState.model_validate(state)
     return checkpoint.model_dump(mode="json", exclude_none=True)
@@ -1778,6 +1966,80 @@ def _validate_untrimmed_non_control_string(value: str, label: str) -> None:
         raise ValueError(f"{label} cannot contain surrounding whitespace")
     if any(ord(char) < 0x20 or ord(char) == 0x7F for char in value):
         raise ValueError(f"{label} cannot contain control characters")
+
+
+def _validate_trace_kind(value: str, label: str) -> None:
+    if not value:
+        raise ValueError(f"{label} cannot be empty")
+    if not all(
+        char.isascii() and (char.isalnum() or char in {"_", "-", "."})
+        for char in value
+    ):
+        raise ValueError(
+            f"{label} can contain only ASCII letters, digits, '_', '-', or '.'"
+        )
+
+
+def _validate_json_value(value: Any, label: str) -> None:
+    if value is None or isinstance(value, (str, bool, int)):
+        return
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise ValueError(f"{label} cannot contain non-finite floats")
+        return
+    if isinstance(value, Mapping):
+        for key, nested in value.items():
+            if not isinstance(key, str):
+                raise ValueError(f"{label} JSON object keys must be strings")
+            _validate_json_value(nested, f"{label}.{key}")
+        return
+    if isinstance(value, list):
+        for index, nested in enumerate(value):
+            _validate_json_value(nested, f"{label}[{index}]")
+        return
+    raise ValueError(f"{label} contains non-JSON value {type(value).__name__}")
+
+
+def _trace_event_line(payload: Mapping[str, Any]) -> bytes:
+    try:
+        text = json.dumps(
+            dict(payload),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        )
+    except (TypeError, ValueError) as exc:
+        raise TraceWriteError(f"trace event is not JSON serializable: {exc}") from exc
+    return f"{text}\n".encode("utf-8")
+
+
+def _file_ends_with_newline(path: Path) -> bool:
+    with path.open("rb") as handle:
+        handle.seek(-1, os.SEEK_END)
+        return handle.read(1) == b"\n"
+
+
+def _count_trace_lines(path: Path) -> int:
+    count = 0
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            count += chunk.count(b"\n")
+    return count
+
+
+def _write_all(fd: int, data: bytes) -> None:
+    view = memoryview(data)
+    total_written = 0
+    while total_written < len(data):
+        written = os.write(fd, view[total_written:])
+        if written == 0:
+            raise OSError("short write while appending trace event")
+        total_written += written
+
+
+def _reject_json_constant(value: str) -> None:
+    raise ValueError(f"JSON constant {value!r} is not allowed")
 
 
 def _validate_experience_item_file(value: str, label: str) -> None:

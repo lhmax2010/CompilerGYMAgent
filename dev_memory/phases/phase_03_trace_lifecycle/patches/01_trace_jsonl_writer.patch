@@ -1,0 +1,1223 @@
+﻿diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index 997c4d4..561f3f7 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -1,383 +1,47 @@
+-phase_id: phase_02_fs_memory
+-phase_title: "FS-Memory SoT + schema + atomic write"
+-started_at: 2026-05-08T07:04:04Z
+-last_updated: 2026-05-21T13:47:12Z
++phase_id: phase_03_trace_lifecycle
++phase_title: "Trace JSONL canonical event stream"
++started_at: 2026-05-21T14:06:00Z
++last_updated: 2026-05-21T14:06:00Z
+ target_milestone: M1
+ related_requirements:
+-  - REQUIREMENTS.md section 4.2
+-  - REQUIREMENTS.md section 4.7.5
++  - REQUIREMENTS.md section 3.3
++  - REQUIREMENTS.md section 4.13
++  - REQUIREMENTS.md section 5.1
+ status: in_progress
+ subtasks:
+-  - id: "2.1"
+-    title: "Implement shared atomic YAML writer and namespace FS layout resolver"
++  - id: "3.1"
++    title: "Implement append-only trace/events.jsonl schema, writer, and loader"
+     status: done
+     related_requirements:
+-      - REQUIREMENTS.md section 4.2.3
+-      - REQUIREMENTS.md section 4.7.5
+-    files_created:
+-      - src/agent/fs_memory.py
+-      - tests/test_fs_memory.py
+-    files_modified:
+-      - src/agent/init.py
+-      - src/agent/__init__.py
+-    ut_passed: true
+-    targeted_ut: "10 passed, 0 failed"
+-    full_ut: "162 passed, 0 failed, 1 skipped"
+-    self_reviewed: true
+-    patch_file: dev_memory/phases/phase_02_fs_memory/patches/01_atomic_layout.patch
+-    patch_generated: true
+-    commit_hash: b92f5db
+-    commit_message: "phase_02_fs_memory: 2.1 implement atomic layout (REQUIREMENTS sections 4.2.3, 4.7.5)"
+-    external_review_verdict: approve
+-    external_reviewed_at: 2026-05-08T07:41:20Z
+-    external_review_notes: "Claude independently verified 163/163 tests and approved Subtask 2.1; only Low/Info follow-ups remain."
+-    target_environment_validation:
+-      os: Ubuntu/Linux
+-      python: 3.11.15
+-      targeted_pytest: "10 passed in 0.10s"
+-      full_pytest: "163 passed in 0.58s"
+-      manual_probe: "atomic_write_yaml wrote UTF-8 YAML with unicode: 编译 and left tmp files: []"
+-      runner: "venv + pip + pytest; uv not required"
+-    deferred_low_priority_followups:
+-      - "Document or test symlink-target behavior: atomic_write_yaml replaces the symlink path instead of writing through it."
+-      - "Document parent-directory fsync failure semantics: os.replace may have succeeded while durability fsync raises, so caller should treat state as unknown and retry/inspect."
+-      - "Add experience trust-level, learned suggestions, baseline history, and environment active path helpers when their writers are implemented."
+-      - "Consider a workspace-level layout helper for shared/kg/trash/import/export directories in later modules."
+-      - "Consider optional write-size limits if future SoT writers may emit files larger than their read caps."
+-  - id: "2.2"
+-    title: "Implement TrialRecord schema, integrity hash, and immutable trial writer"
+-    status: done
+-    related_requirements:
+-      - REQUIREMENTS.md section 4.2.6
+-      - REQUIREMENTS.md section 4.7.5
+-    files_modified:
+-      - src/agent/fs_memory.py
+-      - tests/test_fs_memory.py
+-      - src/agent/__init__.py
+-    ut_passed: true
+-    targeted_ut: "27 passed, 0 failed"
+-    full_ut: "179 passed, 0 failed, 1 skipped"
+-    self_reviewed: true
+-    patch_file: dev_memory/phases/phase_02_fs_memory/patches/02_trial_record.patch
+-    patch_generated: true
+-    commit_hash: e13592e
+-    commit_message: "phase_02_fs_memory: 2.2 implement trial record writer (REQUIREMENTS section 4.2.6)"
+-    external_review_verdict: approve_with_minor_changes
+-    external_reviewed_at: 2026-05-08T08:34:49Z
+-    review_fix_patch_file: dev_memory/phases/phase_02_fs_memory/patches/03_trial_record_review_fixes.patch
+-    review_fix_summary:
+-      - "Documented that write_trial_record callers must hold WorkspaceLock for cross-process immutability."
+-      - "Moved namespace mismatch validation before integrity hash computation."
+-      - "Tightened compute_combo_hash direct-call validation for surrounding whitespace and control characters."
+-    review_fix_commit_hash: a61d44c
+-    review_fix_commit_message: "phase_02_fs_memory: 2.2 review fixes (REQUIREMENTS sections 4.2.6, 4.15)"
+-    review_fix_external_verdict: approve
+-    review_fix_external_reviewed_at: 2026-05-09T01:49:36Z
+-    review_fix_external_tests: "180 passed, 0 failed"
+-    review_fix_external_notes: "Claude verified M-1/L-5/L-2 closure, independently probed tamper detection and combo validation, and approved moving to Subtask 2.3."
+-    target_environment_validation:
+-      os: Ubuntu/Linux
+-      python: 3.11.15
+-      targeted_pytest: "27 passed in 0.13s"
+-      full_pytest: "180 passed in 0.61s"
+-      manual_probe:
+-        written_relative_path: "namespaces/multimedia/ffmpeg/gcc-13.2.0/code-a1b2c3d/kg-v3/trials/data/2026-04/trial_r12_t3.yaml"
+-        integrity_hash_fields_excluded: "[integrity]"
+-        verify_trial_integrity: true
+-        temp_files: "[]"
+-      runner: "venv + pip + pytest; uv not required"
+-  - id: "2.3"
+-    title: "Implement checkpoint schema and canonical checkpoint YAML read/write"
+-    status: done
+-    related_requirements:
+-      - REQUIREMENTS.md section 4.2.6
+       - REQUIREMENTS.md section 3.3.4
+-      - REQUIREMENTS.md section 4.11.2
++      - REQUIREMENTS.md section 5.1.2
++      - REQUIREMENTS.md section 5.1.3
++      - REQUIREMENTS.md section 4.13
+     files_modified:
+       - src/agent/fs_memory.py
+-      - tests/test_fs_memory.py
+       - src/agent/__init__.py
+-    ut_passed: true
+-    targeted_ut: "51 passed, 0 failed"
+-    full_ut: "203 passed, 0 failed, 1 skipped"
+-    self_reviewed: true
+-    patch_file: dev_memory/phases/phase_02_fs_memory/patches/04_checkpoint_schema.patch
+-    patch_generated: true
+-    commit_hash: 33fa155
+-    commit_message: "phase_02_fs_memory: 2.3 implement checkpoint schema (REQUIREMENTS sections 3.3.4, 4.11.2)"
+-    external_review_verdict: approve_with_minor_changes
+-    external_reviewed_at: 2026-05-11T05:50:59Z
+-    external_review_notes: "Claude independently verified 204/204 on Linux and requested fixes for CheckpointBest score bounds plus checkpoint/workspace-lock session_id safety."
+-    review_fix_status: done
+-    review_fix_patch_file: dev_memory/phases/phase_02_fs_memory/patches/05_checkpoint_review_fixes.patch
+-    review_fix_patch_generated: true
+-    review_fix_summary:
+-      - "Allowed checkpoint current_best.score to be zero or negative while rejecting NaN/Inf."
+-      - "Constrained CheckpointState.session_id and WorkspaceLockHolder.session_id to ASCII letters, digits, '_' and '-'."
+-      - "Added checkpoint and workspace lock UT coverage for unsafe session_id values."
+-    review_fix_ut_passed: true
+-    review_fix_targeted_ut: "64 fs_memory passed; 26 workspace_lock passed, 1 skipped"
+-    review_fix_full_ut: "222 passed, 0 failed, 1 skipped"
+-    review_fix_commit_hash: 233747a
+-    review_fix_commit_message: "phase_02_fs_memory: 2.3 review fixes (REQUIREMENTS sections 4.11.2, 4.15)"
+-    review_fix_external_verdict: approve
+-    review_fix_external_reviewed_at: 2026-05-11T06:39:57Z
+-    review_fix_external_tests: "223 passed, 0 failed"
+-    review_fix_external_notes: "Claude verified M-1/M-2 closure, 223/223 Linux tests, and approved moving to Subtask 2.4."
+-    target_environment_validation:
+-      os: Ubuntu/Linux
+-      python: 3.11.15
+-      full_pytest: "223 passed in 0.63s"
+-      manual_probe:
+-        checkpoint_negative_score: "-3.14 accepted"
+-        rejected_checkpoint_sessions:
+-          - "sess abc"
+-          - "sess\\nabc"
+-          - "../../etc"
+-          - "sess=abc"
+-        lock_holder_session: "sess_ok-123 accepted"
+-        rejected_lock_session: "sess bad"
+-      runner: "venv + pip + pytest; uv not required"
+-  - id: "2.4"
+-    title: "Implement SoT discovery helpers for existing trials and startup validation inputs"
+-    status: done
+-    related_requirements:
+-      - REQUIREMENTS.md section 4.2.4
+-      - REQUIREMENTS.md section 4.1.4
+-      - REQUIREMENTS.md section 4.2.6
+-    files_modified:
+-      - src/agent/fs_memory.py
+-      - tests/test_fs_memory.py
+-      - src/agent/__init__.py
+-    ut_passed: true
+-    targeted_ut: "82 passed, 0 failed"
+-    full_ut: "240 passed, 0 failed, 1 skipped"
+-    self_reviewed: true
+-    patch_file: dev_memory/phases/phase_02_fs_memory/patches/06_sot_discovery.patch
+-    patch_generated: true
+-    commit_hash: 201d045
+-    commit_message: "phase_02_fs_memory: 2.4 implement trial SoT discovery (REQUIREMENTS sections 4.2.4, 4.1.4)"
+-    external_review_verdict: approve
+-    external_reviewed_at: 2026-05-11T11:01:40Z
+-    external_review_tests: "241 passed, 0 failed"
+-    external_review_notes: "Claude independently verified Subtask 2.4 on Linux, confirmed canonical YAML discovery does not rely on sqlite indexes, and found only Low/Info follow-ups."
+-    deferred_low_priority_followups:
+-      - "Decide whether hidden .yaml files under trials/data should be ignored or fail discovery."
+-      - "Document or tighten partial-prefix behavior for compiler_type values that are prefixes of longer compiler types."
+-      - "Decide whether directory-level symlink for trials/data is allowed as a storage escape hatch or should be rejected."
+-      - "Consider documenting discovery concurrency semantics: atomic writes mean readers see before-or-after, never partial YAML."
+-    target_environment_validation:
+-      os: Ubuntu/Linux
+-      python: 3.11.15
+-      full_pytest: "241 passed in 0.72s"
+-      linux_fcntl_test: "tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter PASSED"
+-      manual_probe:
+-        written_relative_path: "namespaces/multimedia/ffmpeg/gcc-13.2.0/code-a1b2c3d/kg-v3/trials/data/2026-04/trial_r1_t1.yaml"
+-        discovered_trial_ids: "['r1_t1']"
+-        compiler_versions: "('13.2.0',)"
+-      runner: "venv + pip + pytest; uv not required"
+-  - id: "2.5"
+-    title: "Implement rebuildable trial SQLite index from canonical trial YAML"
+-    status: done
+-    related_requirements:
+-      - REQUIREMENTS.md section 4.2.4
+-      - REQUIREMENTS.md section 4.2.6
+-    files_modified:
+-      - src/agent/fs_memory.py
+-      - tests/test_fs_memory.py
+-      - src/agent/__init__.py
+-    ut_passed: true
+-    targeted_ut: "90 passed, 0 failed"
+-    full_ut: "248 passed, 0 failed, 1 skipped"
+-    self_reviewed: true
+-    patch_file: dev_memory/phases/phase_02_fs_memory/patches/07_trial_index_rebuild.patch
+-    patch_generated: true
+-    commit_hash: a2ae23b
+-    commit_message: "phase_02_fs_memory: 2.5 implement trial index rebuild (REQUIREMENTS section 4.2.4)"
+-    external_review_verdict: approve
+-    external_reviewed_at: 2026-05-11T12:25:19Z
+-    external_review_tests: "249 passed, 0 failed"
+-    external_review_notes: "Claude independently verified Subtask 2.5 on Linux, confirmed trial index rebuild uses canonical YAML and atomic replace, and found only Low/Info follow-ups."
+-    deferred_low_priority_followups:
+-      - "Decide whether ensure_trial_index_current should auto-rebuild on schema mismatch or keep raising for explicit repair."
+-      - "Consider cleaning stale _index.sqlite sidecars (-journal, -wal, -shm) after successful rebuild."
+-      - "Consider reusing one SQLite connection in load_trial_index_rows instead of opening summary then rows."
+-      - "Decide whether trial_index_path symlinks should be rejected or replaced by design."
+-      - "Document derivative index rebuild WorkspaceLock semantics: correctness vs efficiency."
+-    target_environment_validation:
+-      os: Ubuntu/Linux
+-      python: 3.11.15
+-      full_pytest: "249 passed in 1.00s"
+-      linux_fcntl_test: "tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter PASSED in 0.09s"
+-      manual_probe: "Initial manual probe used an incomplete sample record missing score.vs_best and failed schema validation; full Linux suite and real-fcntl regression passed."
+-      runner: "venv + pip + pytest; uv not required"
+-  - id: "2.6"
+-    title: "Implement LearnedRule schema, integrity hash, and atomic learned rule writer"
+-    status: done
+-    related_requirements:
+-      - REQUIREMENTS.md section 4.2.6
+-      - REQUIREMENTS.md section 4.7.5
+-    files_modified:
+-      - src/agent/fs_memory.py
+-      - tests/test_fs_memory.py
+-      - src/agent/__init__.py
+-    started_at: 2026-05-11T12:54:18Z
+-    completed_at: 2026-05-11T13:00:06Z
+-    ut_passed: true
+-    targeted_ut: "101 passed, 0 failed"
+-    full_ut: "259 passed, 0 failed, 1 skipped"
+-    self_reviewed: true
+-    patch_file: dev_memory/phases/phase_02_fs_memory/patches/08_learned_rule_writer.patch
+-    patch_generated: true
+-    commit_hash: 73c7fcb
+-    commit_message: "phase_02_fs_memory: 2.6 implement learned rule writer (REQUIREMENTS section 4.2.6)"
+-    external_review_verdict: approve
+-    external_reviewed_at: 2026-05-13T13:50:20Z
+-    external_review_tests: "260 passed, 0 failed"
+-    external_review_notes: "Claude independently verified Subtask 2.6 on Linux, confirmed learned rule schema/integrity/atomic writer coverage, and found only Low/Info follow-ups."
+-    deferred_low_priority_followups:
+-      - "Decide whether LearnedRule.scope should reject an entirely empty scope or keep accepting it by contract."
+-      - "Document that LearnedRule intentionally has no namespace field to support manual promotion/copying across namespace directories."
+-      - "Consider whether user_validated should eventually become a three-state review status."
+-      - "Leave cross-rule duplicate/semantic consistency checks to future doctor or dedup tooling."
+-      - "Document writer lock wording: SoT writers must hold WorkspaceLock; derived index rebuilds only should hold it for coordination."
+-    target_environment_validation:
+-      os: Ubuntu/Linux
+-      python: 3.11.15
+-      full_pytest: "260 passed in 1.19s"
+-      linux_fcntl_test: "tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter PASSED in 0.10s"
+-      manual_probe:
+-        path: "learned/rules/rule_017.yaml"
+-        integrity_hash_fields_excluded: "[integrity, user_validated, user_notes]"
+-        verify_initial: true
+-        loaded_notes: "accepted after manual review"
+-        tamper_detected: true
+-      runner: "venv + pip + pytest; uv not required"
+-    manual_probe:
+-      path: "learned/rules/rule_017.yaml"
+-      integrity_hash_fields_excluded: "[integrity, user_validated, user_notes]"
+-      verify_initial: true
+-      user_notes_edit_loads: true
+-      tamper_detected: true
+-  - id: "2.7"
+-    title: "Implement Experience schema, local/source integrity, and atomic experience writer"
+-    status: done
+-    related_requirements:
+-      - REQUIREMENTS.md section 4.2.6
+-      - REQUIREMENTS.md section 4.3
+-      - REQUIREMENTS.md section 4.4.2
+-      - REQUIREMENTS.md section 4.7.5
+-    files_modified:
+-      - src/agent/fs_memory.py
+-      - tests/test_fs_memory.py
+-      - src/agent/__init__.py
+-    started_at: 2026-05-13T14:09:25Z
+-    completed_at: 2026-05-13T14:09:25Z
+-    ut_passed: true
+-    targeted_ut: "113 passed, 0 failed"
+-    full_ut: "271 passed, 0 failed, 1 skipped"
+-    self_reviewed: true
+-    patch_file: dev_memory/phases/phase_02_fs_memory/patches/09_experience_writer.patch
+-    patch_generated: true
+-    commit_hash: 0ad33c3
+-    commit_message: "phase_02_fs_memory: 2.7 implement experience writer (REQUIREMENTS sections 4.3, 4.4.2)"
+-    external_review_verdict: approve
+-    external_reviewed_at: 2026-05-13T14:50:52Z
+-    external_review_tests: "272 passed, 0 failed"
+-    external_review_notes: "Claude independently verified Subtask 2.7 on Linux, confirmed experience schema/local-source integrity/path routing coverage, and found only Low/Info follow-ups."
+-    deferred_low_priority_followups:
+-      - "Handle NonEmptyStr silent-strip policy consistently across Phase 02 fields that intend strict surrounding-whitespace rejection."
+-      - "Decide whether experience manifest item paths should reject hidden .yaml filenames or embedded spaces."
+-      - "Document strict-before-validator policy for path-derived fields versus metadata fields."
+-      - "Consider optimizing compute_payload_hash to avoid deepcopy when excluded fields are top-level only."
+-      - "Document that _remove_mapping_path currently supports dict paths, not list-index excluded paths."
+-      - "Review public exports periodically to ensure internal helpers and constants are not over-exposed."
+-    notes:
+-      - "Added Experience schema for local and imported experiences, trust/origin validation, local/source integrity models, and alias-free bounded loading."
+-      - "Extended compute_payload_hash to support dotted excluded fields needed by experience local integrity."
+-      - "Added write/load/path helpers and public exports for experience YAML."
+-  - id: "2.8"
+-    title: "Phase 02 review-polish pass for accumulated Low/TG follow-ups"
+-    status: done
+-    related_requirements:
+-      - REQUIREMENTS.md section 4.2.4
+-      - REQUIREMENTS.md section 4.2.6
+-      - REQUIREMENTS.md section 4.3
+-      - REQUIREMENTS.md section 4.4.2
+-      - REQUIREMENTS.md section 4.7.5
+-    files_modified:
+-      - src/agent/fs_memory.py
+-      - tests/test_fs_memory.py
+-      - dev_memory/CURRENT_PHASE.yaml
+-      - dev_memory/DECISIONS.md
+-      - dev_memory/PROGRESS.md
+-      - dev_memory/phases/phase_02_fs_memory/CHECKLIST.yaml
+-      - dev_memory/phases/phase_02_fs_memory/SUMMARY.md
+-      - dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md
+-      - dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md
+-    started_at: 2026-05-18T13:13:46Z
+-    completed_at: 2026-05-18T13:13:46Z
+-    ut_passed: true
+-    targeted_ut: "123 passed, 0 failed"
+-    full_ut: "281 passed, 0 failed, 1 skipped"
+-    self_reviewed: true
+-    patch_file: dev_memory/phases/phase_02_fs_memory/patches/10_phase_02_polish.patch
+-    patch_generated: true
+-    commit_pending: false
+-    commit_hash: 4f4b675
+-    commit_message: "phase_02_fs_memory: 2.8 polish review followups (REQUIREMENTS sections 4.2.4, 4.2.6, 4.7.5)"
+-    external_review_verdict: approve
+-    external_reviewed_at: 2026-05-21T12:35:44Z
+-    external_review_tests: "282 passed, 0 failed"
+-    external_review_notes: "Claude independently verified all eight polish closures on Linux, including the real fcntl workspace-lock regression; only future-facing Info notes remain."
+-    polish_closures:
+-      - "Documented and tested atomic_write_yaml symlink replacement behavior."
+-      - "Hidden .yaml files under trials/data are ignored by canonical trial discovery."
+-      - "Trial index ensure now rebuilds schema-incompatible indexes and successful rebuilds remove stale SQLite sidecars."
+-      - "LearnedRule.scope now rejects an entirely empty scope."
+-      - "Experience strict fields reject untrimmed options/original_namespace before NonEmptyStr strip."
+-      - "Experience manifest item files now reject hidden filenames and embedded whitespace."
+-      - "compute_payload_hash avoids deepcopy for top-level-only exclusions while keeping dotted dict-path support."
+-  - id: "2.9"
+-    title: "Full-code Kimi review fixes for Phase 02 edge cases"
+-    status: done
+-    related_requirements:
+-      - REQUIREMENTS.md section 4.2.4
+-      - REQUIREMENTS.md section 4.2.6
+-      - REQUIREMENTS.md section 4.7.5
+-    files_modified:
+-      - src/agent/fs_memory.py
+-      - tests/test_fs_memory.py
+-      - dev_memory/CURRENT_PHASE.yaml
+-      - dev_memory/DECISIONS.md
+-      - dev_memory/PROGRESS.md
+-      - dev_memory/phases/phase_02_fs_memory/CHECKLIST.yaml
+-      - dev_memory/phases/phase_02_fs_memory/SUMMARY.md
+-      - dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md
+-      - dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md
+-    started_at: 2026-05-21T13:47:12Z
+-    completed_at: 2026-05-21T13:47:12Z
+-    external_review_source: Kimi
+-    external_review_verdict: approve_with_minor_changes
+-    external_review_tests: "282 passed, 0 failed"
+-    ut_passed: true
+-    targeted_ut: "128 passed, 0 failed"
+-    full_ut: "286 passed, 0 failed, 1 skipped"
+-    self_reviewed: true
+-    patch_file: dev_memory/phases/phase_02_fs_memory/patches/11_kimi_review_fixes.patch
+-    patch_generated: true
+-    commit_pending: false
+-    commit_hash: 2bca4a4
+-    commit_message: "phase_02_fs_memory: 2.9 fix kimi review findings (REQUIREMENTS sections 4.2.4, 4.2.6)"
+-    review_fix_summary:
+-      - "Filtered symlinks out of trial discovery so batch discovery matches load_trial_record's no-symlink contract."
+-      - "Made compute_payload_hash remove exact top-level keys before dotted mapping paths, covering literal-dot top-level field names."
+-      - "Made trial_index_is_stale compare derived index trial_count with current canonical YAML path count, catching deletions."
+-      - "Required canary mode and schedule_slot to match before accepting a TrialRecord."
++    files_created:
++      - tests/test_trace_memory.py
++      - dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml
++      - dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
++      - dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
++      - dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
++    ut_required: true
++    ut_passed: true
++    targeted_ut: "18 passed, 0 failed"
++    fs_memory_regression_ut: "128 passed, 0 failed"
++    full_ut: "304 passed, 0 failed, 1 skipped"
++    self_review_required: true
++    self_reviewed: true
++    patch_required: true
++    patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/01_trace_jsonl_writer.patch
++    patch_generated: true
++    commit_required: true
++    commit_pending: true
+ notes: |
+-  Phase 01 is complete and validated on Ubuntu. Phase 02 starts with the
+-  shared atomic YAML writer because every later SoT writer (trial yaml,
+-  checkpoint.yaml, experience yaml, learned rule yaml) must reuse the same
+-  flush/fsync/os.replace/parent-fsync semantics from REQUIREMENTS.md section
+-  4.7.5.
+-next_action: "Push Kimi review fix sync, request final verification, then proceed to Phase 03 or the next milestone."
++  Phase 03 starts with the canonical `trace/events.jsonl` append-only event
++  stream because REQUIREMENTS.md defines runtime recovery state as
++  `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
++  trace storage primitive before wiring lifecycle stages, rejected candidates,
++  dry-run injection, or process/user-action event producers.
++next_action: "Generate Phase 03 patch artifacts, commit/push Subtask 3.1, then request external review."
+diff --git a/dev_memory/DECISIONS.md b/dev_memory/DECISIONS.md
+index 3d092ab..cd1b832 100644
+--- a/dev_memory/DECISIONS.md
++++ b/dev_memory/DECISIONS.md
+@@ -429,3 +429,17 @@ Decision records must include:
+   - Only compare YAML mtimes against index mtime, which misses deletion because an empty path set makes the `any(...)` freshness check false.
+   - Re-scan and compare every indexed relative path on every stale check, which would be more precise but heavier than needed for the current derived-index contract.
+   - Require users to manually delete `_index.sqlite` after YAML deletion, which contradicts the rebuildable-cache principle.
++
++## 2026-05-21T14:06:00Z - Store trace events as strict-common append-only JSONL
++
++- affected_requirement:
++  - REQUIREMENTS.md section 3.3.4
++  - REQUIREMENTS.md section 5.1.2
++  - REQUIREMENTS.md section 5.1.3
++  - REQUIREMENTS.md section 4.13
++- decision: Model `trace/events.jsonl` as an append-only canonical event stream with strict common fields (`ts`, `kind`) and flexible event-specific JSON payload keys. Appends write exactly one LF-terminated compact JSON object using `O_APPEND`, fsync the file, reject symlink/directory targets, and return a stable `events.jsonl#L<N>` reference.
++- rationale: REQUIREMENTS.md defines canonical recovery state as `state/checkpoint.yaml` plus `trace/events.jsonl`, and section 5.1 lists heterogeneous event payloads for rounds, candidates, trials, process spans, LLM calls, memory ops, KG ops, dry-run markers, and user actions. A strict-common/open-payload schema gives every event timestamp/kind safety while avoiding a large premature union of producer-specific models.
++- alternatives_considered:
++  - Define a closed enum/union model for every trace event kind immediately, which would force Phase 03 to predict later candidate, KG, dry-run, clean, and process event shapes before those producers exist.
++  - Write trace through `atomic_write_yaml` or whole-file JSON replacement, which would contradict append-only trace semantics and make each event rewrite the entire canonical stream.
++  - Let callers write raw JSON strings directly, which would bypass UTC timestamp validation, finite-number checks, size limits, symlink rejection, and line-reference metadata needed by trial/checkpoint records.
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index 50d97bf..b3926c5 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -791,3 +791,25 @@ Next action: generate patch artifacts, commit/push the Kimi review fixes, then r
+   - `dev_memory/phases/phase_02_fs_memory/patches/11_kimi_review_fixes.review.md`
+
+ Next action: commit this sync record, push, then request final verification.
++
++## 2026-05-21T14:06:00Z - Phase 03 / Subtask 3.1 started
++
++- Kimi review follow-ups for Phase 02 are accepted; Phase 03 begins with the canonical local trace stream.
++- Started Subtask 3.1: append-only `trace/events.jsonl` schema, writer, and loader.
++- Requirements in scope: REQUIREMENTS.md sections 3.3.4, 5.1.2, 5.1.3, and 4.13.
++- Baseline before implementation: clean `main` synced with `origin/main` at `2dc6b9f`.
++- Planned files: `src/agent/fs_memory.py`, `src/agent/__init__.py`, `tests/test_trace_memory.py`, and Phase 03 dev_memory artifacts.
++
++## 2026-05-21T14:06:00Z - Phase 03 / Subtask 3.1 implemented
++
++- Added `TraceEvent` as a strict-common/open-payload JSONL event model: `ts` must be UTC ISO 8601, `kind` must be a safe trace atom, and all payload values must be JSON-compatible finite values.
++- Added trace errors plus `TraceAppendResult` with a `trace_id` property like `events.jsonl#L1`.
++- Added `append_trace_event(layout, event)` using `O_APPEND`, a single LF-terminated compact JSON object, file fsync, symlink/directory rejection, per-event size limits, and newline-terminated existing-file checks.
++- Added `load_trace_events(path)` and `iter_trace_events(path)` to validate canonical trace files line by line for UTF-8, JSON object shape, timestamp/kind schema, finite values, and size caps.
++- Public exports added in `src/agent/__init__.py`.
++- UT results:
++  - `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -v` -> 18 passed.
++  - `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q` -> 128 passed.
++  - `.venv\Scripts\python.exe -m pytest -q` -> 304 passed, 1 skipped on Windows.
++
++Next action: generate patch artifacts, commit/push Subtask 3.1, then request external review.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml b/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml
+new file mode 100644
+index 0000000..17f9678
+--- /dev/null
++++ b/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml
+@@ -0,0 +1,46 @@
++phase_id: phase_03_trace_lifecycle
++phase_title: "Trace JSONL canonical event stream"
++status: in_progress
++started_at: 2026-05-21T14:06:00Z
++target_milestone: M1
++related_requirements:
++  - REQUIREMENTS.md section 3.3
++  - REQUIREMENTS.md section 4.13
++  - REQUIREMENTS.md section 5.1
++
++subtasks:
++  - id: "3.1"
++    title: "Implement append-only trace/events.jsonl schema, writer, and loader"
++    status: done
++    related_requirements:
++      - REQUIREMENTS.md section 3.3.4
++      - REQUIREMENTS.md section 5.1.2
++      - REQUIREMENTS.md section 5.1.3
++      - REQUIREMENTS.md section 4.13
++    ut_required: true
++    ut_passed: true
++    targeted_ut: "18 passed, 0 failed"
++    fs_memory_regression_ut: "128 passed, 0 failed"
++    full_ut: "304 passed, 0 failed, 1 skipped"
++    self_review_required: true
++    self_reviewed: true
++    patch_required: true
++    patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/01_trace_jsonl_writer.patch
++    patch_generated: true
++    commit_required: true
++    commit_pending: true
++    files_modified:
++      - src/agent/fs_memory.py
++      - src/agent/__init__.py
++    files_created:
++      - tests/test_trace_memory.py
++      - dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml
++      - dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
++      - dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
++      - dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
++
++phase_exit_criteria:
++  - "Trace events are append-only JSONL with strict common fields and flexible event-specific payloads."
++  - "Trace append rejects unsafe targets, writes one newline-terminated JSON object, fsyncs the file, and returns a stable line reference."
++  - "Trace loading validates UTF-8, JSON object shape, UTC timestamps, safe event kinds, finite numbers, and per-line size caps."
++  - "Future lifecycle producers can write dry-run, rejected-candidate, process, user-action, memory, and KG events through the same primitive."
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md b/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
+new file mode 100644
+index 0000000..8dae8bb
+--- /dev/null
++++ b/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
+@@ -0,0 +1,28 @@
++# Phase 03 Review Notes
++
++## Subtask 3.1 - append-only trace/events.jsonl writer
++
++Scope:
++- Create the storage primitive for canonical `trace/events.jsonl`.
++- Keep producer-specific semantics out of this subtask; workflow stages, rejected candidates, dry-run guard injection, and process/user-action events will call this shared primitive later.
++
++Implementation checklist:
++- [x] Added `TraceEvent` with strict `ts` and `kind` fields plus open event-specific payload keys.
++- [x] Enforced UTC ISO timestamps, safe trace kind atoms, JSON-compatible values, and finite floats.
++- [x] Added `append_trace_event` using `O_APPEND`, one LF-terminated compact JSON object, file fsync, and symlink/directory rejection.
++- [x] Added `TraceAppendResult.trace_id` so later trial/checkpoint records can refer to `events.jsonl#L<N>`.
++- [x] Added `load_trace_events` / `iter_trace_events` for bounded UTF-8 JSONL validation.
++- [x] Exported trace schemas, errors, and helpers through `agent.__init__`.
++
++Tests:
++- `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -v` -> 18 passed.
++- `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q` -> 128 passed.
++
++Self-review notes:
++- The model intentionally allows extra top-level keys because REQUIREMENTS.md section 5.1 lists heterogeneous event payloads such as rejected candidates, process metadata, LLM calls, dry-run markers, and trial lifecycle events.
++- The writer does not inject `session_id`, `namespace`, or `mode=dry_run`; those belong to later lifecycle/dry-run producer layers so normal trial `mode` and dry-run `mode` are not conflated in this storage primitive.
++- Line numbers are stable under the documented WorkspaceLock precondition. Concurrent append without the lock could race on returned line metadata, so workflow callers must hold the lock for normal runs.
++- The loader rejects non-newline-terminated files so append cannot silently concatenate two JSON objects into one invalid line.
++
++Review conclusion:
++- Subtask 3.1 is ready for full-suite verification, patch generation, commit, push, and external review.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md b/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
+new file mode 100644
+index 0000000..f798fb5
+--- /dev/null
++++ b/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
+@@ -0,0 +1,19 @@
++# Phase 03 Summary
++
++Status: in_progress
++
++Phase scope:
++- Canonical local trace stream at `trace/events.jsonl`.
++- Append-only event writing and bounded JSONL loading.
++- Lifecycle trace foundation for later checkpoint coupling, rejected candidate events, dry-run markers, process/user-action events, and clean/resume protection.
++
++Completed:
++- Phase 03 started after Phase 02 Kimi review fixes were accepted.
++- Subtask 3.1 implemented `TraceEvent`, append/load helpers, trace-specific errors, public exports, and focused tests.
++- `append_trace_event(layout, event)` writes one LF-terminated JSON object using `O_APPEND`, fsyncs the file, rejects symlink/directory targets, and returns `TraceAppendResult` with `events.jsonl#L<N>`.
++- `load_trace_events(path)` validates canonical trace files by line: UTF-8, newline termination, JSON object shape, UTC timestamp, safe event kind, finite JSON values, and per-line size cap.
++- Trace event payloads keep strict common fields (`ts`, `kind`) while allowing event-specific keys required by REQUIREMENTS.md section 5.1.
++
++Remaining:
++- Generate patch artifacts, commit, push, and request external review for Subtask 3.1.
++- Later Phase 03 subtasks should wire workflow lifecycle stage transitions so checkpoint writes and trace events are emitted together.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md b/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
+new file mode 100644
+index 0000000..22034af
+--- /dev/null
++++ b/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
+@@ -0,0 +1,28 @@
++# Phase 03 UT Results
++
++## Subtask 3.1 - append-only trace/events.jsonl writer
++
++- timestamp_utc: 2026-05-21T14:06:00Z
++- environment:
++  - os: Windows development host
++  - python: 3.14.3
++  - runner: `.venv\Scripts\python.exe -m pytest`
++- requirements:
++  - REQUIREMENTS.md section 3.3.4
++  - REQUIREMENTS.md section 5.1.2
++  - REQUIREMENTS.md section 5.1.3
++  - REQUIREMENTS.md section 4.13
++- targeted_command: `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -v`
++- targeted_result: 18 passed, 0 failed
++- regression_command: `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q`
++- regression_result: 128 passed, 0 failed
++- full_command: `.venv\Scripts\python.exe -m pytest -q`
++- full_result: 304 passed, 0 failed, 1 skipped
++- skipped:
++  - `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter` requires Linux fcntl and must be covered by Ubuntu validation.
++- new_coverage:
++  - Appending two trace events writes valid JSONL, preserves Unicode, allows dry-run and trial-mode `mode` payloads, and returns stable line references.
++  - Invalid event payloads reject non-UTC/invalid timestamps, unsafe event kinds, non-finite floats, and non-JSON extra values.
++  - Append rejects oversized events, directory targets, symlink targets, and existing files without a trailing newline.
++  - Loading rejects invalid JSON, non-object JSON, blank lines, JSON NaN/Infinity constants, non-UTF8 bytes, non-newline-terminated lines, and oversized lines.
++  - Missing trace files load as an empty event tuple.
+diff --git a/src/agent/__init__.py b/src/agent/__init__.py
+index d1505fc..8c88f52 100644
+--- a/src/agent/__init__.py
++++ b/src/agent/__init__.py
+@@ -35,6 +35,11 @@ from .fs_memory import (
+     NamespaceLayout,
+     ScoreVsBest,
+     SourceTreeChange,
++    TraceAppendResult,
++    TraceError,
++    TraceEvent,
++    TraceLoadError,
++    TraceWriteError,
+     TrialDiscoveryError,
+     TrialImmutableError,
+     TrialIndexError,
+@@ -49,6 +54,7 @@ from .fs_memory import (
+     TrialStartupValidationInputs,
+     WorkspaceState,
+     atomic_write_yaml,
++    append_trace_event,
+     checkpoint_payload,
+     collect_trial_startup_validation_inputs,
+     compute_combo_hash,
+@@ -62,6 +68,7 @@ from .fs_memory import (
+     existing_trial_compiler_versions,
+     ensure_trial_index_current,
+     iter_trial_record_paths,
++    iter_trace_events,
+     learned_rule_path,
+     learned_rule_payload,
+     load_checkpoint_for_layout,
+@@ -72,6 +79,7 @@ from .fs_memory import (
+     load_trial_index_summary,
+     load_trial_record,
+     load_trial_record_for_layout,
++    load_trace_events,
+     namespace_layout_for_config,
+     rebuild_trial_index,
+     trial_index_is_stale,
+@@ -79,6 +87,7 @@ from .fs_memory import (
+     verify_learned_rule_integrity,
+     trial_record_path,
+     trial_record_payload,
++    trace_event_payload,
+     verify_trial_integrity,
+     with_experience_local_integrity,
+     with_learned_rule_integrity,
+@@ -179,6 +188,11 @@ __all__ = [
+     "RegistryValidationError",
+     "ScoreVsBest",
+     "SourceTreeChange",
++    "TraceAppendResult",
++    "TraceError",
++    "TraceEvent",
++    "TraceLoadError",
++    "TraceWriteError",
+     "TrialDiscoveryError",
+     "TrialImmutableError",
+     "TrialIndexError",
+@@ -199,6 +213,7 @@ __all__ = [
+     "WorkspaceLockPlatformError",
+     "assert_initialized_matches",
+     "atomic_write_yaml",
++    "append_trace_event",
+     "checkpoint_payload",
+     "collect_history_summary",
+     "collect_trial_startup_validation_inputs",
+@@ -214,6 +229,7 @@ __all__ = [
+     "existing_trial_compiler_versions",
+     "ensure_trial_index_current",
+     "iter_trial_record_paths",
++    "iter_trace_events",
+     "learned_rule_path",
+     "learned_rule_payload",
+     "load_config",
+@@ -227,6 +243,7 @@ __all__ = [
+     "load_trial_index_summary",
+     "load_trial_record",
+     "load_trial_record_for_layout",
++    "load_trace_events",
+     "lock_path_for_workspace",
+     "namespace_layout_for_config",
+     "normalize_init_choice",
+@@ -239,6 +256,7 @@ __all__ = [
+     "trial_index_is_stale",
+     "trial_record_path",
+     "trial_record_payload",
++    "trace_event_payload",
+     "validate_project_against_registry",
+     "verify_experience_local_integrity",
+     "verify_initialized_for_startup",
+diff --git a/src/agent/fs_memory.py b/src/agent/fs_memory.py
+index ce350cd..9c559d4 100644
+--- a/src/agent/fs_memory.py
++++ b/src/agent/fs_memory.py
+@@ -10,13 +10,14 @@ from __future__ import annotations
+ import os
+ import copy
+ import hashlib
++import json
+ import math
+ import sqlite3
+ import tempfile
+ from dataclasses import dataclass
+ from datetime import UTC, datetime, timedelta
+ from pathlib import Path, PurePosixPath
+-from typing import Any, Literal, Mapping, Sequence
++from typing import Any, Iterator, Literal, Mapping, Sequence
+
+ import yaml
+ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
+@@ -89,6 +90,18 @@ class ExperienceLoadError(ExperienceError):
+     """Raised when experience YAML cannot be parsed or validated."""
+
+
++class TraceError(FsMemoryError):
++    """Raised when canonical trace data is invalid for FS-Memory use."""
++
++
++class TraceWriteError(TraceError):
++    """Raised when `trace/events.jsonl` cannot be appended safely."""
++
++
++class TraceLoadError(TraceError):
++    """Raised when `trace/events.jsonl` cannot be parsed or validated."""
++
++
+ class CheckpointError(FsMemoryError):
+     """Raised when checkpoint state is invalid for FS-Memory use."""
+
+@@ -148,6 +161,7 @@ MAX_TRIAL_RECORD_BYTES = 1_048_576
+ MAX_CHECKPOINT_BYTES = 1_048_576
+ MAX_LEARNED_RULE_BYTES = 1_048_576
+ MAX_EXPERIENCE_BYTES = 1_048_576
++MAX_TRACE_EVENT_BYTES = 1_048_576
+ TRIAL_INDEX_SCHEMA_VERSION = 1
+ TRIAL_HASH_FIELDS_EXCLUDED = ("integrity",)
+ LEARNED_RULE_HASH_FIELDS_EXCLUDED = ("integrity", "user_validated", "user_notes")
+@@ -768,6 +782,49 @@ class CheckpointState(StrictFsModel):
+         return self
+
+
++class TraceEvent(BaseModel):
++    """One canonical JSONL trace event.
++
++    Common trace fields are strict; event-specific keys remain open so later
++    workflow layers can add rejected-candidate, process, memory, or dry-run
++    payloads without changing this base schema.
++    """
++
++    model_config = ConfigDict(extra="allow", validate_assignment=True)
++
++    ts: NonEmptyStr
++    kind: NonEmptyStr
++
++    @field_validator("ts", mode="before")
++    @classmethod
++    def ts_datetime_to_string(cls, value: Any) -> Any:
++        return _datetime_to_utc_isoformat(value, "ts")
++
++    @field_validator("ts")
++    @classmethod
++    def ts_must_be_utc_isoformat(cls, value: str) -> str:
++        _parse_utc_isoformat(value, "ts")
++        return value
++
++    @field_validator("kind", mode="before")
++    @classmethod
++    def kind_must_not_be_trimmed(cls, value: Any) -> Any:
++        if isinstance(value, str):
++            _validate_untrimmed_non_control_string(value, "kind")
++        return value
++
++    @field_validator("kind")
++    @classmethod
++    def kind_must_be_trace_atom(cls, value: str) -> str:
++        _validate_trace_kind(value, "kind")
++        return value
++
++    @model_validator(mode="after")
++    def event_payload_must_be_json_compatible(self) -> TraceEvent:
++        _validate_json_value(self.model_dump(mode="python"), "trace event")
++        return self
++
++
+ @dataclass(frozen=True)
+ class DiscoveredTrialRecord:
+     """One immutable trial YAML discovered from `trials/data`."""
+@@ -820,6 +877,19 @@ class TrialIndexSummary:
+     source_latest_mtime_ns: int | None
+
+
++@dataclass(frozen=True)
++class TraceAppendResult:
++    """Location metadata for one appended trace event."""
++
++    path: Path
++    line_number: int
++    byte_offset: int
++
++    @property
++    def trace_id(self) -> str:
++        return f"{self.path.name}#L{self.line_number}"
++
++
+ @dataclass(frozen=True)
+ class NamespaceLayout:
+     """Resolved paths for one namespace under a workspace."""
+@@ -1557,6 +1627,124 @@ def ensure_trial_index_current(layout: NamespaceLayout) -> TrialIndexSummary:
+         return rebuild_trial_index(layout)
+
+
++def trace_event_payload(event: TraceEvent | Mapping[str, Any]) -> dict[str, Any]:
++    """Return the canonical JSON-compatible mapping for one trace event."""
++
++    validated = TraceEvent.model_validate(event)
++    return validated.model_dump(mode="json")
++
++
++def append_trace_event(
++    layout: NamespaceLayout,
++    event: TraceEvent | Mapping[str, Any],
++) -> TraceAppendResult:
++    """Append one canonical event to `trace/events.jsonl`.
++
++    Callers must hold the workspace lock before invoking this function during
++    normal runs. The append path uses `O_APPEND`, writes exactly one LF-terminated
++    JSON object, fsyncs the file, and rejects symlink targets.
++    """
++
++    payload = trace_event_payload(event)
++    line = _trace_event_line(payload)
++    target = layout.trace_path
++    if len(line) > MAX_TRACE_EVENT_BYTES:
++        raise TraceWriteError(
++            f"trace event is too large ({len(line)} bytes > {MAX_TRACE_EVENT_BYTES} bytes)"
++        )
++    if target.is_symlink():
++        raise TraceWriteError(f"trace path must not be a symlink: {target}")
++    if target.exists() and target.is_dir():
++        raise TraceWriteError(f"trace path is a directory: {target}")
++
++    target.parent.mkdir(parents=True, exist_ok=True)
++    try:
++        existed = target.exists()
++        byte_offset = target.stat().st_size if existed else 0
++        if byte_offset > 0 and not _file_ends_with_newline(target):
++            raise TraceWriteError(f"trace file is not newline-terminated: {target}")
++        line_number = _count_trace_lines(target) + 1 if existed else 1
++        fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
++        try:
++            _write_all(fd, line)
++            os.fsync(fd)
++        finally:
++            os.close(fd)
++        if not existed:
++            _fsync_parent_dir(target.parent)
++        return TraceAppendResult(
++            path=target,
++            line_number=line_number,
++            byte_offset=byte_offset,
++        )
++    except TraceWriteError:
++        raise
++    except OSError as exc:
++        raise TraceWriteError(f"failed to append trace event to {target}: {exc}") from exc
++
++
++def iter_trace_events(path: str | Path) -> Iterator[TraceEvent]:
++    """Yield validated events from one canonical `events.jsonl` file."""
++
++    yield from load_trace_events(path)
++
++
++def load_trace_events(path: str | Path) -> tuple[TraceEvent, ...]:
++    """Load and validate all events from one canonical `events.jsonl` file."""
++
++    trace_path = Path(path)
++    if trace_path.is_symlink():
++        raise TraceLoadError(f"trace path must not be a symlink: {trace_path}")
++    if not trace_path.exists():
++        return ()
++    if trace_path.is_dir():
++        raise TraceLoadError(f"trace path is a directory: {trace_path}")
++
++    events: list[TraceEvent] = []
++    try:
++        with trace_path.open("rb") as handle:
++            for line_number, raw_line in enumerate(handle, start=1):
++                if len(raw_line) > MAX_TRACE_EVENT_BYTES:
++                    raise TraceLoadError(
++                        f"trace line {line_number} is too large "
++                        f"({len(raw_line)} bytes > {MAX_TRACE_EVENT_BYTES} bytes)"
++                    )
++                if not raw_line.endswith(b"\n"):
++                    raise TraceLoadError(
++                        f"trace line {line_number} is not newline-terminated"
++                    )
++                try:
++                    text = raw_line.decode("utf-8")
++                except UnicodeDecodeError as exc:
++                    raise TraceLoadError(
++                        f"trace line {line_number} is not valid UTF-8"
++                    ) from exc
++                text = text[:-1]
++                if not text.strip():
++                    raise TraceLoadError(f"trace line {line_number} is empty")
++                try:
++                    data = json.loads(text, parse_constant=_reject_json_constant)
++                except (json.JSONDecodeError, ValueError) as exc:
++                    raise TraceLoadError(
++                        f"trace line {line_number} failed to parse JSON: {exc}"
++                    ) from exc
++                if not isinstance(data, Mapping):
++                    raise TraceLoadError(
++                        f"trace line {line_number} must contain a JSON object"
++                    )
++                try:
++                    events.append(TraceEvent.model_validate(data))
++                except ValidationError as exc:
++                    raise TraceLoadError(
++                        f"trace line {line_number} is invalid:\n{exc}"
++                    ) from exc
++    except TraceLoadError:
++        raise
++    except OSError as exc:
++        raise TraceLoadError(f"failed to load trace file {trace_path}: {exc}") from exc
++    return tuple(events)
++
++
+ def checkpoint_payload(state: CheckpointState | Mapping[str, Any]) -> dict[str, Any]:
+     checkpoint = CheckpointState.model_validate(state)
+     return checkpoint.model_dump(mode="json", exclude_none=True)
+@@ -1780,6 +1968,80 @@ def _validate_untrimmed_non_control_string(value: str, label: str) -> None:
+         raise ValueError(f"{label} cannot contain control characters")
+
+
++def _validate_trace_kind(value: str, label: str) -> None:
++    if not value:
++        raise ValueError(f"{label} cannot be empty")
++    if not all(
++        char.isascii() and (char.isalnum() or char in {"_", "-", "."})
++        for char in value
++    ):
++        raise ValueError(
++            f"{label} can contain only ASCII letters, digits, '_', '-', or '.'"
++        )
++
++
++def _validate_json_value(value: Any, label: str) -> None:
++    if value is None or isinstance(value, (str, bool, int)):
++        return
++    if isinstance(value, float):
++        if not math.isfinite(value):
++            raise ValueError(f"{label} cannot contain non-finite floats")
++        return
++    if isinstance(value, Mapping):
++        for key, nested in value.items():
++            if not isinstance(key, str):
++                raise ValueError(f"{label} JSON object keys must be strings")
++            _validate_json_value(nested, f"{label}.{key}")
++        return
++    if isinstance(value, list):
++        for index, nested in enumerate(value):
++            _validate_json_value(nested, f"{label}[{index}]")
++        return
++    raise ValueError(f"{label} contains non-JSON value {type(value).__name__}")
++
++
++def _trace_event_line(payload: Mapping[str, Any]) -> bytes:
++    try:
++        text = json.dumps(
++            dict(payload),
++            ensure_ascii=False,
++            sort_keys=True,
++            separators=(",", ":"),
++            allow_nan=False,
++        )
++    except (TypeError, ValueError) as exc:
++        raise TraceWriteError(f"trace event is not JSON serializable: {exc}") from exc
++    return f"{text}\n".encode("utf-8")
++
++
++def _file_ends_with_newline(path: Path) -> bool:
++    with path.open("rb") as handle:
++        handle.seek(-1, os.SEEK_END)
++        return handle.read(1) == b"\n"
++
++
++def _count_trace_lines(path: Path) -> int:
++    count = 0
++    with path.open("rb") as handle:
++        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
++            count += chunk.count(b"\n")
++    return count
++
++
++def _write_all(fd: int, data: bytes) -> None:
++    view = memoryview(data)
++    total_written = 0
++    while total_written < len(data):
++        written = os.write(fd, view[total_written:])
++        if written == 0:
++            raise OSError("short write while appending trace event")
++        total_written += written
++
++
++def _reject_json_constant(value: str) -> None:
++    raise ValueError(f"JSON constant {value!r} is not allowed")
++
++
+ def _validate_experience_item_file(value: str, label: str) -> None:
+     if "\\" in value:
+         raise ValueError(f"{label} must use POSIX separators")
+diff --git a/tests/test_trace_memory.py b/tests/test_trace_memory.py
+new file mode 100644
+index 0000000..0fe3f64
+--- /dev/null
++++ b/tests/test_trace_memory.py
+@@ -0,0 +1,181 @@
++from __future__ import annotations
++
++import json
++import os
++from datetime import UTC, datetime
++from pathlib import Path
++
++import pytest
++from pydantic import ValidationError
++
++import agent.fs_memory as fs_memory
++from agent.fs_memory import (
++    NamespaceLayout,
++    TraceLoadError,
++    TraceWriteError,
++    append_trace_event,
++    iter_trace_events,
++    load_trace_events,
++    trace_event_payload,
++)
++from agent.registry import ProjectNamespace
++
++
++def namespace() -> ProjectNamespace:
++    return ProjectNamespace(
++        module="multimedia",
++        framework="ffmpeg",
++        compiler="gcc-13.2.0",
++        code_commit="code-a1b2c3d",
++        kg_version="kg-v3",
++    )
++
++
++def layout(tmp_path: Path) -> NamespaceLayout:
++    return NamespaceLayout(workspace=tmp_path, namespace=namespace())
++
++
++def event_data(**overrides: object) -> dict[str, object]:
++    data: dict[str, object] = {
++        "ts": "2026-04-30T10:23:45Z",
++        "kind": "round_start",
++        "session_id": "sess_20260430_abc",
++        "namespace": str(namespace()),
++    }
++    data.update(overrides)
++    return data
++
++
++def test_append_trace_event_writes_jsonl_and_returns_line_reference(tmp_path: Path) -> None:
++    current_layout = layout(tmp_path)
++
++    first = append_trace_event(
++        current_layout,
++        event_data(
++            ts=datetime(2026, 4, 30, 10, 23, 45, tzinfo=UTC),
++            round=12,
++            phase="steady_state",
++            mode="dry_run",
++            message="编译 trace",
++        ),
++    )
++    second = append_trace_event(
++        current_layout,
++        event_data(kind="trial_start", trial_id="r12_t3", combo=["-O3"], mode="exploit"),
++    )
++
++    assert first.line_number == 1
++    assert first.byte_offset == 0
++    assert first.trace_id == "events.jsonl#L1"
++    assert second.line_number == 2
++    assert second.byte_offset > first.byte_offset
++
++    lines = current_layout.trace_path.read_text(encoding="utf-8").splitlines()
++    assert len(lines) == 2
++    assert "编译 trace" in lines[0]
++    assert json.loads(lines[0])["mode"] == "dry_run"
++
++    loaded = load_trace_events(current_layout.trace_path)
++    assert len(loaded) == 2
++    assert trace_event_payload(loaded[0])["round"] == 12
++    assert trace_event_payload(loaded[1])["trial_id"] == "r12_t3"
++    assert tuple(iter_trace_events(current_layout.trace_path)) == loaded
++
++
++@pytest.mark.parametrize(
++    ("bad_event", "expected"),
++    [
++        ({"ts": "not-a-time", "kind": "round_start"}, "ISO 8601"),
++        ({"ts": "2026-04-30T10:23:45Z", "kind": " round_start"}, "whitespace"),
++        ({"ts": "2026-04-30T10:23:45Z", "kind": "round/start"}, "ASCII"),
++        ({"ts": "2026-04-30T10:23:45Z", "kind": "round_start", "value": float("inf")}, "non-finite"),
++        ({"ts": "2026-04-30T10:23:45Z", "kind": "round_start", "value": Path("x")}, "non-JSON"),
++    ],
++)
++def test_append_trace_event_rejects_invalid_payloads(
++    tmp_path: Path,
++    bad_event: dict[str, object],
++    expected: str,
++) -> None:
++    with pytest.raises(ValidationError, match=expected):
++        append_trace_event(layout(tmp_path), bad_event)
++
++
++def test_append_trace_event_rejects_oversized_event(tmp_path: Path) -> None:
++    payload = event_data(message="x" * fs_memory.MAX_TRACE_EVENT_BYTES)
++
++    with pytest.raises(TraceWriteError, match="too large"):
++        append_trace_event(layout(tmp_path), payload)
++
++
++def test_append_trace_event_rejects_unterminated_existing_file(tmp_path: Path) -> None:
++    current_layout = layout(tmp_path)
++    current_layout.trace_path.parent.mkdir(parents=True)
++    current_layout.trace_path.write_text(
++        '{"kind":"round_start","ts":"2026-04-30T10:23:45Z"}',
++        encoding="utf-8",
++    )
++
++    with pytest.raises(TraceWriteError, match="newline-terminated"):
++        append_trace_event(current_layout, event_data(kind="trial_start"))
++
++
++def test_trace_append_and_load_reject_symlink_target(tmp_path: Path) -> None:
++    current_layout = layout(tmp_path)
++    current_layout.trace_path.parent.mkdir(parents=True)
++    target = current_layout.trace_path.parent / "real_events.jsonl"
++    target.write_text("", encoding="utf-8")
++    try:
++        current_layout.trace_path.symlink_to(target)
++    except OSError as exc:
++        pytest.skip(f"symlink creation is not available: {exc}")
++
++    with pytest.raises(TraceWriteError, match="symlink"):
++        append_trace_event(current_layout, event_data())
++    with pytest.raises(TraceLoadError, match="symlink"):
++        load_trace_events(current_layout.trace_path)
++
++
++@pytest.mark.parametrize(
++    ("raw_bytes", "expected"),
++    [
++        (b"{not-json}\n", "failed to parse JSON"),
++        (b"[]\n", "JSON object"),
++        (b"\n", "empty"),
++        (b'{"ts":"2026-04-30T10:23:45Z","kind":"round_start","value":NaN}\n', "not allowed"),
++        (b"\xff\n", "valid UTF-8"),
++        (b'{"ts":"2026-04-30T10:23:45Z","kind":"round_start"}', "newline-terminated"),
++    ],
++)
++def test_load_trace_events_rejects_invalid_jsonl(
++    tmp_path: Path,
++    raw_bytes: bytes,
++    expected: str,
++) -> None:
++    current_layout = layout(tmp_path)
++    current_layout.trace_path.parent.mkdir(parents=True)
++    current_layout.trace_path.write_bytes(raw_bytes)
++
++    with pytest.raises(TraceLoadError, match=expected):
++        load_trace_events(current_layout.trace_path)
++
++
++def test_load_trace_events_rejects_oversized_line(tmp_path: Path) -> None:
++    current_layout = layout(tmp_path)
++    current_layout.trace_path.parent.mkdir(parents=True)
++    current_layout.trace_path.write_bytes(b"x" * (fs_memory.MAX_TRACE_EVENT_BYTES + 1) + b"\n")
++
++    with pytest.raises(TraceLoadError, match="too large"):
++        load_trace_events(current_layout.trace_path)
++
++
++def test_load_trace_events_returns_empty_for_missing_file(tmp_path: Path) -> None:
++    assert load_trace_events(layout(tmp_path).trace_path) == ()
++
++
++def test_append_trace_event_rejects_directory_target(tmp_path: Path) -> None:
++    current_layout = layout(tmp_path)
++    current_layout.trace_path.mkdir(parents=True)
++
++    with pytest.raises(TraceWriteError, match="directory"):
++        append_trace_event(current_layout, event_data())

@@ -429,3 +429,17 @@ Decision records must include:
   - Only compare YAML mtimes against index mtime, which misses deletion because an empty path set makes the `any(...)` freshness check false.
   - Re-scan and compare every indexed relative path on every stale check, which would be more precise but heavier than needed for the current derived-index contract.
   - Require users to manually delete `_index.sqlite` after YAML deletion, which contradicts the rebuildable-cache principle.
+
+## 2026-05-21T14:06:00Z - Store trace events as strict-common append-only JSONL
+
+- affected_requirement:
+  - REQUIREMENTS.md section 3.3.4
+  - REQUIREMENTS.md section 5.1.2
+  - REQUIREMENTS.md section 5.1.3
+  - REQUIREMENTS.md section 4.13
+- decision: Model `trace/events.jsonl` as an append-only canonical event stream with strict common fields (`ts`, `kind`) and flexible event-specific JSON payload keys. Appends write exactly one LF-terminated compact JSON object using `O_APPEND`, fsync the file, reject symlink/directory targets, and return a stable `events.jsonl#L<N>` reference.
+- rationale: REQUIREMENTS.md defines canonical recovery state as `state/checkpoint.yaml` plus `trace/events.jsonl`, and section 5.1 lists heterogeneous event payloads for rounds, candidates, trials, process spans, LLM calls, memory ops, KG ops, dry-run markers, and user actions. A strict-common/open-payload schema gives every event timestamp/kind safety while avoiding a large premature union of producer-specific models.
+- alternatives_considered:
+  - Define a closed enum/union model for every trace event kind immediately, which would force Phase 03 to predict later candidate, KG, dry-run, clean, and process event shapes before those producers exist.
+  - Write trace through `atomic_write_yaml` or whole-file JSON replacement, which would contradict append-only trace semantics and make each event rewrite the entire canonical stream.
+  - Let callers write raw JSON strings directly, which would bypass UTC timestamp validation, finite-number checks, size limits, symlink rejection, and line-reference metadata needed by trial/checkpoint records.

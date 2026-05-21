@@ -791,3 +791,25 @@ Next action: generate patch artifacts, commit/push the Kimi review fixes, then r
   - `dev_memory/phases/phase_02_fs_memory/patches/11_kimi_review_fixes.review.md`
 
 Next action: commit this sync record, push, then request final verification.
+
+## 2026-05-21T14:06:00Z - Phase 03 / Subtask 3.1 started
+
+- Kimi review follow-ups for Phase 02 are accepted; Phase 03 begins with the canonical local trace stream.
+- Started Subtask 3.1: append-only `trace/events.jsonl` schema, writer, and loader.
+- Requirements in scope: REQUIREMENTS.md sections 3.3.4, 5.1.2, 5.1.3, and 4.13.
+- Baseline before implementation: clean `main` synced with `origin/main` at `2dc6b9f`.
+- Planned files: `src/agent/fs_memory.py`, `src/agent/__init__.py`, `tests/test_trace_memory.py`, and Phase 03 dev_memory artifacts.
+
+## 2026-05-21T14:06:00Z - Phase 03 / Subtask 3.1 implemented
+
+- Added `TraceEvent` as a strict-common/open-payload JSONL event model: `ts` must be UTC ISO 8601, `kind` must be a safe trace atom, and all payload values must be JSON-compatible finite values.
+- Added trace errors plus `TraceAppendResult` with a `trace_id` property like `events.jsonl#L1`.
+- Added `append_trace_event(layout, event)` using `O_APPEND`, a single LF-terminated compact JSON object, file fsync, symlink/directory rejection, per-event size limits, and newline-terminated existing-file checks.
+- Added `load_trace_events(path)` and `iter_trace_events(path)` to validate canonical trace files line by line for UTF-8, JSON object shape, timestamp/kind schema, finite values, and size caps.
+- Public exports added in `src/agent/__init__.py`.
+- UT results:
+  - `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -v` -> 18 passed.
+  - `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q` -> 128 passed.
+  - `.venv\Scripts\python.exe -m pytest -q` -> 304 passed, 1 skipped on Windows.
+
+Next action: generate patch artifacts, commit/push Subtask 3.1, then request external review.
