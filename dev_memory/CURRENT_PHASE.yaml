@@ -1,7 +1,7 @@
 phase_id: phase_02_fs_memory
 phase_title: "FS-Memory SoT + schema + atomic write"
 started_at: 2026-05-08T07:04:04Z
-last_updated: 2026-05-21T12:35:44Z
+last_updated: 2026-05-21T13:47:12Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 4.2
@@ -338,10 +338,44 @@ subtasks:
       - "Experience strict fields reject untrimmed options/original_namespace before NonEmptyStr strip."
       - "Experience manifest item files now reject hidden filenames and embedded whitespace."
       - "compute_payload_hash avoids deepcopy for top-level-only exclusions while keeping dotted dict-path support."
+  - id: "2.9"
+    title: "Full-code Kimi review fixes for Phase 02 edge cases"
+    status: done
+    related_requirements:
+      - REQUIREMENTS.md section 4.2.4
+      - REQUIREMENTS.md section 4.2.6
+      - REQUIREMENTS.md section 4.7.5
+    files_modified:
+      - src/agent/fs_memory.py
+      - tests/test_fs_memory.py
+      - dev_memory/CURRENT_PHASE.yaml
+      - dev_memory/DECISIONS.md
+      - dev_memory/PROGRESS.md
+      - dev_memory/phases/phase_02_fs_memory/CHECKLIST.yaml
+      - dev_memory/phases/phase_02_fs_memory/SUMMARY.md
+      - dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md
+      - dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md
+    started_at: 2026-05-21T13:47:12Z
+    completed_at: 2026-05-21T13:47:12Z
+    external_review_source: Kimi
+    external_review_verdict: approve_with_minor_changes
+    external_review_tests: "282 passed, 0 failed"
+    ut_passed: true
+    targeted_ut: "128 passed, 0 failed"
+    full_ut: "286 passed, 0 failed, 1 skipped"
+    self_reviewed: true
+    patch_file: dev_memory/phases/phase_02_fs_memory/patches/11_kimi_review_fixes.patch
+    patch_generated: true
+    commit_pending: true
+    review_fix_summary:
+      - "Filtered symlinks out of trial discovery so batch discovery matches load_trial_record's no-symlink contract."
+      - "Made compute_payload_hash remove exact top-level keys before dotted mapping paths, covering literal-dot top-level field names."
+      - "Made trial_index_is_stale compare derived index trial_count with current canonical YAML path count, catching deletions."
+      - "Required canary mode and schedule_slot to match before accepting a TrialRecord."
 notes: |
   Phase 01 is complete and validated on Ubuntu. Phase 02 starts with the
   shared atomic YAML writer because every later SoT writer (trial yaml,
   checkpoint.yaml, experience yaml, learned rule yaml) must reuse the same
   flush/fsync/os.replace/parent-fsync semantics from REQUIREMENTS.md section
   4.7.5.
-next_action: "Phase 02 is externally approved after polish; prepare Phase 03 or the next milestone."
+next_action: "Commit/push Kimi review fixes, request final verification, then proceed to Phase 03 or the next milestone."

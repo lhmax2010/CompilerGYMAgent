@@ -401,6 +401,8 @@ class TrialRecord(StrictFsModel):
             )
         if self.outcome == "success" and self.score is None:
             raise ValueError("successful trials must include score")
+        if (self.mode == "canary") != (self.schedule_slot == "canary"):
+            raise ValueError("canary mode and schedule_slot must match")
         if self.mode == "canary" and self.canary is None:
             raise ValueError("canary trials must include canary details")
         return self
@@ -978,6 +980,7 @@ def compute_payload_hash(
     if any("." in field_path for field_path in excluded_fields):
         canonical_payload = copy.deepcopy(dict(payload))
         for field_path in excluded_fields:
+            canonical_payload.pop(field_path, None)
             _remove_mapping_path(canonical_payload, field_path)
     else:
         excluded = set(excluded_fields)
@@ -1368,7 +1371,7 @@ def iter_trial_record_paths(layout: NamespaceLayout) -> tuple[Path, ...]:
             (
                 path
                 for path in layout.trial_data_dir.rglob("*.yaml")
-                if (path.is_file() or path.is_symlink()) and not path.name.startswith(".")
+                if path.is_file() and not path.is_symlink() and not path.name.startswith(".")
             ),
             key=lambda path: path.as_posix(),
         )
@@ -1528,12 +1531,19 @@ def load_trial_index_rows(layout: NamespaceLayout) -> tuple[TrialIndexRow, ...]:
 
 
 def trial_index_is_stale(layout: NamespaceLayout) -> bool:
-    """Return true when trial YAML is newer than the derived SQLite index."""
+    """Return true when trial YAML and the derived SQLite index disagree."""
 
     if not layout.trial_index_path.exists():
         return True
+    paths = iter_trial_record_paths(layout)
+    try:
+        summary = load_trial_index_summary(layout)
+    except TrialIndexError:
+        return True
+    if summary.trial_count != len(paths):
+        return True
     index_mtime_ns = layout.trial_index_path.stat().st_mtime_ns
-    return any(path.stat().st_mtime_ns > index_mtime_ns for path in iter_trial_record_paths(layout))
+    return any(path.stat().st_mtime_ns > index_mtime_ns for path in paths)
 
 
 def ensure_trial_index_current(layout: NamespaceLayout) -> TrialIndexSummary:

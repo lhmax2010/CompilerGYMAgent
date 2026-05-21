@@ -624,3 +624,29 @@ Verification notes:
 - Independently verified the eight polish closures and cross-SoT integrity regression for TrialRecord, LearnedRule, and Experience.
 - Found no Critical/High/Medium issues.
 - Remaining Info notes are future-facing: revisit sidecar cleanup if SQLite WAL mode is introduced, and keep the `compute_payload_hash` dotted-path heuristic in mind if a future schema ever uses literal dots in top-level field names.
+
+## Subtask 2.9 - Kimi full-code review fixes
+
+- timestamp_utc: 2026-05-21T13:47:12Z
+- environment:
+  - os: Windows development host
+  - python: 3.14.3
+  - runner: `.venv\Scripts\python.exe -m pytest`
+- review_source: Kimi full-code review
+- review_verdict: Approve with minor changes
+- review_tests: 282 passed, 0 failed on Linux
+- requirements:
+  - REQUIREMENTS.md section 4.2.4
+  - REQUIREMENTS.md section 4.2.6
+  - REQUIREMENTS.md section 4.7.5
+- targeted_command: `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q`
+- targeted_result: 128 passed, 0 failed
+- full_command: `.venv\Scripts\python.exe -m pytest -q`
+- full_result: 286 passed, 0 failed, 1 skipped
+- skipped:
+  - `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter` requires Linux fcntl and must be covered by Ubuntu validation.
+- new_coverage:
+  - Trial discovery ignores valid and broken symlinks under `trials/data`.
+  - `compute_payload_hash` excludes literal-dot top-level keys while preserving dotted mapping-path exclusion behavior.
+  - `trial_index_is_stale` detects deletion of canonical trial YAML and `ensure_trial_index_current` rebuilds to an empty index.
+  - `TrialRecord` rejects mismatched `mode == "canary"` and `schedule_slot == "canary"` combinations.

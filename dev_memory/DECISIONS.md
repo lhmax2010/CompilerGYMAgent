@@ -406,3 +406,26 @@ Decision records must include:
   - Enforce cross-rule semantic uniqueness in `write_learned_rule`, which would move fuzzy doctor/dedup policy into a low-level atomic writer.
   - Require `WorkspaceLock` as a correctness precondition for all derived index rebuilds, which would overstate the role of a rebuildable cache and blur the SoT/cache boundary.
   - Generalize dotted integrity exclusions to list indexes now, which would add unused path syntax and new edge cases before any current schema needs it.
+
+## 2026-05-21T13:47:12Z - Keep trial discovery regular-file-only and canary fields synchronized
+
+- affected_requirement:
+  - REQUIREMENTS.md section 4.2.4
+  - REQUIREMENTS.md section 4.2.6
+- decision: `iter_trial_record_paths()` returns only regular non-hidden YAML files, not symlinks, and `TrialRecord` requires `mode == "canary"` and `schedule_slot == "canary"` to agree.
+- rationale: Batch discovery should not surface paths that the single-file loader is guaranteed to reject, because a symlink side file can otherwise block startup/reindex. Canary trials also need one unambiguous identity for both trial semantics and window quota accounting; allowing canary schedule slots on non-canary modes would create drift between what was run and why it was scheduled.
+- alternatives_considered:
+  - Keep discovering symlinks and fail during load, which preserves fail-fast purity but lets one side-file block all trial discovery.
+  - Follow symlinks during discovery, which would weaken namespace/path containment and contradict the loader-level no-symlink contract.
+  - Treat `schedule_slot` as independent from canary `mode`, which would preserve scheduler flexibility but make canary-specific schema requirements depend only on one of two canary-looking fields.
+
+## 2026-05-21T13:47:12Z - Treat derived trial index count drift as stale
+
+- affected_requirement:
+  - REQUIREMENTS.md section 4.2.4
+- decision: `trial_index_is_stale()` compares the SQLite summary trial count with the current canonical trial YAML path count in addition to mtime checks.
+- rationale: The SQLite index is derived state. If users delete or move canonical YAML files, the index must self-heal instead of continuing to report rows for missing SoT records. Count drift catches deletions while the existing mtime comparison catches newer YAML content.
+- alternatives_considered:
+  - Only compare YAML mtimes against index mtime, which misses deletion because an empty path set makes the `any(...)` freshness check false.
+  - Re-scan and compare every indexed relative path on every stale check, which would be more precise but heavier than needed for the current derived-index contract.
+  - Require users to manually delete `_index.sqlite` after YAML deletion, which contradicts the rebuildable-cache principle.

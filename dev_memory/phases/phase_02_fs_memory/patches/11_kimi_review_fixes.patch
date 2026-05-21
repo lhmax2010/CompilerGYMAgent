@@ -1,0 +1,439 @@
+diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index 86030fb..0b5ff9e 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -1,7 +1,7 @@
+ phase_id: phase_02_fs_memory
+ phase_title: "FS-Memory SoT + schema + atomic write"
+ started_at: 2026-05-08T07:04:04Z
+-last_updated: 2026-05-21T12:35:44Z
++last_updated: 2026-05-21T13:47:12Z
+ target_milestone: M1
+ related_requirements:
+   - REQUIREMENTS.md section 4.2
+@@ -338,10 +338,44 @@ subtasks:
+       - "Experience strict fields reject untrimmed options/original_namespace before NonEmptyStr strip."
+       - "Experience manifest item files now reject hidden filenames and embedded whitespace."
+       - "compute_payload_hash avoids deepcopy for top-level-only exclusions while keeping dotted dict-path support."
++  - id: "2.9"
++    title: "Full-code Kimi review fixes for Phase 02 edge cases"
++    status: done
++    related_requirements:
++      - REQUIREMENTS.md section 4.2.4
++      - REQUIREMENTS.md section 4.2.6
++      - REQUIREMENTS.md section 4.7.5
++    files_modified:
++      - src/agent/fs_memory.py
++      - tests/test_fs_memory.py
++      - dev_memory/CURRENT_PHASE.yaml
++      - dev_memory/DECISIONS.md
++      - dev_memory/PROGRESS.md
++      - dev_memory/phases/phase_02_fs_memory/CHECKLIST.yaml
++      - dev_memory/phases/phase_02_fs_memory/SUMMARY.md
++      - dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md
++      - dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md
++    started_at: 2026-05-21T13:47:12Z
++    completed_at: 2026-05-21T13:47:12Z
++    external_review_source: Kimi
++    external_review_verdict: approve_with_minor_changes
++    external_review_tests: "282 passed, 0 failed"
++    ut_passed: true
++    targeted_ut: "128 passed, 0 failed"
++    full_ut: "286 passed, 0 failed, 1 skipped"
++    self_reviewed: true
++    patch_file: dev_memory/phases/phase_02_fs_memory/patches/11_kimi_review_fixes.patch
++    patch_generated: true
++    commit_pending: true
++    review_fix_summary:
++      - "Filtered symlinks out of trial discovery so batch discovery matches load_trial_record's no-symlink contract."
++      - "Made compute_payload_hash remove exact top-level keys before dotted mapping paths, covering literal-dot top-level field names."
++      - "Made trial_index_is_stale compare derived index trial_count with current canonical YAML path count, catching deletions."
++      - "Required canary mode and schedule_slot to match before accepting a TrialRecord."
+ notes: |
+   Phase 01 is complete and validated on Ubuntu. Phase 02 starts with the
+   shared atomic YAML writer because every later SoT writer (trial yaml,
+   checkpoint.yaml, experience yaml, learned rule yaml) must reuse the same
+   flush/fsync/os.replace/parent-fsync semantics from REQUIREMENTS.md section
+   4.7.5.
+-next_action: "Phase 02 is externally approved after polish; prepare Phase 03 or the next milestone."
++next_action: "Commit/push Kimi review fixes, request final verification, then proceed to Phase 03 or the next milestone."
+diff --git a/dev_memory/DECISIONS.md b/dev_memory/DECISIONS.md
+index dd73c96..3d092ab 100644
+--- a/dev_memory/DECISIONS.md
++++ b/dev_memory/DECISIONS.md
+@@ -406,3 +406,26 @@ Decision records must include:
+   - Enforce cross-rule semantic uniqueness in `write_learned_rule`, which would move fuzzy doctor/dedup policy into a low-level atomic writer.
+   - Require `WorkspaceLock` as a correctness precondition for all derived index rebuilds, which would overstate the role of a rebuildable cache and blur the SoT/cache boundary.
+   - Generalize dotted integrity exclusions to list indexes now, which would add unused path syntax and new edge cases before any current schema needs it.
++
++## 2026-05-21T13:47:12Z - Keep trial discovery regular-file-only and canary fields synchronized
++
++- affected_requirement:
++  - REQUIREMENTS.md section 4.2.4
++  - REQUIREMENTS.md section 4.2.6
++- decision: `iter_trial_record_paths()` returns only regular non-hidden YAML files, not symlinks, and `TrialRecord` requires `mode == "canary"` and `schedule_slot == "canary"` to agree.
++- rationale: Batch discovery should not surface paths that the single-file loader is guaranteed to reject, because a symlink side file can otherwise block startup/reindex. Canary trials also need one unambiguous identity for both trial semantics and window quota accounting; allowing canary schedule slots on non-canary modes would create drift between what was run and why it was scheduled.
++- alternatives_considered:
++  - Keep discovering symlinks and fail during load, which preserves fail-fast purity but lets one side-file block all trial discovery.
++  - Follow symlinks during discovery, which would weaken namespace/path containment and contradict the loader-level no-symlink contract.
++  - Treat `schedule_slot` as independent from canary `mode`, which would preserve scheduler flexibility but make canary-specific schema requirements depend only on one of two canary-looking fields.
++
++## 2026-05-21T13:47:12Z - Treat derived trial index count drift as stale
++
++- affected_requirement:
++  - REQUIREMENTS.md section 4.2.4
++- decision: `trial_index_is_stale()` compares the SQLite summary trial count with the current canonical trial YAML path count in addition to mtime checks.
++- rationale: The SQLite index is derived state. If users delete or move canonical YAML files, the index must self-heal instead of continuing to report rows for missing SoT records. Count drift catches deletions while the existing mtime comparison catches newer YAML content.
++- alternatives_considered:
++  - Only compare YAML mtimes against index mtime, which misses deletion because an empty path set makes the `any(...)` freshness check false.
++  - Re-scan and compare every indexed relative path on every stale check, which would be more precise but heavier than needed for the current derived-index contract.
++  - Require users to manually delete `_index.sqlite` after YAML deletion, which contradicts the rebuildable-cache principle.
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index 5f39dc5..751c6eb 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -767,3 +767,17 @@ Next action: commit this sync record, push, then request external review.
+ - Remaining observations are Info-only: stale sidecar cleanup should be revisited before any future WAL-mode switch, and the `compute_payload_hash` dotted-path heuristic may over-select `deepcopy` only if a future top-level field name contains a dot.
+ 
+ Next action: record this sync commit and proceed to Phase 03 or the next milestone.
++
++## 2026-05-21T13:47:12Z - Phase 02 / Kimi full-code review fixes implemented
++
++- Kimi completed a full-code review at HEAD `18e8992` with verdict "Approve with minor changes" and Linux tests `282 passed, 0 failed`.
++- Fixed the High finding by filtering symlinks out of trial discovery before batch loading.
++- Fixed the payload-hash Medium by removing exact top-level excluded keys before applying dotted mapping-path removal.
++- Fixed the trial-index Medium by comparing index trial count with current canonical YAML path count, so deleted YAML marks the index stale.
++- Fixed the canary Medium by requiring canary `mode` and `schedule_slot` to match.
++- Added focused regression tests for all four fixes.
++- Local UT results:
++  - `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q` -> 128 passed.
++  - `.venv\Scripts\python.exe -m pytest -q` -> 286 passed, 1 skipped on Windows.
++
++Next action: generate patch artifacts, commit/push the Kimi review fixes, then request final verification.
+diff --git a/dev_memory/phases/phase_02_fs_memory/CHECKLIST.yaml b/dev_memory/phases/phase_02_fs_memory/CHECKLIST.yaml
+index 20302b7..f46d308 100644
+--- a/dev_memory/phases/phase_02_fs_memory/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_02_fs_memory/CHECKLIST.yaml
+@@ -276,3 +276,39 @@ subtasks:
+       - dev_memory/phases/phase_02_fs_memory/SUMMARY.md
+       - dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md
+       - dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md
++  - id: "2.9"
++    title: "Full-code Kimi review fixes for Phase 02 edge cases"
++    status: done
++    related_requirements:
++      - REQUIREMENTS.md section 4.2.4
++      - REQUIREMENTS.md section 4.2.6
++      - REQUIREMENTS.md section 4.7.5
++    ut_required: true
++    ut_passed: true
++    targeted_ut: "128 passed, 0 failed"
++    full_ut: "286 passed, 0 failed, 1 skipped"
++    self_review_required: true
++    self_reviewed: true
++    patch_required: true
++    patch_file: dev_memory/phases/phase_02_fs_memory/patches/11_kimi_review_fixes.patch
++    patch_generated: true
++    commit_required: true
++    commit_pending: true
++    external_review_source: Kimi
++    external_review_verdict: approve_with_minor_changes
++    external_review_tests: "282 passed, 0 failed"
++    review_fix_summary:
++      - "Trial discovery filters symlinks before load."
++      - "Payload hashing supports literal-dot top-level excluded keys."
++      - "Trial index staleness detects deleted canonical YAML by count mismatch."
++      - "TrialRecord canary mode and schedule_slot must match."
++    files_modified:
++      - src/agent/fs_memory.py
++      - tests/test_fs_memory.py
++      - dev_memory/CURRENT_PHASE.yaml
++      - dev_memory/DECISIONS.md
++      - dev_memory/PROGRESS.md
++      - dev_memory/phases/phase_02_fs_memory/CHECKLIST.yaml
++      - dev_memory/phases/phase_02_fs_memory/SUMMARY.md
++      - dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md
++      - dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md
+diff --git a/dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md b/dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md
+index e3bd601..dc5673d 100644
+--- a/dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md
++++ b/dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md
+@@ -586,3 +586,28 @@ Low/Info notes:
+ 
+ Review conclusion:
+ - Phase 02 polish is approved. Phase 02 has no remaining blocking items and is ready for Phase 03 or the next milestone.
++
++## Subtask 2.9 - Kimi full-code review fixes
++
++Scope:
++- Address Kimi's full-code review findings after Phase 02 polish.
++- Keep the fix pass narrow: no new public APIs and no broad refactors.
++
++Findings addressed:
++- [x] H-1: `iter_trial_record_paths` no longer returns symlinks, matching `load_trial_record`'s no-symlink contract and preventing symlink side files from blocking batch discovery.
++- [x] M-1: `compute_payload_hash` removes exact top-level excluded keys before applying dotted mapping-path removal, so literal-dot top-level keys are handled correctly.
++- [x] M-2: `trial_index_is_stale` compares the derived index trial count with current canonical YAML path count, so deleting YAML marks the index stale and `ensure_trial_index_current` rebuilds.
++- [x] M-3: `TrialRecord` requires canary mode and canary schedule_slot to match, then still requires canary details for canary trials.
++
++Tests:
++- `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q` -> 128 passed.
++- `.venv\Scripts\python.exe -m pytest -q` -> 286 passed, 1 skipped on Windows.
++
++Self-review notes:
++- Filtering symlinks in discovery is safer than discovering then failing in `load_trial_record`; direct single-file loads still reject symlinks explicitly.
++- Payload hashing now handles both exact top-level exclusions and dotted mapping exclusions in the same defensive deepcopy branch.
++- Trial index staleness now opens the summary DB for count comparison; corrupt/schema-incompatible indexes already return stale through `TrialIndexError`.
++- Canary mode/slot consistency makes `mode` and quota accounting agree instead of silently accepting drift.
++
++Review conclusion:
++- Kimi review fixes are ready for final verification after patch generation, commit, and push.
+diff --git a/dev_memory/phases/phase_02_fs_memory/SUMMARY.md b/dev_memory/phases/phase_02_fs_memory/SUMMARY.md
+index 7dae6ab..a803cfa 100644
+--- a/dev_memory/phases/phase_02_fs_memory/SUMMARY.md
++++ b/dev_memory/phases/phase_02_fs_memory/SUMMARY.md
+@@ -35,6 +35,7 @@ Completed:
+ - Subtask 2.7 received external approval after independent Linux verification: 272/272 tests passed, the Linux real-fcntl test executed, and only Low/Info follow-ups remain.
+ - Subtask 2.8 performed a Phase 02 polish pass across accumulated Low/TG items: hidden trial YAML is ignored, schema-incompatible trial indexes rebuild, stale SQLite sidecars are cleaned, empty learned-rule scopes are rejected, experience strict fields now defeat `NonEmptyStr` silent strip where needed, experience manifest filenames reject hidden/spaced names, atomic symlink replacement behavior is tested, and top-level integrity hashing avoids unnecessary deep copies.
+ - Subtask 2.8 received external approval after independent Linux verification: 282/282 tests passed, the Linux real-fcntl test executed, and only future-facing Info notes remain.
++- Subtask 2.9 addressed Kimi's full-code review findings: trial discovery now filters symlinks, payload hash exclusions handle literal-dot top-level keys, trial index staleness detects deleted YAML by count mismatch, and TrialRecord canary mode/schedule_slot must match.
+ 
+ Remaining:
+-- Phase 02 FS-Memory is externally approved after polish. Prepare Phase 03 or the next milestone.
++- Request final verification for Kimi review fixes, then proceed to Phase 03 or the next milestone.
+diff --git a/dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md b/dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md
+index 6061db1..22ec53e 100644
+--- a/dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md
++++ b/dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md
+@@ -624,3 +624,29 @@ Verification notes:
+ - Independently verified the eight polish closures and cross-SoT integrity regression for TrialRecord, LearnedRule, and Experience.
+ - Found no Critical/High/Medium issues.
+ - Remaining Info notes are future-facing: revisit sidecar cleanup if SQLite WAL mode is introduced, and keep the `compute_payload_hash` dotted-path heuristic in mind if a future schema ever uses literal dots in top-level field names.
++
++## Subtask 2.9 - Kimi full-code review fixes
++
++- timestamp_utc: 2026-05-21T13:47:12Z
++- environment:
++  - os: Windows development host
++  - python: 3.14.3
++  - runner: `.venv\Scripts\python.exe -m pytest`
++- review_source: Kimi full-code review
++- review_verdict: Approve with minor changes
++- review_tests: 282 passed, 0 failed on Linux
++- requirements:
++  - REQUIREMENTS.md section 4.2.4
++  - REQUIREMENTS.md section 4.2.6
++  - REQUIREMENTS.md section 4.7.5
++- targeted_command: `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q`
++- targeted_result: 128 passed, 0 failed
++- full_command: `.venv\Scripts\python.exe -m pytest -q`
++- full_result: 286 passed, 0 failed, 1 skipped
++- skipped:
++  - `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter` requires Linux fcntl and must be covered by Ubuntu validation.
++- new_coverage:
++  - Trial discovery ignores valid and broken symlinks under `trials/data`.
++  - `compute_payload_hash` excludes literal-dot top-level keys while preserving dotted mapping-path exclusion behavior.
++  - `trial_index_is_stale` detects deletion of canonical trial YAML and `ensure_trial_index_current` rebuilds to an empty index.
++  - `TrialRecord` rejects mismatched `mode == "canary"` and `schedule_slot == "canary"` combinations.
+diff --git a/dev_memory/phases/phase_02_fs_memory/patches/11_kimi_review_fixes.review.md b/dev_memory/phases/phase_02_fs_memory/patches/11_kimi_review_fixes.review.md
+new file mode 100644
+index 0000000..0d5a1d4
+--- /dev/null
++++ b/dev_memory/phases/phase_02_fs_memory/patches/11_kimi_review_fixes.review.md
+@@ -0,0 +1,23 @@
++# Phase 02 / Subtask 2.9 Self-Review
++
++Scope:
++- Resolve Kimi's full-code review action items for Phase 02.
++- Keep the patch limited to FS-Memory edge behavior and focused regression tests.
++
++Checklist:
++- [x] `iter_trial_record_paths` filters symlinks before discovery.
++- [x] Symlink discovery regression covers both valid and broken symlinks.
++- [x] `compute_payload_hash` excludes literal-dot top-level keys and dotted mapping paths without mutating input.
++- [x] `trial_index_is_stale` detects deleted YAML through index/YAML count drift.
++- [x] `ensure_trial_index_current` rebuilds to an empty index after canonical trial YAML deletion.
++- [x] `TrialRecord` rejects canary `mode` / `schedule_slot` drift.
++- [x] No public exports were changed.
++
++Risks / Follow-ups:
++- `trial_index_is_stale` now reads index metadata for count comparison. This is acceptable because the index is derived and stale checks are not hot path.
++- Direct `load_trial_record(path)` still rejects symlinks explicitly; discovery now avoids them before batch loading.
++- Linux-only real fcntl verification still requires Ubuntu.
++
++Verification:
++- `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q` -> 128 passed.
++- `.venv\Scripts\python.exe -m pytest -q` -> 286 passed, 1 skipped on Windows.
+diff --git a/dev_memory/phases/phase_02_fs_memory/patches/11_kimi_review_fixes.summary.txt b/dev_memory/phases/phase_02_fs_memory/patches/11_kimi_review_fixes.summary.txt
+new file mode 100644
+index 0000000..e07fabb
+--- /dev/null
++++ b/dev_memory/phases/phase_02_fs_memory/patches/11_kimi_review_fixes.summary.txt
+@@ -0,0 +1,21 @@
++Phase 02 / Subtask 2.9 - Kimi full-code review fixes
++
++Requirements:
++- REQUIREMENTS.md section 4.2.4
++- REQUIREMENTS.md section 4.2.6
++- REQUIREMENTS.md section 4.7.5
++
++Summary:
++- Addressed Kimi's full-code review findings after Phase 02 polish.
++- Filtered symlinks out of canonical trial discovery so batch discovery cannot
++  surface paths that `load_trial_record` will reject.
++- Updated `compute_payload_hash` so exact top-level excluded keys are removed
++  before dotted mapping-path removal, covering literal-dot top-level keys.
++- Extended `trial_index_is_stale` to compare derived index row count against
++  current canonical YAML path count, so deleted YAML triggers rebuild.
++- Required `TrialRecord.mode == "canary"` and `schedule_slot == "canary"` to
++  agree before accepting completed trial records.
++
++Tests:
++- `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q` -> 128 passed.
++- `.venv\Scripts\python.exe -m pytest -q` -> 286 passed, 1 skipped on Windows.
+diff --git a/src/agent/fs_memory.py b/src/agent/fs_memory.py
+index 39d2493..ce350cd 100644
+--- a/src/agent/fs_memory.py
++++ b/src/agent/fs_memory.py
+@@ -401,6 +401,8 @@ class TrialRecord(StrictFsModel):
+             )
+         if self.outcome == "success" and self.score is None:
+             raise ValueError("successful trials must include score")
++        if (self.mode == "canary") != (self.schedule_slot == "canary"):
++            raise ValueError("canary mode and schedule_slot must match")
+         if self.mode == "canary" and self.canary is None:
+             raise ValueError("canary trials must include canary details")
+         return self
+@@ -978,6 +980,7 @@ def compute_payload_hash(
+     if any("." in field_path for field_path in excluded_fields):
+         canonical_payload = copy.deepcopy(dict(payload))
+         for field_path in excluded_fields:
++            canonical_payload.pop(field_path, None)
+             _remove_mapping_path(canonical_payload, field_path)
+     else:
+         excluded = set(excluded_fields)
+@@ -1368,7 +1371,7 @@ def iter_trial_record_paths(layout: NamespaceLayout) -> tuple[Path, ...]:
+             (
+                 path
+                 for path in layout.trial_data_dir.rglob("*.yaml")
+-                if (path.is_file() or path.is_symlink()) and not path.name.startswith(".")
++                if path.is_file() and not path.is_symlink() and not path.name.startswith(".")
+             ),
+             key=lambda path: path.as_posix(),
+         )
+@@ -1528,12 +1531,19 @@ def load_trial_index_rows(layout: NamespaceLayout) -> tuple[TrialIndexRow, ...]:
+ 
+ 
+ def trial_index_is_stale(layout: NamespaceLayout) -> bool:
+-    """Return true when trial YAML is newer than the derived SQLite index."""
++    """Return true when trial YAML and the derived SQLite index disagree."""
+ 
+     if not layout.trial_index_path.exists():
+         return True
++    paths = iter_trial_record_paths(layout)
++    try:
++        summary = load_trial_index_summary(layout)
++    except TrialIndexError:
++        return True
++    if summary.trial_count != len(paths):
++        return True
+     index_mtime_ns = layout.trial_index_path.stat().st_mtime_ns
+-    return any(path.stat().st_mtime_ns > index_mtime_ns for path in iter_trial_record_paths(layout))
++    return any(path.stat().st_mtime_ns > index_mtime_ns for path in paths)
+ 
+ 
+ def ensure_trial_index_current(layout: NamespaceLayout) -> TrialIndexSummary:
+diff --git a/tests/test_fs_memory.py b/tests/test_fs_memory.py
+index 04ead56..25298da 100644
+--- a/tests/test_fs_memory.py
++++ b/tests/test_fs_memory.py
+@@ -499,6 +499,26 @@ def test_trial_record_requires_canary_details_for_canary_mode() -> None:
+         TrialRecord.model_validate(data)
+ 
+ 
++@pytest.mark.parametrize(
++    ("mode", "schedule_slot"),
++    [
++        ("exploit", "canary"),
++        ("canary", "exploit"),
++    ],
++)
++def test_trial_record_requires_canary_mode_and_schedule_slot_to_match(
++    mode: str,
++    schedule_slot: str,
++) -> None:
++    data = trial_record_data()
++    data["mode"] = mode
++    data["schedule_slot"] = schedule_slot
++    data["canary"] = {}
++
++    with pytest.raises(ValidationError, match="canary mode and schedule_slot"):
++        TrialRecord.model_validate(data)
++
++
+ def test_trial_payload_hash_excludes_integrity_block() -> None:
+     record = with_trial_integrity(trial_record_data())
+     expected_hash = compute_trial_payload_hash(record)
+@@ -519,6 +539,22 @@ def test_payload_hash_is_independent_of_mapping_insertion_order() -> None:
+     assert compute_payload_hash(left) == compute_payload_hash(right)
+ 
+ 
++def test_payload_hash_excludes_literal_dot_top_level_keys() -> None:
++    payload = {
++        "keep": {"value": 1},
++        "v1.5_key": {"literal": True},
++        "nested": {"field": "excluded"},
++    }
++    expected_payload = {"keep": {"value": 1}, "nested": {}}
++
++    assert compute_payload_hash(
++        payload,
++        excluded_fields=("v1.5_key", "nested.field"),
++    ) == compute_payload_hash(expected_payload, excluded_fields=())
++    assert payload["v1.5_key"] == {"literal": True}
++    assert payload["nested"] == {"field": "excluded"}
++
++
+ def test_verify_trial_integrity_detects_payload_tampering() -> None:
+     record = with_trial_integrity(trial_record_data())
+     payload = trial_record_payload(record)
+@@ -695,6 +731,21 @@ def test_iter_trial_record_paths_returns_empty_for_missing_trial_dir(tmp_path: P
+     assert iter_trial_record_paths(layout) == ()
+ 
+ 
++def test_iter_trial_record_paths_ignores_symlinks(tmp_path: Path) -> None:
++    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
++    trial_path = write_trial_record(layout, trial_record_data())
++    valid_link = trial_path.parent / "trial_link.yaml"
++    broken_link = trial_path.parent / "trial_broken.yaml"
++    try:
++        valid_link.symlink_to(trial_path)
++        broken_link.symlink_to(trial_path.parent / "missing.yaml")
++    except (NotImplementedError, OSError):
++        pytest.skip("filesystem does not allow creating symlinks")
++
++    assert iter_trial_record_paths(layout) == (trial_path,)
++    assert [item.record.trial_id for item in discover_trial_records(layout)] == ["r12_t3"]
++
++
+ def test_load_trial_record_for_layout_rejects_wrong_month_partition(tmp_path: Path) -> None:
+     layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+     trial = with_trial_integrity(trial_record_data())
+@@ -880,6 +931,18 @@ def test_trial_index_is_stale_tracks_missing_and_newer_yaml(tmp_path: Path) -> N
+     assert trial_index_is_stale(layout) is True
+ 
+ 
++def test_trial_index_is_stale_tracks_deleted_yaml(tmp_path: Path) -> None:
++    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
++    path = write_trial_record(layout, trial_record_data())
++    rebuild_trial_index(layout)
++
++    path.unlink()
++
++    assert trial_index_is_stale(layout) is True
++    assert ensure_trial_index_current(layout).trial_count == 0
++    assert load_trial_index_rows(layout) == ()
++
++
+ def test_ensure_trial_index_current_rebuilds_only_when_stale(
+     tmp_path: Path,
+     monkeypatch: pytest.MonkeyPatch,

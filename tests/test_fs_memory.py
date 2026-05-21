@@ -499,6 +499,26 @@ def test_trial_record_requires_canary_details_for_canary_mode() -> None:
         TrialRecord.model_validate(data)
 
 
+@pytest.mark.parametrize(
+    ("mode", "schedule_slot"),
+    [
+        ("exploit", "canary"),
+        ("canary", "exploit"),
+    ],
+)
+def test_trial_record_requires_canary_mode_and_schedule_slot_to_match(
+    mode: str,
+    schedule_slot: str,
+) -> None:
+    data = trial_record_data()
+    data["mode"] = mode
+    data["schedule_slot"] = schedule_slot
+    data["canary"] = {}
+
+    with pytest.raises(ValidationError, match="canary mode and schedule_slot"):
+        TrialRecord.model_validate(data)
+
+
 def test_trial_payload_hash_excludes_integrity_block() -> None:
     record = with_trial_integrity(trial_record_data())
     expected_hash = compute_trial_payload_hash(record)
@@ -517,6 +537,22 @@ def test_payload_hash_is_independent_of_mapping_insertion_order() -> None:
     right = {"a": ["-O3"], "b": {"x": 1, "y": 2}}
 
     assert compute_payload_hash(left) == compute_payload_hash(right)
+
+
+def test_payload_hash_excludes_literal_dot_top_level_keys() -> None:
+    payload = {
+        "keep": {"value": 1},
+        "v1.5_key": {"literal": True},
+        "nested": {"field": "excluded"},
+    }
+    expected_payload = {"keep": {"value": 1}, "nested": {}}
+
+    assert compute_payload_hash(
+        payload,
+        excluded_fields=("v1.5_key", "nested.field"),
+    ) == compute_payload_hash(expected_payload, excluded_fields=())
+    assert payload["v1.5_key"] == {"literal": True}
+    assert payload["nested"] == {"field": "excluded"}
 
 
 def test_verify_trial_integrity_detects_payload_tampering() -> None:
@@ -693,6 +729,21 @@ def test_iter_trial_record_paths_returns_empty_for_missing_trial_dir(tmp_path: P
     layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
 
     assert iter_trial_record_paths(layout) == ()
+
+
+def test_iter_trial_record_paths_ignores_symlinks(tmp_path: Path) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+    trial_path = write_trial_record(layout, trial_record_data())
+    valid_link = trial_path.parent / "trial_link.yaml"
+    broken_link = trial_path.parent / "trial_broken.yaml"
+    try:
+        valid_link.symlink_to(trial_path)
+        broken_link.symlink_to(trial_path.parent / "missing.yaml")
+    except (NotImplementedError, OSError):
+        pytest.skip("filesystem does not allow creating symlinks")
+
+    assert iter_trial_record_paths(layout) == (trial_path,)
+    assert [item.record.trial_id for item in discover_trial_records(layout)] == ["r12_t3"]
 
 
 def test_load_trial_record_for_layout_rejects_wrong_month_partition(tmp_path: Path) -> None:
@@ -878,6 +929,18 @@ def test_trial_index_is_stale_tracks_missing_and_newer_yaml(tmp_path: Path) -> N
     os.utime(path, ns=(newer, newer))
 
     assert trial_index_is_stale(layout) is True
+
+
+def test_trial_index_is_stale_tracks_deleted_yaml(tmp_path: Path) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+    path = write_trial_record(layout, trial_record_data())
+    rebuild_trial_index(layout)
+
+    path.unlink()
+
+    assert trial_index_is_stale(layout) is True
+    assert ensure_trial_index_current(layout).trial_count == 0
+    assert load_trial_index_rows(layout) == ()
 
 
 def test_ensure_trial_index_current_rebuilds_only_when_stale(

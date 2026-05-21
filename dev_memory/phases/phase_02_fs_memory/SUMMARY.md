@@ -35,6 +35,7 @@ Completed:
 - Subtask 2.7 received external approval after independent Linux verification: 272/272 tests passed, the Linux real-fcntl test executed, and only Low/Info follow-ups remain.
 - Subtask 2.8 performed a Phase 02 polish pass across accumulated Low/TG items: hidden trial YAML is ignored, schema-incompatible trial indexes rebuild, stale SQLite sidecars are cleaned, empty learned-rule scopes are rejected, experience strict fields now defeat `NonEmptyStr` silent strip where needed, experience manifest filenames reject hidden/spaced names, atomic symlink replacement behavior is tested, and top-level integrity hashing avoids unnecessary deep copies.
 - Subtask 2.8 received external approval after independent Linux verification: 282/282 tests passed, the Linux real-fcntl test executed, and only future-facing Info notes remain.
+- Subtask 2.9 addressed Kimi's full-code review findings: trial discovery now filters symlinks, payload hash exclusions handle literal-dot top-level keys, trial index staleness detects deleted YAML by count mismatch, and TrialRecord canary mode/schedule_slot must match.
 
 Remaining:
-- Phase 02 FS-Memory is externally approved after polish. Prepare Phase 03 or the next milestone.
+- Request final verification for Kimi review fixes, then proceed to Phase 03 or the next milestone.

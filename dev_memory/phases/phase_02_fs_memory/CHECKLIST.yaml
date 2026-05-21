@@ -276,3 +276,39 @@ subtasks:
       - dev_memory/phases/phase_02_fs_memory/SUMMARY.md
       - dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md
       - dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md
+  - id: "2.9"
+    title: "Full-code Kimi review fixes for Phase 02 edge cases"
+    status: done
+    related_requirements:
+      - REQUIREMENTS.md section 4.2.4
+      - REQUIREMENTS.md section 4.2.6
+      - REQUIREMENTS.md section 4.7.5
+    ut_required: true
+    ut_passed: true
+    targeted_ut: "128 passed, 0 failed"
+    full_ut: "286 passed, 0 failed, 1 skipped"
+    self_review_required: true
+    self_reviewed: true
+    patch_required: true
+    patch_file: dev_memory/phases/phase_02_fs_memory/patches/11_kimi_review_fixes.patch
+    patch_generated: true
+    commit_required: true
+    commit_pending: true
+    external_review_source: Kimi
+    external_review_verdict: approve_with_minor_changes
+    external_review_tests: "282 passed, 0 failed"
+    review_fix_summary:
+      - "Trial discovery filters symlinks before load."
+      - "Payload hashing supports literal-dot top-level excluded keys."
+      - "Trial index staleness detects deleted canonical YAML by count mismatch."
+      - "TrialRecord canary mode and schedule_slot must match."
+    files_modified:
+      - src/agent/fs_memory.py
+      - tests/test_fs_memory.py
+      - dev_memory/CURRENT_PHASE.yaml
+      - dev_memory/DECISIONS.md
+      - dev_memory/PROGRESS.md
+      - dev_memory/phases/phase_02_fs_memory/CHECKLIST.yaml
+      - dev_memory/phases/phase_02_fs_memory/SUMMARY.md
+      - dev_memory/phases/phase_02_fs_memory/UT_RESULTS.md
+      - dev_memory/phases/phase_02_fs_memory/REVIEW_NOTES.md

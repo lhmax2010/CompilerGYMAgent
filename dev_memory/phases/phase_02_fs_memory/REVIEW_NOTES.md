@@ -586,3 +586,28 @@ Low/Info notes:
 
 Review conclusion:
 - Phase 02 polish is approved. Phase 02 has no remaining blocking items and is ready for Phase 03 or the next milestone.
+
+## Subtask 2.9 - Kimi full-code review fixes
+
+Scope:
+- Address Kimi's full-code review findings after Phase 02 polish.
+- Keep the fix pass narrow: no new public APIs and no broad refactors.
+
+Findings addressed:
+- [x] H-1: `iter_trial_record_paths` no longer returns symlinks, matching `load_trial_record`'s no-symlink contract and preventing symlink side files from blocking batch discovery.
+- [x] M-1: `compute_payload_hash` removes exact top-level excluded keys before applying dotted mapping-path removal, so literal-dot top-level keys are handled correctly.
+- [x] M-2: `trial_index_is_stale` compares the derived index trial count with current canonical YAML path count, so deleting YAML marks the index stale and `ensure_trial_index_current` rebuilds.
+- [x] M-3: `TrialRecord` requires canary mode and canary schedule_slot to match, then still requires canary details for canary trials.
+
+Tests:
+- `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q` -> 128 passed.
+- `.venv\Scripts\python.exe -m pytest -q` -> 286 passed, 1 skipped on Windows.
+
+Self-review notes:
+- Filtering symlinks in discovery is safer than discovering then failing in `load_trial_record`; direct single-file loads still reject symlinks explicitly.
+- Payload hashing now handles both exact top-level exclusions and dotted mapping exclusions in the same defensive deepcopy branch.
+- Trial index staleness now opens the summary DB for count comparison; corrupt/schema-incompatible indexes already return stale through `TrialIndexError`.
+- Canary mode/slot consistency makes `mode` and quota accounting agree instead of silently accepting drift.
+
+Review conclusion:
+- Kimi review fixes are ready for final verification after patch generation, commit, and push.

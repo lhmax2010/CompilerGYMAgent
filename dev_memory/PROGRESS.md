@@ -767,3 +767,17 @@ Next action: commit this sync record, push, then request external review.
 - Remaining observations are Info-only: stale sidecar cleanup should be revisited before any future WAL-mode switch, and the `compute_payload_hash` dotted-path heuristic may over-select `deepcopy` only if a future top-level field name contains a dot.
 
 Next action: record this sync commit and proceed to Phase 03 or the next milestone.
+
+## 2026-05-21T13:47:12Z - Phase 02 / Kimi full-code review fixes implemented
+
+- Kimi completed a full-code review at HEAD `18e8992` with verdict "Approve with minor changes" and Linux tests `282 passed, 0 failed`.
+- Fixed the High finding by filtering symlinks out of trial discovery before batch loading.
+- Fixed the payload-hash Medium by removing exact top-level excluded keys before applying dotted mapping-path removal.
+- Fixed the trial-index Medium by comparing index trial count with current canonical YAML path count, so deleted YAML marks the index stale.
+- Fixed the canary Medium by requiring canary `mode` and `schedule_slot` to match.
+- Added focused regression tests for all four fixes.
+- Local UT results:
+  - `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q` -> 128 passed.
+  - `.venv\Scripts\python.exe -m pytest -q` -> 286 passed, 1 skipped on Windows.
+
+Next action: generate patch artifacts, commit/push the Kimi review fixes, then request final verification.

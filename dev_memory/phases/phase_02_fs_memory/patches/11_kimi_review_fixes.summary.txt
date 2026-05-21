@@ -1,0 +1,21 @@
+Phase 02 / Subtask 2.9 - Kimi full-code review fixes
+
+Requirements:
+- REQUIREMENTS.md section 4.2.4
+- REQUIREMENTS.md section 4.2.6
+- REQUIREMENTS.md section 4.7.5
+
+Summary:
+- Addressed Kimi's full-code review findings after Phase 02 polish.
+- Filtered symlinks out of canonical trial discovery so batch discovery cannot
+  surface paths that `load_trial_record` will reject.
+- Updated `compute_payload_hash` so exact top-level excluded keys are removed
+  before dotted mapping-path removal, covering literal-dot top-level keys.
+- Extended `trial_index_is_stale` to compare derived index row count against
+  current canonical YAML path count, so deleted YAML triggers rebuild.
+- Required `TrialRecord.mode == "canary"` and `schedule_slot == "canary"` to
+  agree before accepting completed trial records.
+
+Tests:
+- `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q` -> 128 passed.
+- `.venv\Scripts\python.exe -m pytest -q` -> 286 passed, 1 skipped on Windows.
