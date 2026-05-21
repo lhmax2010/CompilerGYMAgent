@@ -813,3 +813,13 @@ Next action: commit this sync record, push, then request final verification.
   - `.venv\Scripts\python.exe -m pytest -q` -> 304 passed, 1 skipped on Windows.
 
 Next action: generate patch artifacts, commit/push Subtask 3.1, then request external review.
+
+## 2026-05-21T14:12:00Z - Phase 03 / Subtask 3.1 committed
+
+- Commit: `566c0c5 phase_03_trace_lifecycle: 3.1 implement trace jsonl writer`.
+- Patch files:
+  - `dev_memory/phases/phase_03_trace_lifecycle/patches/01_trace_jsonl_writer.patch`
+  - `dev_memory/phases/phase_03_trace_lifecycle/patches/01_trace_jsonl_writer.summary.txt`
+  - `dev_memory/phases/phase_03_trace_lifecycle/patches/01_trace_jsonl_writer.review.md`
+
+Next action: commit this sync record, push, then request external review and Ubuntu validation.

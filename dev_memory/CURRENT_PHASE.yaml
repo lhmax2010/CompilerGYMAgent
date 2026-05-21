@@ -37,11 +37,13 @@ subtasks:
     patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/01_trace_jsonl_writer.patch
     patch_generated: true
     commit_required: true
-    commit_pending: true
+    commit_pending: false
+    commit_hash: 566c0c5
+    commit_message: "phase_03_trace_lifecycle: 3.1 implement trace jsonl writer"
 notes: |
   Phase 03 starts with the canonical `trace/events.jsonl` append-only event
   stream because REQUIREMENTS.md defines runtime recovery state as
   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
   trace storage primitive before wiring lifecycle stages, rejected candidates,
   dry-run injection, or process/user-action event producers.
-next_action: "Generate Phase 03 patch artifacts, commit/push Subtask 3.1, then request external review."
+next_action: "Push Subtask 3.1 sync, then request external review and Ubuntu validation."
