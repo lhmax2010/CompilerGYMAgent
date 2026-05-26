@@ -1,0 +1,14 @@
+Subtask 3.1 review fixes close Claude's trace writer findings.
+
+Changes:
+- Removed append-time full-file line counting from append_trace_event.
+- Added optional expected_line_number for future lock-protected producers that need events.jsonl#L<N>.
+- Made TraceAppendResult.line_number optional and added always-available byte_ref metadata.
+- Made iter_trace_events truly lazy by streaming validated JSONL lines.
+- Added tests for O(1) append metadata, expected line-number sanity checks, lazy iteration, and extra datetime rejection.
+- Recorded the design decision that line numbers are caller-supplied while byte offsets remain the O(1) storage-level reference.
+
+Verification:
+- .venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -v -> 22 passed.
+- .venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q -> 128 passed.
+- .venv\Scripts\python.exe -m pytest -q -> 308 passed, 1 skipped on Windows.

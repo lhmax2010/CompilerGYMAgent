@@ -882,12 +882,21 @@ class TraceAppendResult:
     """Location metadata for one appended trace event."""
 
     path: Path
-    line_number: int
+    line_number: int | None
     byte_offset: int
 
     @property
     def trace_id(self) -> str:
+        if self.line_number is None:
+            raise ValueError(
+                "trace line number is unavailable; pass expected_line_number "
+                "to append_trace_event when a line-based trace_id is required"
+            )
         return f"{self.path.name}#L{self.line_number}"
+
+    @property
+    def byte_ref(self) -> str:
+        return f"{self.path.name}#B{self.byte_offset}"
 
 
 @dataclass(frozen=True)
@@ -1637,14 +1646,20 @@ def trace_event_payload(event: TraceEvent | Mapping[str, Any]) -> dict[str, Any]
 def append_trace_event(
     layout: NamespaceLayout,
     event: TraceEvent | Mapping[str, Any],
+    *,
+    expected_line_number: int | None = None,
 ) -> TraceAppendResult:
     """Append one canonical event to `trace/events.jsonl`.
 
     Callers must hold the workspace lock before invoking this function during
     normal runs. The append path uses `O_APPEND`, writes exactly one LF-terminated
-    JSON object, fsyncs the file, and rejects symlink targets.
+    JSON object, fsyncs the file, and rejects symlink targets. The write path
+    does not scan existing trace files; callers that need `events.jsonl#L<N>`
+    should pass their lock-protected `expected_line_number`.
     """
 
+    if expected_line_number is not None and expected_line_number <= 0:
+        raise TraceWriteError("expected_line_number must be positive")
     payload = trace_event_payload(event)
     line = _trace_event_line(payload)
     target = layout.trace_path
@@ -1663,7 +1678,18 @@ def append_trace_event(
         byte_offset = target.stat().st_size if existed else 0
         if byte_offset > 0 and not _file_ends_with_newline(target):
             raise TraceWriteError(f"trace file is not newline-terminated: {target}")
-        line_number = _count_trace_lines(target) + 1 if existed else 1
+        if byte_offset == 0:
+            line_number = 1 if expected_line_number is None else expected_line_number
+            if line_number != 1:
+                raise TraceWriteError(
+                    "expected_line_number must be 1 when creating a new trace file"
+                )
+        elif expected_line_number == 1:
+            raise TraceWriteError(
+                "expected_line_number cannot be 1 for a non-empty trace file"
+            )
+        else:
+            line_number = expected_line_number
         fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
         try:
             _write_all(fd, line)
@@ -1686,11 +1712,17 @@ def append_trace_event(
 def iter_trace_events(path: str | Path) -> Iterator[TraceEvent]:
     """Yield validated events from one canonical `events.jsonl` file."""
 
-    yield from load_trace_events(path)
+    yield from _iter_trace_events(path)
 
 
 def load_trace_events(path: str | Path) -> tuple[TraceEvent, ...]:
     """Load and validate all events from one canonical `events.jsonl` file."""
+
+    return tuple(iter_trace_events(path))
+
+
+def _iter_trace_events(path: str | Path) -> Iterator[TraceEvent]:
+    """Stream validated events from one canonical `events.jsonl` file."""
 
     trace_path = Path(path)
     if trace_path.is_symlink():
@@ -1700,7 +1732,6 @@ def load_trace_events(path: str | Path) -> tuple[TraceEvent, ...]:
     if trace_path.is_dir():
         raise TraceLoadError(f"trace path is a directory: {trace_path}")
 
-    events: list[TraceEvent] = []
     try:
         with trace_path.open("rb") as handle:
             for line_number, raw_line in enumerate(handle, start=1):
@@ -1733,7 +1764,7 @@ def load_trace_events(path: str | Path) -> tuple[TraceEvent, ...]:
                         f"trace line {line_number} must contain a JSON object"
                     )
                 try:
-                    events.append(TraceEvent.model_validate(data))
+                    yield TraceEvent.model_validate(data)
                 except ValidationError as exc:
                     raise TraceLoadError(
                         f"trace line {line_number} is invalid:\n{exc}"
@@ -1742,7 +1773,6 @@ def load_trace_events(path: str | Path) -> tuple[TraceEvent, ...]:
         raise
     except OSError as exc:
         raise TraceLoadError(f"failed to load trace file {trace_path}: {exc}") from exc
-    return tuple(events)
 
 
 def checkpoint_payload(state: CheckpointState | Mapping[str, Any]) -> dict[str, Any]:
@@ -2018,14 +2048,6 @@ def _file_ends_with_newline(path: Path) -> bool:
     with path.open("rb") as handle:
         handle.seek(-1, os.SEEK_END)
         return handle.read(1) == b"\n"
-
-
-def _count_trace_lines(path: Path) -> int:
-    count = 0
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            count += chunk.count(b"\n")
-    return count
 
 
 def _write_all(fd: int, data: bytes) -> None:

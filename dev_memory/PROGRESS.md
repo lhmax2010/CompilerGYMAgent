@@ -823,3 +823,27 @@ Next action: generate patch artifacts, commit/push Subtask 3.1, then request ext
   - `dev_memory/phases/phase_03_trace_lifecycle/patches/01_trace_jsonl_writer.review.md`
 
 Next action: commit this sync record, push, then request external review and Ubuntu validation.
+
+## 2026-05-26T11:59:47Z - Phase 03 / Subtask 3.1 external review completed
+
+- Reviewer: Claude.
+- Verdict: Approve with minor changes.
+- Range: `2dc6b9f..67ecef0`.
+- Implementation: `566c0c5`; sync: `67ecef0`.
+- Tests: 305 passed, 0 failed on Linux; the Linux real `fcntl` workspace lock path passed.
+- Medium finding: `append_trace_event` computed line numbers by scanning the whole trace file on every append, creating an O(n²) high-frequency writer path.
+- Low/Info findings: `iter_trace_events` was not truly lazy, and extra payload datetime values should be documented/tested as rejected unless pre-serialized.
+
+## 2026-05-26T11:59:47Z - Phase 03 / Subtask 3.1 review fixes implemented
+
+- Removed append-time full-file line counting from `append_trace_event`.
+- Changed `TraceAppendResult.line_number` to optional and added always-available `byte_ref` based on the O(1) append byte offset.
+- Added `expected_line_number` to `append_trace_event` so future lock-protected producers can keep `events.jsonl#L<N>` references without trace-file scans.
+- Made `iter_trace_events` stream lazily by sharing an internal per-line generator with `load_trace_events`.
+- Added tests for O(1) metadata, inconsistent expected line numbers, lazy iteration, and extra datetime rejection.
+- UT results:
+  - `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -v` -> 22 passed.
+  - `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q` -> 128 passed.
+  - `.venv\Scripts\python.exe -m pytest -q` -> 308 passed, 1 skipped on Windows.
+
+Next action: generate review-fix patch artifacts, commit/push, then request external review-fix validation.

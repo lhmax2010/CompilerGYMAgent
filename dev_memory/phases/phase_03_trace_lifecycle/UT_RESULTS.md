@@ -26,3 +26,28 @@
   - Append rejects oversized events, directory targets, symlink targets, and existing files without a trailing newline.
   - Loading rejects invalid JSON, non-object JSON, blank lines, JSON NaN/Infinity constants, non-UTF8 bytes, non-newline-terminated lines, and oversized lines.
   - Missing trace files load as an empty event tuple.
+
+## Subtask 3.1 - review fixes
+
+- timestamp_utc: 2026-05-26T11:59:47Z
+- review_source: Claude
+- review_verdict: Approve with minor changes
+- review_tests: 305 passed, 0 failed on Linux
+- environment:
+  - os: Windows development host
+  - python: 3.14.3
+  - runner: `.venv\Scripts\python.exe -m pytest`
+- targeted_command: `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -v`
+- targeted_result: 22 passed, 0 failed
+- regression_command: `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q`
+- regression_result: 128 passed, 0 failed
+- full_command: `.venv\Scripts\python.exe -m pytest -q`
+- full_result: 308 passed, 0 failed, 1 skipped
+- skipped:
+  - `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter` requires Linux fcntl and must be covered by Ubuntu validation.
+- new_coverage:
+  - Appending to an existing trace without `expected_line_number` returns O(1) byte-offset metadata and no line number.
+  - Lock-protected callers can still pass `expected_line_number` to get `events.jsonl#L<N>` references without scanning the file.
+  - Inconsistent expected line numbers are rejected for new files and non-empty files.
+  - `iter_trace_events` yields the first valid line before surfacing a later invalid line, proving lazy iteration.
+  - Extra payload datetime values are rejected as non-JSON-native data.

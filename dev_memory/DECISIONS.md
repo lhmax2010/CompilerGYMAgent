@@ -443,3 +443,16 @@ Decision records must include:
   - Define a closed enum/union model for every trace event kind immediately, which would force Phase 03 to predict later candidate, KG, dry-run, clean, and process event shapes before those producers exist.
   - Write trace through `atomic_write_yaml` or whole-file JSON replacement, which would contradict append-only trace semantics and make each event rewrite the entire canonical stream.
   - Let callers write raw JSON strings directly, which would bypass UTC timestamp validation, finite-number checks, size limits, symlink rejection, and line-reference metadata needed by trial/checkpoint records.
+
+## 2026-05-26T11:59:47Z - Keep trace append O(1) and make line numbers caller-supplied
+
+- affected_requirement:
+  - REQUIREMENTS.md section 3.3.4
+  - REQUIREMENTS.md section 5.1.2
+  - REQUIREMENTS.md section 5.1.3
+- decision: `append_trace_event()` no longer scans `events.jsonl` to compute a line number. It always returns the O(1) append `byte_offset` and `byte_ref`; lock-protected producers that need `events.jsonl#L<N>` references pass `expected_line_number`, which is copied into `TraceAppendResult.line_number`.
+- rationale: Trace is a high-frequency canonical stream. Counting existing lines on every append makes a long-running session O(n²) as rounds, trial stages, LLM calls, rejected candidates, process events, and memory operations accumulate. Producer layers already run under `WorkspaceLock` and can maintain a session-local line counter without extra I/O.
+- alternatives_considered:
+  - Keep computing line numbers by scanning the file at append time, which preserves a convenient return value but becomes a serious bottleneck for large traces.
+  - Add a sidecar line-count file, which would make a second mutable file part of trace coordination and create another recovery edge.
+  - Store line counts in `checkpoint.yaml`, which would couple the low-level trace writer to checkpoint schema evolution before lifecycle producers exist.

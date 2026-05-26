@@ -26,3 +26,23 @@ Self-review notes:
 
 Review conclusion:
 - Subtask 3.1 is ready for full-suite verification, patch generation, commit, push, and external review.
+
+## Subtask 3.1 - external review fixes
+
+- timestamp_utc: 2026-05-26T11:59:47Z
+- reviewer: Claude
+- verdict: Approve with minor changes
+- tests: 305 passed, 0 failed on Linux
+
+Findings addressed:
+- [x] M-1: `append_trace_event` no longer scans the full trace file to compute a line number on every append.
+- [x] L-1: `iter_trace_events` now streams validated events lazily instead of materializing the whole tuple first.
+- [x] L-3/TG-3: extra payload datetime values are explicitly covered as rejected non-JSON-native values.
+
+Design notes:
+- `TraceAppendResult.line_number` is now optional. The first append to a new or empty file can infer line 1 cheaply; later appends get line metadata only when the caller passes `expected_line_number`.
+- `TraceAppendResult.byte_ref` is always available and uses the O(1) append byte offset.
+- Future lifecycle producers should maintain a lock-protected line counter when they need line-based `trace_id` values for trial/checkpoint references.
+
+Review conclusion:
+- The review fixes remove the O(n²) append path before Subtask 3.2 wires high-frequency producers into trace writing.

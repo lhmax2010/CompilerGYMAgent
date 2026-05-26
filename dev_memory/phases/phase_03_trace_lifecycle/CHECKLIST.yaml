@@ -31,6 +31,19 @@ subtasks:
     commit_pending: false
     commit_hash: 566c0c5
     commit_message: "phase_03_trace_lifecycle: 3.1 implement trace jsonl writer"
+    external_review_verdict: approve_with_minor_changes
+    external_reviewed_at: 2026-05-26T11:59:47Z
+    external_review_tests: "305 passed, 0 failed"
+    review_fix_status: done
+    review_fix_summary:
+      - "Removed append-time full-file line counting."
+      - "Added optional expected_line_number for lock-protected producers that need line-based trace ids."
+      - "Added byte_ref metadata for O(1) append results."
+      - "Made iter_trace_events stream lazily."
+      - "Added tests for O(1) metadata, line-number sanity checks, lazy iteration, and extra datetime rejection."
+    review_fix_targeted_ut: "22 passed, 0 failed"
+    review_fix_fs_memory_regression_ut: "128 passed, 0 failed"
+    review_fix_full_ut: "308 passed, 0 failed, 1 skipped"
     files_modified:
       - src/agent/fs_memory.py
       - src/agent/__init__.py

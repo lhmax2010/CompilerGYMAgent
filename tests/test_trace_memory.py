@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -58,10 +57,12 @@ def test_append_trace_event_writes_jsonl_and_returns_line_reference(tmp_path: Pa
             mode="dry_run",
             message="编译 trace",
         ),
+        expected_line_number=1,
     )
     second = append_trace_event(
         current_layout,
         event_data(kind="trial_start", trial_id="r12_t3", combo=["-O3"], mode="exploit"),
+        expected_line_number=2,
     )
 
     assert first.line_number == 1
@@ -82,6 +83,44 @@ def test_append_trace_event_writes_jsonl_and_returns_line_reference(tmp_path: Pa
     assert tuple(iter_trace_events(current_layout.trace_path)) == loaded
 
 
+def test_append_trace_event_without_expected_line_number_is_o1_metadata(
+    tmp_path: Path,
+) -> None:
+    current_layout = layout(tmp_path)
+
+    first = append_trace_event(current_layout, event_data())
+    second = append_trace_event(
+        current_layout,
+        event_data(kind="trial_start", trial_id="r12_t3"),
+    )
+
+    assert first.line_number == 1
+    assert first.trace_id == "events.jsonl#L1"
+    assert first.byte_ref == "events.jsonl#B0"
+    assert second.line_number is None
+    assert second.byte_offset > 0
+    assert second.byte_ref == f"events.jsonl#B{second.byte_offset}"
+    with pytest.raises(ValueError, match="expected_line_number"):
+        _ = second.trace_id
+
+
+def test_append_trace_event_rejects_inconsistent_expected_line_number(
+    tmp_path: Path,
+) -> None:
+    current_layout = layout(tmp_path)
+
+    with pytest.raises(TraceWriteError, match="must be 1"):
+        append_trace_event(current_layout, event_data(), expected_line_number=2)
+
+    append_trace_event(current_layout, event_data(), expected_line_number=1)
+    with pytest.raises(TraceWriteError, match="cannot be 1"):
+        append_trace_event(
+            current_layout,
+            event_data(kind="trial_start"),
+            expected_line_number=1,
+        )
+
+
 @pytest.mark.parametrize(
     ("bad_event", "expected"),
     [
@@ -89,6 +128,7 @@ def test_append_trace_event_writes_jsonl_and_returns_line_reference(tmp_path: Pa
         ({"ts": "2026-04-30T10:23:45Z", "kind": " round_start"}, "whitespace"),
         ({"ts": "2026-04-30T10:23:45Z", "kind": "round/start"}, "ASCII"),
         ({"ts": "2026-04-30T10:23:45Z", "kind": "round_start", "value": float("inf")}, "non-finite"),
+        ({"ts": "2026-04-30T10:23:45Z", "kind": "round_start", "value": datetime(2026, 4, 30, tzinfo=UTC)}, "datetime"),
         ({"ts": "2026-04-30T10:23:45Z", "kind": "round_start", "value": Path("x")}, "non-JSON"),
     ],
 )
@@ -158,6 +198,21 @@ def test_load_trace_events_rejects_invalid_jsonl(
 
     with pytest.raises(TraceLoadError, match=expected):
         load_trace_events(current_layout.trace_path)
+
+
+def test_iter_trace_events_yields_before_later_invalid_line(tmp_path: Path) -> None:
+    current_layout = layout(tmp_path)
+    current_layout.trace_path.parent.mkdir(parents=True)
+    current_layout.trace_path.write_bytes(
+        b'{"ts":"2026-04-30T10:23:45Z","kind":"round_start"}\n'
+        b"{not-json}\n"
+    )
+
+    iterator = iter_trace_events(current_layout.trace_path)
+
+    assert trace_event_payload(next(iterator))["kind"] == "round_start"
+    with pytest.raises(TraceLoadError, match="failed to parse JSON"):
+        next(iterator)
 
 
 def test_load_trace_events_rejects_oversized_line(tmp_path: Path) -> None:

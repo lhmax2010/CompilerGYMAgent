@@ -13,7 +13,9 @@ Completed:
 - `append_trace_event(layout, event)` writes one LF-terminated JSON object using `O_APPEND`, fsyncs the file, rejects symlink/directory targets, and returns `TraceAppendResult` with `events.jsonl#L<N>`.
 - `load_trace_events(path)` validates canonical trace files by line: UTF-8, newline termination, JSON object shape, UTC timestamp, safe event kind, finite JSON values, and per-line size cap.
 - Trace event payloads keep strict common fields (`ts`, `kind`) while allowing event-specific keys required by REQUIREMENTS.md section 5.1.
+- External review approved Subtask 3.1 with minor changes after 305/305 Linux tests.
+- Review fixes removed append-time full-file line counting, added optional `expected_line_number` for lock-protected producers, added byte-offset references for O(1) append metadata, and made `iter_trace_events` truly lazy.
 
 Remaining:
-- Generate patch artifacts, commit, push, and request external review for Subtask 3.1.
+- Generate review-fix patch artifacts, commit, push, and request external review-fix validation for Subtask 3.1.
 - Later Phase 03 subtasks should wire workflow lifecycle stage transitions so checkpoint writes and trace events are emitted together.

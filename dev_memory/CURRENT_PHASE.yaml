@@ -40,10 +40,22 @@ subtasks:
     commit_pending: false
     commit_hash: 566c0c5
     commit_message: "phase_03_trace_lifecycle: 3.1 implement trace jsonl writer"
+    external_review_verdict: approve_with_minor_changes
+    external_reviewed_at: 2026-05-26T11:59:47Z
+    external_review_tests: "305 passed, 0 failed"
+    review_fix_status: done
+    review_fix_summary:
+      - "Removed O(n) trace-line counting from append_trace_event; callers can pass expected_line_number when they need events.jsonl#L<N>."
+      - "Added byte-offset trace references so appends always return O(1) stable metadata."
+      - "Made iter_trace_events truly lazy by streaming validated JSONL lines."
+      - "Documented and tested that extra payload datetime values are rejected unless caller pre-serializes them."
+    review_fix_targeted_ut: "22 passed, 0 failed"
+    review_fix_fs_memory_regression_ut: "128 passed, 0 failed"
+    review_fix_full_ut: "308 passed, 0 failed, 1 skipped"
 notes: |
   Phase 03 starts with the canonical `trace/events.jsonl` append-only event
   stream because REQUIREMENTS.md defines runtime recovery state as
   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
   trace storage primitive before wiring lifecycle stages, rejected candidates,
   dry-run injection, or process/user-action event producers.
-next_action: "Push Subtask 3.1 sync, then request external review and Ubuntu validation."
+next_action: "Generate review-fix patch artifacts, commit/push, then request external review-fix validation."

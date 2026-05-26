@@ -1,0 +1,411 @@
+﻿diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index 6d771a0..863dd1a 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -40,10 +40,22 @@ subtasks:
+     commit_pending: false
+     commit_hash: 566c0c5
+     commit_message: "phase_03_trace_lifecycle: 3.1 implement trace jsonl writer"
++    external_review_verdict: approve_with_minor_changes
++    external_reviewed_at: 2026-05-26T11:59:47Z
++    external_review_tests: "305 passed, 0 failed"
++    review_fix_status: done
++    review_fix_summary:
++      - "Removed O(n) trace-line counting from append_trace_event; callers can pass expected_line_number when they need events.jsonl#L<N>."
++      - "Added byte-offset trace references so appends always return O(1) stable metadata."
++      - "Made iter_trace_events truly lazy by streaming validated JSONL lines."
++      - "Documented and tested that extra payload datetime values are rejected unless caller pre-serializes them."
++    review_fix_targeted_ut: "22 passed, 0 failed"
++    review_fix_fs_memory_regression_ut: "128 passed, 0 failed"
++    review_fix_full_ut: "308 passed, 0 failed, 1 skipped"
+ notes: |
+   Phase 03 starts with the canonical `trace/events.jsonl` append-only event
+   stream because REQUIREMENTS.md defines runtime recovery state as
+   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
+   trace storage primitive before wiring lifecycle stages, rejected candidates,
+   dry-run injection, or process/user-action event producers.
+-next_action: "Push Subtask 3.1 sync, then request external review and Ubuntu validation."
++next_action: "Generate review-fix patch artifacts, commit/push, then request external review-fix validation."
+diff --git a/dev_memory/DECISIONS.md b/dev_memory/DECISIONS.md
+index cd1b832..a445780 100644
+--- a/dev_memory/DECISIONS.md
++++ b/dev_memory/DECISIONS.md
+@@ -443,3 +443,16 @@ Decision records must include:
+   - Define a closed enum/union model for every trace event kind immediately, which would force Phase 03 to predict later candidate, KG, dry-run, clean, and process event shapes before those producers exist.
+   - Write trace through `atomic_write_yaml` or whole-file JSON replacement, which would contradict append-only trace semantics and make each event rewrite the entire canonical stream.
+   - Let callers write raw JSON strings directly, which would bypass UTC timestamp validation, finite-number checks, size limits, symlink rejection, and line-reference metadata needed by trial/checkpoint records.
++
++## 2026-05-26T11:59:47Z - Keep trace append O(1) and make line numbers caller-supplied
++
++- affected_requirement:
++  - REQUIREMENTS.md section 3.3.4
++  - REQUIREMENTS.md section 5.1.2
++  - REQUIREMENTS.md section 5.1.3
++- decision: `append_trace_event()` no longer scans `events.jsonl` to compute a line number. It always returns the O(1) append `byte_offset` and `byte_ref`; lock-protected producers that need `events.jsonl#L<N>` references pass `expected_line_number`, which is copied into `TraceAppendResult.line_number`.
++- rationale: Trace is a high-frequency canonical stream. Counting existing lines on every append makes a long-running session O(n²) as rounds, trial stages, LLM calls, rejected candidates, process events, and memory operations accumulate. Producer layers already run under `WorkspaceLock` and can maintain a session-local line counter without extra I/O.
++- alternatives_considered:
++  - Keep computing line numbers by scanning the file at append time, which preserves a convenient return value but becomes a serious bottleneck for large traces.
++  - Add a sidecar line-count file, which would make a second mutable file part of trace coordination and create another recovery edge.
++  - Store line counts in `checkpoint.yaml`, which would couple the low-level trace writer to checkpoint schema evolution before lifecycle producers exist.
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index 211a04e..ec3cd1b 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -823,3 +823,27 @@ Next action: generate patch artifacts, commit/push Subtask 3.1, then request ext
+   - `dev_memory/phases/phase_03_trace_lifecycle/patches/01_trace_jsonl_writer.review.md`
+
+ Next action: commit this sync record, push, then request external review and Ubuntu validation.
++
++## 2026-05-26T11:59:47Z - Phase 03 / Subtask 3.1 external review completed
++
++- Reviewer: Claude.
++- Verdict: Approve with minor changes.
++- Range: `2dc6b9f..67ecef0`.
++- Implementation: `566c0c5`; sync: `67ecef0`.
++- Tests: 305 passed, 0 failed on Linux; the Linux real `fcntl` workspace lock path passed.
++- Medium finding: `append_trace_event` computed line numbers by scanning the whole trace file on every append, creating an O(n²) high-frequency writer path.
++- Low/Info findings: `iter_trace_events` was not truly lazy, and extra payload datetime values should be documented/tested as rejected unless pre-serialized.
++
++## 2026-05-26T11:59:47Z - Phase 03 / Subtask 3.1 review fixes implemented
++
++- Removed append-time full-file line counting from `append_trace_event`.
++- Changed `TraceAppendResult.line_number` to optional and added always-available `byte_ref` based on the O(1) append byte offset.
++- Added `expected_line_number` to `append_trace_event` so future lock-protected producers can keep `events.jsonl#L<N>` references without trace-file scans.
++- Made `iter_trace_events` stream lazily by sharing an internal per-line generator with `load_trace_events`.
++- Added tests for O(1) metadata, inconsistent expected line numbers, lazy iteration, and extra datetime rejection.
++- UT results:
++  - `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -v` -> 22 passed.
++  - `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q` -> 128 passed.
++  - `.venv\Scripts\python.exe -m pytest -q` -> 308 passed, 1 skipped on Windows.
++
++Next action: generate review-fix patch artifacts, commit/push, then request external review-fix validation.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml b/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml
+index 70facfe..1597818 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml
+@@ -31,6 +31,19 @@ subtasks:
+     commit_pending: false
+     commit_hash: 566c0c5
+     commit_message: "phase_03_trace_lifecycle: 3.1 implement trace jsonl writer"
++    external_review_verdict: approve_with_minor_changes
++    external_reviewed_at: 2026-05-26T11:59:47Z
++    external_review_tests: "305 passed, 0 failed"
++    review_fix_status: done
++    review_fix_summary:
++      - "Removed append-time full-file line counting."
++      - "Added optional expected_line_number for lock-protected producers that need line-based trace ids."
++      - "Added byte_ref metadata for O(1) append results."
++      - "Made iter_trace_events stream lazily."
++      - "Added tests for O(1) metadata, line-number sanity checks, lazy iteration, and extra datetime rejection."
++    review_fix_targeted_ut: "22 passed, 0 failed"
++    review_fix_fs_memory_regression_ut: "128 passed, 0 failed"
++    review_fix_full_ut: "308 passed, 0 failed, 1 skipped"
+     files_modified:
+       - src/agent/fs_memory.py
+       - src/agent/__init__.py
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md b/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
+index 8dae8bb..aaf15b2 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
++++ b/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
+@@ -26,3 +26,23 @@ Self-review notes:
+
+ Review conclusion:
+ - Subtask 3.1 is ready for full-suite verification, patch generation, commit, push, and external review.
++
++## Subtask 3.1 - external review fixes
++
++- timestamp_utc: 2026-05-26T11:59:47Z
++- reviewer: Claude
++- verdict: Approve with minor changes
++- tests: 305 passed, 0 failed on Linux
++
++Findings addressed:
++- [x] M-1: `append_trace_event` no longer scans the full trace file to compute a line number on every append.
++- [x] L-1: `iter_trace_events` now streams validated events lazily instead of materializing the whole tuple first.
++- [x] L-3/TG-3: extra payload datetime values are explicitly covered as rejected non-JSON-native values.
++
++Design notes:
++- `TraceAppendResult.line_number` is now optional. The first append to a new or empty file can infer line 1 cheaply; later appends get line metadata only when the caller passes `expected_line_number`.
++- `TraceAppendResult.byte_ref` is always available and uses the O(1) append byte offset.
++- Future lifecycle producers should maintain a lock-protected line counter when they need line-based `trace_id` values for trial/checkpoint references.
++
++Review conclusion:
++- The review fixes remove the O(n²) append path before Subtask 3.2 wires high-frequency producers into trace writing.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md b/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
+index f798fb5..1932f90 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
++++ b/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
+@@ -13,7 +13,9 @@ Completed:
+ - `append_trace_event(layout, event)` writes one LF-terminated JSON object using `O_APPEND`, fsyncs the file, rejects symlink/directory targets, and returns `TraceAppendResult` with `events.jsonl#L<N>`.
+ - `load_trace_events(path)` validates canonical trace files by line: UTF-8, newline termination, JSON object shape, UTC timestamp, safe event kind, finite JSON values, and per-line size cap.
+ - Trace event payloads keep strict common fields (`ts`, `kind`) while allowing event-specific keys required by REQUIREMENTS.md section 5.1.
++- External review approved Subtask 3.1 with minor changes after 305/305 Linux tests.
++- Review fixes removed append-time full-file line counting, added optional `expected_line_number` for lock-protected producers, added byte-offset references for O(1) append metadata, and made `iter_trace_events` truly lazy.
+
+ Remaining:
+-- Generate patch artifacts, commit, push, and request external review for Subtask 3.1.
++- Generate review-fix patch artifacts, commit, push, and request external review-fix validation for Subtask 3.1.
+ - Later Phase 03 subtasks should wire workflow lifecycle stage transitions so checkpoint writes and trace events are emitted together.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md b/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
+index 22034af..9500aed 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
++++ b/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
+@@ -26,3 +26,28 @@
+   - Append rejects oversized events, directory targets, symlink targets, and existing files without a trailing newline.
+   - Loading rejects invalid JSON, non-object JSON, blank lines, JSON NaN/Infinity constants, non-UTF8 bytes, non-newline-terminated lines, and oversized lines.
+   - Missing trace files load as an empty event tuple.
++
++## Subtask 3.1 - review fixes
++
++- timestamp_utc: 2026-05-26T11:59:47Z
++- review_source: Claude
++- review_verdict: Approve with minor changes
++- review_tests: 305 passed, 0 failed on Linux
++- environment:
++  - os: Windows development host
++  - python: 3.14.3
++  - runner: `.venv\Scripts\python.exe -m pytest`
++- targeted_command: `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -v`
++- targeted_result: 22 passed, 0 failed
++- regression_command: `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q`
++- regression_result: 128 passed, 0 failed
++- full_command: `.venv\Scripts\python.exe -m pytest -q`
++- full_result: 308 passed, 0 failed, 1 skipped
++- skipped:
++  - `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter` requires Linux fcntl and must be covered by Ubuntu validation.
++- new_coverage:
++  - Appending to an existing trace without `expected_line_number` returns O(1) byte-offset metadata and no line number.
++  - Lock-protected callers can still pass `expected_line_number` to get `events.jsonl#L<N>` references without scanning the file.
++  - Inconsistent expected line numbers are rejected for new files and non-empty files.
++  - `iter_trace_events` yields the first valid line before surfacing a later invalid line, proving lazy iteration.
++  - Extra payload datetime values are rejected as non-JSON-native data.
+diff --git a/src/agent/fs_memory.py b/src/agent/fs_memory.py
+index 9c559d4..eb7fd27 100644
+--- a/src/agent/fs_memory.py
++++ b/src/agent/fs_memory.py
+@@ -882,13 +882,22 @@ class TraceAppendResult:
+     """Location metadata for one appended trace event."""
+
+     path: Path
+-    line_number: int
++    line_number: int | None
+     byte_offset: int
+
+     @property
+     def trace_id(self) -> str:
++        if self.line_number is None:
++            raise ValueError(
++                "trace line number is unavailable; pass expected_line_number "
++                "to append_trace_event when a line-based trace_id is required"
++            )
+         return f"{self.path.name}#L{self.line_number}"
+
++    @property
++    def byte_ref(self) -> str:
++        return f"{self.path.name}#B{self.byte_offset}"
++
+
+ @dataclass(frozen=True)
+ class NamespaceLayout:
+@@ -1637,14 +1646,20 @@ def trace_event_payload(event: TraceEvent | Mapping[str, Any]) -> dict[str, Any]
+ def append_trace_event(
+     layout: NamespaceLayout,
+     event: TraceEvent | Mapping[str, Any],
++    *,
++    expected_line_number: int | None = None,
+ ) -> TraceAppendResult:
+     """Append one canonical event to `trace/events.jsonl`.
+
+     Callers must hold the workspace lock before invoking this function during
+     normal runs. The append path uses `O_APPEND`, writes exactly one LF-terminated
+-    JSON object, fsyncs the file, and rejects symlink targets.
++    JSON object, fsyncs the file, and rejects symlink targets. The write path
++    does not scan existing trace files; callers that need `events.jsonl#L<N>`
++    should pass their lock-protected `expected_line_number`.
+     """
+
++    if expected_line_number is not None and expected_line_number <= 0:
++        raise TraceWriteError("expected_line_number must be positive")
+     payload = trace_event_payload(event)
+     line = _trace_event_line(payload)
+     target = layout.trace_path
+@@ -1663,7 +1678,18 @@ def append_trace_event(
+         byte_offset = target.stat().st_size if existed else 0
+         if byte_offset > 0 and not _file_ends_with_newline(target):
+             raise TraceWriteError(f"trace file is not newline-terminated: {target}")
+-        line_number = _count_trace_lines(target) + 1 if existed else 1
++        if byte_offset == 0:
++            line_number = 1 if expected_line_number is None else expected_line_number
++            if line_number != 1:
++                raise TraceWriteError(
++                    "expected_line_number must be 1 when creating a new trace file"
++                )
++        elif expected_line_number == 1:
++            raise TraceWriteError(
++                "expected_line_number cannot be 1 for a non-empty trace file"
++            )
++        else:
++            line_number = expected_line_number
+         fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
+         try:
+             _write_all(fd, line)
+@@ -1686,12 +1712,18 @@ def append_trace_event(
+ def iter_trace_events(path: str | Path) -> Iterator[TraceEvent]:
+     """Yield validated events from one canonical `events.jsonl` file."""
+
+-    yield from load_trace_events(path)
++    yield from _iter_trace_events(path)
+
+
+ def load_trace_events(path: str | Path) -> tuple[TraceEvent, ...]:
+     """Load and validate all events from one canonical `events.jsonl` file."""
+
++    return tuple(iter_trace_events(path))
++
++
++def _iter_trace_events(path: str | Path) -> Iterator[TraceEvent]:
++    """Stream validated events from one canonical `events.jsonl` file."""
++
+     trace_path = Path(path)
+     if trace_path.is_symlink():
+         raise TraceLoadError(f"trace path must not be a symlink: {trace_path}")
+@@ -1700,7 +1732,6 @@ def load_trace_events(path: str | Path) -> tuple[TraceEvent, ...]:
+     if trace_path.is_dir():
+         raise TraceLoadError(f"trace path is a directory: {trace_path}")
+
+-    events: list[TraceEvent] = []
+     try:
+         with trace_path.open("rb") as handle:
+             for line_number, raw_line in enumerate(handle, start=1):
+@@ -1733,7 +1764,7 @@ def load_trace_events(path: str | Path) -> tuple[TraceEvent, ...]:
+                         f"trace line {line_number} must contain a JSON object"
+                     )
+                 try:
+-                    events.append(TraceEvent.model_validate(data))
++                    yield TraceEvent.model_validate(data)
+                 except ValidationError as exc:
+                     raise TraceLoadError(
+                         f"trace line {line_number} is invalid:\n{exc}"
+@@ -1742,7 +1773,6 @@ def load_trace_events(path: str | Path) -> tuple[TraceEvent, ...]:
+         raise
+     except OSError as exc:
+         raise TraceLoadError(f"failed to load trace file {trace_path}: {exc}") from exc
+-    return tuple(events)
+
+
+ def checkpoint_payload(state: CheckpointState | Mapping[str, Any]) -> dict[str, Any]:
+@@ -2020,14 +2050,6 @@ def _file_ends_with_newline(path: Path) -> bool:
+         return handle.read(1) == b"\n"
+
+
+-def _count_trace_lines(path: Path) -> int:
+-    count = 0
+-    with path.open("rb") as handle:
+-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+-            count += chunk.count(b"\n")
+-    return count
+-
+-
+ def _write_all(fd: int, data: bytes) -> None:
+     view = memoryview(data)
+     total_written = 0
+diff --git a/tests/test_trace_memory.py b/tests/test_trace_memory.py
+index 0fe3f64..8140dad 100644
+--- a/tests/test_trace_memory.py
++++ b/tests/test_trace_memory.py
+@@ -1,7 +1,6 @@
+ from __future__ import annotations
+
+ import json
+-import os
+ from datetime import UTC, datetime
+ from pathlib import Path
+
+@@ -58,10 +57,12 @@ def test_append_trace_event_writes_jsonl_and_returns_line_reference(tmp_path: Pa
+             mode="dry_run",
+             message="编译 trace",
+         ),
++        expected_line_number=1,
+     )
+     second = append_trace_event(
+         current_layout,
+         event_data(kind="trial_start", trial_id="r12_t3", combo=["-O3"], mode="exploit"),
++        expected_line_number=2,
+     )
+
+     assert first.line_number == 1
+@@ -82,6 +83,44 @@ def test_append_trace_event_writes_jsonl_and_returns_line_reference(tmp_path: Pa
+     assert tuple(iter_trace_events(current_layout.trace_path)) == loaded
+
+
++def test_append_trace_event_without_expected_line_number_is_o1_metadata(
++    tmp_path: Path,
++) -> None:
++    current_layout = layout(tmp_path)
++
++    first = append_trace_event(current_layout, event_data())
++    second = append_trace_event(
++        current_layout,
++        event_data(kind="trial_start", trial_id="r12_t3"),
++    )
++
++    assert first.line_number == 1
++    assert first.trace_id == "events.jsonl#L1"
++    assert first.byte_ref == "events.jsonl#B0"
++    assert second.line_number is None
++    assert second.byte_offset > 0
++    assert second.byte_ref == f"events.jsonl#B{second.byte_offset}"
++    with pytest.raises(ValueError, match="expected_line_number"):
++        _ = second.trace_id
++
++
++def test_append_trace_event_rejects_inconsistent_expected_line_number(
++    tmp_path: Path,
++) -> None:
++    current_layout = layout(tmp_path)
++
++    with pytest.raises(TraceWriteError, match="must be 1"):
++        append_trace_event(current_layout, event_data(), expected_line_number=2)
++
++    append_trace_event(current_layout, event_data(), expected_line_number=1)
++    with pytest.raises(TraceWriteError, match="cannot be 1"):
++        append_trace_event(
++            current_layout,
++            event_data(kind="trial_start"),
++            expected_line_number=1,
++        )
++
++
+ @pytest.mark.parametrize(
+     ("bad_event", "expected"),
+     [
+@@ -89,6 +128,7 @@ def test_append_trace_event_writes_jsonl_and_returns_line_reference(tmp_path: Pa
+         ({"ts": "2026-04-30T10:23:45Z", "kind": " round_start"}, "whitespace"),
+         ({"ts": "2026-04-30T10:23:45Z", "kind": "round/start"}, "ASCII"),
+         ({"ts": "2026-04-30T10:23:45Z", "kind": "round_start", "value": float("inf")}, "non-finite"),
++        ({"ts": "2026-04-30T10:23:45Z", "kind": "round_start", "value": datetime(2026, 4, 30, tzinfo=UTC)}, "datetime"),
+         ({"ts": "2026-04-30T10:23:45Z", "kind": "round_start", "value": Path("x")}, "non-JSON"),
+     ],
+ )
+@@ -160,6 +200,21 @@ def test_load_trace_events_rejects_invalid_jsonl(
+         load_trace_events(current_layout.trace_path)
+
+
++def test_iter_trace_events_yields_before_later_invalid_line(tmp_path: Path) -> None:
++    current_layout = layout(tmp_path)
++    current_layout.trace_path.parent.mkdir(parents=True)
++    current_layout.trace_path.write_bytes(
++        b'{"ts":"2026-04-30T10:23:45Z","kind":"round_start"}\n'
++        b"{not-json}\n"
++    )
++
++    iterator = iter_trace_events(current_layout.trace_path)
++
++    assert trace_event_payload(next(iterator))["kind"] == "round_start"
++    with pytest.raises(TraceLoadError, match="failed to parse JSON"):
++        next(iterator)
++
++
+ def test_load_trace_events_rejects_oversized_line(tmp_path: Path) -> None:
+     current_layout = layout(tmp_path)
+     current_layout.trace_path.parent.mkdir(parents=True)
