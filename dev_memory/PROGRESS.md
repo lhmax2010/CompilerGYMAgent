@@ -847,3 +847,13 @@ Next action: commit this sync record, push, then request external review and Ubu
   - `.venv\Scripts\python.exe -m pytest -q` -> 308 passed, 1 skipped on Windows.
 
 Next action: generate review-fix patch artifacts, commit/push, then request external review-fix validation.
+
+## 2026-05-26T12:05:00Z - Phase 03 / Subtask 3.1 review fixes committed
+
+- Commit: `f8fe1b9 phase_03_trace_lifecycle: 3.1 review fixes`.
+- Patch files:
+  - `dev_memory/phases/phase_03_trace_lifecycle/patches/02_trace_jsonl_review_fixes.patch`
+  - `dev_memory/phases/phase_03_trace_lifecycle/patches/02_trace_jsonl_review_fixes.summary.txt`
+  - `dev_memory/phases/phase_03_trace_lifecycle/patches/02_trace_jsonl_review_fixes.review.md`
+
+Next action: commit this sync record, push, then request external review-fix validation and Ubuntu verification.
