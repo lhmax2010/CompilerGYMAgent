@@ -46,3 +46,15 @@ Design notes:
 
 Review conclusion:
 - The review fixes remove the O(n²) append path before Subtask 3.2 wires high-frequency producers into trace writing.
+
+## Subtask 3.1 - review-fix Ubuntu validation
+
+- timestamp_utc: 2026-05-26T12:20:23Z
+- environment: Ubuntu/Linux, Python 3.11.15
+- full_command: `pytest -q`
+- full_result: 309 passed, 0 failed
+- targeted_command: `pytest tests/test_trace_memory.py -v`
+- targeted_result: 22 passed, 0 failed
+
+Validation conclusion:
+- Subtask 3.1 review fixes are validated on the target Linux environment. Phase 03 can proceed to Subtask 3.2.

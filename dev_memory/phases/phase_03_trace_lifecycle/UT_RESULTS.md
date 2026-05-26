@@ -51,3 +51,18 @@
   - Inconsistent expected line numbers are rejected for new files and non-empty files.
   - `iter_trace_events` yields the first valid line before surfacing a later invalid line, proving lazy iteration.
   - Extra payload datetime values are rejected as non-JSON-native data.
+
+## Subtask 3.1 - review-fix Ubuntu validation
+
+- timestamp_utc: 2026-05-26T12:20:23Z
+- environment:
+  - os: Ubuntu/Linux
+  - python: 3.11.15
+  - runner: `venv + pytest`
+- full_command: `pytest -q`
+- full_result: 309 passed, 0 failed
+- full_duration: 1.51s
+- targeted_command: `pytest tests/test_trace_memory.py -v`
+- targeted_result: 22 passed, 0 failed
+- targeted_duration: 0.11s
+- linux_fcntl_test: included in full pytest run

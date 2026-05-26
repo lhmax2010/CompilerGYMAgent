@@ -15,7 +15,7 @@ Completed:
 - Trace event payloads keep strict common fields (`ts`, `kind`) while allowing event-specific keys required by REQUIREMENTS.md section 5.1.
 - External review approved Subtask 3.1 with minor changes after 305/305 Linux tests.
 - Review fixes removed append-time full-file line counting, added optional `expected_line_number` for lock-protected producers, added byte-offset references for O(1) append metadata, and made `iter_trace_events` truly lazy.
+- Review fixes were validated on Ubuntu/Linux with Python 3.11.15: full pytest passed 309/309 and trace targeted pytest passed 22/22.
 
 Remaining:
-- Generate review-fix patch artifacts, commit, push, and request external review-fix validation for Subtask 3.1.
-- Later Phase 03 subtasks should wire workflow lifecycle stage transitions so checkpoint writes and trace events are emitted together.
+- Proceed to Subtask 3.2: wire workflow/session trace producers with a lock-protected `trace_line_counter`.

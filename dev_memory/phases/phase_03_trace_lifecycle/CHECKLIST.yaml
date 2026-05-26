@@ -46,6 +46,13 @@ subtasks:
     review_fix_full_ut: "308 passed, 0 failed, 1 skipped"
     review_fix_commit_hash: f8fe1b9
     review_fix_commit_message: "phase_03_trace_lifecycle: 3.1 review fixes"
+    review_fix_target_environment_validation:
+      os: Ubuntu/Linux
+      python: 3.11.15
+      full_pytest: "309 passed in 1.51s"
+      targeted_pytest: "22 passed in 0.11s"
+      linux_fcntl_test: "included in full pytest run"
+      runner: "venv + pytest"
     files_modified:
       - src/agent/fs_memory.py
       - src/agent/__init__.py

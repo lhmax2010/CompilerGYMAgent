@@ -857,3 +857,12 @@ Next action: generate review-fix patch artifacts, commit/push, then request exte
   - `dev_memory/phases/phase_03_trace_lifecycle/patches/02_trace_jsonl_review_fixes.review.md`
 
 Next action: commit this sync record, push, then request external review-fix validation and Ubuntu verification.
+
+## 2026-05-26T12:20:23Z - Phase 03 / Subtask 3.1 review-fix Ubuntu validation completed
+
+- Environment: Ubuntu/Linux, Python 3.11.15, venv + pytest.
+- Full suite: `pytest -q` -> 309 passed in 1.51s.
+- Trace targeted suite: `pytest tests/test_trace_memory.py -v` -> 22 passed in 0.11s.
+- The Linux-only real `fcntl` workspace lock path was included in the full run.
+
+Next action: proceed to Subtask 3.2 and wire trace producers with a lock-protected `trace_line_counter`.
