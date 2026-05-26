@@ -1,0 +1,17 @@
+Subtask 3.2 implements the session-scoped trace producer layer.
+
+Changes:
+- Added src/agent/trace.py with TraceSessionWriter, TraceSessionError, and count_trace_events.
+- TraceSessionWriter injects session_id and namespace into each event.
+- TraceSessionWriter maintains next_line_number and passes expected_line_number to append_trace_event.
+- TraceSessionWriter.for_layout resumes the next line counter from validated existing trace events.
+- Dry-run writers force mode: dry_run and reject conflicting normal trial-mode payloads.
+- Added convenience producers for round_start, candidate_generation, candidate_rejected, trial_start, trial_end, trial_yaml_written, and skill_span.
+- Exported the new trace producer APIs from agent.__init__.
+- Added focused tests for context injection, line-counter resume, dry-run tagging, context override rejection, session_id validation, and convenience event payloads.
+
+Verification:
+- .venv\Scripts\python.exe -m pytest tests/test_trace_session.py -v -> 14 passed.
+- .venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -q -> 22 passed.
+- .venv\Scripts\python.exe -m pytest tests/test_trace_session.py tests/test_trace_memory.py tests/test_fs_memory.py -q -> 164 passed.
+- .venv\Scripts\python.exe -m pytest -q -> 322 passed, 1 skipped on Windows.

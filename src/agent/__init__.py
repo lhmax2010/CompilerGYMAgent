@@ -128,6 +128,11 @@ from .registry import (
     registry_path_for_workspace,
     validate_project_against_registry,
 )
+from .trace import (
+    TraceSessionError,
+    TraceSessionWriter,
+    count_trace_events,
+)
 from .workspace_lock import (
     LockReadResult,
     WorkspaceBusyError,
@@ -192,6 +197,8 @@ __all__ = [
     "TraceError",
     "TraceEvent",
     "TraceLoadError",
+    "TraceSessionError",
+    "TraceSessionWriter",
     "TraceWriteError",
     "TrialDiscoveryError",
     "TrialImmutableError",
@@ -223,6 +230,7 @@ __all__ = [
     "compute_payload_hash",
     "compute_project_namespace",
     "compute_trial_payload_hash",
+    "count_trace_events",
     "discover_trial_records",
     "experience_path",
     "experience_payload",

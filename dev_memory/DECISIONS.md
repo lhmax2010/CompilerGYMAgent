@@ -456,3 +456,17 @@ Decision records must include:
   - Keep computing line numbers by scanning the file at append time, which preserves a convenient return value but becomes a serious bottleneck for large traces.
   - Add a sidecar line-count file, which would make a second mutable file part of trace coordination and create another recovery edge.
   - Store line counts in `checkpoint.yaml`, which would couple the low-level trace writer to checkpoint schema evolution before lifecycle producers exist.
+
+## 2026-05-26T12:24:42Z - Use a session-scoped trace writer for context and line counters
+
+- affected_requirement:
+  - REQUIREMENTS.md section 3.3.4
+  - REQUIREMENTS.md section 4.13
+  - REQUIREMENTS.md section 5.1.2
+  - REQUIREMENTS.md section 5.1.3
+- decision: Add `TraceSessionWriter` as the workflow-facing producer layer above `append_trace_event()`. It injects `session_id` and namespace into every event, maintains a lock-protected `next_line_number`, passes `expected_line_number` to the low-level append helper, and enforces `mode: dry_run` for dry-run sessions.
+- rationale: The low-level writer should remain a storage primitive, while workflow code needs consistent session metadata, line-based trace references, and dry-run tagging. Keeping those concerns in a session-scoped writer preserves append O(1), avoids duplicating context injection across future producers, and gives Subtask 3.2 a clean object for later lifecycle/checkpoint integration.
+- alternatives_considered:
+  - Have each workflow producer call `append_trace_event()` directly, which would duplicate session/namespace injection and line-counter handling at every call site.
+  - Put line-counter state in `fs_memory.py`, which would mix session/workflow state with storage helpers.
+  - Add dry-run tagging inside the low-level writer, which would conflate normal trial `mode` payloads with dry-run mode before a session context exists.

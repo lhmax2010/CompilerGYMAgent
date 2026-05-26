@@ -66,3 +66,34 @@
 - targeted_result: 22 passed, 0 failed
 - targeted_duration: 0.11s
 - linux_fcntl_test: included in full pytest run
+
+## Subtask 3.2 - session-scoped trace producer
+
+- timestamp_utc: 2026-05-26T12:24:42Z
+- environment:
+  - os: Windows development host
+  - python: 3.14.3
+  - runner: `.venv\Scripts\python.exe -m pytest`
+- requirements:
+  - REQUIREMENTS.md section 3.3.4
+  - REQUIREMENTS.md section 4.13
+  - REQUIREMENTS.md section 5.1.2
+  - REQUIREMENTS.md section 5.1.3
+- targeted_command: `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -v`
+- targeted_result: 14 passed, 0 failed
+- trace_regression_command: `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -q`
+- trace_regression_result: 22 passed, 0 failed
+- combined_regression_command: `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py tests/test_trace_memory.py tests/test_fs_memory.py -q`
+- combined_regression_result: 164 passed, 0 failed
+- full_command: `.venv\Scripts\python.exe -m pytest -q`
+- full_result: 322 passed, 0 failed, 1 skipped
+- skipped:
+  - `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter` requires Linux fcntl and must be covered by Ubuntu validation.
+- new_coverage:
+  - `TraceSessionWriter` injects `session_id` and namespace into emitted events.
+  - `TraceSessionWriter` maintains `next_line_number` and passes it to `append_trace_event` for stable `events.jsonl#L<N>` references.
+  - Existing trace files are counted once at session-writer construction to resume the next line number.
+  - Dry-run sessions inject `mode: dry_run` and reject conflicting trial-mode payloads.
+  - Session and namespace payload overrides are rejected.
+  - Unsafe session IDs and non-positive initial line counters are rejected.
+  - Convenience producers cover round start, candidate generation/rejection, trial start/end, trial YAML written, and skill spans.

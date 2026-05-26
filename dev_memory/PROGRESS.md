@@ -866,3 +866,20 @@ Next action: commit this sync record, push, then request external review-fix val
 - The Linux-only real `fcntl` workspace lock path was included in the full run.
 
 Next action: proceed to Subtask 3.2 and wire trace producers with a lock-protected `trace_line_counter`.
+
+## 2026-05-26T12:24:42Z - Phase 03 / Subtask 3.2 implemented
+
+- Started and implemented Subtask 3.2: session-scoped trace producer with lock-protected line counter.
+- Added `src/agent/trace.py` with `TraceSessionWriter`, `TraceSessionError`, and `count_trace_events`.
+- `TraceSessionWriter` injects `session_id` and namespace into every event, maintains `next_line_number`, and passes `expected_line_number` to `append_trace_event`.
+- `TraceSessionWriter.for_layout()` resumes `next_line_number` by counting validated existing trace events once at construction.
+- Dry-run writers force `mode: dry_run` and reject conflicting normal trial-mode payloads.
+- Added convenience producers for round start, candidate generation/rejection, trial start/end, trial YAML written, and skill spans.
+- Public exports added in `src/agent/__init__.py`.
+- UT results:
+  - `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -v` -> 14 passed.
+  - `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -q` -> 22 passed.
+  - `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py tests/test_trace_memory.py tests/test_fs_memory.py -q` -> 164 passed.
+  - `.venv\Scripts\python.exe -m pytest -q` -> 322 passed, 1 skipped on Windows.
+
+Next action: generate patch artifacts, commit/push Subtask 3.2, then request external review.

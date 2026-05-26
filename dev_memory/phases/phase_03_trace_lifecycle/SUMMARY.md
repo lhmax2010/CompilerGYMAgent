@@ -16,6 +16,7 @@ Completed:
 - External review approved Subtask 3.1 with minor changes after 305/305 Linux tests.
 - Review fixes removed append-time full-file line counting, added optional `expected_line_number` for lock-protected producers, added byte-offset references for O(1) append metadata, and made `iter_trace_events` truly lazy.
 - Review fixes were validated on Ubuntu/Linux with Python 3.11.15: full pytest passed 309/309 and trace targeted pytest passed 22/22.
+- Subtask 3.2 implemented `TraceSessionWriter`, a session-scoped producer layer that injects `session_id` and `namespace`, maintains a lock-protected `next_line_number`, enforces dry-run trace markers, and provides convenience producers for common round/candidate/trial/skill events.
 
 Remaining:
-- Proceed to Subtask 3.2: wire workflow/session trace producers with a lock-protected `trace_line_counter`.
+- Generate patch artifacts, commit, push, and request external review for Subtask 3.2.

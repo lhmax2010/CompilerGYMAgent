@@ -1,0 +1,654 @@
+﻿diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index f9851e9..91f18be 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -61,10 +61,35 @@ subtasks:
+       targeted_pytest: "22 passed in 0.11s"
+       linux_fcntl_test: "included in full pytest run"
+       runner: "venv + pytest"
++  - id: "3.2"
++    title: "Implement session-scoped trace producer with lock-protected line counter"
++    status: done
++    related_requirements:
++      - REQUIREMENTS.md section 3.3.4
++      - REQUIREMENTS.md section 4.13
++      - REQUIREMENTS.md section 5.1.2
++      - REQUIREMENTS.md section 5.1.3
++    files_created:
++      - src/agent/trace.py
++      - tests/test_trace_session.py
++    files_modified:
++      - src/agent/__init__.py
++    ut_required: true
++    ut_passed: true
++    targeted_ut: "36 trace tests passed, 0 failed"
++    regression_ut: "164 trace/fs_memory tests passed, 0 failed"
++    full_ut: "322 passed, 0 failed, 1 skipped"
++    self_review_required: true
++    self_reviewed: true
++    patch_required: true
++    patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/03_trace_session_writer.patch
++    patch_generated: true
++    commit_required: true
++    commit_pending: true
+ notes: |
+   Phase 03 starts with the canonical `trace/events.jsonl` append-only event
+   stream because REQUIREMENTS.md defines runtime recovery state as
+   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
+   trace storage primitive before wiring lifecycle stages, rejected candidates,
+   dry-run injection, or process/user-action event producers.
+-next_action: "Proceed to Subtask 3.2: wire trace producers with a lock-protected trace_line_counter."
++next_action: "Generate Subtask 3.2 patch artifacts, commit/push, then request external review."
+diff --git a/dev_memory/DECISIONS.md b/dev_memory/DECISIONS.md
+index a445780..3e6803a 100644
+--- a/dev_memory/DECISIONS.md
++++ b/dev_memory/DECISIONS.md
+@@ -456,3 +456,17 @@ Decision records must include:
+   - Keep computing line numbers by scanning the file at append time, which preserves a convenient return value but becomes a serious bottleneck for large traces.
+   - Add a sidecar line-count file, which would make a second mutable file part of trace coordination and create another recovery edge.
+   - Store line counts in `checkpoint.yaml`, which would couple the low-level trace writer to checkpoint schema evolution before lifecycle producers exist.
++
++## 2026-05-26T12:24:42Z - Use a session-scoped trace writer for context and line counters
++
++- affected_requirement:
++  - REQUIREMENTS.md section 3.3.4
++  - REQUIREMENTS.md section 4.13
++  - REQUIREMENTS.md section 5.1.2
++  - REQUIREMENTS.md section 5.1.3
++- decision: Add `TraceSessionWriter` as the workflow-facing producer layer above `append_trace_event()`. It injects `session_id` and namespace into every event, maintains a lock-protected `next_line_number`, passes `expected_line_number` to the low-level append helper, and enforces `mode: dry_run` for dry-run sessions.
++- rationale: The low-level writer should remain a storage primitive, while workflow code needs consistent session metadata, line-based trace references, and dry-run tagging. Keeping those concerns in a session-scoped writer preserves append O(1), avoids duplicating context injection across future producers, and gives Subtask 3.2 a clean object for later lifecycle/checkpoint integration.
++- alternatives_considered:
++  - Have each workflow producer call `append_trace_event()` directly, which would duplicate session/namespace injection and line-counter handling at every call site.
++  - Put line-counter state in `fs_memory.py`, which would mix session/workflow state with storage helpers.
++  - Add dry-run tagging inside the low-level writer, which would conflate normal trial `mode` payloads with dry-run mode before a session context exists.
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index cb3107b..5efe412 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -866,3 +866,20 @@ Next action: commit this sync record, push, then request external review-fix val
+ - The Linux-only real `fcntl` workspace lock path was included in the full run.
+
+ Next action: proceed to Subtask 3.2 and wire trace producers with a lock-protected `trace_line_counter`.
++
++## 2026-05-26T12:24:42Z - Phase 03 / Subtask 3.2 implemented
++
++- Started and implemented Subtask 3.2: session-scoped trace producer with lock-protected line counter.
++- Added `src/agent/trace.py` with `TraceSessionWriter`, `TraceSessionError`, and `count_trace_events`.
++- `TraceSessionWriter` injects `session_id` and namespace into every event, maintains `next_line_number`, and passes `expected_line_number` to `append_trace_event`.
++- `TraceSessionWriter.for_layout()` resumes `next_line_number` by counting validated existing trace events once at construction.
++- Dry-run writers force `mode: dry_run` and reject conflicting normal trial-mode payloads.
++- Added convenience producers for round start, candidate generation/rejection, trial start/end, trial YAML written, and skill spans.
++- Public exports added in `src/agent/__init__.py`.
++- UT results:
++  - `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -v` -> 14 passed.
++  - `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -q` -> 22 passed.
++  - `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py tests/test_trace_memory.py tests/test_fs_memory.py -q` -> 164 passed.
++  - `.venv\Scripts\python.exe -m pytest -q` -> 322 passed, 1 skipped on Windows.
++
++Next action: generate patch artifacts, commit/push Subtask 3.2, then request external review.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml b/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml
+index a5a19ed..18861d4 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml
+@@ -62,6 +62,31 @@ subtasks:
+       - dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
+       - dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
+       - dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
++  - id: "3.2"
++    title: "Implement session-scoped trace producer with lock-protected line counter"
++    status: done
++    related_requirements:
++      - REQUIREMENTS.md section 3.3.4
++      - REQUIREMENTS.md section 4.13
++      - REQUIREMENTS.md section 5.1.2
++      - REQUIREMENTS.md section 5.1.3
++    ut_required: true
++    ut_passed: true
++    targeted_ut: "36 trace tests passed, 0 failed"
++    regression_ut: "164 trace/fs_memory tests passed, 0 failed"
++    full_ut: "322 passed, 0 failed, 1 skipped"
++    self_review_required: true
++    self_reviewed: true
++    patch_required: true
++    patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/03_trace_session_writer.patch
++    patch_generated: true
++    commit_required: true
++    commit_pending: true
++    files_created:
++      - src/agent/trace.py
++      - tests/test_trace_session.py
++    files_modified:
++      - src/agent/__init__.py
+
+ phase_exit_criteria:
+   - "Trace events are append-only JSONL with strict common fields and flexible event-specific payloads."
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md b/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
+index 5187c5b..c6006c0 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
++++ b/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
+@@ -58,3 +58,31 @@ Review conclusion:
+
+ Validation conclusion:
+ - Subtask 3.1 review fixes are validated on the target Linux environment. Phase 03 can proceed to Subtask 3.2.
++
++## Subtask 3.2 - session-scoped trace producer
++
++Scope:
++- Bridge the low-level append-only trace writer from Subtask 3.1 to future workflow producers.
++- Keep real run orchestration out of scope; this subtask supplies the lock-scoped producer object that orchestration will call.
++
++Implementation checklist:
++- [x] Added `src/agent/trace.py` with `TraceSessionWriter`, `TraceSessionError`, and `count_trace_events`.
++- [x] `TraceSessionWriter.for_layout()` resumes `next_line_number` from validated existing trace events.
++- [x] `TraceSessionWriter.append()` injects `session_id`, namespace, timestamp, and `expected_line_number`.
++- [x] Dry-run writers force `mode: dry_run` and reject conflicting `mode` payloads.
++- [x] Context fields managed by the writer (`session_id`, `namespace`) cannot be overridden by event payloads.
++- [x] Convenience producers cover the common REQUIREMENTS.md section 5.1.2 event kinds needed by upcoming workflow code.
++- [x] Public exports were added in `agent.__init__`.
++
++Tests:
++- `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -v` -> 14 passed.
++- `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -q` -> 22 passed.
++- `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py tests/test_trace_memory.py tests/test_fs_memory.py -q` -> 164 passed.
++
++Self-review notes:
++- Counting existing lines once at session-writer construction is acceptable; the O(n²) issue was per-append scanning.
++- The session writer's line counter is still a caller-side contract. Future workflow code must hold `WorkspaceLock` while using it.
++- Dry-run reserves the `mode` field for `dry_run`, so callers that need trial mode during dry-run should use another event-specific field.
++
++Review conclusion:
++- Subtask 3.2 is ready for full-suite verification and patch generation.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md b/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
+index 42f79b8..e247528 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
++++ b/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
+@@ -16,6 +16,7 @@ Completed:
+ - External review approved Subtask 3.1 with minor changes after 305/305 Linux tests.
+ - Review fixes removed append-time full-file line counting, added optional `expected_line_number` for lock-protected producers, added byte-offset references for O(1) append metadata, and made `iter_trace_events` truly lazy.
+ - Review fixes were validated on Ubuntu/Linux with Python 3.11.15: full pytest passed 309/309 and trace targeted pytest passed 22/22.
++- Subtask 3.2 implemented `TraceSessionWriter`, a session-scoped producer layer that injects `session_id` and `namespace`, maintains a lock-protected `next_line_number`, enforces dry-run trace markers, and provides convenience producers for common round/candidate/trial/skill events.
+
+ Remaining:
+-- Proceed to Subtask 3.2: wire workflow/session trace producers with a lock-protected `trace_line_counter`.
++- Generate patch artifacts, commit, push, and request external review for Subtask 3.2.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md b/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
+index 74d45f6..3bf5bed 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
++++ b/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
+@@ -66,3 +66,34 @@
+ - targeted_result: 22 passed, 0 failed
+ - targeted_duration: 0.11s
+ - linux_fcntl_test: included in full pytest run
++
++## Subtask 3.2 - session-scoped trace producer
++
++- timestamp_utc: 2026-05-26T12:24:42Z
++- environment:
++  - os: Windows development host
++  - python: 3.14.3
++  - runner: `.venv\Scripts\python.exe -m pytest`
++- requirements:
++  - REQUIREMENTS.md section 3.3.4
++  - REQUIREMENTS.md section 4.13
++  - REQUIREMENTS.md section 5.1.2
++  - REQUIREMENTS.md section 5.1.3
++- targeted_command: `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -v`
++- targeted_result: 14 passed, 0 failed
++- trace_regression_command: `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -q`
++- trace_regression_result: 22 passed, 0 failed
++- combined_regression_command: `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py tests/test_trace_memory.py tests/test_fs_memory.py -q`
++- combined_regression_result: 164 passed, 0 failed
++- full_command: `.venv\Scripts\python.exe -m pytest -q`
++- full_result: 322 passed, 0 failed, 1 skipped
++- skipped:
++  - `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter` requires Linux fcntl and must be covered by Ubuntu validation.
++- new_coverage:
++  - `TraceSessionWriter` injects `session_id` and namespace into emitted events.
++  - `TraceSessionWriter` maintains `next_line_number` and passes it to `append_trace_event` for stable `events.jsonl#L<N>` references.
++  - Existing trace files are counted once at session-writer construction to resume the next line number.
++  - Dry-run sessions inject `mode: dry_run` and reject conflicting trial-mode payloads.
++  - Session and namespace payload overrides are rejected.
++  - Unsafe session IDs and non-positive initial line counters are rejected.
++  - Convenience producers cover round start, candidate generation/rejection, trial start/end, trial YAML written, and skill spans.
+diff --git a/src/agent/__init__.py b/src/agent/__init__.py
+index 8c88f52..b2a5894 100644
+--- a/src/agent/__init__.py
++++ b/src/agent/__init__.py
+@@ -128,6 +128,11 @@ from .registry import (
+     registry_path_for_workspace,
+     validate_project_against_registry,
+ )
++from .trace import (
++    TraceSessionError,
++    TraceSessionWriter,
++    count_trace_events,
++)
+ from .workspace_lock import (
+     LockReadResult,
+     WorkspaceBusyError,
+@@ -192,6 +197,8 @@ __all__ = [
+     "TraceError",
+     "TraceEvent",
+     "TraceLoadError",
++    "TraceSessionError",
++    "TraceSessionWriter",
+     "TraceWriteError",
+     "TrialDiscoveryError",
+     "TrialImmutableError",
+@@ -223,6 +230,7 @@ __all__ = [
+     "compute_payload_hash",
+     "compute_project_namespace",
+     "compute_trial_payload_hash",
++    "count_trace_events",
+     "discover_trial_records",
+     "experience_path",
+     "experience_payload",
+diff --git a/src/agent/trace.py b/src/agent/trace.py
+new file mode 100644
+index 0000000..6a2cd3b
+--- /dev/null
++++ b/src/agent/trace.py
+@@ -0,0 +1,201 @@
++"""Trace producer helpers built on the canonical JSONL writer."""
++
++from __future__ import annotations
++
++from dataclasses import dataclass
++from datetime import UTC, datetime
++from pathlib import Path
++from typing import Any, Mapping, Sequence
++
++from .fs_memory import (
++    NamespaceLayout,
++    TraceAppendResult,
++    TraceError,
++    append_trace_event,
++    iter_trace_events,
++)
++
++
++class TraceSessionError(TraceError):
++    """Raised when a trace producer would emit inconsistent session metadata."""
++
++
++def count_trace_events(path: str | Path) -> int:
++    """Return the number of validated events currently in `events.jsonl`."""
++
++    return sum(1 for _ in iter_trace_events(path))
++
++
++@dataclass
++class TraceSessionWriter:
++    """Lock-scoped trace producer that injects session context and line numbers."""
++
++    layout: NamespaceLayout
++    session_id: str
++    dry_run: bool = False
++    next_line_number: int = 1
++
++    def __post_init__(self) -> None:
++        _validate_session_id(self.session_id)
++        if self.next_line_number <= 0:
++            raise TraceSessionError("next_line_number must be positive")
++
++    @classmethod
++    def for_layout(
++        cls,
++        layout: NamespaceLayout,
++        *,
++        session_id: str,
++        dry_run: bool = False,
++        next_line_number: int | None = None,
++    ) -> TraceSessionWriter:
++        if next_line_number is None:
++            next_line_number = count_trace_events(layout.trace_path) + 1
++        return cls(
++            layout=layout,
++            session_id=session_id,
++            dry_run=dry_run,
++            next_line_number=next_line_number,
++        )
++
++    def append(
++        self,
++        kind: str,
++        *,
++        ts: datetime | str | None = None,
++        **fields: Any,
++    ) -> TraceAppendResult:
++        """Append one event with session metadata and a lock-protected line id."""
++
++        event = self._event_payload(kind, ts=ts, fields=fields)
++        result = append_trace_event(
++            self.layout,
++            event,
++            expected_line_number=self.next_line_number,
++        )
++        self.next_line_number += 1
++        return result
++
++    def round_start(self, *, round: int, phase: str, **fields: Any) -> TraceAppendResult:
++        return self.append("round_start", round=round, phase=phase, **fields)
++
++    def candidate_generation(
++        self,
++        *,
++        generator: str,
++        candidates_count: int,
++        **fields: Any,
++    ) -> TraceAppendResult:
++        return self.append(
++            "candidate_generation",
++            generator=generator,
++            candidates_count=candidates_count,
++            **fields,
++        )
++
++    def candidate_rejected(
++        self,
++        *,
++        candidate: Sequence[str],
++        rejection_reason: str,
++        **fields: Any,
++    ) -> TraceAppendResult:
++        return self.append(
++            "candidate_rejected",
++            candidate=list(candidate),
++            rejection_reason=rejection_reason,
++            **fields,
++        )
++
++    def trial_start(
++        self,
++        *,
++        trial_id: str,
++        combo: Sequence[str],
++        mode: str,
++        **fields: Any,
++    ) -> TraceAppendResult:
++        return self.append(
++            "trial_start",
++            trial_id=trial_id,
++            combo=list(combo),
++            mode=mode,
++            **fields,
++        )
++
++    def trial_end(
++        self,
++        *,
++        trial_id: str,
++        outcome: str,
++        **fields: Any,
++    ) -> TraceAppendResult:
++        return self.append("trial_end", trial_id=trial_id, outcome=outcome, **fields)
++
++    def trial_yaml_written(self, *, path: str | Path, **fields: Any) -> TraceAppendResult:
++        return self.append("trial_yaml_written", path=Path(path).as_posix(), **fields)
++
++    def skill_span(
++        self,
++        *,
++        skill: str,
++        duration_ms: int,
++        success: bool,
++        **fields: Any,
++    ) -> TraceAppendResult:
++        return self.append(
++            "skill_span",
++            skill=skill,
++            duration_ms=duration_ms,
++            success=success,
++            **fields,
++        )
++
++    def _event_payload(
++        self,
++        kind: str,
++        *,
++        ts: datetime | str | None,
++        fields: Mapping[str, Any],
++    ) -> dict[str, Any]:
++        payload = dict(fields)
++        _reject_context_overrides(payload)
++        if self.dry_run:
++            requested_mode = payload.get("mode")
++            if requested_mode not in {None, "dry_run"}:
++                raise TraceSessionError(
++                    "dry-run trace events must use mode='dry_run'; "
++                    "store trial mode in a different field"
++                )
++            payload["mode"] = "dry_run"
++
++        return {
++            "ts": datetime.now(UTC) if ts is None else ts,
++            "kind": kind,
++            "session_id": self.session_id,
++            "namespace": str(self.layout.namespace),
++            **payload,
++        }
++
++
++def _reject_context_overrides(payload: Mapping[str, Any]) -> None:
++    for key in ("session_id", "namespace"):
++        if key in payload:
++            raise TraceSessionError(f"trace field {key!r} is managed by TraceSessionWriter")
++
++
++def _validate_session_id(value: str) -> None:
++    if not isinstance(value, str) or not value:
++        raise TraceSessionError("session_id must be a non-empty string")
++    if value != value.strip():
++        raise TraceSessionError("session_id cannot contain surrounding whitespace")
++    if value in {".", ".."}:
++        raise TraceSessionError(f"session_id cannot be {value!r}")
++    if "/" in value or "\\" in value:
++        raise TraceSessionError("session_id cannot contain path separators")
++    if any(ord(char) < 0x20 or ord(char) == 0x7F for char in value):
++        raise TraceSessionError("session_id cannot contain control characters")
++    if not all(char.isascii() and (char.isalnum() or char in "_-") for char in value):
++        raise TraceSessionError(
++            "session_id can contain only ASCII letters, digits, '_' or '-'"
++        )
+diff --git a/tests/test_trace_session.py b/tests/test_trace_session.py
+new file mode 100644
+index 0000000..79419bb
+--- /dev/null
++++ b/tests/test_trace_session.py
+@@ -0,0 +1,196 @@
++from __future__ import annotations
++
++from datetime import UTC, datetime
++from pathlib import Path
++
++import pytest
++
++from agent.fs_memory import (
++    NamespaceLayout,
++    append_trace_event,
++    load_trace_events,
++    trace_event_payload,
++)
++from agent.registry import ProjectNamespace
++from agent.trace import TraceSessionError, TraceSessionWriter, count_trace_events
++
++
++def namespace() -> ProjectNamespace:
++    return ProjectNamespace(
++        module="multimedia",
++        framework="ffmpeg",
++        compiler="gcc-13.2.0",
++        code_commit="code-a1b2c3d",
++        kg_version="kg-v3",
++    )
++
++
++def layout(tmp_path: Path) -> NamespaceLayout:
++    return NamespaceLayout(workspace=tmp_path, namespace=namespace())
++
++
++def event_payloads(current_layout: NamespaceLayout) -> list[dict]:
++    return [trace_event_payload(event) for event in load_trace_events(current_layout.trace_path)]
++
++
++def test_trace_session_writer_injects_context_and_line_counter(tmp_path: Path) -> None:
++    current_layout = layout(tmp_path)
++    writer = TraceSessionWriter.for_layout(
++        current_layout,
++        session_id="sess_20260430_abc",
++    )
++
++    first = writer.round_start(
++        round=12,
++        phase="steady_state",
++        ts=datetime(2026, 4, 30, 10, 0, 0, tzinfo=UTC),
++    )
++    second = writer.trial_start(
++        trial_id="r12_t3",
++        combo=["-O3", "-fno-plt"],
++        mode="exploit",
++        candidate_source="llm_proposal",
++        ts="2026-04-30T10:01:00Z",
++    )
++
++    assert first.trace_id == "events.jsonl#L1"
++    assert second.trace_id == "events.jsonl#L2"
++    assert writer.next_line_number == 3
++
++    payloads = event_payloads(current_layout)
++    assert payloads[0]["session_id"] == "sess_20260430_abc"
++    assert payloads[0]["namespace"] == str(namespace())
++    assert payloads[0]["kind"] == "round_start"
++    assert payloads[1]["kind"] == "trial_start"
++    assert payloads[1]["combo"] == ["-O3", "-fno-plt"]
++    assert payloads[1]["mode"] == "exploit"
++
++
++def test_trace_session_writer_resumes_line_counter_from_existing_trace(
++    tmp_path: Path,
++) -> None:
++    current_layout = layout(tmp_path)
++    append_trace_event(
++        current_layout,
++        {"ts": "2026-04-30T10:00:00Z", "kind": "round_start"},
++        expected_line_number=1,
++    )
++
++    writer = TraceSessionWriter.for_layout(
++        current_layout,
++        session_id="sess_20260430_abc",
++    )
++    result = writer.candidate_generation(
++        generator="llm_proposer",
++        candidates_count=5,
++        ts="2026-04-30T10:01:00Z",
++    )
++
++    assert count_trace_events(current_layout.trace_path) == 2
++    assert writer.next_line_number == 3
++    assert result.trace_id == "events.jsonl#L2"
++    assert event_payloads(current_layout)[1]["candidates_count"] == 5
++
++
++def test_trace_session_writer_dry_run_injects_mode_and_rejects_conflict(
++    tmp_path: Path,
++) -> None:
++    current_layout = layout(tmp_path)
++    writer = TraceSessionWriter.for_layout(
++        current_layout,
++        session_id="sess_20260430_abc",
++        dry_run=True,
++    )
++
++    writer.round_start(round=1, phase="dry_run_probe", ts="2026-04-30T10:00:00Z")
++
++    assert event_payloads(current_layout)[0]["mode"] == "dry_run"
++    with pytest.raises(TraceSessionError, match="dry-run trace events"):
++        writer.trial_start(
++            trial_id="dryrun_r1_t1",
++            combo=["-O3"],
++            mode="exploit",
++            ts="2026-04-30T10:01:00Z",
++        )
++
++
++@pytest.mark.parametrize("field", ["session_id", "namespace"])
++def test_trace_session_writer_rejects_context_overrides(
++    tmp_path: Path,
++    field: str,
++) -> None:
++    writer = TraceSessionWriter.for_layout(
++        layout(tmp_path),
++        session_id="sess_20260430_abc",
++    )
++
++    with pytest.raises(TraceSessionError, match=field):
++        writer.append("round_start", **{field: "override"})
++
++
++@pytest.mark.parametrize(
++    "session_id",
++    [" sess", "sess abc", "sess\nabc", "../../etc", "sess=abc", ".", ".."],
++)
++def test_trace_session_writer_rejects_unsafe_session_id(
++    tmp_path: Path,
++    session_id: str,
++) -> None:
++    with pytest.raises(TraceSessionError):
++        TraceSessionWriter.for_layout(layout(tmp_path), session_id=session_id)
++
++
++def test_trace_session_writer_rejects_non_positive_next_line_number(
++    tmp_path: Path,
++) -> None:
++    with pytest.raises(TraceSessionError, match="next_line_number"):
++        TraceSessionWriter.for_layout(
++            layout(tmp_path),
++            session_id="sess_20260430_abc",
++            next_line_number=0,
++        )
++
++
++def test_trace_session_writer_convenience_events(tmp_path: Path) -> None:
++    current_layout = layout(tmp_path)
++    writer = TraceSessionWriter.for_layout(
++        current_layout,
++        session_id="sess_20260430_abc",
++    )
++
++    writer.candidate_rejected(
++        candidate=["-O3", "-funroll-loops"],
++        rejection_reason="duplicate_hash",
++        generator="local_mutation",
++        matched_trial="r8_t2",
++        ts="2026-04-30T10:00:00Z",
++    )
++    writer.skill_span(
++        skill="spec_backup",
++        duration_ms=12,
++        success=True,
++        ts="2026-04-30T10:01:00Z",
++    )
++    writer.trial_end(
++        trial_id="r12_t3",
++        outcome="success",
++        score=1.234,
++        ts="2026-04-30T10:02:00Z",
++    )
++    writer.trial_yaml_written(
++        path=Path("trials/data/2026-04/trial_r12_t3.yaml"),
++        ts="2026-04-30T10:03:00Z",
++    )
++
++    payloads = event_payloads(current_layout)
++    assert [payload["kind"] for payload in payloads] == [
++        "candidate_rejected",
++        "skill_span",
++        "trial_end",
++        "trial_yaml_written",
++    ]
++    assert payloads[0]["candidate"] == ["-O3", "-funroll-loops"]
++    assert payloads[0]["matched_trial"] == "r8_t2"
++    assert payloads[1]["success"] is True
++    assert payloads[2]["score"] == 1.234
++    assert payloads[3]["path"] == "trials/data/2026-04/trial_r12_t3.yaml"

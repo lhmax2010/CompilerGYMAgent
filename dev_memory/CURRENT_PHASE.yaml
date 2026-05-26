@@ -61,10 +61,35 @@ subtasks:
       targeted_pytest: "22 passed in 0.11s"
       linux_fcntl_test: "included in full pytest run"
       runner: "venv + pytest"
+  - id: "3.2"
+    title: "Implement session-scoped trace producer with lock-protected line counter"
+    status: done
+    related_requirements:
+      - REQUIREMENTS.md section 3.3.4
+      - REQUIREMENTS.md section 4.13
+      - REQUIREMENTS.md section 5.1.2
+      - REQUIREMENTS.md section 5.1.3
+    files_created:
+      - src/agent/trace.py
+      - tests/test_trace_session.py
+    files_modified:
+      - src/agent/__init__.py
+    ut_required: true
+    ut_passed: true
+    targeted_ut: "36 trace tests passed, 0 failed"
+    regression_ut: "164 trace/fs_memory tests passed, 0 failed"
+    full_ut: "322 passed, 0 failed, 1 skipped"
+    self_review_required: true
+    self_reviewed: true
+    patch_required: true
+    patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/03_trace_session_writer.patch
+    patch_generated: true
+    commit_required: true
+    commit_pending: true
 notes: |
   Phase 03 starts with the canonical `trace/events.jsonl` append-only event
   stream because REQUIREMENTS.md defines runtime recovery state as
   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
   trace storage primitive before wiring lifecycle stages, rejected candidates,
   dry-run injection, or process/user-action event producers.
-next_action: "Proceed to Subtask 3.2: wire trace producers with a lock-protected trace_line_counter."
+next_action: "Generate Subtask 3.2 patch artifacts, commit/push, then request external review."

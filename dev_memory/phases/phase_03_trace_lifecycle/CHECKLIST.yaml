@@ -62,6 +62,31 @@ subtasks:
       - dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
       - dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
       - dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
+  - id: "3.2"
+    title: "Implement session-scoped trace producer with lock-protected line counter"
+    status: done
+    related_requirements:
+      - REQUIREMENTS.md section 3.3.4
+      - REQUIREMENTS.md section 4.13
+      - REQUIREMENTS.md section 5.1.2
+      - REQUIREMENTS.md section 5.1.3
+    ut_required: true
+    ut_passed: true
+    targeted_ut: "36 trace tests passed, 0 failed"
+    regression_ut: "164 trace/fs_memory tests passed, 0 failed"
+    full_ut: "322 passed, 0 failed, 1 skipped"
+    self_review_required: true
+    self_reviewed: true
+    patch_required: true
+    patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/03_trace_session_writer.patch
+    patch_generated: true
+    commit_required: true
+    commit_pending: true
+    files_created:
+      - src/agent/trace.py
+      - tests/test_trace_session.py
+    files_modified:
+      - src/agent/__init__.py
 
 phase_exit_criteria:
   - "Trace events are append-only JSONL with strict common fields and flexible event-specific payloads."

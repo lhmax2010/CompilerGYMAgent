@@ -58,3 +58,31 @@ Review conclusion:
 
 Validation conclusion:
 - Subtask 3.1 review fixes are validated on the target Linux environment. Phase 03 can proceed to Subtask 3.2.
+
+## Subtask 3.2 - session-scoped trace producer
+
+Scope:
+- Bridge the low-level append-only trace writer from Subtask 3.1 to future workflow producers.
+- Keep real run orchestration out of scope; this subtask supplies the lock-scoped producer object that orchestration will call.
+
+Implementation checklist:
+- [x] Added `src/agent/trace.py` with `TraceSessionWriter`, `TraceSessionError`, and `count_trace_events`.
+- [x] `TraceSessionWriter.for_layout()` resumes `next_line_number` from validated existing trace events.
+- [x] `TraceSessionWriter.append()` injects `session_id`, namespace, timestamp, and `expected_line_number`.
+- [x] Dry-run writers force `mode: dry_run` and reject conflicting `mode` payloads.
+- [x] Context fields managed by the writer (`session_id`, `namespace`) cannot be overridden by event payloads.
+- [x] Convenience producers cover the common REQUIREMENTS.md section 5.1.2 event kinds needed by upcoming workflow code.
+- [x] Public exports were added in `agent.__init__`.
+
+Tests:
+- `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -v` -> 14 passed.
+- `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -q` -> 22 passed.
+- `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py tests/test_trace_memory.py tests/test_fs_memory.py -q` -> 164 passed.
+
+Self-review notes:
+- Counting existing lines once at session-writer construction is acceptable; the O(n²) issue was per-append scanning.
+- The session writer's line counter is still a caller-side contract. Future workflow code must hold `WorkspaceLock` while using it.
+- Dry-run reserves the `mode` field for `dry_run`, so callers that need trial mode during dry-run should use another event-specific field.
+
+Review conclusion:
+- Subtask 3.2 is ready for full-suite verification and patch generation.
