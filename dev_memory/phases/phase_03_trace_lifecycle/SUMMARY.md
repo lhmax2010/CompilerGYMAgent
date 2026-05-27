@@ -22,4 +22,4 @@ Completed:
 - Subtask 3.3 added optional `CheckpointState.trace_line_count` and checkpoint-aware trace writer construction, so current checkpoints can restore `TraceSessionWriter.next_line_number` without scanning long trace files.
 
 Remaining:
-- Commit/push Subtask 3.3, then request external review and Ubuntu validation.
+- Request external review and Ubuntu validation for Subtask 3.3.

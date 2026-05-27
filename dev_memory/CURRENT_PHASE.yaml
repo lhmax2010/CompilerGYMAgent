@@ -132,7 +132,9 @@ subtasks:
     patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/04_trace_checkpoint_counter.patch
     patch_generated: true
     commit_required: true
-    commit_pending: true
+    commit_pending: false
+    commit_hash: d8bac12
+    commit_message: "phase_03_trace_lifecycle: 3.3 checkpoint trace counter"
     implementation_summary:
       - "Added optional CheckpointState.trace_line_count for canonical recovery of trace writer line counters."
       - "Added TraceSessionWriter.for_checkpoint() to restore from checkpoint trace_line_count without scanning current traces."
@@ -144,4 +146,4 @@ notes: |
   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
   trace storage primitive before wiring lifecycle stages, rejected candidates,
   dry-run injection, or process/user-action event producers.
-next_action: "Commit/push Subtask 3.3, then request external review and Ubuntu validation."
+next_action: "Request external review and Ubuntu validation for Subtask 3.3."

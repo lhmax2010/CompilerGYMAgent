@@ -127,7 +127,9 @@ subtasks:
     patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/04_trace_checkpoint_counter.patch
     patch_generated: true
     commit_required: true
-    commit_pending: true
+    commit_pending: false
+    commit_hash: d8bac12
+    commit_message: "phase_03_trace_lifecycle: 3.3 checkpoint trace counter"
     implementation_summary:
       - "CheckpointState accepts optional trace_line_count for canonical recovery."
       - "TraceSessionWriter.for_checkpoint() uses checkpoint trace_line_count before falling back to trace scans."
