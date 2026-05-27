@@ -86,3 +86,30 @@ Self-review notes:
 
 Review conclusion:
 - Subtask 3.2 is ready for full-suite verification and patch generation.
+
+## Subtask 3.2 - external review
+
+- timestamp_utc: 2026-05-27T05:56:39Z
+- reviewer: Claude
+- verdict: Approve
+- range: `8508d52..01001f4`
+- implementation: `21b93c1`
+- sync: `01001f4`
+- tests: 323 passed, 0 failed on Linux
+
+Verification summary:
+- [x] Session writer injects `session_id` and namespace.
+- [x] Lock-scoped `next_line_number` produces stable `events.jsonl#L<N>` references.
+- [x] `for_layout` resumes line counters from existing trace files.
+- [x] Dry-run mode is injected and conflicting normal mode payloads are rejected.
+- [x] Context override protection works for session/namespace.
+- [x] Typed producer helpers round-trip expected payloads.
+
+Low/Info notes:
+- `for_layout(next_line_number=None)` scans trace once to recover the counter; later checkpoint integration should prefer canonical recovery state.
+- `session_id` validation is duplicated across trace, fs_memory, and workspace_lock.
+- Timestamp spelling is not normalized between input strings ending in `Z` and `datetime` values serialized as `+00:00`.
+- Extremely rare fsync-after-write failures could desync the in-memory counter; rebuilding the writer after append errors is sufficient for v1.
+
+Review conclusion:
+- Subtask 3.2 is approved and ready for Ubuntu validation.

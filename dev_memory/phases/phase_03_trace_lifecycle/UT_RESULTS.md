@@ -97,3 +97,15 @@
   - Session and namespace payload overrides are rejected.
   - Unsafe session IDs and non-positive initial line counters are rejected.
   - Convenience producers cover round start, candidate generation/rejection, trial start/end, trial YAML written, and skill spans.
+
+## Subtask 3.2 - external review verification
+
+- timestamp_utc: 2026-05-27T05:56:39Z
+- reviewer: Claude
+- verdict: Approve
+- range: `8508d52..01001f4`
+- test_command: `PYTHONPATH=src python -m pytest tests/ -q`
+- test_result: 323 passed, 0 failed
+- targeted_command: `PYTHONPATH=src python -m pytest tests/test_trace_session.py -v`
+- targeted_result: 14 passed, 0 failed
+- linux_fcntl_test: PASSED

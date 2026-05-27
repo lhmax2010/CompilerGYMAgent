@@ -88,10 +88,19 @@ subtasks:
     commit_pending: false
     commit_hash: 21b93c1
     commit_message: "phase_03_trace_lifecycle: 3.2 implement trace session writer"
+    external_review_verdict: approve
+    external_reviewed_at: 2026-05-27T05:56:39Z
+    external_review_tests: "323 passed, 0 failed"
+    external_review_notes: "Claude independently verified TraceSessionWriter context injection, line counter behavior, dry-run tagging, producer helpers, and found only Low/Info observations."
+    deferred_low_priority_followups:
+      - "When checkpoint/trace integration exists, prefer restoring trace_line_counter from canonical recovery state before scanning trace on session startup."
+      - "Consider extracting the repeated session_id ASCII atom validator shared by trace, checkpoint, and workspace lock."
+      - "Decide whether trace timestamps should be normalized from both Z strings and datetime objects to one canonical spelling."
+      - "If fsync-after-write failure handling becomes important, rebuild the writer counter after append errors."
 notes: |
   Phase 03 starts with the canonical `trace/events.jsonl` append-only event
   stream because REQUIREMENTS.md defines runtime recovery state as
   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
   trace storage primitive before wiring lifecycle stages, rejected candidates,
   dry-run injection, or process/user-action event producers.
-next_action: "Push Subtask 3.2 sync, then request external review and Ubuntu validation."
+next_action: "Run Ubuntu validation for Subtask 3.2, then proceed to Subtask 3.3."

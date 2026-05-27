@@ -893,3 +893,19 @@ Next action: generate patch artifacts, commit/push Subtask 3.2, then request ext
   - `dev_memory/phases/phase_03_trace_lifecycle/patches/03_trace_session_writer.review.md`
 
 Next action: commit this sync record, push, then request external review and Ubuntu validation.
+
+## 2026-05-27T05:56:39Z - Phase 03 / Subtask 3.2 external review completed
+
+- Reviewer: Claude.
+- Verdict: Approve.
+- Range: `8508d52..01001f4`.
+- Implementation: `21b93c1`; sync: `01001f4`.
+- Tests: 323 passed, 0 failed on Linux; the Linux real `fcntl` workspace lock path passed.
+- Review confirmed `TraceSessionWriter` context injection, lock-scoped line counter, dry-run marker enforcement, typed producer helpers, public exports, and dev_memory workflow.
+- Low/Info follow-ups recorded:
+  - Prefer checkpoint-restored trace line counters once checkpoint/trace integration exists.
+  - Consider centralizing repeated session_id validation.
+  - Consider timestamp spelling normalization across string/datetime inputs.
+  - Rebuild the writer after rare append errors if fsync-after-write failure hardening becomes necessary.
+
+Next action: run Ubuntu validation for Subtask 3.2, then proceed to Subtask 3.3.
