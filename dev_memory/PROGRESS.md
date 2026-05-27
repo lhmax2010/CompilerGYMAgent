@@ -961,3 +961,13 @@ Next action: commit this sync record, push, then request external review and Ubu
   - `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -v` -> 18 passed.
 
 Next action: commit/push this review fix, then run Ubuntu validation for Subtask 3.3.
+
+## 2026-05-27T06:34:00Z - Phase 03 / Subtask 3.3 review fix committed
+
+- Commit: `3e31dac phase_03_trace_lifecycle: 3.3 review contract docs`.
+- Patch files:
+  - `dev_memory/phases/phase_03_trace_lifecycle/patches/05_trace_checkpoint_counter_review_docs.patch`
+  - `dev_memory/phases/phase_03_trace_lifecycle/patches/05_trace_checkpoint_counter_review_docs.summary.txt`
+  - `dev_memory/phases/phase_03_trace_lifecycle/patches/05_trace_checkpoint_counter_review_docs.review.md`
+
+Next action: commit this sync record, push, then run Ubuntu validation for Subtask 3.3.

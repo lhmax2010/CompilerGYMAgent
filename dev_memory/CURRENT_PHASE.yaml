@@ -149,7 +149,9 @@ subtasks:
       - "Documented that workflow code must persist checkpoint.trace_line_count after successful trace appends while holding the same WorkspaceLock."
       - "Documented crash-skew behavior: line labels may be offset if trace advances before checkpoint persistence, while byte_ref remains accurate."
     review_fix_patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/05_trace_checkpoint_counter_review_docs.patch
-    review_fix_commit_pending: true
+    review_fix_commit_pending: false
+    review_fix_commit_hash: 3e31dac
+    review_fix_commit_message: "phase_03_trace_lifecycle: 3.3 review contract docs"
     review_fix_targeted_ut: "18 trace session tests passed, 0 failed"
 notes: |
   Phase 03 starts with the canonical `trace/events.jsonl` append-only event
