@@ -140,10 +140,21 @@ subtasks:
       - "Added TraceSessionWriter.for_checkpoint() to restore from checkpoint trace_line_count without scanning current traces."
       - "Kept backward compatibility by falling back to validated trace counting when legacy checkpoints omit trace_line_count."
       - "Added checkpoint_with_trace_line_count() and writer.checkpoint_with_current_trace_count() helpers for workflow checkpoint updates."
+    external_review_verdict: approve_with_minor_changes
+    external_reviewed_at: 2026-05-27T06:29:15Z
+    external_review_tests: "329 passed, 0 failed"
+    external_review_notes: "Claude approved with a minor request to document the crash-consistency ordering contract for checkpoint trace_line_count."
+    review_fix_status: done
+    review_fix_summary:
+      - "Documented that workflow code must persist checkpoint.trace_line_count after successful trace appends while holding the same WorkspaceLock."
+      - "Documented crash-skew behavior: line labels may be offset if trace advances before checkpoint persistence, while byte_ref remains accurate."
+    review_fix_patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/05_trace_checkpoint_counter_review_docs.patch
+    review_fix_commit_pending: true
+    review_fix_targeted_ut: "18 trace session tests passed, 0 failed"
 notes: |
   Phase 03 starts with the canonical `trace/events.jsonl` append-only event
   stream because REQUIREMENTS.md defines runtime recovery state as
   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
   trace storage primitive before wiring lifecycle stages, rejected candidates,
   dry-run injection, or process/user-action event producers.
-next_action: "Request external review and Ubuntu validation for Subtask 3.3."
+next_action: "Run Ubuntu validation for Subtask 3.3, then proceed to Subtask 3.4."

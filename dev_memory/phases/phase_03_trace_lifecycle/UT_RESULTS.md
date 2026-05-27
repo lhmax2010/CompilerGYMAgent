@@ -156,3 +156,19 @@
   - Legacy checkpoints without `trace_line_count` still fall back to validated trace counting.
   - Checkpoint namespace mismatch is rejected before constructing a trace writer.
   - Workflow helpers update checkpoint payloads with the writer's current trace line count and refuse counter rollback.
+
+## Subtask 3.3 - review-fix verification
+
+- timestamp_utc: 2026-05-27T06:29:15Z
+- review_source: Claude
+- review_verdict: Approve with minor changes
+- review_tests: 329 passed, 0 failed on Linux
+- environment:
+  - os: Windows development host
+  - python: 3.14.3
+  - runner: `.venv\Scripts\python.exe -m pytest`
+- targeted_command: `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -v`
+- targeted_result: 18 passed, 0 failed
+- review_fix:
+  - Documented append -> checkpoint.trace_line_count persistence ordering under a single WorkspaceLock.
+  - Documented crash-skew line-label offset and byte_ref fallback behavior.

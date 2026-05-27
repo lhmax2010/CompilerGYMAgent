@@ -1,0 +1,13 @@
+Phase 03 / Subtask 3.3 review docs - trace/checkpoint crash contract
+
+- Addressed Claude review M-1 by documenting the workflow ordering contract for
+  checkpoint-backed trace line counters.
+- Updated `TraceSessionWriter.for_checkpoint()` docstring to state that workflow
+  code must persist `checkpoint.trace_line_count` after successful trace appends
+  while holding the same `WorkspaceLock`.
+- Updated `DECISIONS.md` to record append-before-checkpoint crash skew: line
+  labels may be offset on resume, while `byte_ref` remains accurate and future
+  doctor/reconcile code can repair skew outside the hot path.
+- Recorded the external review and review-fix verification in Phase 03
+  dev_memory files.
+- Test result: `tests/test_trace_session.py -v` -> 18 passed.

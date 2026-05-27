@@ -134,6 +134,17 @@ subtasks:
       - "CheckpointState accepts optional trace_line_count for canonical recovery."
       - "TraceSessionWriter.for_checkpoint() uses checkpoint trace_line_count before falling back to trace scans."
       - "Workflow helpers update checkpoint payloads with the writer's current trace count."
+    external_review_verdict: approve_with_minor_changes
+    external_reviewed_at: 2026-05-27T06:29:15Z
+    external_review_tests: "329 passed, 0 failed"
+    external_review_notes: "Claude requested explicit crash-consistency ordering documentation before 3.4."
+    review_fix_status: done
+    review_fix_summary:
+      - "Documented trace append -> checkpoint.trace_line_count persistence ordering under one WorkspaceLock."
+      - "Documented line-label skew and byte_ref fallback behavior after append-before-checkpoint crashes."
+    review_fix_patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/05_trace_checkpoint_counter_review_docs.patch
+    review_fix_commit_pending: true
+    review_fix_targeted_ut: "18 trace session tests passed, 0 failed"
     files_modified:
       - src/agent/fs_memory.py
       - src/agent/trace.py

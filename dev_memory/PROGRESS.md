@@ -944,3 +944,20 @@ Next action: generate patch artifacts, commit/push Subtask 3.3, then request ext
   - `dev_memory/phases/phase_03_trace_lifecycle/patches/04_trace_checkpoint_counter.review.md`
 
 Next action: commit this sync record, push, then request external review and Ubuntu validation.
+
+## 2026-05-27T06:29:15Z - Phase 03 / Subtask 3.3 external review fix completed
+
+- Reviewer: Claude.
+- Verdict: Approve with minor changes.
+- Range: `1b3225e..7d3a431`.
+- Implementation: `d8bac12`; sync: `7d3a431`.
+- Tests: 329 passed, 0 failed on Linux; the Linux real `fcntl` workspace lock path passed.
+- Finding addressed:
+  - M-1: documented the workflow crash-consistency contract for `checkpoint.trace_line_count`.
+- Review fix:
+  - `TraceSessionWriter.for_checkpoint()` now documents that workflow code must persist checkpoint `trace_line_count` after successful trace appends while holding the same `WorkspaceLock`.
+  - `DECISIONS.md` now documents crash skew: line labels may be offset if trace advances before checkpoint persistence, while `byte_ref` remains accurate.
+- UT result:
+  - `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -v` -> 18 passed.
+
+Next action: commit/push this review fix, then run Ubuntu validation for Subtask 3.3.

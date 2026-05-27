@@ -98,6 +98,12 @@ class TraceSessionWriter:
         New checkpoints carry `trace_line_count` so resume can restore the
         line counter without scanning `events.jsonl`. Older checkpoints that
         lack the field fall back to validated trace counting.
+
+        Workflow code must update and persist `checkpoint.trace_line_count`
+        after successful trace appends while holding the same workspace lock
+        that serializes the session writer. If a crash happens after a trace
+        append but before checkpoint persistence, line-based `trace_id` values
+        may be offset on resume; byte-offset references remain accurate.
         """
 
         state = CheckpointState.model_validate(checkpoint)

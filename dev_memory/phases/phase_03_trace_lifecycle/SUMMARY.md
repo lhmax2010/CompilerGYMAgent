@@ -20,6 +20,7 @@ Completed:
 - Subtask 3.2 received external approval after independent Linux verification: 323/323 tests passed and only Low/Info follow-ups remain.
 - Subtask 3.2 was validated on Ubuntu/Linux with Python 3.11.15: full pytest passed 323/323, trace-session targeted pytest passed 14/14, and trace-memory regression passed 22/22.
 - Subtask 3.3 added optional `CheckpointState.trace_line_count` and checkpoint-aware trace writer construction, so current checkpoints can restore `TraceSessionWriter.next_line_number` without scanning long trace files.
+- Subtask 3.3 external review requested one minor documentation fix; the workflow ordering contract is now documented in code and DECISIONS.
 
 Remaining:
-- Request external review and Ubuntu validation for Subtask 3.3.
+- Run Ubuntu validation for Subtask 3.3, then proceed to Subtask 3.4.

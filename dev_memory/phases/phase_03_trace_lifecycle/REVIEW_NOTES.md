@@ -156,3 +156,32 @@ Self-review notes:
 
 Review conclusion:
 - Subtask 3.3 is ready for external review and Ubuntu validation.
+
+## Subtask 3.3 - external review and minor fix
+
+- timestamp_utc: 2026-05-27T06:29:15Z
+- reviewer: Claude
+- verdict: Approve with minor changes
+- range: `1b3225e..7d3a431`
+- implementation: `d8bac12`
+- sync: `7d3a431`
+- tests: 329 passed, 0 failed on Linux
+
+Finding addressed:
+- [x] M-1: documented the workflow crash-consistency contract for
+  `checkpoint.trace_line_count`.
+
+Review-fix notes:
+- `TraceSessionWriter.for_checkpoint()` now states that workflow code must
+  update and persist `checkpoint.trace_line_count` after successful trace appends
+  while holding the same `WorkspaceLock` that serializes the session writer.
+- `DECISIONS.md` now records the append-before-checkpoint crash boundary: line
+  labels may be offset on resume if trace advances before checkpoint persistence,
+  while `byte_ref` remains accurate and future doctor/reconcile code can repair
+  skew by scanning trace outside the hot path.
+
+Tests:
+- `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -v` -> 18 passed.
+
+Review conclusion:
+- The requested minor documentation fix is complete. Subtask 3.3 is ready for Ubuntu validation.

@@ -1,0 +1,180 @@
+﻿diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index 0bd330d..df0f344 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -140,10 +140,21 @@ subtasks:
+       - "Added TraceSessionWriter.for_checkpoint() to restore from checkpoint trace_line_count without scanning current traces."
+       - "Kept backward compatibility by falling back to validated trace counting when legacy checkpoints omit trace_line_count."
+       - "Added checkpoint_with_trace_line_count() and writer.checkpoint_with_current_trace_count() helpers for workflow checkpoint updates."
++    external_review_verdict: approve_with_minor_changes
++    external_reviewed_at: 2026-05-27T06:29:15Z
++    external_review_tests: "329 passed, 0 failed"
++    external_review_notes: "Claude approved with a minor request to document the crash-consistency ordering contract for checkpoint trace_line_count."
++    review_fix_status: done
++    review_fix_summary:
++      - "Documented that workflow code must persist checkpoint.trace_line_count after successful trace appends while holding the same WorkspaceLock."
++      - "Documented crash-skew behavior: line labels may be offset if trace advances before checkpoint persistence, while byte_ref remains accurate."
++    review_fix_patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/05_trace_checkpoint_counter_review_docs.patch
++    review_fix_commit_pending: true
++    review_fix_targeted_ut: "18 trace session tests passed, 0 failed"
+ notes: |
+   Phase 03 starts with the canonical `trace/events.jsonl` append-only event
+   stream because REQUIREMENTS.md defines runtime recovery state as
+   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
+   trace storage primitive before wiring lifecycle stages, rejected candidates,
+   dry-run injection, or process/user-action event producers.
+-next_action: "Request external review and Ubuntu validation for Subtask 3.3."
++next_action: "Run Ubuntu validation for Subtask 3.3, then proceed to Subtask 3.4."
+diff --git a/dev_memory/DECISIONS.md b/dev_memory/DECISIONS.md
+index 7b7b8be..024e05c 100644
+--- a/dev_memory/DECISIONS.md
++++ b/dev_memory/DECISIONS.md
+@@ -478,8 +478,8 @@ Decision records must include:
+   - REQUIREMENTS.md section 4.11.3
+   - REQUIREMENTS.md section 4.13
+   - REQUIREMENTS.md section 5.1.2
+-- decision: Add optional `trace_line_count` to `CheckpointState` and teach `TraceSessionWriter.for_checkpoint()` to restore `next_line_number` from it. New workflow code can update checkpoint payloads through `checkpoint_with_trace_line_count()` or `TraceSessionWriter.checkpoint_with_current_trace_count()`. Checkpoints that lack the field remain compatible and fall back to validated trace counting.
+-- rationale: Runtime recovery state is the pair of `state/checkpoint.yaml` and `trace/events.jsonl`. Once Subtask 3.2 introduced a session-scoped producer, the line counter became workflow state rather than low-level storage metadata. Persisting the last emitted trace line in checkpoint makes resume construction O(1) for current checkpoints while preserving a safe migration path for older checkpoint files.
++- decision: Add optional `trace_line_count` to `CheckpointState` and teach `TraceSessionWriter.for_checkpoint()` to restore `next_line_number` from it. New workflow code can update checkpoint payloads through `checkpoint_with_trace_line_count()` or `TraceSessionWriter.checkpoint_with_current_trace_count()`. Checkpoints that lack the field remain compatible and fall back to validated trace counting. Workflow code must update and persist checkpoint `trace_line_count` after successful trace appends while holding the same `WorkspaceLock` that serializes the session writer.
++- rationale: Runtime recovery state is the pair of `state/checkpoint.yaml` and `trace/events.jsonl`. Once Subtask 3.2 introduced a session-scoped producer, the line counter became workflow state rather than low-level storage metadata. Persisting the last emitted trace line in checkpoint makes resume construction O(1) for current checkpoints while preserving a safe migration path for older checkpoint files. If a crash happens after an append but before checkpoint persistence, line-based `events.jsonl#L<N>` labels may be offset on resume; the O(1) `byte_ref` locator remains accurate, and a future doctor/reconcile path can scan trace non-hot-path to repair skew.
+ - alternatives_considered:
+   - Always scan `events.jsonl` on writer construction, which is correct but makes every resume pay O(n) startup cost for long canonical traces.
+   - Make `append_trace_event()` read or mutate checkpoint state directly, which would couple the storage primitive back to mutable workflow recovery state.
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index 04aacfb..a921cdb 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -944,3 +944,20 @@ Next action: generate patch artifacts, commit/push Subtask 3.3, then request ext
+   - `dev_memory/phases/phase_03_trace_lifecycle/patches/04_trace_checkpoint_counter.review.md`
+ 
+ Next action: commit this sync record, push, then request external review and Ubuntu validation.
++
++## 2026-05-27T06:29:15Z - Phase 03 / Subtask 3.3 external review fix completed
++
++- Reviewer: Claude.
++- Verdict: Approve with minor changes.
++- Range: `1b3225e..7d3a431`.
++- Implementation: `d8bac12`; sync: `7d3a431`.
++- Tests: 329 passed, 0 failed on Linux; the Linux real `fcntl` workspace lock path passed.
++- Finding addressed:
++  - M-1: documented the workflow crash-consistency contract for `checkpoint.trace_line_count`.
++- Review fix:
++  - `TraceSessionWriter.for_checkpoint()` now documents that workflow code must persist checkpoint `trace_line_count` after successful trace appends while holding the same `WorkspaceLock`.
++  - `DECISIONS.md` now documents crash skew: line labels may be offset if trace advances before checkpoint persistence, while `byte_ref` remains accurate.
++- UT result:
++  - `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -v` -> 18 passed.
++
++Next action: commit/push this review fix, then run Ubuntu validation for Subtask 3.3.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml b/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml
+index 0b1c4d3..497ef93 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml
+@@ -134,6 +134,17 @@ subtasks:
+       - "CheckpointState accepts optional trace_line_count for canonical recovery."
+       - "TraceSessionWriter.for_checkpoint() uses checkpoint trace_line_count before falling back to trace scans."
+       - "Workflow helpers update checkpoint payloads with the writer's current trace count."
++    external_review_verdict: approve_with_minor_changes
++    external_reviewed_at: 2026-05-27T06:29:15Z
++    external_review_tests: "329 passed, 0 failed"
++    external_review_notes: "Claude requested explicit crash-consistency ordering documentation before 3.4."
++    review_fix_status: done
++    review_fix_summary:
++      - "Documented trace append -> checkpoint.trace_line_count persistence ordering under one WorkspaceLock."
++      - "Documented line-label skew and byte_ref fallback behavior after append-before-checkpoint crashes."
++    review_fix_patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/05_trace_checkpoint_counter_review_docs.patch
++    review_fix_commit_pending: true
++    review_fix_targeted_ut: "18 trace session tests passed, 0 failed"
+     files_modified:
+       - src/agent/fs_memory.py
+       - src/agent/trace.py
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md b/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
+index 1156079..0915f62 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
++++ b/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
+@@ -156,3 +156,32 @@ Self-review notes:
+ 
+ Review conclusion:
+ - Subtask 3.3 is ready for external review and Ubuntu validation.
++
++## Subtask 3.3 - external review and minor fix
++
++- timestamp_utc: 2026-05-27T06:29:15Z
++- reviewer: Claude
++- verdict: Approve with minor changes
++- range: `1b3225e..7d3a431`
++- implementation: `d8bac12`
++- sync: `7d3a431`
++- tests: 329 passed, 0 failed on Linux
++
++Finding addressed:
++- [x] M-1: documented the workflow crash-consistency contract for
++  `checkpoint.trace_line_count`.
++
++Review-fix notes:
++- `TraceSessionWriter.for_checkpoint()` now states that workflow code must
++  update and persist `checkpoint.trace_line_count` after successful trace appends
++  while holding the same `WorkspaceLock` that serializes the session writer.
++- `DECISIONS.md` now records the append-before-checkpoint crash boundary: line
++  labels may be offset on resume if trace advances before checkpoint persistence,
++  while `byte_ref` remains accurate and future doctor/reconcile code can repair
++  skew by scanning trace outside the hot path.
++
++Tests:
++- `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -v` -> 18 passed.
++
++Review conclusion:
++- The requested minor documentation fix is complete. Subtask 3.3 is ready for Ubuntu validation.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md b/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
+index 2547353..42ce17c 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
++++ b/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
+@@ -20,6 +20,7 @@ Completed:
+ - Subtask 3.2 received external approval after independent Linux verification: 323/323 tests passed and only Low/Info follow-ups remain.
+ - Subtask 3.2 was validated on Ubuntu/Linux with Python 3.11.15: full pytest passed 323/323, trace-session targeted pytest passed 14/14, and trace-memory regression passed 22/22.
+ - Subtask 3.3 added optional `CheckpointState.trace_line_count` and checkpoint-aware trace writer construction, so current checkpoints can restore `TraceSessionWriter.next_line_number` without scanning long trace files.
++- Subtask 3.3 external review requested one minor documentation fix; the workflow ordering contract is now documented in code and DECISIONS.
+ 
+ Remaining:
+-- Request external review and Ubuntu validation for Subtask 3.3.
++- Run Ubuntu validation for Subtask 3.3, then proceed to Subtask 3.4.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md b/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
+index 3b56524..c95ab34 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
++++ b/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
+@@ -156,3 +156,19 @@
+   - Legacy checkpoints without `trace_line_count` still fall back to validated trace counting.
+   - Checkpoint namespace mismatch is rejected before constructing a trace writer.
+   - Workflow helpers update checkpoint payloads with the writer's current trace line count and refuse counter rollback.
++
++## Subtask 3.3 - review-fix verification
++
++- timestamp_utc: 2026-05-27T06:29:15Z
++- review_source: Claude
++- review_verdict: Approve with minor changes
++- review_tests: 329 passed, 0 failed on Linux
++- environment:
++  - os: Windows development host
++  - python: 3.14.3
++  - runner: `.venv\Scripts\python.exe -m pytest`
++- targeted_command: `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -v`
++- targeted_result: 18 passed, 0 failed
++- review_fix:
++  - Documented append -> checkpoint.trace_line_count persistence ordering under a single WorkspaceLock.
++  - Documented crash-skew line-label offset and byte_ref fallback behavior.
+diff --git a/src/agent/trace.py b/src/agent/trace.py
+index ccb1d55..1eed048 100644
+--- a/src/agent/trace.py
++++ b/src/agent/trace.py
+@@ -98,6 +98,12 @@ class TraceSessionWriter:
+         New checkpoints carry `trace_line_count` so resume can restore the
+         line counter without scanning `events.jsonl`. Older checkpoints that
+         lack the field fall back to validated trace counting.
++
++        Workflow code must update and persist `checkpoint.trace_line_count`
++        after successful trace appends while holding the same workspace lock
++        that serializes the session writer. If a crash happens after a trace
++        append but before checkpoint persistence, line-based `trace_id` values
++        may be offset on resume; byte-offset references remain accurate.
+         """
+ 
+         state = CheckpointState.model_validate(checkpoint)
