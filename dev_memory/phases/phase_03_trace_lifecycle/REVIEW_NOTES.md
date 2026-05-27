@@ -113,3 +113,17 @@ Low/Info notes:
 
 Review conclusion:
 - Subtask 3.2 is approved and ready for Ubuntu validation.
+
+## Subtask 3.2 - Ubuntu validation
+
+- timestamp_utc: 2026-05-27T06:05:34Z
+- environment: Ubuntu/Linux, Python 3.11.15
+- full_command: `pytest -q`
+- full_result: 323 passed, 0 failed in 1.29s
+- targeted_command: `pytest tests/test_trace_session.py -v`
+- targeted_result: 14 passed, 0 failed in 0.11s
+- trace_memory_command: `pytest tests/test_trace_memory.py -q`
+- trace_memory_result: 22 passed, 0 failed in 0.11s
+
+Validation conclusion:
+- Subtask 3.2 is validated on the target Linux environment. Phase 03 can proceed to Subtask 3.3.

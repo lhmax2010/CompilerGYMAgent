@@ -92,6 +92,15 @@ subtasks:
     external_reviewed_at: 2026-05-27T05:56:39Z
     external_review_tests: "323 passed, 0 failed"
     external_review_notes: "Claude independently verified TraceSessionWriter context injection, line counter behavior, dry-run tagging, producer helpers, and found only Low/Info observations."
+    target_environment_validation:
+      os: Ubuntu/Linux
+      python: 3.11.15
+      full_pytest: "323 passed in 1.29s"
+      targeted_pytest:
+        trace_session: "14 passed in 0.11s"
+        trace_memory: "22 passed in 0.11s"
+      linux_fcntl_test: "included in full pytest run"
+      runner: "venv + pytest"
     deferred_low_priority_followups:
       - "When checkpoint/trace integration exists, prefer restoring trace_line_counter from canonical recovery state before scanning trace on session startup."
       - "Consider extracting the repeated session_id ASCII atom validator shared by trace, checkpoint, and workspace lock."
@@ -103,4 +112,4 @@ notes: |
   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
   trace storage primitive before wiring lifecycle stages, rejected candidates,
   dry-run injection, or process/user-action event producers.
-next_action: "Run Ubuntu validation for Subtask 3.2, then proceed to Subtask 3.3."
+next_action: "Proceed to Subtask 3.3."

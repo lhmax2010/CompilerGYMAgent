@@ -18,7 +18,7 @@ Completed:
 - Review fixes were validated on Ubuntu/Linux with Python 3.11.15: full pytest passed 309/309 and trace targeted pytest passed 22/22.
 - Subtask 3.2 implemented `TraceSessionWriter`, a session-scoped producer layer that injects `session_id` and `namespace`, maintains a lock-protected `next_line_number`, enforces dry-run trace markers, and provides convenience producers for common round/candidate/trial/skill events.
 - Subtask 3.2 received external approval after independent Linux verification: 323/323 tests passed and only Low/Info follow-ups remain.
+- Subtask 3.2 was validated on Ubuntu/Linux with Python 3.11.15: full pytest passed 323/323, trace-session targeted pytest passed 14/14, and trace-memory regression passed 22/22.
 
 Remaining:
-- Run Ubuntu validation for Subtask 3.2.
-- Proceed to Subtask 3.3 after target-environment validation.
+- Proceed to Subtask 3.3.

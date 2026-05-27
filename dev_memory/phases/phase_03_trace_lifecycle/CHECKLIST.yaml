@@ -88,6 +88,15 @@ subtasks:
     external_reviewed_at: 2026-05-27T05:56:39Z
     external_review_tests: "323 passed, 0 failed"
     external_review_notes: "Claude independently verified Subtask 3.2 and found only Low/Info observations."
+    target_environment_validation:
+      os: Ubuntu/Linux
+      python: 3.11.15
+      full_pytest: "323 passed in 1.29s"
+      targeted_pytest:
+        trace_session: "14 passed in 0.11s"
+        trace_memory: "22 passed in 0.11s"
+      linux_fcntl_test: "included in full pytest run"
+      runner: "venv + pytest"
     deferred_low_priority_followups:
       - "Prefer checkpoint-restored trace_line_counter once checkpoint/trace integration exists."
       - "Consider centralizing repeated session_id validation."

@@ -109,3 +109,21 @@
 - targeted_command: `PYTHONPATH=src python -m pytest tests/test_trace_session.py -v`
 - targeted_result: 14 passed, 0 failed
 - linux_fcntl_test: PASSED
+
+## Subtask 3.2 - Ubuntu validation
+
+- timestamp_utc: 2026-05-27T06:05:34Z
+- environment:
+  - os: Ubuntu/Linux
+  - python: 3.11.15
+  - runner: `venv + pytest`
+- full_command: `pytest -q`
+- full_result: 323 passed, 0 failed
+- full_duration: 1.29s
+- targeted_command: `pytest tests/test_trace_session.py -v`
+- targeted_result: 14 passed, 0 failed
+- targeted_duration: 0.11s
+- trace_memory_command: `pytest tests/test_trace_memory.py -q`
+- trace_memory_result: 22 passed, 0 failed
+- trace_memory_duration: 0.11s
+- linux_fcntl_test: included in full pytest run

@@ -909,3 +909,13 @@ Next action: commit this sync record, push, then request external review and Ubu
   - Rebuild the writer after rare append errors if fsync-after-write failure hardening becomes necessary.
 
 Next action: run Ubuntu validation for Subtask 3.2, then proceed to Subtask 3.3.
+
+## 2026-05-27T06:05:34Z - Phase 03 / Subtask 3.2 Ubuntu validation completed
+
+- Environment: Ubuntu/Linux, Python 3.11.15, venv + pytest.
+- Full suite: `pytest -q` -> 323 passed in 1.29s.
+- Trace session targeted suite: `pytest tests/test_trace_session.py -v` -> 14 passed in 0.11s.
+- Trace memory regression suite: `pytest tests/test_trace_memory.py -q` -> 22 passed in 0.11s.
+- The Linux-only real `fcntl` workspace lock path was included in the full run.
+
+Next action: proceed to Subtask 3.3.
