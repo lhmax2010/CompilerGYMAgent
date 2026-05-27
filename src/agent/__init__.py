@@ -131,6 +131,7 @@ from .registry import (
 from .trace import (
     TraceSessionError,
     TraceSessionWriter,
+    checkpoint_with_trace_line_count,
     count_trace_events,
 )
 from .workspace_lock import (
@@ -222,6 +223,7 @@ __all__ = [
     "atomic_write_yaml",
     "append_trace_event",
     "checkpoint_payload",
+    "checkpoint_with_trace_line_count",
     "collect_history_summary",
     "collect_trial_startup_validation_inputs",
     "compute_combo_hash",

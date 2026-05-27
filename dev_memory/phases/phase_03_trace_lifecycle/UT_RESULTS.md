@@ -127,3 +127,32 @@
 - trace_memory_result: 22 passed, 0 failed
 - trace_memory_duration: 0.11s
 - linux_fcntl_test: included in full pytest run
+
+## Subtask 3.3 - checkpoint trace counter integration
+
+- timestamp_utc: 2026-05-27T06:20:06Z
+- environment:
+  - os: Windows development host
+  - python: 3.14.3
+  - runner: `.venv\Scripts\python.exe -m pytest`
+- requirements:
+  - REQUIREMENTS.md section 3.3.4
+  - REQUIREMENTS.md section 4.11.3
+  - REQUIREMENTS.md section 4.13
+  - REQUIREMENTS.md section 5.1.2
+- targeted_command: `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -v`
+- targeted_result: 18 passed, 0 failed
+- checkpoint_regression_command: `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q`
+- checkpoint_regression_result: 130 passed, 0 failed
+- trace_regression_command: `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -q`
+- trace_regression_result: 22 passed, 0 failed
+- full_command: `.venv\Scripts\python.exe -m pytest -q`
+- full_result: 328 passed, 0 failed, 1 skipped
+- skipped:
+  - `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter` requires Linux fcntl and must be covered by Ubuntu validation.
+- new_coverage:
+  - `CheckpointState.trace_line_count` is optional for legacy checkpoints and rejects negative values.
+  - `TraceSessionWriter.for_checkpoint()` uses checkpoint `trace_line_count` without scanning trace files.
+  - Legacy checkpoints without `trace_line_count` still fall back to validated trace counting.
+  - Checkpoint namespace mismatch is rejected before constructing a trace writer.
+  - Workflow helpers update checkpoint payloads with the writer's current trace line count and refuse counter rollback.

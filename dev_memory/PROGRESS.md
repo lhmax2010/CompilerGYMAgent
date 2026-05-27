@@ -919,3 +919,18 @@ Next action: run Ubuntu validation for Subtask 3.2, then proceed to Subtask 3.3.
 - The Linux-only real `fcntl` workspace lock path was included in the full run.
 
 Next action: proceed to Subtask 3.3.
+
+## 2026-05-27T06:20:06Z - Phase 03 / Subtask 3.3 implemented
+
+- Started and implemented Subtask 3.3: persist trace line counters in canonical checkpoint recovery state.
+- Added optional `CheckpointState.trace_line_count` so current checkpoints can restore trace session line counters without scanning `trace/events.jsonl`.
+- Added `TraceSessionWriter.for_checkpoint()` to derive session id and `next_line_number` from checkpoint state, with legacy fallback to validated trace counting when older checkpoints omit the field.
+- Added `checkpoint_with_trace_line_count()` and `TraceSessionWriter.checkpoint_with_current_trace_count()` so workflow code can write the latest trace line count back into checkpoint payloads.
+- Public export added in `src/agent/__init__.py`.
+- UT results:
+  - `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -v` -> 18 passed.
+  - `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q` -> 130 passed.
+  - `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -q` -> 22 passed.
+  - `.venv\Scripts\python.exe -m pytest -q` -> 328 passed, 1 skipped on Windows.
+
+Next action: generate patch artifacts, commit/push Subtask 3.3, then request external review and Ubuntu validation.

@@ -1,0 +1,20 @@
+Phase 03 / Subtask 3.3 - Checkpoint trace line counter integration
+
+- Added optional `CheckpointState.trace_line_count` so canonical checkpoint state
+  can recover trace writer line counters without scanning long `events.jsonl`
+  files.
+- Added `TraceSessionWriter.for_checkpoint()` to construct a session writer from
+  checkpoint recovery state, using `trace_line_count` when present and falling
+  back to validated trace counting for legacy checkpoints.
+- Added `checkpoint_with_trace_line_count()` and
+  `TraceSessionWriter.checkpoint_with_current_trace_count()` for workflow code to
+  persist the latest emitted trace line count back into checkpoint payloads.
+- Exported `checkpoint_with_trace_line_count` from `agent.__init__`.
+- Added tests covering optional/invalid checkpoint counters, O(1) checkpoint
+  restoration without scanning, legacy fallback, namespace mismatch rejection,
+  checkpoint payload updates, and rollback protection.
+- Test results:
+  - `tests/test_trace_session.py -v` -> 18 passed.
+  - `tests/test_fs_memory.py -q` -> 130 passed.
+  - `tests/test_trace_memory.py -q` -> 22 passed.
+  - Full suite -> 328 passed, 1 skipped on Windows.

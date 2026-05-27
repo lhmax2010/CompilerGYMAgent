@@ -470,3 +470,18 @@ Decision records must include:
   - Have each workflow producer call `append_trace_event()` directly, which would duplicate session/namespace injection and line-counter handling at every call site.
   - Put line-counter state in `fs_memory.py`, which would mix session/workflow state with storage helpers.
   - Add dry-run tagging inside the low-level writer, which would conflate normal trial `mode` payloads with dry-run mode before a session context exists.
+
+## 2026-05-27T06:20:06Z - Restore trace line counters from canonical checkpoint state
+
+- affected_requirement:
+  - REQUIREMENTS.md section 3.3.4
+  - REQUIREMENTS.md section 4.11.3
+  - REQUIREMENTS.md section 4.13
+  - REQUIREMENTS.md section 5.1.2
+- decision: Add optional `trace_line_count` to `CheckpointState` and teach `TraceSessionWriter.for_checkpoint()` to restore `next_line_number` from it. New workflow code can update checkpoint payloads through `checkpoint_with_trace_line_count()` or `TraceSessionWriter.checkpoint_with_current_trace_count()`. Checkpoints that lack the field remain compatible and fall back to validated trace counting.
+- rationale: Runtime recovery state is the pair of `state/checkpoint.yaml` and `trace/events.jsonl`. Once Subtask 3.2 introduced a session-scoped producer, the line counter became workflow state rather than low-level storage metadata. Persisting the last emitted trace line in checkpoint makes resume construction O(1) for current checkpoints while preserving a safe migration path for older checkpoint files.
+- alternatives_considered:
+  - Always scan `events.jsonl` on writer construction, which is correct but makes every resume pay O(n) startup cost for long canonical traces.
+  - Make `append_trace_event()` read or mutate checkpoint state directly, which would couple the storage primitive back to mutable workflow recovery state.
+  - Add a separate sidecar line-count file, which would create another mutable coordination artifact outside the documented canonical checkpoint.
+  - Require `trace_line_count` on all checkpoints immediately, which would reject existing user-readable checkpoint files from earlier Phase 02/03 builds.

@@ -6,13 +6,20 @@ from pathlib import Path
 import pytest
 
 from agent.fs_memory import (
+    CheckpointState,
     NamespaceLayout,
     append_trace_event,
     load_trace_events,
     trace_event_payload,
+    write_checkpoint_state,
 )
 from agent.registry import ProjectNamespace
-from agent.trace import TraceSessionError, TraceSessionWriter, count_trace_events
+from agent.trace import (
+    TraceSessionError,
+    TraceSessionWriter,
+    checkpoint_with_trace_line_count,
+    count_trace_events,
+)
 
 
 def namespace() -> ProjectNamespace:
@@ -31,6 +38,22 @@ def layout(tmp_path: Path) -> NamespaceLayout:
 
 def event_payloads(current_layout: NamespaceLayout) -> list[dict]:
     return [trace_event_payload(event) for event in load_trace_events(current_layout.trace_path)]
+
+
+def checkpoint_data(**overrides: object) -> dict[str, object]:
+    data: dict[str, object] = {
+        "session_id": "sess_20260430_abc",
+        "namespace": str(namespace()),
+        "last_completed_trial": None,
+        "current_trial": None,
+        "current_best": None,
+        "explorer_state": {},
+        "random_seed": 42,
+        "total_tokens_consumed": 100,
+        "last_updated": "2026-04-30T10:30:22Z",
+    }
+    data.update(overrides)
+    return data
 
 
 def test_trace_session_writer_injects_context_and_line_counter(tmp_path: Path) -> None:
@@ -90,6 +113,86 @@ def test_trace_session_writer_resumes_line_counter_from_existing_trace(
     assert writer.next_line_number == 3
     assert result.trace_id == "events.jsonl#L2"
     assert event_payloads(current_layout)[1]["candidates_count"] == 5
+
+
+def test_trace_session_writer_uses_checkpoint_trace_line_count_without_scan(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    current_layout = layout(tmp_path)
+    checkpoint = checkpoint_data(trace_line_count=7)
+
+    def fail_if_scanned(path: Path) -> int:
+        raise AssertionError(f"unexpected trace scan: {path}")
+
+    monkeypatch.setattr("agent.trace.count_trace_events", fail_if_scanned)
+
+    writer = TraceSessionWriter.for_checkpoint(current_layout, checkpoint)
+
+    assert writer.session_id == "sess_20260430_abc"
+    assert writer.next_line_number == 8
+    assert writer.trace_line_count == 7
+
+
+def test_trace_session_writer_for_checkpoint_falls_back_for_legacy_checkpoint(
+    tmp_path: Path,
+) -> None:
+    current_layout = layout(tmp_path)
+    append_trace_event(
+        current_layout,
+        {"ts": "2026-04-30T10:00:00Z", "kind": "round_start"},
+        expected_line_number=1,
+    )
+
+    writer = TraceSessionWriter.for_checkpoint(current_layout, checkpoint_data())
+
+    assert writer.next_line_number == 2
+
+
+def test_trace_session_writer_for_checkpoint_rejects_namespace_mismatch(
+    tmp_path: Path,
+) -> None:
+    current_layout = layout(tmp_path)
+    checkpoint = checkpoint_data(
+        namespace="other/ffmpeg/gcc-13.2.0/code-a1b2c3d/kg-v3",
+        trace_line_count=1,
+    )
+
+    with pytest.raises(TraceSessionError, match="namespace does not match"):
+        TraceSessionWriter.for_checkpoint(current_layout, checkpoint)
+
+
+def test_checkpoint_with_trace_line_count_updates_checkpoint_payload(
+    tmp_path: Path,
+) -> None:
+    current_layout = layout(tmp_path)
+    append_trace_event(
+        current_layout,
+        {"ts": "2026-04-30T09:59:00Z", "kind": "session_resume"},
+        expected_line_number=1,
+    )
+    writer = TraceSessionWriter.for_checkpoint(
+        current_layout,
+        checkpoint_data(trace_line_count=1),
+    )
+    writer.round_start(
+        round=12,
+        phase="steady_state",
+        ts="2026-04-30T10:00:00Z",
+    )
+
+    payload = writer.checkpoint_with_current_trace_count(checkpoint_data())
+    path = write_checkpoint_state(current_layout, payload)
+    loaded = CheckpointState.model_validate(payload)
+
+    assert path == current_layout.checkpoint_path
+    assert payload["trace_line_count"] == 2
+    assert loaded.trace_line_count == 2
+
+    with pytest.raises(TraceSessionError, match="cannot move backward"):
+        checkpoint_with_trace_line_count(payload, trace_line_count=1)
+    with pytest.raises(TraceSessionError, match="non-negative integer"):
+        checkpoint_with_trace_line_count(payload, trace_line_count=-1)
 
 
 def test_trace_session_writer_dry_run_injects_mode_and_rejects_conflict(

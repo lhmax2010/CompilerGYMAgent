@@ -19,6 +19,7 @@ Completed:
 - Subtask 3.2 implemented `TraceSessionWriter`, a session-scoped producer layer that injects `session_id` and `namespace`, maintains a lock-protected `next_line_number`, enforces dry-run trace markers, and provides convenience producers for common round/candidate/trial/skill events.
 - Subtask 3.2 received external approval after independent Linux verification: 323/323 tests passed and only Low/Info follow-ups remain.
 - Subtask 3.2 was validated on Ubuntu/Linux with Python 3.11.15: full pytest passed 323/323, trace-session targeted pytest passed 14/14, and trace-memory regression passed 22/22.
+- Subtask 3.3 added optional `CheckpointState.trace_line_count` and checkpoint-aware trace writer construction, so current checkpoints can restore `TraceSessionWriter.next_line_number` without scanning long trace files.
 
 Remaining:
-- Proceed to Subtask 3.3.
+- Commit/push Subtask 3.3, then request external review and Ubuntu validation.

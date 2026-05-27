@@ -1322,12 +1322,30 @@ def test_checkpoint_state_schema_accepts_documented_running_state() -> None:
 
     assert checkpoint.session_id == "sess_20260430_abc"
     assert checkpoint.namespace == str(namespace())
+    assert checkpoint.trace_line_count is None
     assert checkpoint.current_trial is not None
     assert checkpoint.current_trial.current_stage == "compiling"
     assert checkpoint.current_trial.process is not None
     assert checkpoint.current_trial.process.cmdline_hash == "sha256:" + ("d" * 64)
     assert checkpoint.current_best is not None
     assert checkpoint.current_best.score == 1.231
+
+
+def test_checkpoint_state_accepts_trace_line_count_for_resume_counter() -> None:
+    data = checkpoint_data()
+    data["trace_line_count"] = 123
+
+    checkpoint = CheckpointState.model_validate(data)
+
+    assert checkpoint.trace_line_count == 123
+
+
+def test_checkpoint_state_rejects_negative_trace_line_count() -> None:
+    data = checkpoint_data()
+    data["trace_line_count"] = -1
+
+    with pytest.raises(ValidationError, match="trace_line_count"):
+        CheckpointState.model_validate(data)
 
 
 @pytest.mark.parametrize("score", [0.0, -3.14])

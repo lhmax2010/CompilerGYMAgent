@@ -127,3 +127,32 @@ Review conclusion:
 
 Validation conclusion:
 - Subtask 3.2 is validated on the target Linux environment. Phase 03 can proceed to Subtask 3.3.
+
+## Subtask 3.3 - checkpoint trace counter integration
+
+Scope:
+- Make the trace session line counter recoverable from canonical checkpoint state.
+- Keep low-level `append_trace_event()` independent from checkpoint reads/writes.
+- Preserve compatibility with older checkpoint files that do not yet contain a counter.
+
+Implementation checklist:
+- [x] Added optional `trace_line_count` to `CheckpointState`.
+- [x] Added `TraceSessionWriter.for_checkpoint()` to restore `next_line_number` from checkpoint state.
+- [x] Kept legacy fallback through validated `count_trace_events()` when `trace_line_count` is absent.
+- [x] Added `checkpoint_with_trace_line_count()` and `TraceSessionWriter.checkpoint_with_current_trace_count()` for workflow checkpoint updates.
+- [x] Exported the new public helper from `agent.__init__`.
+
+Tests:
+- `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -v` -> 18 passed.
+- `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q` -> 130 passed.
+- `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -q` -> 22 passed.
+- `.venv\Scripts\python.exe -m pytest -q` -> 328 passed, 1 skipped on Windows.
+
+Self-review notes:
+- `trace_line_count` remains optional so existing user-readable checkpoint files do not become invalid.
+- `for_checkpoint()` validates the checkpoint namespace against the layout before using its session id or counter.
+- The helper refuses counter rollback, which catches accidental stale checkpoint writes during normal append-only sessions.
+- Low-level trace storage still does not know about checkpoint schema; checkpoint coupling stays in the workflow-facing trace module.
+
+Review conclusion:
+- Subtask 3.3 is ready for external review and Ubuntu validation.

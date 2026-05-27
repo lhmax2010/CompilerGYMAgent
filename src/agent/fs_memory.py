@@ -730,6 +730,7 @@ class CheckpointState(StrictFsModel):
     explorer_state: dict[str, Any] = Field(default_factory=dict)
     random_seed: int = Field(ge=0)
     total_tokens_consumed: int = Field(ge=0)
+    trace_line_count: int | None = Field(default=None, ge=0)
     last_updated: NonEmptyStr
 
     @field_validator("namespace")

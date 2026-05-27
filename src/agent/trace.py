@@ -8,10 +8,12 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from .fs_memory import (
+    CheckpointState,
     NamespaceLayout,
     TraceAppendResult,
     TraceError,
     append_trace_event,
+    checkpoint_payload,
     iter_trace_events,
 )
 
@@ -24,6 +26,31 @@ def count_trace_events(path: str | Path) -> int:
     """Return the number of validated events currently in `events.jsonl`."""
 
     return sum(1 for _ in iter_trace_events(path))
+
+
+def checkpoint_with_trace_line_count(
+    checkpoint: CheckpointState | Mapping[str, Any],
+    *,
+    trace_line_count: int,
+) -> dict[str, Any]:
+    """Return a checkpoint payload updated with the current trace line count."""
+
+    if (
+        not isinstance(trace_line_count, int)
+        or isinstance(trace_line_count, bool)
+        or trace_line_count < 0
+    ):
+        raise TraceSessionError("trace_line_count must be a non-negative integer")
+    validated = CheckpointState.model_validate(checkpoint)
+    if (
+        validated.trace_line_count is not None
+        and trace_line_count < validated.trace_line_count
+    ):
+        raise TraceSessionError("trace_line_count cannot move backward")
+
+    payload = checkpoint_payload(validated)
+    payload["trace_line_count"] = trace_line_count
+    return payload
 
 
 @dataclass
@@ -56,6 +83,54 @@ class TraceSessionWriter:
             session_id=session_id,
             dry_run=dry_run,
             next_line_number=next_line_number,
+        )
+
+    @classmethod
+    def for_checkpoint(
+        cls,
+        layout: NamespaceLayout,
+        checkpoint: CheckpointState | Mapping[str, Any],
+        *,
+        dry_run: bool = False,
+    ) -> TraceSessionWriter:
+        """Create a writer from canonical checkpoint recovery state.
+
+        New checkpoints carry `trace_line_count` so resume can restore the
+        line counter without scanning `events.jsonl`. Older checkpoints that
+        lack the field fall back to validated trace counting.
+        """
+
+        state = CheckpointState.model_validate(checkpoint)
+        expected_namespace = str(layout.namespace)
+        if state.namespace != expected_namespace:
+            raise TraceSessionError(
+                "checkpoint namespace does not match layout "
+                f"(expected={expected_namespace!r}, actual={state.namespace!r})"
+            )
+        if state.trace_line_count is None:
+            next_line_number = count_trace_events(layout.trace_path) + 1
+        else:
+            next_line_number = state.trace_line_count + 1
+        return cls(
+            layout=layout,
+            session_id=state.session_id,
+            dry_run=dry_run,
+            next_line_number=next_line_number,
+        )
+
+    @property
+    def trace_line_count(self) -> int:
+        return self.next_line_number - 1
+
+    def checkpoint_with_current_trace_count(
+        self,
+        checkpoint: CheckpointState | Mapping[str, Any],
+    ) -> dict[str, Any]:
+        """Return checkpoint data updated to this writer's current trace line."""
+
+        return checkpoint_with_trace_line_count(
+            checkpoint,
+            trace_line_count=self.trace_line_count,
         )
 
     def append(
