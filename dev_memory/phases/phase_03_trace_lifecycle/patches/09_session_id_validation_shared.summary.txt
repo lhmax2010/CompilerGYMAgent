@@ -1,0 +1,13 @@
+Phase 03 / Subtask 3.7 centralizes runtime session id validation.
+
+- Added `src/agent/identifiers.py` with `validate_session_id_atom()`.
+- Updated `CheckpointState`, `WorkspaceLockHolder`, and `TraceSessionWriter` to share the same path-safe ASCII session id rules.
+- Preserved caller-specific error surfaces by letting trace pass `TraceSessionError` while Pydantic models keep `ValueError`.
+- Added `tests/test_identifiers.py` for direct helper checks and cross-module drift prevention.
+- Extended workspace lock unsafe session id coverage for `.` and `..`.
+- Updated DECISIONS and Phase 03 dev_memory records.
+
+Validation:
+- `.venv\Scripts\python.exe -m pytest tests/test_identifiers.py -q` -> 22 passed.
+- `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py tests/test_fs_memory.py tests/test_workspace_lock.py -q` -> 194 passed, 1 skipped.
+- `.venv\Scripts\python.exe -m pytest -q` -> 370 passed, 1 skipped.

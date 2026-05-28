@@ -19,6 +19,7 @@ from .fs_memory import (
     iter_trace_events,
     write_checkpoint_state,
 )
+from .identifiers import validate_session_id_atom
 
 
 class TraceSessionError(TraceError):
@@ -104,7 +105,11 @@ class TraceSessionWriter:
     next_line_number: int = 1
 
     def __post_init__(self) -> None:
-        _validate_session_id(self.session_id)
+        validate_session_id_atom(
+            self.session_id,
+            "session_id",
+            error_type=TraceSessionError,
+        )
         if self.next_line_number <= 0:
             raise TraceSessionError("next_line_number must be positive")
 
@@ -563,20 +568,3 @@ def _require_rejection_field_value(field: str, value: Any) -> None:
         return
     if value is None:
         raise TraceSessionError(f"{field} must not be null")
-
-
-def _validate_session_id(value: str) -> None:
-    if not isinstance(value, str) or not value:
-        raise TraceSessionError("session_id must be a non-empty string")
-    if value != value.strip():
-        raise TraceSessionError("session_id cannot contain surrounding whitespace")
-    if value in {".", ".."}:
-        raise TraceSessionError(f"session_id cannot be {value!r}")
-    if "/" in value or "\\" in value:
-        raise TraceSessionError("session_id cannot contain path separators")
-    if any(ord(char) < 0x20 or ord(char) == 0x7F for char in value):
-        raise TraceSessionError("session_id cannot contain control characters")
-    if not all(char.isascii() and (char.isalnum() or char in "_-") for char in value):
-        raise TraceSessionError(
-            "session_id can contain only ASCII letters, digits, '_' or '-'"
-        )

@@ -451,3 +451,25 @@ Review conclusion:
 
 Validation conclusion:
 - Subtask 3.6 is validated on the target Linux environment. Phase 03 can proceed to Subtask 3.7 or the next milestone.
+
+## Subtask 3.7 - shared session id validation self-review
+
+Checklist:
+- [x] Checkpoint, workspace lock, and trace session writers now reuse one session id validation helper.
+- [x] Existing before-strip validators remain in Pydantic models so surrounding whitespace is still rejected before `NonEmptyStr` normalization.
+- [x] Trace code still raises `TraceSessionError` rather than leaking `ValueError`.
+- [x] No new public API was added to `agent.__init__`; the helper remains an internal module import.
+- [x] Tests cover direct helper behavior and cross-module drift prevention.
+
+Notes:
+- The helper intentionally validates only session ids, not every file atom, to avoid broadening the scope of this polish subtask.
+- Workspace lock tests now explicitly cover `.` and `..`, matching the checkpoint and trace session test matrices.
+- Deferred items remain unchanged: process-event kind whitelists, dry-run checkpoint persistence, and doctor reconcile.
+
+Validation:
+- `.venv\Scripts\python.exe -m pytest tests/test_identifiers.py -q` -> 22 passed.
+- `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py tests/test_fs_memory.py tests/test_workspace_lock.py -q` -> 194 passed, 1 skipped.
+- `.venv\Scripts\python.exe -m pytest -q` -> 370 passed, 1 skipped.
+
+Next action:
+- Commit/push Subtask 3.7, then request external review and Ubuntu validation.

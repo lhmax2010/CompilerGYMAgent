@@ -374,3 +374,27 @@
   - `trace_id: events.jsonl#L1`
   - `kind: llm_call`
   - `prompt_tokens: 0`
+
+## Subtask 3.7 - shared session id validation
+
+- timestamp_utc: 2026-05-28T07:17:23Z
+- environment:
+  - os: Windows development host
+  - python: 3.14.3
+  - runner: `.venv\Scripts\python.exe -m pytest`
+- requirements:
+  - REQUIREMENTS.md section 3.3.4
+  - REQUIREMENTS.md section 4.11.3
+  - REQUIREMENTS.md section 4.15
+- targeted_command: `.venv\Scripts\python.exe -m pytest tests/test_identifiers.py -q`
+- targeted_result: 22 passed, 0 failed
+- regression_command: `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py tests/test_fs_memory.py tests/test_workspace_lock.py -q`
+- regression_result: 194 passed, 0 failed, 1 skipped
+- full_command: `.venv\Scripts\python.exe -m pytest -q`
+- full_result: 370 passed, 0 failed, 1 skipped
+- skipped:
+  - `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter` requires Linux fcntl and must be covered by Ubuntu validation.
+- new_coverage:
+  - Direct helper acceptance/rejection for safe and unsafe session ids.
+  - Custom error type propagation for trace session errors.
+  - Cross-module invariant that checkpoint, workspace lock, and trace writers reject the same unsafe session ids.

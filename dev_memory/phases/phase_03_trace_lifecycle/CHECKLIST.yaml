@@ -336,6 +336,37 @@ subtasks:
     files_modified:
       - src/agent/trace.py
       - tests/test_trace_session.py
+  - id: "3.7"
+    title: "Centralize runtime session identifier validation"
+    status: done
+    related_requirements:
+      - REQUIREMENTS.md section 3.3.4
+      - REQUIREMENTS.md section 4.11.3
+      - REQUIREMENTS.md section 4.15
+    ut_required: true
+    ut_passed: true
+    targeted_ut: "22 identifier tests passed, 0 failed"
+    trace_checkpoint_lock_regression_ut: "194 passed, 0 failed, 1 skipped"
+    full_ut: "370 passed, 0 failed, 1 skipped"
+    self_review_required: true
+    self_reviewed: true
+    patch_required: true
+    patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/09_session_id_validation_shared.patch
+    patch_generated: true
+    commit_required: true
+    commit_pending: true
+    implementation_summary:
+      - "Created `src/agent/identifiers.py` with the shared session id atom validator."
+      - "CheckpointState, WorkspaceLockHolder, and TraceSessionWriter now call the same helper."
+      - "Added tests for direct helper behavior and cross-module rejection invariants."
+    files_created:
+      - src/agent/identifiers.py
+      - tests/test_identifiers.py
+    files_modified:
+      - src/agent/fs_memory.py
+      - src/agent/trace.py
+      - src/agent/workspace_lock.py
+      - tests/test_workspace_lock.py
 
 phase_exit_criteria:
   - "Trace events are append-only JSONL with strict common fields and flexible event-specific payloads."

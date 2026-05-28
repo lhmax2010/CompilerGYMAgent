@@ -23,6 +23,7 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from .config import AgentConfig, NonEmptyStr
+from .identifiers import validate_session_id_atom
 from .registry import ProjectNamespace, compute_project_namespace
 
 
@@ -749,7 +750,7 @@ class CheckpointState(StrictFsModel):
     @field_validator("session_id")
     @classmethod
     def session_id_must_be_safe(cls, value: str) -> str:
-        _validate_session_id_atom(value, "session_id")
+        validate_session_id_atom(value, "session_id")
         return value
 
     @field_validator("last_completed_trial")
@@ -2092,12 +2093,6 @@ def _validate_namespace_string(value: str, label: str) -> None:
         raise ValueError(f"{label} must contain exactly 5 path segments")
     for index, part in enumerate(parts, start=1):
         _validate_file_atom(part, f"{label} segment {index}")
-
-
-def _validate_session_id_atom(value: str, label: str) -> None:
-    _validate_file_atom(value, label)
-    if not all(char.isascii() and (char.isalnum() or char in "_-") for char in value):
-        raise ValueError(f"{label} can contain only ASCII letters, digits, '_' or '-'")
 
 
 def _write_trial_index_database(

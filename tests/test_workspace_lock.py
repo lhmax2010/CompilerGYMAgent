@@ -440,6 +440,8 @@ def test_acquire_rejects_empty_command_or_session(tmp_path: Path) -> None:
         "sess=abc",
         "sess$(rm-rf)",
         "../../etc",
+        ".",
+        "..",
     ],
 )
 def test_acquire_rejects_unsafe_session_id(tmp_path: Path, session_id: str) -> None:

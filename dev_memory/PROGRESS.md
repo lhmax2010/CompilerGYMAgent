@@ -1177,3 +1177,17 @@ Next action: commit/push this review sync, then run Ubuntu validation for Subtas
   - `prompt_tokens: 0`
 
 Next action: proceed to Subtask 3.7 or the next milestone.
+
+## 2026-05-28T07:17:23Z - Phase 03 / Subtask 3.7 implemented
+
+- Started and implemented Subtask 3.7: shared runtime session id validation.
+- Added `src/agent/identifiers.py` with `validate_session_id_atom()` as the single path-safe ASCII session id validator.
+- Updated `CheckpointState`, `WorkspaceLockHolder`, and `TraceSessionWriter` to reuse the helper while preserving their existing error surfaces.
+- Added `tests/test_identifiers.py` to cover direct helper behavior, custom trace error propagation, and cross-module rejection invariants.
+- Extended workspace lock unsafe session id coverage for `.` and `..`.
+- UT results:
+  - `.venv\Scripts\python.exe -m pytest tests/test_identifiers.py -q` -> 22 passed.
+  - `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py tests/test_fs_memory.py tests/test_workspace_lock.py -q` -> 194 passed, 1 skipped.
+  - `.venv\Scripts\python.exe -m pytest -q` -> 370 passed, 1 skipped on Windows.
+
+Next action: generate patch artifacts, commit/push Subtask 3.7, then request external review and Ubuntu validation.

@@ -528,3 +528,16 @@ Decision records must include:
   - Move these scalar checks into `append_trace_event()`, which would make the storage primitive understand workflow-specific payload keys.
   - Close all runtime event families now, which would force process/KG/user-command schemas before those owning modules exist.
   - Defer all polish to later phases, which would preserve review noise around two cheap and deterministic trace producer contracts.
+
+## 2026-05-28T07:17:23Z - Centralize session identifier validation
+
+- affected_requirement:
+  - REQUIREMENTS.md section 3.3.4
+  - REQUIREMENTS.md section 4.11.3
+  - REQUIREMENTS.md section 4.15
+- decision: Add `agent.identifiers.validate_session_id_atom()` as the single implementation for session id syntax shared by checkpoint recovery state, workspace lock holders, and trace session writers.
+- rationale: `session_id` connects `state/checkpoint.yaml`, `state/run.lock`, spawned process markers, and `trace/events.jsonl` events. Keeping three independent validators made it easy for one runtime surface to accept an id another surface would reject. A shared helper preserves the existing ASCII/path-safe contract while letting each caller keep its own error type and Pydantic before-strip guard.
+- alternatives_considered:
+  - Leave three copied validators in place, which would keep the current behavior but preserve drift risk across checkpoint, lock, and trace code.
+  - Export the helper as a public API from `agent.__init__`, which is unnecessary because users should not depend on low-level identifier validation internals.
+  - Move all file-atom validation into the new helper, which would overreach beyond session ids and disturb broader FS-memory path rules.
