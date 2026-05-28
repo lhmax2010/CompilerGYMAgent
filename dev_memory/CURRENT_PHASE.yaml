@@ -257,10 +257,18 @@ subtasks:
       - "Recorded full experience-rule rejection details: matched_rule_id, matched_rule_path, filter_strength, penalty, and score_after_penalty."
       - "Added convenience producers for process events, LLM calls, memory ops, KG ops, user actions, and workspace snapshots."
       - "Kept low-level trace storage open-payload while making workflow-facing producers harder to misuse."
+    external_review_verdict: approve
+    external_reviewed_at: 2026-05-28T06:04:07Z
+    external_review_tests: "337 passed, 0 failed"
+    external_review_notes: "Claude verified all seven rejection reasons against REQUIREMENTS.md section 4.6.2 and found only Info-level follow-ups."
+    deferred_low_priority_followups:
+      - "Consider non-empty/type validation for rejected-candidate reference fields when the candidate engine owns those identifiers."
+      - "Consider non-negative token checks for llm_call once LLM accounting is implemented."
+      - "Consider process event kind whitelisting once the process cleaner module owns process event shapes."
 notes: |
   Phase 03 starts with the canonical `trace/events.jsonl` append-only event
   stream because REQUIREMENTS.md defines runtime recovery state as
   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
   trace storage primitive before wiring lifecycle stages, rejected candidates,
   dry-run injection, or process/user-action event producers.
-next_action: "Commit this sync record, push, then request external review and Ubuntu validation for Subtask 3.5."
+next_action: "Run Ubuntu validation for Subtask 3.5, then proceed to Subtask 3.6 or the next milestone."

@@ -323,3 +323,28 @@ Self-review notes:
 
 Review conclusion:
 - Subtask 3.5 is ready for external review and Ubuntu validation.
+
+## Subtask 3.5 - external review
+
+- timestamp_utc: 2026-05-28T06:04:07Z
+- reviewer: Claude
+- verdict: Approve
+- range: `2fceafd..e303b07`
+- implementation: `73324e8`
+- sync: `e303b07`
+- tests: 337 passed, 0 failed on Linux
+
+Review highlights:
+- All seven rejected-candidate reasons match the REQUIREMENTS.md section 4.6.2 field matrix.
+- `experience_hard_filter` and `experience_soft_filter_with_low_score` enforce the documented `filter_strength` values.
+- Soft-filter rejection traces validate finite `penalty` and `score_after_penalty` values.
+- Process, LLM, memory, KG, user-action, and workspace-snapshot producer helpers round-trip correctly.
+
+Info-level follow-ups deferred:
+- Reference fields are presence-checked but not yet non-empty/type-checked.
+- `llm_call` token counts are not yet constrained to non-negative values.
+- `process_event` keeps event kind open until the process workflow owns concrete shapes.
+- Existing deferred items remain: shared session-id validation and dry-run persistence in checkpoint.
+
+Review conclusion:
+- Subtask 3.5 is approved and ready for Ubuntu validation.

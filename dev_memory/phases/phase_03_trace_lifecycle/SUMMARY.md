@@ -26,6 +26,7 @@ Completed:
 - Subtask 3.4 external review approved the helper; the only Info follow-up was closed by documenting partial-failure retry semantics.
 - Subtask 3.4 was validated on Ubuntu/Linux with Python 3.11.15: full pytest passed 333/333, targeted trace/checkpoint suites passed, Linux fcntl passed, and the checkpointed trace writer manual probe matched expected output.
 - Subtask 3.5 expanded the session producer layer with strict rejected-candidate contracts and convenience helpers for process, LLM, memory, KG, user-action, and workspace-snapshot trace events.
+- Subtask 3.5 external review approved the producer contracts after verifying all seven rejected-candidate reasons against REQUIREMENTS.md section 4.6.2.
 
 Remaining:
-- Request external review and Ubuntu validation for Subtask 3.5, then continue to the next milestone.
+- Run Ubuntu validation for Subtask 3.5, then continue to Subtask 3.6 or the next milestone.

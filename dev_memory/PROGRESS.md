@@ -1084,3 +1084,21 @@ Next action: generate patch artifacts, commit/push Subtask 3.5, then request ext
   - `dev_memory/phases/phase_03_trace_lifecycle/patches/07_trace_producer_event_families.review.md`
 
 Next action: commit this sync record, push, then request external review and Ubuntu validation for Subtask 3.5.
+
+## 2026-05-28T06:04:07Z - Phase 03 / Subtask 3.5 external review completed
+
+- Reviewer: Claude.
+- Verdict: Approve.
+- Range: `2fceafd..e303b07`.
+- Implementation: `73324e8`; sync: `e303b07`.
+- Tests: 337 passed, 0 failed on Linux; the Linux real `fcntl` workspace lock path passed.
+- Review highlights:
+  - All seven `candidate_rejected` reasons match REQUIREMENTS.md section 4.6.2.
+  - Experience hard/soft filter traces enforce documented `filter_strength` and soft-filter numeric fields.
+  - Runtime event-family helpers cover process, LLM, memory, KG, user-action, and workspace snapshot events.
+- Deferred Info-level follow-ups:
+  - Reference fields are presence-checked but not non-empty/type-checked.
+  - `llm_call` token counts are not constrained to non-negative values yet.
+  - `process_event` kind remains open until the process workflow owns concrete event shapes.
+
+Next action: commit/push this review sync, then run Ubuntu validation for Subtask 3.5.

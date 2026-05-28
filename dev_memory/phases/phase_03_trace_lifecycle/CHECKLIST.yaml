@@ -253,6 +253,14 @@ subtasks:
       - "Experience hard/soft rejection traces enforce filter_strength and soft-filter numeric penalty fields."
       - "Added process_event, llm_call, memory_op, kg_op, user_action, and workspace_snapshot producers."
       - "Added focused tests for rejected candidate contracts and runtime event-family payloads."
+    external_review_verdict: approve
+    external_reviewed_at: 2026-05-28T06:04:07Z
+    external_review_tests: "337 passed, 0 failed"
+    external_review_notes: "Claude approved; all seven rejection reasons match REQUIREMENTS.md section 4.6.2."
+    deferred_low_priority_followups:
+      - "Rejected-candidate reference fields are currently presence-checked, not non-empty/type-checked."
+      - "llm_call token counts are not yet constrained to non-negative values."
+      - "process_event kind remains open until the process workflow owns concrete event shapes."
     files_modified:
       - src/agent/trace.py
       - tests/test_trace_session.py
