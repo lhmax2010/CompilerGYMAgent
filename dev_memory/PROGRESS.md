@@ -1135,3 +1135,13 @@ Next action: proceed to Subtask 3.6 or the next milestone.
   - `.venv\Scripts\python.exe -m pytest -q` -> 346 passed, 1 skipped on Windows.
 
 Next action: generate patch artifacts, commit/push Subtask 3.6, then request external review and Ubuntu validation.
+
+## 2026-05-28T06:35:22Z - Phase 03 / Subtask 3.6 committed
+
+- Commit: `617537d phase_03_trace_lifecycle: 3.6 trace producer validation polish`.
+- Patch files:
+  - `dev_memory/phases/phase_03_trace_lifecycle/patches/08_trace_producer_validation_polish.patch`
+  - `dev_memory/phases/phase_03_trace_lifecycle/patches/08_trace_producer_validation_polish.summary.txt`
+  - `dev_memory/phases/phase_03_trace_lifecycle/patches/08_trace_producer_validation_polish.review.md`
+
+Next action: commit this sync record, push, then request external review and Ubuntu validation for Subtask 3.6.

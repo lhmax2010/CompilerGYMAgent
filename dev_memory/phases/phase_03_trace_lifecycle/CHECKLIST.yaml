@@ -300,7 +300,9 @@ subtasks:
     patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/08_trace_producer_validation_polish.patch
     patch_generated: true
     commit_required: true
-    commit_pending: true
+    commit_pending: false
+    commit_hash: 617537d
+    commit_message: "phase_03_trace_lifecycle: 3.6 trace producer validation polish"
     implementation_summary:
       - "candidate_rejected required references reject empty or whitespace-only strings."
       - "candidate_rejected required option lists reject empty collections and empty elements."

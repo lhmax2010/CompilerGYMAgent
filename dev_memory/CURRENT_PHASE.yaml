@@ -304,7 +304,9 @@ subtasks:
     patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/08_trace_producer_validation_polish.patch
     patch_generated: true
     commit_required: true
-    commit_pending: true
+    commit_pending: false
+    commit_hash: 617537d
+    commit_message: "phase_03_trace_lifecycle: 3.6 trace producer validation polish"
     implementation_summary:
       - "Rejected-candidate required string references now reject empty, whitespace-only, and non-string values."
       - "Required option-list references now reject empty lists and empty option atoms."
@@ -316,4 +318,4 @@ notes: |
   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
   trace storage primitive before wiring lifecycle stages, rejected candidates,
   dry-run injection, or process/user-action event producers.
-next_action: "Generate implementation/sync commits for Subtask 3.6, then request external review and Ubuntu validation."
+next_action: "Commit this sync record, push, then request external review and Ubuntu validation for Subtask 3.6."
