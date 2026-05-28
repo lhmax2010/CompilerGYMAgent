@@ -207,6 +207,8 @@ subtasks:
     review_fix_status: done
     review_fix_summary:
       - "Documented that append_and_checkpoint partial failures leave a durable trace event and should not be blindly retried as the same logical event."
+    review_fix_commit_hash: f90aad0
+    review_fix_commit_message: "phase_03_trace_lifecycle: 3.4 review docs"
     review_fix_targeted_ut: "22 trace session tests passed, 0 failed"
 notes: |
   Phase 03 starts with the canonical `trace/events.jsonl` append-only event

@@ -1030,3 +1030,11 @@ Next action: commit this sync record, push, then request external review and Ubu
   - `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -v` -> 22 passed.
 
 Next action: commit/push this review fix, then run Ubuntu validation for Subtask 3.4.
+
+## 2026-05-28T04:01:00Z - Phase 03 / Subtask 3.4 review fix committed
+
+- Commit: `f90aad0 phase_03_trace_lifecycle: 3.4 review docs`.
+- Review fix:
+  - Documented `TraceCheckpointWriter.append_and_checkpoint()` partial-failure retry semantics.
+
+Next action: commit this sync record, push, then run Ubuntu validation for Subtask 3.4.

@@ -202,6 +202,8 @@ subtasks:
     review_fix_status: done
     review_fix_summary:
       - "Documented append_and_checkpoint partial-failure retry semantics."
+    review_fix_commit_hash: f90aad0
+    review_fix_commit_message: "phase_03_trace_lifecycle: 3.4 review docs"
     review_fix_targeted_ut: "22 trace session tests passed, 0 failed"
     files_modified:
       - src/agent/trace.py
