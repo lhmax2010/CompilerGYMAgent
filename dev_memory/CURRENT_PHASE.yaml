@@ -1,7 +1,7 @@
 phase_id: phase_03_trace_lifecycle
 phase_title: "Trace JSONL canonical event stream"
 started_at: 2026-05-21T14:06:00Z
-last_updated: 2026-05-28T07:17:23Z
+last_updated: 2026-05-28T07:26:20Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 3.3
@@ -363,16 +363,26 @@ subtasks:
     patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/09_session_id_validation_shared.patch
     patch_generated: true
     commit_required: true
-    commit_pending: true
+    commit_pending: false
+    commit_hash: d80d68f
+    commit_message: "phase_03_trace_lifecycle: 3.7 share session id validation"
     implementation_summary:
       - "Added a shared `validate_session_id_atom()` helper for path-safe ASCII session identifiers."
       - "Reused the helper from CheckpointState, WorkspaceLockHolder, and TraceSessionWriter while preserving caller-specific error types."
       - "Added cross-module tests to ensure checkpoint, lock, and trace session id rules stay aligned."
       - "Extended workspace lock coverage for `.` and `..` session ids."
+    external_review_verdict: approve
+    external_reviewed_at: 2026-05-28T07:26:20Z
+    external_review_tests: "371 passed, 0 failed"
+    external_review_notes: "Claude verified the shared session id helper, caller-specific error types, and cross-module behavior consistency across checkpoint, workspace lock, and trace."
+    deferred_low_priority_followups:
+      - "Persist dry_run session state in checkpoint when dry-run resume becomes workflow-owned."
+      - "Add doctor/reconcile support for trace/checkpoint skew outside the hot path."
+      - "Keep process_event kind open until the process owning module defines concrete event kinds."
 notes: |
   Phase 03 starts with the canonical `trace/events.jsonl` append-only event
   stream because REQUIREMENTS.md defines runtime recovery state as
   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
   trace storage primitive before wiring lifecycle stages, rejected candidates,
   dry-run injection, or process/user-action event producers.
-next_action: "Commit/push Subtask 3.7, then request external review and Ubuntu validation."
+next_action: "Run Ubuntu validation for Subtask 3.7, then record target-environment results."

@@ -1191,3 +1191,18 @@ Next action: proceed to Subtask 3.7 or the next milestone.
   - `.venv\Scripts\python.exe -m pytest -q` -> 370 passed, 1 skipped on Windows.
 
 Next action: generate patch artifacts, commit/push Subtask 3.7, then request external review and Ubuntu validation.
+
+## 2026-05-28T07:26:20Z - Phase 03 / Subtask 3.7 external review completed
+
+- Reviewer: Claude.
+- Verdict: Approve.
+- Range: `938c994..d80d68f`.
+- Implementation/sync: `d80d68f`.
+- Tests: 371 passed, 0 failed on Linux; Linux real fcntl path passed.
+- Review highlights:
+  - Shared `validate_session_id_atom()` closes the long-running session_id duplication debt from trace, checkpoint, and workspace lock modules.
+  - `error_type` parameter preserves each caller's error surface while enforcing one rule source.
+  - 20 session id cases were independently checked across checkpoint, workspace lock, and trace with identical accept/reject behavior.
+  - Remaining deferred items are outside this subtask: dry_run checkpoint persistence, trace/checkpoint doctor reconcile, and process-event kind whitelisting.
+
+Next action: run Ubuntu validation for Subtask 3.7 and record target-environment results.

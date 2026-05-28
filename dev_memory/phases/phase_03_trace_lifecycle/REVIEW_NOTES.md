@@ -473,3 +473,28 @@ Validation:
 
 Next action:
 - Commit/push Subtask 3.7, then request external review and Ubuntu validation.
+
+## Subtask 3.7 - external review
+
+- timestamp_utc: 2026-05-28T07:26:20Z
+- reviewer: Claude
+- verdict: Approve
+- range: `938c994..d80d68f`
+- implementation: `d80d68f`
+- sync: `d80d68f`
+- tests: 371 passed, 0 failed on Linux
+
+Review highlights:
+- The repeated session id validators from trace, fs_memory, and workspace_lock are now centralized in `identifiers.py`.
+- `error_type` preserves caller-specific error semantics: Pydantic paths keep `ValueError`, trace paths raise `TraceSessionError`.
+- Independent probes verified 20 session id cases across checkpoint, workspace lock, and trace with identical accept/reject behavior.
+- No top-level `agent.__init__` export is needed because the helper is internal plumbing.
+- Module dependency direction remains clean: `identifiers.py` has no internal dependencies and is imported one-way by the runtime modules.
+
+Deferred items:
+- dry_run checkpoint persistence remains future workflow scope.
+- Trace/checkpoint doctor reconcile remains future doctor scope.
+- Process event kind whitelist remains future process workflow scope.
+
+Review conclusion:
+- Subtask 3.7 is approved and ready for Ubuntu validation.
