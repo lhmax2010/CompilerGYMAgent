@@ -188,7 +188,9 @@ subtasks:
     patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/06_trace_checkpoint_writer.patch
     patch_generated: true
     commit_required: true
-    commit_pending: true
+    commit_pending: false
+    commit_hash: 396a0d0
+    commit_message: "phase_03_trace_lifecycle: 3.4 checkpointed trace writer"
     implementation_summary:
       - "TraceCheckpointWriter appends events then persists checkpoint.trace_line_count."
       - "TraceCheckpointResult returns trace append metadata plus persisted checkpoint state."

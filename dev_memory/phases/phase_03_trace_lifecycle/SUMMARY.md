@@ -25,4 +25,4 @@ Completed:
 - Subtask 3.4 added `TraceCheckpointWriter`, a workflow helper that appends trace events and then persists `checkpoint.trace_line_count` in the required order for lifecycle state transitions.
 
 Remaining:
-- Commit/push Subtask 3.4, then request external review and Ubuntu validation.
+- Request external review and Ubuntu validation for Subtask 3.4.
