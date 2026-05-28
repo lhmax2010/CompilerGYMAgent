@@ -317,6 +317,22 @@ subtasks:
       - "shared session_id validation cleanup remains deferred."
       - "dry_run checkpoint persistence remains deferred."
       - "trace/checkpoint doctor reconcile remains deferred."
+    target_environment_validation:
+      os: Ubuntu/Linux
+      python: 3.11.15
+      full_pytest: "347 passed"
+      targeted_pytest:
+        trace_session: "36 passed"
+        trace_memory: "22 passed"
+        fs_memory: "130 passed"
+        linux_fcntl: "1 passed"
+      manual_probe:
+        empty_ref_rejected: true
+        negative_tokens_rejected: true
+        trace_id: "events.jsonl#L1"
+        kind: llm_call
+        prompt_tokens: 0
+      runner: "venv + pytest"
     files_modified:
       - src/agent/trace.py
       - tests/test_trace_session.py

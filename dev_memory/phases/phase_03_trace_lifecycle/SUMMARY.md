@@ -30,6 +30,7 @@ Completed:
 - Subtask 3.5 was validated on Ubuntu/Linux with Python 3.11.15: full pytest passed 337/337, targeted trace/checkpoint suites passed, Linux fcntl passed, and the rejected-candidate/LLM manual probe matched expected output.
 - Subtask 3.6 polished trace producer validation by rejecting empty rejected-candidate references and invalid LLM token counters while keeping process event shapes open for their future owning module.
 - Subtask 3.6 external review approved the validation polish after verifying string/list reference checks, token counter checks, and all seven rejection reasons still round-trip.
+- Subtask 3.6 was validated on Ubuntu/Linux with Python 3.11.15: full pytest passed 347/347, targeted trace/checkpoint suites passed, Linux fcntl passed, and the empty-reference/negative-token manual probe matched expected output.
 
 Remaining:
-- Run Ubuntu validation for Subtask 3.6, then continue to Subtask 3.7 or the next milestone.
+- Proceed to Subtask 3.7 or the next milestone.

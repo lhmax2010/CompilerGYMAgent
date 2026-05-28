@@ -350,3 +350,27 @@
   - Rejected-candidate required string references reject empty, whitespace-only, and non-string values.
   - Rejected-candidate required option-list references reject empty lists and empty elements.
   - LLM token counters reject negative, boolean, and non-integer values.
+
+## Subtask 3.6 - Ubuntu validation
+
+- timestamp_utc: 2026-05-28T07:11:00Z
+- environment:
+  - os: Ubuntu/Linux
+  - python: 3.11.15
+  - runner: `venv + pytest`
+- full_command: `pytest -q`
+- full_result: 347 passed, 0 failed
+- targeted_command: `pytest tests/test_trace_session.py -v`
+- targeted_result: 36 passed, 0 failed
+- trace_regression_command: `pytest tests/test_trace_memory.py -q`
+- trace_regression_result: 22 passed, 0 failed
+- checkpoint_regression_command: `pytest tests/test_fs_memory.py -q`
+- checkpoint_regression_result: 130 passed, 0 failed
+- linux_fcntl_command: `pytest tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter -v`
+- linux_fcntl_result: 1 passed, 0 failed
+- manual_probe:
+  - `empty_ref_rejected: true`
+  - `negative_tokens_rejected: true`
+  - `trace_id: events.jsonl#L1`
+  - `kind: llm_call`
+  - `prompt_tokens: 0`
