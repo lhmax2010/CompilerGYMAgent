@@ -1,7 +1,7 @@
 phase_id: phase_03_trace_lifecycle
 phase_title: "Trace JSONL canonical event stream"
 started_at: 2026-05-21T14:06:00Z
-last_updated: 2026-05-28T08:10:41Z
+last_updated: 2026-05-28T08:23:13Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 3.3
@@ -421,16 +421,25 @@ subtasks:
     patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/11_trace_checkpoint_reconcile.patch
     patch_generated: true
     commit_required: true
-    commit_pending: true
+    commit_pending: false
+    commit_hash: b812f3e
+    commit_message: "phase_03_trace_lifecycle: 3.8 trace checkpoint reconcile"
     implementation_summary:
       - "Added TraceCheckpointAlignment to describe aligned, legacy-missing, trace-ahead, and checkpoint-ahead states."
       - "Added inspect_trace_checkpoint_alignment() for doctor-style validated trace scans."
       - "Added checkpoint_with_reconciled_trace_count() to advance missing/lagging checkpoint counters while refusing checkpoint-ahead data loss cases."
       - "Exported the new reconciliation helpers through agent.__init__."
+    external_review_verdict: approve
+    external_reviewed_at: 2026-05-28T08:23:13Z
+    external_review_tests: "376 passed, 0 failed"
+    external_review_notes: "Claude verified the four-state trace/checkpoint alignment model and complete doctor repair -> resume flow."
+    deferred_low_priority_followups:
+      - "Persist dry_run session state in checkpoint when dry-run resume becomes workflow-owned."
+      - "Keep process_event kind open until the process owning module defines concrete event kinds."
 notes: |
   Phase 03 starts with the canonical `trace/events.jsonl` append-only event
   stream because REQUIREMENTS.md defines runtime recovery state as
   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
   trace storage primitive before wiring lifecycle stages, rejected candidates,
   dry-run injection, or process/user-action event producers.
-next_action: "Commit/push Subtask 3.8, then request external review and Ubuntu validation."
+next_action: "Run Ubuntu validation for Subtask 3.8, then record target-environment results."

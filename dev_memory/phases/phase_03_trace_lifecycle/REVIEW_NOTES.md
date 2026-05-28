@@ -557,3 +557,27 @@ Validation:
 
 Next action:
 - Commit/push Subtask 3.8, then request external review and Ubuntu validation.
+
+## Subtask 3.8 - external review
+
+- timestamp_utc: 2026-05-28T08:23:13Z
+- reviewer: Claude
+- verdict: Approve
+- range: `4559709..b812f3e`
+- implementation: `b812f3e`
+- sync: `b812f3e`
+- tests: 376 passed, 0 failed on Linux
+
+Review highlights:
+- The four-state alignment model covers aligned, checkpoint_missing, trace_ahead, and checkpoint_ahead states.
+- `checkpoint_missing` and `trace_ahead` are safe forward reconciliation cases.
+- `checkpoint_ahead` fails conservative because it may indicate trace truncation or data loss.
+- Reconciliation remains non-hot-path and does not disturb O(1) append/resume behavior.
+- Independent probes verified a complete doctor repair -> resume flow with no line-number collision.
+
+Deferred items:
+- dry_run checkpoint persistence remains future workflow scope.
+- process_event kind whitelist remains future process workflow scope.
+
+Review conclusion:
+- Subtask 3.8 is approved and ready for Ubuntu validation.

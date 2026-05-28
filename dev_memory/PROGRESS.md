@@ -1247,3 +1247,18 @@ Next action: proceed to Subtask 3.8 or the next milestone.
   - `.venv\Scripts\python.exe -m pytest -q` -> 375 passed, 1 skipped.
 
 Next action: generate patch artifacts, commit/push Subtask 3.8, then request external review and Ubuntu validation.
+
+## 2026-05-28T08:23:13Z - Phase 03 / Subtask 3.8 external review completed
+
+- Reviewer: Claude.
+- Verdict: Approve.
+- Range: `4559709..b812f3e`.
+- Implementation/sync: `b812f3e`.
+- Tests: 376 passed, 0 failed on Linux; Linux real fcntl path passed.
+- Review highlights:
+  - The four-state trace/checkpoint alignment model directly closes the M-1 doctor/reconcile follow-up from Subtask 3.3.
+  - `checkpoint_missing` and `trace_ahead` are safe to reconcile forward; `checkpoint_ahead` fails conservative.
+  - Reconciliation remains outside the hot append/resume path.
+  - Independent probes verified full doctor repair -> resume behavior.
+
+Next action: run Ubuntu validation for Subtask 3.8 and record target-environment results.
