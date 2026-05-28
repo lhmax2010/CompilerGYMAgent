@@ -308,6 +308,15 @@ subtasks:
       - "candidate_rejected required option lists reject empty collections and empty elements."
       - "llm_call token counters reject negative, bool, and non-integer values."
       - "Deferred process kind whitelisting remains assigned to the future process workflow."
+    external_review_verdict: approve
+    external_reviewed_at: 2026-05-28T06:48:00Z
+    external_review_tests: "347 passed, 0 failed"
+    external_review_notes: "Claude approved; I-1/I-2 from Subtask 3.5 are fixed and process-event kind remains intentionally deferred."
+    deferred_low_priority_followups:
+      - "process_event kind whitelist belongs to the future process workflow."
+      - "shared session_id validation cleanup remains deferred."
+      - "dry_run checkpoint persistence remains deferred."
+      - "trace/checkpoint doctor reconcile remains deferred."
     files_modified:
       - src/agent/trace.py
       - tests/test_trace_session.py

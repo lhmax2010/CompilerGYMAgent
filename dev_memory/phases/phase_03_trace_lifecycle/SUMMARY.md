@@ -29,6 +29,7 @@ Completed:
 - Subtask 3.5 external review approved the producer contracts after verifying all seven rejected-candidate reasons against REQUIREMENTS.md section 4.6.2.
 - Subtask 3.5 was validated on Ubuntu/Linux with Python 3.11.15: full pytest passed 337/337, targeted trace/checkpoint suites passed, Linux fcntl passed, and the rejected-candidate/LLM manual probe matched expected output.
 - Subtask 3.6 polished trace producer validation by rejecting empty rejected-candidate references and invalid LLM token counters while keeping process event shapes open for their future owning module.
+- Subtask 3.6 external review approved the validation polish after verifying string/list reference checks, token counter checks, and all seven rejection reasons still round-trip.
 
 Remaining:
-- Request external review and Ubuntu validation for Subtask 3.6, then continue to the next milestone.
+- Run Ubuntu validation for Subtask 3.6, then continue to Subtask 3.7 or the next milestone.

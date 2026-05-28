@@ -1145,3 +1145,18 @@ Next action: generate patch artifacts, commit/push Subtask 3.6, then request ext
   - `dev_memory/phases/phase_03_trace_lifecycle/patches/08_trace_producer_validation_polish.review.md`
 
 Next action: commit this sync record, push, then request external review and Ubuntu validation for Subtask 3.6.
+
+## 2026-05-28T06:48:00Z - Phase 03 / Subtask 3.6 external review completed
+
+- Reviewer: Claude.
+- Verdict: Approve.
+- Range: `67399fe..78c4d9e`.
+- Implementation: `617537d`; sync: `78c4d9e`.
+- Tests: 347 passed, 0 failed on Linux; the Linux real `fcntl` workspace lock path passed.
+- Review highlights:
+  - Subtask 3.5 I-1 fixed: rejected-candidate string and sequence references now reject unusable empty values.
+  - Subtask 3.5 I-2 fixed: LLM token counters now reject negative, bool, and non-integer values.
+  - All seven rejected-candidate reasons still round-trip on valid payloads.
+  - `process_event` kind remains intentionally open for the future process owning module.
+
+Next action: commit/push this review sync, then run Ubuntu validation for Subtask 3.6.

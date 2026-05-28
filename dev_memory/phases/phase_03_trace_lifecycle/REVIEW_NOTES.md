@@ -401,3 +401,29 @@ Self-review notes:
 
 Review conclusion:
 - Subtask 3.6 is ready for external review and Ubuntu validation.
+
+## Subtask 3.6 - external review
+
+- timestamp_utc: 2026-05-28T06:48:00Z
+- reviewer: Claude
+- verdict: Approve
+- range: `67399fe..78c4d9e`
+- implementation: `617537d`
+- sync: `78c4d9e`
+- tests: 347 passed, 0 failed on Linux
+
+Review highlights:
+- Subtask 3.5 I-1 is fixed: rejected-candidate string references reject empty, whitespace-only, non-string, and null values.
+- Required sequence references reject empty lists, empty elements, whitespace-only elements, string-as-list mistakes, non-string elements, and null values.
+- Subtask 3.5 I-2 is fixed: LLM token counters reject negative values, floats, and booleans while accepting zero and positive integers.
+- All seven rejection reasons still round-trip on valid payloads.
+- `process_event` kind remains intentionally open for the future process owning module.
+
+Deferred items:
+- Process event kind whitelist remains future process workflow scope.
+- Shared session-id validation remains future cleanup.
+- Dry-run checkpoint persistence remains future workflow scope.
+- Trace/checkpoint doctor reconcile remains future doctor scope.
+
+Review conclusion:
+- Subtask 3.6 is approved and ready for Ubuntu validation.

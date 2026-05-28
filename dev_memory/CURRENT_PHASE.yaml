@@ -312,10 +312,19 @@ subtasks:
       - "Required option-list references now reject empty lists and empty option atoms."
       - "llm_call prompt/completion token counts now require non-negative integers."
       - "Kept process_event kind open for the future process owning module."
+    external_review_verdict: approve
+    external_reviewed_at: 2026-05-28T06:48:00Z
+    external_review_tests: "347 passed, 0 failed"
+    external_review_notes: "Claude verified the 3.5 I-1/I-2 fixes, all eight independent probes passed, and only intentional deferred items remain."
+    deferred_low_priority_followups:
+      - "Keep process_event kind open until the process owning module defines concrete event kinds."
+      - "Consider centralizing repeated session_id validation shared by fs_memory, workspace_lock, and trace."
+      - "Consider persisting dry_run session state in checkpoint when dry-run resume becomes workflow-owned."
+      - "Add doctor/reconcile support for trace/checkpoint skew outside the hot path."
 notes: |
   Phase 03 starts with the canonical `trace/events.jsonl` append-only event
   stream because REQUIREMENTS.md defines runtime recovery state as
   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
   trace storage primitive before wiring lifecycle stages, rejected candidates,
   dry-run injection, or process/user-action event producers.
-next_action: "Commit this sync record, push, then request external review and Ubuntu validation for Subtask 3.6."
+next_action: "Run Ubuntu validation for Subtask 3.6, then proceed to Subtask 3.7 or the next milestone."
