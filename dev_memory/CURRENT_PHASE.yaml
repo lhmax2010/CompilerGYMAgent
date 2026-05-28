@@ -473,6 +473,8 @@ subtasks:
     patch_generated: true
     commit_required: true
     commit_pending: false
+    commit_hash: ab22147
+    commit_message: "phase_03_trace_lifecycle: 3.9 trace session spans"
     implementation_summary:
       - "Added TraceSessionSpan to describe the conservative line range occupied by one trace session."
       - "Added inspect_trace_session_spans() to scan validated trace events for session boundaries used by future clean/status/doctor paths."

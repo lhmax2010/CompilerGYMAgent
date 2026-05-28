@@ -466,6 +466,8 @@ subtasks:
     patch_generated: true
     commit_required: true
     commit_pending: false
+    commit_hash: ab22147
+    commit_message: "phase_03_trace_lifecycle: 3.9 trace session spans"
     implementation_summary:
       - "Added TraceSessionSpan and inspect_trace_session_spans() for future clean/status/doctor callers."
       - "Session spans are conservative: non-contiguous events for one session collapse into first-to-last line range."
