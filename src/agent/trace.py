@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 import math
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any, Literal, Mapping, Sequence
 
 from .fs_memory import (
     CheckpointState,
@@ -62,6 +62,12 @@ _REJECTION_SEQUENCE_FIELDS = frozenset(
         "unknown_options",
     }
 )
+TraceCheckpointAlignmentStatus = Literal[
+    "aligned",
+    "checkpoint_missing",
+    "trace_ahead",
+    "checkpoint_ahead",
+]
 
 
 def count_trace_events(path: str | Path) -> int:
@@ -93,6 +99,77 @@ def checkpoint_with_trace_line_count(
     payload = checkpoint_payload(validated)
     payload["trace_line_count"] = trace_line_count
     return payload
+
+
+@dataclass(frozen=True)
+class TraceCheckpointAlignment:
+    """Trace/checkpoint line-count relationship for doctor-style checks."""
+
+    checkpoint: CheckpointState
+    checkpoint_trace_line_count: int | None
+    actual_trace_line_count: int
+    status: TraceCheckpointAlignmentStatus
+
+    @property
+    def needs_reconcile(self) -> bool:
+        return self.status != "aligned"
+
+    @property
+    def can_reconcile(self) -> bool:
+        return self.status in {"checkpoint_missing", "trace_ahead"}
+
+
+def inspect_trace_checkpoint_alignment(
+    layout: NamespaceLayout,
+    checkpoint: CheckpointState | Mapping[str, Any],
+) -> TraceCheckpointAlignment:
+    """Scan trace non-hot-path and compare it with checkpoint line metadata."""
+
+    state = CheckpointState.model_validate(checkpoint)
+    _validate_checkpoint_namespace(layout, state)
+    actual_count = count_trace_events(layout.trace_path)
+    checkpoint_count = state.trace_line_count
+    if checkpoint_count is None:
+        status: TraceCheckpointAlignmentStatus = "checkpoint_missing"
+    elif checkpoint_count == actual_count:
+        status = "aligned"
+    elif checkpoint_count < actual_count:
+        status = "trace_ahead"
+    else:
+        status = "checkpoint_ahead"
+    return TraceCheckpointAlignment(
+        checkpoint=state,
+        checkpoint_trace_line_count=checkpoint_count,
+        actual_trace_line_count=actual_count,
+        status=status,
+    )
+
+
+def checkpoint_with_reconciled_trace_count(
+    layout: NamespaceLayout,
+    checkpoint: CheckpointState | Mapping[str, Any],
+) -> dict[str, Any]:
+    """Return checkpoint payload reconciled to the validated trace line count.
+
+    This helper intentionally scans `events.jsonl`, so it belongs to doctor,
+    resume repair, or explicit validation paths rather than hot event append
+    paths. If checkpoint claims more lines than the trace currently contains,
+    the trace may have been truncated; callers should fail conservative.
+    """
+
+    alignment = inspect_trace_checkpoint_alignment(layout, checkpoint)
+    if alignment.status == "checkpoint_ahead":
+        raise TraceSessionError(
+            "checkpoint trace_line_count is ahead of trace events "
+            f"(checkpoint={alignment.checkpoint_trace_line_count}, "
+            f"actual={alignment.actual_trace_line_count})"
+        )
+    if alignment.status == "aligned":
+        return checkpoint_payload(alignment.checkpoint)
+    return checkpoint_with_trace_line_count(
+        alignment.checkpoint,
+        trace_line_count=alignment.actual_trace_line_count,
+    )
 
 
 @dataclass
@@ -153,12 +230,7 @@ class TraceSessionWriter:
         """
 
         state = CheckpointState.model_validate(checkpoint)
-        expected_namespace = str(layout.namespace)
-        if state.namespace != expected_namespace:
-            raise TraceSessionError(
-                "checkpoint namespace does not match layout "
-                f"(expected={expected_namespace!r}, actual={state.namespace!r})"
-            )
+        _validate_checkpoint_namespace(layout, state)
         if state.trace_line_count is None:
             next_line_number = count_trace_events(layout.trace_path) + 1
         else:
@@ -505,6 +577,18 @@ def _reject_context_overrides(payload: Mapping[str, Any]) -> None:
     for key in ("session_id", "namespace"):
         if key in payload:
             raise TraceSessionError(f"trace field {key!r} is managed by TraceSessionWriter")
+
+
+def _validate_checkpoint_namespace(
+    layout: NamespaceLayout,
+    checkpoint: CheckpointState,
+) -> None:
+    expected_namespace = str(layout.namespace)
+    if checkpoint.namespace != expected_namespace:
+        raise TraceSessionError(
+            "checkpoint namespace does not match layout "
+            f"(expected={expected_namespace!r}, actual={checkpoint.namespace!r})"
+        )
 
 
 def _validate_candidate_rejection(

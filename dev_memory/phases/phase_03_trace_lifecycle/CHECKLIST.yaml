@@ -394,6 +394,36 @@ subtasks:
       - src/agent/trace.py
       - src/agent/workspace_lock.py
       - tests/test_workspace_lock.py
+  - id: "3.8"
+    title: "Add trace/checkpoint alignment and reconciliation helpers"
+    status: done
+    related_requirements:
+      - REQUIREMENTS.md section 3.3.4
+      - REQUIREMENTS.md section 4.11.3
+      - REQUIREMENTS.md section 4.13
+    ut_required: true
+    ut_passed: true
+    targeted_ut: "41 trace session tests passed, 0 failed"
+    trace_regression_ut: "22 trace memory tests passed, 0 failed"
+    checkpoint_regression_ut: "130 fs_memory tests passed, 0 failed"
+    identifier_regression_ut: "22 identifier tests passed, 0 failed"
+    workspace_lock_regression_ut: "28 passed, 0 failed, 1 skipped"
+    full_ut: "375 passed, 0 failed, 1 skipped"
+    self_review_required: true
+    self_reviewed: true
+    patch_required: true
+    patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/11_trace_checkpoint_reconcile.patch
+    patch_generated: true
+    commit_required: true
+    commit_pending: true
+    implementation_summary:
+      - "Added alignment status reporting for checkpoint trace counters versus actual trace event count."
+      - "Added reconciliation payload helper for legacy-missing and trace-ahead states."
+      - "Fail conservative when checkpoint trace_line_count is ahead of validated trace events."
+    files_modified:
+      - src/agent/trace.py
+      - src/agent/__init__.py
+      - tests/test_trace_session.py
 
 phase_exit_criteria:
   - "Trace events are append-only JSONL with strict common fields and flexible event-specific payloads."

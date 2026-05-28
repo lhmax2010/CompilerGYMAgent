@@ -36,6 +36,8 @@ Completed:
 - Subtask 3.7 external review approved the shared validator after verifying 20 session id cases across checkpoint, workspace lock, and trace with no drift.
 - Subtask 3.7 Ubuntu validation initially exposed a test collection portability issue; `test_identifiers.py` is now self-contained and no longer imports from another test module.
 - Subtask 3.7 was validated on Ubuntu/Linux with Python 3.11.15 after the collection fix: full pytest passed 371/371, identifiers passed 22/22, trace session passed 36/36, fs_memory passed 130/130, and the real fcntl test passed.
+- Subtask 3.8 added non-hot-path trace/checkpoint alignment helpers so doctor/resume-repair code can detect aligned, legacy-missing, trace-ahead, and checkpoint-ahead states.
+- Subtask 3.8 reconciles only safe forward cases and fails conservative when checkpoint claims more trace lines than validated trace contains.
 
 Remaining:
-- Proceed to Subtask 3.8 or the next milestone.
+- Request external review and Ubuntu validation for Subtask 3.8.

@@ -1,0 +1,17 @@
+Phase 03 / Subtask 3.8 adds trace/checkpoint reconciliation helpers.
+
+- Added `TraceCheckpointAlignment` for alignment status reporting.
+- Added `inspect_trace_checkpoint_alignment()` for non-hot-path validated scans of `trace/events.jsonl`.
+- Added `checkpoint_with_reconciled_trace_count()` to advance legacy-missing or trace-ahead checkpoint counters.
+- Refuse checkpoint-ahead states because they may indicate trace truncation or data loss.
+- Reused the namespace consistency check used by checkpoint-backed trace writers.
+- Exported the new helpers from `agent.__init__`.
+- Added focused tests for aligned, legacy-missing, trace-ahead, checkpoint-ahead, and namespace mismatch cases.
+
+Validation:
+- `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -q` -> 41 passed.
+- `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -q` -> 22 passed.
+- `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q` -> 130 passed.
+- `.venv\Scripts\python.exe -m pytest tests/test_identifiers.py -q` -> 22 passed.
+- `.venv\Scripts\python.exe -m pytest tests/test_workspace_lock.py -q` -> 28 passed, 1 skipped.
+- `.venv\Scripts\python.exe -m pytest -q` -> 375 passed, 1 skipped.

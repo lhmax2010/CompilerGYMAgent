@@ -541,3 +541,16 @@ Decision records must include:
   - Leave three copied validators in place, which would keep the current behavior but preserve drift risk across checkpoint, lock, and trace code.
   - Export the helper as a public API from `agent.__init__`, which is unnecessary because users should not depend on low-level identifier validation internals.
   - Move all file-atom validation into the new helper, which would overreach beyond session ids and disturb broader FS-memory path rules.
+
+## 2026-05-28T08:10:41Z - Keep trace/checkpoint reconciliation outside the hot append path
+
+- affected_requirement:
+  - REQUIREMENTS.md section 3.3.4
+  - REQUIREMENTS.md section 4.11.3
+  - REQUIREMENTS.md section 4.13
+- decision: Add non-hot-path trace/checkpoint alignment helpers that scan validated `trace/events.jsonl`, compare actual event count with `checkpoint.trace_line_count`, and return a reconciled checkpoint payload only for legacy-missing or trace-ahead states. If checkpoint claims more lines than trace contains, fail conservative.
+- rationale: Runtime append/resume paths stay O(1) by trusting the checkpoint counter, but doctor/resume-repair paths need a precise way to detect crash skew. A trace-ahead checkpoint is the expected append-before-checkpoint crash window and can be repaired by advancing the checkpoint count. A checkpoint-ahead trace means trace may have been truncated or lost, so silently moving backward would hide canonical-state damage.
+- alternatives_considered:
+  - Verify trace/checkpoint counts on every `TraceSessionWriter.for_checkpoint()` call, which would undo the O(1) resume behavior introduced in Subtask 3.3.
+  - Let `checkpoint_with_trace_line_count()` move counters backward, which would make data-loss symptoms look like normal reconciliation.
+  - Leave reconciliation entirely to future doctor code with no shared helper, which would force later modules to duplicate the subtle status matrix.

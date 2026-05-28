@@ -1229,3 +1229,21 @@ Next action: commit/push the validation fix, then rerun Ubuntu validation for Su
 - Linux fcntl regression: `pytest tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter -v` -> 1 passed.
 
 Next action: proceed to Subtask 3.8 or the next milestone.
+
+## 2026-05-28T08:10:41Z - Phase 03 / Subtask 3.8 implemented
+
+- Started and implemented Subtask 3.8: trace/checkpoint alignment and reconciliation helpers.
+- Added `TraceCheckpointAlignment` to report aligned, legacy-missing, trace-ahead, and checkpoint-ahead states.
+- Added `inspect_trace_checkpoint_alignment()` for doctor-style validated trace scans.
+- Added `checkpoint_with_reconciled_trace_count()` to advance checkpoint trace counters for safe forward reconciliation.
+- Checkpoint-ahead states now fail conservative because they may indicate trace truncation or data loss.
+- Exported the new helpers from `agent.__init__`.
+- UT results:
+  - `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -q` -> 41 passed.
+  - `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -q` -> 22 passed.
+  - `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q` -> 130 passed.
+  - `.venv\Scripts\python.exe -m pytest tests/test_identifiers.py -q` -> 22 passed.
+  - `.venv\Scripts\python.exe -m pytest tests/test_workspace_lock.py -q` -> 28 passed, 1 skipped.
+  - `.venv\Scripts\python.exe -m pytest -q` -> 375 passed, 1 skipped.
+
+Next action: generate patch artifacts, commit/push Subtask 3.8, then request external review and Ubuntu validation.

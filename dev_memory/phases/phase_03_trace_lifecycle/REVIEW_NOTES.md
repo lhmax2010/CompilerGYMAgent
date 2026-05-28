@@ -531,3 +531,29 @@ Next action:
 
 Validation conclusion:
 - Subtask 3.7 is validated on the target Linux environment. Phase 03 can proceed to Subtask 3.8 or the next milestone.
+
+## Subtask 3.8 - trace/checkpoint reconciliation self-review
+
+Checklist:
+- [x] Alignment scanning is explicit and non-hot-path; `TraceSessionWriter.for_checkpoint()` remains O(1) for current checkpoints.
+- [x] The status matrix distinguishes `aligned`, `checkpoint_missing`, `trace_ahead`, and `checkpoint_ahead`.
+- [x] Reconciliation only advances checkpoint counters for legacy-missing or trace-ahead states.
+- [x] Checkpoint-ahead states raise `TraceSessionError` rather than hiding possible trace truncation.
+- [x] Namespace mismatch is rejected before returning alignment results.
+- [x] New helpers are exported from `agent.__init__` for future doctor/resume-repair callers.
+
+Notes:
+- This subtask does not implement the `agent doctor` CLI; it provides the safe primitive that doctor can use later.
+- Dry-run checkpoint persistence remains intentionally deferred because REQUIREMENTS.md says dry-run writes trace/report paths, not canonical checkpoint state.
+- Process-event kind whitelisting remains future process workflow scope.
+
+Validation:
+- `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -q` -> 41 passed.
+- `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -q` -> 22 passed.
+- `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q` -> 130 passed.
+- `.venv\Scripts\python.exe -m pytest tests/test_identifiers.py -q` -> 22 passed.
+- `.venv\Scripts\python.exe -m pytest tests/test_workspace_lock.py -q` -> 28 passed, 1 skipped.
+- `.venv\Scripts\python.exe -m pytest -q` -> 375 passed, 1 skipped.
+
+Next action:
+- Commit/push Subtask 3.8, then request external review and Ubuntu validation.

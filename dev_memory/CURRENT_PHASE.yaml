@@ -1,7 +1,7 @@
 phase_id: phase_03_trace_lifecycle
 phase_title: "Trace JSONL canonical event stream"
 started_at: 2026-05-21T14:06:00Z
-last_updated: 2026-05-28T08:05:01Z
+last_updated: 2026-05-28T08:10:41Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 3.3
@@ -396,10 +396,41 @@ subtasks:
       - "Persist dry_run session state in checkpoint when dry-run resume becomes workflow-owned."
       - "Add doctor/reconcile support for trace/checkpoint skew outside the hot path."
       - "Keep process_event kind open until the process owning module defines concrete event kinds."
+  - id: "3.8"
+    title: "Add trace/checkpoint alignment and reconciliation helpers"
+    status: done
+    related_requirements:
+      - REQUIREMENTS.md section 3.3.4
+      - REQUIREMENTS.md section 4.11.3
+      - REQUIREMENTS.md section 4.13
+    files_modified:
+      - src/agent/trace.py
+      - src/agent/__init__.py
+      - tests/test_trace_session.py
+    ut_required: true
+    ut_passed: true
+    targeted_ut: "41 trace session tests passed, 0 failed"
+    trace_regression_ut: "22 trace memory tests passed, 0 failed"
+    checkpoint_regression_ut: "130 fs_memory tests passed, 0 failed"
+    identifier_regression_ut: "22 identifier tests passed, 0 failed"
+    workspace_lock_regression_ut: "28 passed, 0 failed, 1 skipped"
+    full_ut: "375 passed, 0 failed, 1 skipped"
+    self_review_required: true
+    self_reviewed: true
+    patch_required: true
+    patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/11_trace_checkpoint_reconcile.patch
+    patch_generated: true
+    commit_required: true
+    commit_pending: true
+    implementation_summary:
+      - "Added TraceCheckpointAlignment to describe aligned, legacy-missing, trace-ahead, and checkpoint-ahead states."
+      - "Added inspect_trace_checkpoint_alignment() for doctor-style validated trace scans."
+      - "Added checkpoint_with_reconciled_trace_count() to advance missing/lagging checkpoint counters while refusing checkpoint-ahead data loss cases."
+      - "Exported the new reconciliation helpers through agent.__init__."
 notes: |
   Phase 03 starts with the canonical `trace/events.jsonl` append-only event
   stream because REQUIREMENTS.md defines runtime recovery state as
   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
   trace storage primitive before wiring lifecycle stages, rejected candidates,
   dry-run injection, or process/user-action event producers.
-next_action: "Proceed to Subtask 3.8 or the next milestone."
+next_action: "Commit/push Subtask 3.8, then request external review and Ubuntu validation."

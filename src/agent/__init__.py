@@ -129,12 +129,15 @@ from .registry import (
     validate_project_against_registry,
 )
 from .trace import (
+    TraceCheckpointAlignment,
     TraceCheckpointResult,
     TraceCheckpointWriter,
     TraceSessionError,
     TraceSessionWriter,
+    checkpoint_with_reconciled_trace_count,
     checkpoint_with_trace_line_count,
     count_trace_events,
+    inspect_trace_checkpoint_alignment,
 )
 from .workspace_lock import (
     LockReadResult,
@@ -197,6 +200,7 @@ __all__ = [
     "ScoreVsBest",
     "SourceTreeChange",
     "TraceAppendResult",
+    "TraceCheckpointAlignment",
     "TraceCheckpointResult",
     "TraceCheckpointWriter",
     "TraceError",
@@ -227,6 +231,7 @@ __all__ = [
     "atomic_write_yaml",
     "append_trace_event",
     "checkpoint_payload",
+    "checkpoint_with_reconciled_trace_count",
     "checkpoint_with_trace_line_count",
     "collect_history_summary",
     "collect_trial_startup_validation_inputs",
@@ -244,6 +249,7 @@ __all__ = [
     "ensure_trial_index_current",
     "iter_trial_record_paths",
     "iter_trace_events",
+    "inspect_trace_checkpoint_alignment",
     "learned_rule_path",
     "learned_rule_payload",
     "load_config",

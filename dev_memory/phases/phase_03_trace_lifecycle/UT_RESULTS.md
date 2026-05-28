@@ -432,3 +432,35 @@
 - fs_memory_result: 130 passed, 0 failed
 - linux_fcntl_command: `pytest tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter -v`
 - linux_fcntl_result: 1 passed, 0 failed
+
+## Subtask 3.8 - trace/checkpoint reconciliation
+
+- timestamp_utc: 2026-05-28T08:10:41Z
+- environment:
+  - os: Windows development host
+  - python: 3.14.3
+  - runner: `.venv\Scripts\python.exe -m pytest`
+- requirements:
+  - REQUIREMENTS.md section 3.3.4
+  - REQUIREMENTS.md section 4.11.3
+  - REQUIREMENTS.md section 4.13
+- targeted_command: `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -q`
+- targeted_result: 41 passed, 0 failed
+- trace_regression_command: `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -q`
+- trace_regression_result: 22 passed, 0 failed
+- checkpoint_regression_command: `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q`
+- checkpoint_regression_result: 130 passed, 0 failed
+- identifier_regression_command: `.venv\Scripts\python.exe -m pytest tests/test_identifiers.py -q`
+- identifier_regression_result: 22 passed, 0 failed
+- workspace_lock_regression_command: `.venv\Scripts\python.exe -m pytest tests/test_workspace_lock.py -q`
+- workspace_lock_regression_result: 28 passed, 0 failed, 1 skipped
+- full_command: `.venv\Scripts\python.exe -m pytest -q`
+- full_result: 375 passed, 0 failed, 1 skipped
+- skipped:
+  - `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter` requires Linux fcntl and must be covered by Ubuntu validation.
+- new_coverage:
+  - Alignment reports aligned checkpoint/trace line counts.
+  - Legacy checkpoints missing trace_line_count can be reconciled to actual trace count.
+  - Trace-ahead crash skew can be reconciled by advancing checkpoint count.
+  - Checkpoint-ahead state is reported but not reconciled because it may indicate trace truncation.
+  - Namespace mismatch is rejected before alignment.

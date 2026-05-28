@@ -16,11 +16,14 @@ from agent.fs_memory import (
 )
 from agent.registry import ProjectNamespace
 from agent.trace import (
+    TraceCheckpointAlignment,
     TraceCheckpointWriter,
     TraceSessionError,
     TraceSessionWriter,
+    checkpoint_with_reconciled_trace_count,
     checkpoint_with_trace_line_count,
     count_trace_events,
+    inspect_trace_checkpoint_alignment,
 )
 
 
@@ -162,6 +165,125 @@ def test_trace_session_writer_for_checkpoint_rejects_namespace_mismatch(
 
     with pytest.raises(TraceSessionError, match="namespace does not match"):
         TraceSessionWriter.for_checkpoint(current_layout, checkpoint)
+
+
+def test_trace_checkpoint_alignment_reports_aligned_state(tmp_path: Path) -> None:
+    current_layout = layout(tmp_path)
+    append_trace_event(
+        current_layout,
+        {"ts": "2026-04-30T10:00:00Z", "kind": "round_start"},
+        expected_line_number=1,
+    )
+
+    alignment = inspect_trace_checkpoint_alignment(
+        current_layout,
+        checkpoint_data(trace_line_count=1),
+    )
+    payload = checkpoint_with_reconciled_trace_count(
+        current_layout,
+        checkpoint_data(trace_line_count=1),
+    )
+
+    assert isinstance(alignment, TraceCheckpointAlignment)
+    assert alignment.status == "aligned"
+    assert alignment.needs_reconcile is False
+    assert alignment.can_reconcile is False
+    assert alignment.checkpoint_trace_line_count == 1
+    assert alignment.actual_trace_line_count == 1
+    assert payload["trace_line_count"] == 1
+
+
+def test_trace_checkpoint_alignment_reconciles_legacy_missing_count(
+    tmp_path: Path,
+) -> None:
+    current_layout = layout(tmp_path)
+    append_trace_event(
+        current_layout,
+        {"ts": "2026-04-30T10:00:00Z", "kind": "round_start"},
+        expected_line_number=1,
+    )
+
+    alignment = inspect_trace_checkpoint_alignment(current_layout, checkpoint_data())
+    payload = checkpoint_with_reconciled_trace_count(current_layout, checkpoint_data())
+
+    assert alignment.status == "checkpoint_missing"
+    assert alignment.needs_reconcile is True
+    assert alignment.can_reconcile is True
+    assert alignment.checkpoint_trace_line_count is None
+    assert alignment.actual_trace_line_count == 1
+    assert payload["trace_line_count"] == 1
+
+
+def test_trace_checkpoint_alignment_reconciles_trace_ahead_after_crash(
+    tmp_path: Path,
+) -> None:
+    current_layout = layout(tmp_path)
+    append_trace_event(
+        current_layout,
+        {"ts": "2026-04-30T10:00:00Z", "kind": "round_start"},
+        expected_line_number=1,
+    )
+    append_trace_event(
+        current_layout,
+        {"ts": "2026-04-30T10:01:00Z", "kind": "trial_start"},
+        expected_line_number=2,
+    )
+
+    alignment = inspect_trace_checkpoint_alignment(
+        current_layout,
+        checkpoint_data(trace_line_count=1),
+    )
+    payload = checkpoint_with_reconciled_trace_count(
+        current_layout,
+        checkpoint_data(trace_line_count=1),
+    )
+
+    assert alignment.status == "trace_ahead"
+    assert alignment.needs_reconcile is True
+    assert alignment.can_reconcile is True
+    assert alignment.checkpoint_trace_line_count == 1
+    assert alignment.actual_trace_line_count == 2
+    assert payload["trace_line_count"] == 2
+
+
+def test_trace_checkpoint_alignment_rejects_checkpoint_ahead_of_trace(
+    tmp_path: Path,
+) -> None:
+    current_layout = layout(tmp_path)
+    append_trace_event(
+        current_layout,
+        {"ts": "2026-04-30T10:00:00Z", "kind": "round_start"},
+        expected_line_number=1,
+    )
+
+    alignment = inspect_trace_checkpoint_alignment(
+        current_layout,
+        checkpoint_data(trace_line_count=3),
+    )
+
+    assert alignment.status == "checkpoint_ahead"
+    assert alignment.needs_reconcile is True
+    assert alignment.can_reconcile is False
+    assert alignment.checkpoint_trace_line_count == 3
+    assert alignment.actual_trace_line_count == 1
+    with pytest.raises(TraceSessionError, match="ahead of trace events"):
+        checkpoint_with_reconciled_trace_count(
+            current_layout,
+            checkpoint_data(trace_line_count=3),
+        )
+
+
+def test_trace_checkpoint_alignment_rejects_namespace_mismatch(
+    tmp_path: Path,
+) -> None:
+    current_layout = layout(tmp_path)
+    checkpoint = checkpoint_data(
+        namespace="other/ffmpeg/gcc-13.2.0/code-a1b2c3d/kg-v3",
+        trace_line_count=0,
+    )
+
+    with pytest.raises(TraceSessionError, match="namespace does not match"):
+        inspect_trace_checkpoint_alignment(current_layout, checkpoint)
 
 
 def test_checkpoint_with_trace_line_count_updates_checkpoint_payload(
