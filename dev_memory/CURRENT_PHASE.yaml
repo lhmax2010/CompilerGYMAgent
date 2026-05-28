@@ -200,6 +200,14 @@ subtasks:
       - "Added TraceCheckpointResult to return both trace metadata and persisted checkpoint state."
       - "Validated checkpoint session_id and namespace before trace append so mismatched checkpoint state cannot emit stray events."
       - "Exported the new workflow-facing helper from agent.__init__."
+    external_review_verdict: approve
+    external_reviewed_at: 2026-05-28T03:54:05Z
+    external_review_tests: "333 passed, 0 failed"
+    external_review_notes: "Claude independently verified ordering, validate-before-append, checkpoint override support, and found only Info-level follow-ups."
+    review_fix_status: done
+    review_fix_summary:
+      - "Documented that append_and_checkpoint partial failures leave a durable trace event and should not be blindly retried as the same logical event."
+    review_fix_targeted_ut: "22 trace session tests passed, 0 failed"
 notes: |
   Phase 03 starts with the canonical `trace/events.jsonl` append-only event
   stream because REQUIREMENTS.md defines runtime recovery state as

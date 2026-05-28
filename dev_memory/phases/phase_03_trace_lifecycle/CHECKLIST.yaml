@@ -195,6 +195,14 @@ subtasks:
       - "TraceCheckpointWriter appends events then persists checkpoint.trace_line_count."
       - "TraceCheckpointResult returns trace append metadata plus persisted checkpoint state."
       - "Checkpoint context mismatches are rejected before any trace append."
+    external_review_verdict: approve
+    external_reviewed_at: 2026-05-28T03:54:05Z
+    external_review_tests: "333 passed, 0 failed"
+    external_review_notes: "Claude found only Info-level follow-ups and approved Subtask 3.4."
+    review_fix_status: done
+    review_fix_summary:
+      - "Documented append_and_checkpoint partial-failure retry semantics."
+    review_fix_targeted_ut: "22 trace session tests passed, 0 failed"
     files_modified:
       - src/agent/trace.py
       - src/agent/__init__.py

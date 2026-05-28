@@ -1016,3 +1016,17 @@ Next action: generate patch artifacts, commit/push Subtask 3.4, then request ext
   - `dev_memory/phases/phase_03_trace_lifecycle/patches/06_trace_checkpoint_writer.review.md`
 
 Next action: commit this sync record, push, then request external review and Ubuntu validation.
+
+## 2026-05-28T03:54:05Z - Phase 03 / Subtask 3.4 external review fix completed
+
+- Reviewer: Claude.
+- Verdict: Approve.
+- Range: `205eeec..e1d1b63`.
+- Implementation: `396a0d0`; sync: `e1d1b63`.
+- Tests: 333 passed, 0 failed on Linux; the Linux real `fcntl` workspace lock path passed.
+- Info follow-up addressed:
+  - I-1: documented that `append_and_checkpoint` partial failures leave a durable trace event and callers should not blindly retry the same logical event.
+- UT result:
+  - `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -v` -> 22 passed.
+
+Next action: commit/push this review fix, then run Ubuntu validation for Subtask 3.4.

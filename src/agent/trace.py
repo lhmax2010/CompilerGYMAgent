@@ -313,7 +313,12 @@ class TraceCheckpointWriter:
         ts: datetime | str | None = None,
         **fields: Any,
     ) -> TraceCheckpointResult:
-        """Append an event, then persist checkpoint with the updated trace line."""
+        """Append an event, then persist checkpoint with the updated trace line.
+
+        If checkpoint persistence fails after the append succeeds, the trace
+        event is already durable. Callers should not blindly retry the same
+        logical event; rebuild or reconcile session state first.
+        """
 
         checkpoint_state = self._validate_checkpoint_context(
             self.checkpoint if checkpoint is None else checkpoint

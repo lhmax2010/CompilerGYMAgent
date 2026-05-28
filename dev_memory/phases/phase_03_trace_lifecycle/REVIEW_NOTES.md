@@ -240,3 +240,28 @@ Self-review notes:
 
 Review conclusion:
 - Subtask 3.4 is ready for external review and Ubuntu validation.
+
+## Subtask 3.4 - external review and doc fix
+
+- timestamp_utc: 2026-05-28T03:54:05Z
+- reviewer: Claude
+- verdict: Approve
+- range: `205eeec..e1d1b63`
+- implementation: `396a0d0`
+- sync: `e1d1b63`
+- tests: 333 passed, 0 failed on Linux
+
+Info follow-up addressed:
+- [x] I-1: documented partial-failure semantics for
+  `TraceCheckpointWriter.append_and_checkpoint()`.
+
+Review-fix notes:
+- If checkpoint persistence fails after trace append succeeds, the trace event
+  is already durable. Callers should not blindly retry the same logical event;
+  they should rebuild or reconcile session state first.
+
+Tests:
+- `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -v` -> 22 passed.
+
+Review conclusion:
+- Subtask 3.4 is approved and ready for Ubuntu validation.

@@ -227,3 +227,18 @@
   - Persisted checkpoint files receive the writer's current `trace_line_count`.
   - The writer reuses its updated checkpoint state for subsequent events.
   - Checkpoint session/namespace mismatch is rejected before trace or checkpoint writes.
+
+## Subtask 3.4 - review-fix verification
+
+- timestamp_utc: 2026-05-28T03:54:05Z
+- review_source: Claude
+- review_verdict: Approve
+- review_tests: 333 passed, 0 failed on Linux
+- environment:
+  - os: Windows development host
+  - python: 3.14.3
+  - runner: `.venv\Scripts\python.exe -m pytest`
+- targeted_command: `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -v`
+- targeted_result: 22 passed, 0 failed
+- review_fix:
+  - Documented that checkpoint write failure after trace append leaves a durable trace event and should not be blindly retried as the same logical event.
