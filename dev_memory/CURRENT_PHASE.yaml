@@ -249,7 +249,9 @@ subtasks:
     patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/07_trace_producer_event_families.patch
     patch_generated: true
     commit_required: true
-    commit_pending: true
+    commit_pending: false
+    commit_hash: 73324e8
+    commit_message: "phase_03_trace_lifecycle: 3.5 trace producer event families"
     implementation_summary:
       - "Made TraceSessionWriter.candidate_rejected enforce the documented rejection reason field matrix."
       - "Recorded full experience-rule rejection details: matched_rule_id, matched_rule_path, filter_strength, penalty, and score_after_penalty."
@@ -261,4 +263,4 @@ notes: |
   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
   trace storage primitive before wiring lifecycle stages, rejected candidates,
   dry-run injection, or process/user-action event producers.
-next_action: "Generate implementation/sync commits for Subtask 3.5, then request external review and Ubuntu validation."
+next_action: "Commit this sync record, push, then request external review and Ubuntu validation for Subtask 3.5."

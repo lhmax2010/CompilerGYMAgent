@@ -245,7 +245,9 @@ subtasks:
     patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/07_trace_producer_event_families.patch
     patch_generated: true
     commit_required: true
-    commit_pending: true
+    commit_pending: false
+    commit_hash: 73324e8
+    commit_message: "phase_03_trace_lifecycle: 3.5 trace producer event families"
     implementation_summary:
       - "TraceSessionWriter.candidate_rejected now validates documented required fields by rejection_reason."
       - "Experience hard/soft rejection traces enforce filter_strength and soft-filter numeric penalty fields."
