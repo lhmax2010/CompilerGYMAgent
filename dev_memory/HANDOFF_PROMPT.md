@@ -8,8 +8,10 @@ You are Codex taking over development of the CompilerGYMAgent repository.
 Repository:
 - GitHub: https://github.com/lhmax2010/CompilerGYMAgent.git
 - Branch: main
-- Expected current HEAD after `git pull`: 09d4a0d
+- Expected current HEAD after `git pull`: latest `origin/main`; it should include the Subtask 3.9 sync commit below and may include this handoff dev_memory commit.
+- Important code baseline: 09d4a0d
 - Expected recent history:
+  - a `dev_memory: add/update handoff prompt` commit may appear at the top
   - 09d4a0d phase_03_trace_lifecycle: record 3.9 sync
   - ab22147 phase_03_trace_lifecycle: 3.9 trace session spans
   - d51ff49 phase_03_trace_lifecycle: record 3.8 ubuntu validation
