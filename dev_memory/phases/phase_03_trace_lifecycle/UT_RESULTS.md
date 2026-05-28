@@ -271,3 +271,31 @@
   - `result_checkpoint_trace_line_count: 1`
   - `loaded_checkpoint_trace_line_count: 1`
   - `writer_trace_line_count: 1`
+
+## Subtask 3.5 - trace producer event families
+
+- timestamp_utc: 2026-05-28T05:53:16Z
+- environment:
+  - os: Windows development host
+  - python: 3.14.3
+  - runner: `.venv\Scripts\python.exe -m pytest`
+- requirements:
+  - REQUIREMENTS.md section 3.3.4
+  - REQUIREMENTS.md section 4.6.2
+  - REQUIREMENTS.md section 5.1.2
+  - REQUIREMENTS.md section 5.1.3
+- targeted_command: `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -v`
+- targeted_result: 26 passed, 0 failed
+- trace_regression_command: `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -q`
+- trace_regression_result: 22 passed, 0 failed
+- checkpoint_regression_command: `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q`
+- checkpoint_regression_result: 130 passed, 0 failed
+- full_command: `.venv\Scripts\python.exe -m pytest -q`
+- full_result: 336 passed, 0 failed, 1 skipped
+- skipped:
+  - `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter` requires Linux fcntl and must be covered by Ubuntu validation.
+- new_coverage:
+  - `candidate_rejected` rejects missing required fields for reason-specific trace contracts.
+  - Experience-rule candidate rejection traces include matched rule id/path, filter strength, penalty, and score after penalty.
+  - Process, LLM, memory, KG, user-action, and workspace snapshot helper methods round-trip their event payloads.
+  - Invalid workspace snapshot phases are rejected before append.

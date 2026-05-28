@@ -1,0 +1,604 @@
+﻿diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index 93ac84f..5fdacd4 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -1,7 +1,7 @@
+ phase_id: phase_03_trace_lifecycle
+ phase_title: "Trace JSONL canonical event stream"
+ started_at: 2026-05-21T14:06:00Z
+-last_updated: 2026-05-27T06:20:06Z
++last_updated: 2026-05-28T05:53:16Z
+ target_milestone: M1
+ related_requirements:
+   - REQUIREMENTS.md section 3.3
+@@ -226,10 +226,39 @@ subtasks:
+         loaded_checkpoint_trace_line_count: 1
+         writer_trace_line_count: 1
+       runner: "venv + pytest"
++  - id: "3.5"
++    title: "Expand trace producer coverage for rejected candidates and runtime event families"
++    status: done
++    related_requirements:
++      - REQUIREMENTS.md section 3.3.4
++      - REQUIREMENTS.md section 4.6.2
++      - REQUIREMENTS.md section 5.1.2
++      - REQUIREMENTS.md section 5.1.3
++    files_modified:
++      - src/agent/trace.py
++      - tests/test_trace_session.py
++    ut_required: true
++    ut_passed: true
++    targeted_ut: "26 trace session tests passed, 0 failed"
++    trace_regression_ut: "22 trace memory tests passed, 0 failed"
++    checkpoint_regression_ut: "130 fs_memory tests passed, 0 failed"
++    full_ut: "336 passed, 0 failed, 1 skipped"
++    self_review_required: true
++    self_reviewed: true
++    patch_required: true
++    patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/07_trace_producer_event_families.patch
++    patch_generated: true
++    commit_required: true
++    commit_pending: true
++    implementation_summary:
++      - "Made TraceSessionWriter.candidate_rejected enforce the documented rejection reason field matrix."
++      - "Recorded full experience-rule rejection details: matched_rule_id, matched_rule_path, filter_strength, penalty, and score_after_penalty."
++      - "Added convenience producers for process events, LLM calls, memory ops, KG ops, user actions, and workspace snapshots."
++      - "Kept low-level trace storage open-payload while making workflow-facing producers harder to misuse."
+ notes: |
+   Phase 03 starts with the canonical `trace/events.jsonl` append-only event
+   stream because REQUIREMENTS.md defines runtime recovery state as
+   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
+   trace storage primitive before wiring lifecycle stages, rejected candidates,
+   dry-run injection, or process/user-action event producers.
+-next_action: "Proceed to Subtask 3.5 or the next milestone."
++next_action: "Generate implementation/sync commits for Subtask 3.5, then request external review and Ubuntu validation."
+diff --git a/dev_memory/DECISIONS.md b/dev_memory/DECISIONS.md
+index e0b87d8..c8e1bd8 100644
+--- a/dev_memory/DECISIONS.md
++++ b/dev_memory/DECISIONS.md
+@@ -500,3 +500,17 @@ Decision records must include:
+   - Move checkpoint persistence into `TraceSessionWriter.append()`, which would make all trace events require checkpoint data even for pure observability events.
+   - Put trace appends inside `write_checkpoint_state()`, which would couple a generic mutable checkpoint writer to trace event semantics and event payload shapes.
+   - Try to make trace append plus checkpoint write atomic across two files, which is not available through normal filesystem primitives; the documented recovery model accepts append-before-checkpoint skew and uses `byte_ref` plus future doctor reconciliation.
++
++## 2026-05-28T05:53:16Z - Keep trace storage open while tightening workflow producer contracts
++
++- affected_requirement:
++  - REQUIREMENTS.md section 4.6.2
++  - REQUIREMENTS.md section 5.1.2
++  - REQUIREMENTS.md section 5.1.3
++- decision: Keep the low-level trace JSONL writer as strict-common/open-payload, but make `TraceSessionWriter.candidate_rejected()` enforce the documented rejection reason field matrix. Add lightweight convenience producers for process, LLM, memory, KG, user-action, and workspace-snapshot event families without introducing closed Pydantic event unions.
++- rationale: Section 4.6.2 requires rejected candidates to include enough matched-rule or matched-history metadata for trace debugging, while section 5.1 lists heterogeneous event families that later workflows will emit. Enforcing the rejected-candidate contract at the producer layer prevents missing rule references before append, but keeping other event families lightweight avoids prematurely modeling workflow-specific payloads before their owning modules exist.
++- alternatives_considered:
++  - Define a closed union for all trace event kinds now, which would overfit placeholder process/KG/user-action payloads before those workflows are implemented.
++  - Leave `candidate_rejected()` fully open like raw `append()`, which would allow missing `matched_rule_id`, `matched_rule_path`, `filter_strength`, or penalty fields despite the trace-debugging requirement.
++  - Split every rejected-candidate reason into a separate public method, which would multiply APIs before the candidate engine exists and make simple trace tests noisier.
++  - Put rejected-candidate validation in `append_trace_event()`, which would make the storage primitive understand workflow semantics and break the strict-common/open-payload boundary.
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index 6fe96bd..d5e256d 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -1060,3 +1060,17 @@ Next action: commit this sync record, push, then run Ubuntu validation for Subta
+   - `writer_trace_line_count: 1`
+ 
+ Next action: proceed to Subtask 3.5 or the next milestone.
++
++## 2026-05-28T05:53:16Z - Phase 03 / Subtask 3.5 implemented
++
++- Started and implemented Subtask 3.5: trace producer event-family coverage.
++- `TraceSessionWriter.candidate_rejected()` now requires `generator`, validates the documented `rejection_reason` field matrix, and rejects missing matched references before append.
++- Experience-rule rejection traces now require `matched_rule_id`, `matched_rule_path`, `filter_strength`, and, for soft filters, numeric `penalty` and `score_after_penalty`.
++- Added convenience producers for process events, LLM calls, memory operations, KG operations, user actions, and workspace snapshots.
++- UT results:
++  - `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -v` -> 26 passed.
++  - `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -q` -> 22 passed.
++  - `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q` -> 130 passed.
++  - `.venv\Scripts\python.exe -m pytest -q` -> 336 passed, 1 skipped on Windows.
++
++Next action: generate patch artifacts, commit/push Subtask 3.5, then request external review and Ubuntu validation.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml b/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml
+index 9056246..ae6b146 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml
+@@ -225,6 +225,35 @@ subtasks:
+       - src/agent/trace.py
+       - src/agent/__init__.py
+       - tests/test_trace_session.py
++  - id: "3.5"
++    title: "Expand trace producer coverage for rejected candidates and runtime event families"
++    status: done
++    related_requirements:
++      - REQUIREMENTS.md section 3.3.4
++      - REQUIREMENTS.md section 4.6.2
++      - REQUIREMENTS.md section 5.1.2
++      - REQUIREMENTS.md section 5.1.3
++    ut_required: true
++    ut_passed: true
++    targeted_ut: "26 trace session tests passed, 0 failed"
++    trace_regression_ut: "22 trace memory tests passed, 0 failed"
++    checkpoint_regression_ut: "130 fs_memory tests passed, 0 failed"
++    full_ut: "336 passed, 0 failed, 1 skipped"
++    self_review_required: true
++    self_reviewed: true
++    patch_required: true
++    patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/07_trace_producer_event_families.patch
++    patch_generated: true
++    commit_required: true
++    commit_pending: true
++    implementation_summary:
++      - "TraceSessionWriter.candidate_rejected now validates documented required fields by rejection_reason."
++      - "Experience hard/soft rejection traces enforce filter_strength and soft-filter numeric penalty fields."
++      - "Added process_event, llm_call, memory_op, kg_op, user_action, and workspace_snapshot producers."
++      - "Added focused tests for rejected candidate contracts and runtime event-family payloads."
++    files_modified:
++      - src/agent/trace.py
++      - tests/test_trace_session.py
+ 
+ phase_exit_criteria:
+   - "Trace events are append-only JSONL with strict common fields and flexible event-specific payloads."
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md b/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
+index a6a75be..534a6d7 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
++++ b/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
+@@ -294,3 +294,32 @@ Review conclusion:
+ 
+ Validation conclusion:
+ - Subtask 3.4 is validated on the target Linux environment. Phase 03 can proceed to Subtask 3.5 or the next milestone.
++
++## Subtask 3.5 - trace producer event families
++
++Scope:
++- Tighten the rejected-candidate producer contract without adding the candidate engine itself.
++- Add workflow-facing helpers for the remaining Phase 03 event families listed in REQUIREMENTS.md section 5.1.
++- Keep `append_trace_event()` open-payload and storage-only.
++
++Implementation checklist:
++- [x] `candidate_rejected()` requires `generator` and validates the documented `rejection_reason` field matrix.
++- [x] `experience_hard_filter` enforces `filter_strength: hard`.
++- [x] `experience_soft_filter_with_low_score` enforces `filter_strength: soft`, `penalty`, and `score_after_penalty`.
++- [x] Duplicate/failed-subset/module-incompatibility rejection reasons keep their documented matched references.
++- [x] Added helpers for process events, LLM calls, memory operations, KG operations, user actions, and workspace snapshots.
++- [x] No new public symbols were exported from `agent.__init__`.
++
++Tests:
++- `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -v` -> 26 passed.
++- `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -q` -> 22 passed.
++- `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q` -> 130 passed.
++- `.venv\Scripts\python.exe -m pytest -q` -> 336 passed, 1 skipped on Windows.
++
++Self-review notes:
++- The low-level JSONL writer remains strict-common/open-payload. The stricter field matrix lives only at the workflow producer layer, where candidate filtering semantics are known.
++- The existing `candidate_rejected` convenience method remains compatible with duplicate-hash traces, while experience-rule rejections now fail before append if required rule metadata is missing.
++- Runtime event-family helpers intentionally stay lightweight; detailed schemas for process cleaner, KG merge, and user commands should be introduced with those workflows.
++
++Review conclusion:
++- Subtask 3.5 is ready for external review and Ubuntu validation.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md b/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
+index a0c5ddb..f99635a 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
++++ b/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
+@@ -25,6 +25,7 @@ Completed:
+ - Subtask 3.4 added `TraceCheckpointWriter`, a workflow helper that appends trace events and then persists `checkpoint.trace_line_count` in the required order for lifecycle state transitions.
+ - Subtask 3.4 external review approved the helper; the only Info follow-up was closed by documenting partial-failure retry semantics.
+ - Subtask 3.4 was validated on Ubuntu/Linux with Python 3.11.15: full pytest passed 333/333, targeted trace/checkpoint suites passed, Linux fcntl passed, and the checkpointed trace writer manual probe matched expected output.
++- Subtask 3.5 expanded the session producer layer with strict rejected-candidate contracts and convenience helpers for process, LLM, memory, KG, user-action, and workspace-snapshot trace events.
+ 
+ Remaining:
+-- Proceed to Subtask 3.5 or the next milestone.
++- Request external review and Ubuntu validation for Subtask 3.5, then continue to the next milestone.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md b/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
+index 3d51f7b..2991b7b 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
++++ b/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
+@@ -271,3 +271,31 @@
+   - `result_checkpoint_trace_line_count: 1`
+   - `loaded_checkpoint_trace_line_count: 1`
+   - `writer_trace_line_count: 1`
++
++## Subtask 3.5 - trace producer event families
++
++- timestamp_utc: 2026-05-28T05:53:16Z
++- environment:
++  - os: Windows development host
++  - python: 3.14.3
++  - runner: `.venv\Scripts\python.exe -m pytest`
++- requirements:
++  - REQUIREMENTS.md section 3.3.4
++  - REQUIREMENTS.md section 4.6.2
++  - REQUIREMENTS.md section 5.1.2
++  - REQUIREMENTS.md section 5.1.3
++- targeted_command: `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -v`
++- targeted_result: 26 passed, 0 failed
++- trace_regression_command: `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -q`
++- trace_regression_result: 22 passed, 0 failed
++- checkpoint_regression_command: `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q`
++- checkpoint_regression_result: 130 passed, 0 failed
++- full_command: `.venv\Scripts\python.exe -m pytest -q`
++- full_result: 336 passed, 0 failed, 1 skipped
++- skipped:
++  - `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter` requires Linux fcntl and must be covered by Ubuntu validation.
++- new_coverage:
++  - `candidate_rejected` rejects missing required fields for reason-specific trace contracts.
++  - Experience-rule candidate rejection traces include matched rule id/path, filter strength, penalty, and score after penalty.
++  - Process, LLM, memory, KG, user-action, and workspace snapshot helper methods round-trip their event payloads.
++  - Invalid workspace snapshot phases are rejected before append.
+diff --git a/src/agent/trace.py b/src/agent/trace.py
+index 68e21f7..348b6e4 100644
+--- a/src/agent/trace.py
++++ b/src/agent/trace.py
+@@ -4,6 +4,7 @@ from __future__ import annotations
+ 
+ from dataclasses import dataclass
+ from datetime import UTC, datetime
++import math
+ from pathlib import Path
+ from typing import Any, Mapping, Sequence
+ 
+@@ -23,6 +24,27 @@ class TraceSessionError(TraceError):
+     """Raised when a trace producer would emit inconsistent session metadata."""
+ 
+ 
++_REJECTION_REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
++    "duplicate_hash": ("matched_trial",),
++    "whitelist_unknown_option": ("unknown_options",),
++    "mutual_exclusion": ("conflict_group", "conflicting_options"),
++    "failed_subset_match": ("matched_failed", "matched_failed_path"),
++    "experience_hard_filter": (
++        "matched_rule_id",
++        "matched_rule_path",
++        "filter_strength",
++    ),
++    "experience_soft_filter_with_low_score": (
++        "matched_rule_id",
++        "matched_rule_path",
++        "filter_strength",
++        "penalty",
++        "score_after_penalty",
++    ),
++    "module_incompatibility": ("matched_failed", "matched_failed_path"),
++}
++
++
+ def count_trace_events(path: str | Path) -> int:
+     """Return the number of validated events currently in `events.jsonl`."""
+ 
+@@ -179,14 +201,23 @@ class TraceSessionWriter:
+         self,
+         *,
+         candidate: Sequence[str],
++        generator: str,
+         rejection_reason: str,
++        candidate_hash: str | None = None,
+         **fields: Any,
+     ) -> TraceAppendResult:
++        _validate_candidate_rejection(rejection_reason, fields)
++        payload: dict[str, Any] = {
++            "candidate": list(candidate),
++            "generator": generator,
++            "rejection_reason": rejection_reason,
++            **fields,
++        }
++        if candidate_hash is not None:
++            payload["candidate_hash"] = candidate_hash
+         return self.append(
+             "candidate_rejected",
+-            candidate=list(candidate),
+-            rejection_reason=rejection_reason,
+-            **fields,
++            **payload,
+         )
+ 
+     def trial_start(
+@@ -233,6 +264,97 @@ class TraceSessionWriter:
+             **fields,
+         )
+ 
++    def process_event(
++        self,
++        kind: str,
++        *,
++        pid: int,
++        pgid: int,
++        create_time: float,
++        **fields: Any,
++    ) -> TraceAppendResult:
++        return self.append(
++            kind,
++            pid=pid,
++            pgid=pgid,
++            create_time=create_time,
++            **fields,
++        )
++
++    def llm_call(
++        self,
++        *,
++        model: str,
++        prompt_tokens: int,
++        completion_tokens: int,
++        **fields: Any,
++    ) -> TraceAppendResult:
++        return self.append(
++            "llm_call",
++            model=model,
++            prompt_tokens=prompt_tokens,
++            completion_tokens=completion_tokens,
++            **fields,
++        )
++
++    def memory_op(
++        self,
++        *,
++        op_type: str,
++        path: str | Path,
++        **fields: Any,
++    ) -> TraceAppendResult:
++        return self.append(
++            "memory_op",
++            op_type=op_type,
++            path=Path(path).as_posix(),
++            **fields,
++        )
++
++    def kg_op(
++        self,
++        *,
++        op_id: str,
++        op_type: str,
++        backup_ref: str | None = None,
++        **fields: Any,
++    ) -> TraceAppendResult:
++        payload: dict[str, Any] = {
++            "op_id": op_id,
++            "op_type": op_type,
++            **fields,
++        }
++        if backup_ref is not None:
++            payload["backup_ref"] = backup_ref
++        return self.append("kg_op", **payload)
++
++    def user_action(
++        self,
++        *,
++        command: str,
++        args: Sequence[str] | None = None,
++        **fields: Any,
++    ) -> TraceAppendResult:
++        payload: dict[str, Any] = {"command": command, **fields}
++        if args is not None:
++            payload["args"] = list(args)
++        return self.append("user_action", **payload)
++
++    def workspace_snapshot(
++        self,
++        *,
++        phase: str,
++        ws_hash: str,
++        **fields: Any,
++    ) -> TraceAppendResult:
++        if phase not in {"pre", "post"}:
++            raise TraceSessionError("workspace snapshot phase must be 'pre' or 'post'")
++        return self.append(
++            f"workspace_snapshot_{phase}",
++            ws_hash=ws_hash,
++            **fields,
++        )
++
+     def _event_payload(
+         self,
+         kind: str,
+@@ -360,6 +482,42 @@ def _reject_context_overrides(payload: Mapping[str, Any]) -> None:
+             raise TraceSessionError(f"trace field {key!r} is managed by TraceSessionWriter")
+ 
+ 
++def _validate_candidate_rejection(
++    rejection_reason: str,
++    payload: Mapping[str, Any],
++) -> None:
++    required_fields = _REJECTION_REQUIRED_FIELDS.get(rejection_reason)
++    if required_fields is None:
++        raise TraceSessionError(f"unknown candidate rejection reason: {rejection_reason!r}")
++    missing = [field for field in required_fields if field not in payload]
++    if missing:
++        joined = ", ".join(missing)
++        raise TraceSessionError(
++            f"candidate_rejected {rejection_reason!r} missing required field(s): {joined}"
++        )
++
++    if rejection_reason == "experience_hard_filter":
++        _require_filter_strength(payload, "hard")
++    elif rejection_reason == "experience_soft_filter_with_low_score":
++        _require_filter_strength(payload, "soft")
++        for field in ("penalty", "score_after_penalty"):
++            _require_finite_number(payload[field], field)
++
++
++def _require_filter_strength(payload: Mapping[str, Any], expected: str) -> None:
++    if payload.get("filter_strength") != expected:
++        raise TraceSessionError(f"filter_strength must be {expected!r}")
++
++
++def _require_finite_number(value: Any, field: str) -> None:
++    if (
++        isinstance(value, bool)
++        or not isinstance(value, int | float)
++        or not math.isfinite(float(value))
++    ):
++        raise TraceSessionError(f"{field} must be a finite number")
++
++
+ def _validate_session_id(value: str) -> None:
+     if not isinstance(value, str) or not value:
+         raise TraceSessionError("session_id must be a non-empty string")
+diff --git a/tests/test_trace_session.py b/tests/test_trace_session.py
+index 07d1b81..508ba38 100644
+--- a/tests/test_trace_session.py
++++ b/tests/test_trace_session.py
+@@ -357,8 +357,8 @@ def test_trace_session_writer_convenience_events(tmp_path: Path) -> None:
+ 
+     writer.candidate_rejected(
+         candidate=["-O3", "-funroll-loops"],
+-        rejection_reason="duplicate_hash",
+         generator="local_mutation",
++        rejection_reason="duplicate_hash",
+         matched_trial="r8_t2",
+         ts="2026-04-30T10:00:00Z",
+     )
+@@ -391,3 +391,157 @@ def test_trace_session_writer_convenience_events(tmp_path: Path) -> None:
+     assert payloads[1]["success"] is True
+     assert payloads[2]["score"] == 1.234
+     assert payloads[3]["path"] == "trials/data/2026-04/trial_r12_t3.yaml"
++
++
++def test_trace_session_writer_candidate_rejected_requires_reason_fields(
++    tmp_path: Path,
++) -> None:
++    writer = TraceSessionWriter.for_layout(
++        layout(tmp_path),
++        session_id="sess_20260430_abc",
++    )
++
++    with pytest.raises(TraceSessionError, match="matched_rule_id"):
++        writer.candidate_rejected(
++            candidate=["-O3", "-flto=thin"],
++            generator="llm_proposer",
++            rejection_reason="experience_soft_filter_with_low_score",
++            matched_rule_path="experiences/tentative/exp_001.yaml",
++            filter_strength="soft",
++            penalty=0.3,
++            score_after_penalty=0.42,
++            ts="2026-04-30T10:00:00Z",
++        )
++    with pytest.raises(TraceSessionError, match="filter_strength"):
++        writer.candidate_rejected(
++            candidate=["-O3"],
++            generator="llm_proposer",
++            rejection_reason="experience_hard_filter",
++            matched_rule_id="exp_002",
++            matched_rule_path="experiences/verified/exp_002.yaml",
++            filter_strength="soft",
++            ts="2026-04-30T10:00:00Z",
++        )
++    with pytest.raises(TraceSessionError, match="unknown"):
++        writer.candidate_rejected(
++            candidate=["-O3"],
++            generator="llm_proposer",
++            rejection_reason="mystery_filter",
++            ts="2026-04-30T10:00:00Z",
++        )
++
++    assert not layout(tmp_path).trace_path.exists()
++
++
++def test_trace_session_writer_candidate_rejected_records_rule_match_contract(
++    tmp_path: Path,
++) -> None:
++    current_layout = layout(tmp_path)
++    writer = TraceSessionWriter.for_layout(
++        current_layout,
++        session_id="sess_20260430_abc",
++    )
++
++    result = writer.candidate_rejected(
++        candidate=["-O3", "-flto=thin"],
++        candidate_hash="sha256:" + "a" * 64,
++        generator="llm_proposer",
++        rejection_reason="experience_soft_filter_with_low_score",
++        matched_rule_id="exp_001",
++        matched_rule_path="experiences/tentative/exp_001.yaml",
++        filter_strength="soft",
++        penalty=0.3,
++        score_after_penalty=0.42,
++        ts="2026-04-30T10:00:00Z",
++    )
++
++    payload = event_payloads(current_layout)[0]
++    assert result.trace_id == "events.jsonl#L1"
++    assert payload["kind"] == "candidate_rejected"
++    assert payload["candidate"] == ["-O3", "-flto=thin"]
++    assert payload["candidate_hash"] == "sha256:" + "a" * 64
++    assert payload["generator"] == "llm_proposer"
++    assert payload["matched_rule_id"] == "exp_001"
++    assert payload["matched_rule_path"] == "experiences/tentative/exp_001.yaml"
++    assert payload["filter_strength"] == "soft"
++    assert payload["penalty"] == 0.3
++    assert payload["score_after_penalty"] == 0.42
++
++
++def test_trace_session_writer_runtime_event_family_helpers(tmp_path: Path) -> None:
++    current_layout = layout(tmp_path)
++    writer = TraceSessionWriter.for_layout(
++        current_layout,
++        session_id="sess_20260430_abc",
++    )
++
++    writer.process_event(
++        "compile_start",
++        pid=12345,
++        pgid=12345,
++        create_time=1730000000.123,
++        cmdline_hash="sha256:" + "b" * 64,
++        ts="2026-04-30T10:00:00Z",
++    )
++    writer.llm_call(
++        model="moonshot-v1-128k",
++        prompt_tokens=1234,
++        completion_tokens=567,
++        cost_usd=0.12,
++        ts="2026-04-30T10:01:00Z",
++    )
++    writer.memory_op(
++        op_type="read",
++        path=Path("learned/rules/rule_001.yaml"),
++        hits=3,
++        ts="2026-04-30T10:02:00Z",
++    )
++    writer.kg_op(
++        op_id="kgop_001",
++        op_type="merge",
++        backup_ref="kg_backups/backup_001.yaml",
++        ts="2026-04-30T10:03:00Z",
++    )
++    writer.user_action(
++        command="pause",
++        args=["--reason", "inspect"],
++        ts="2026-04-30T10:04:00Z",
++    )
++    writer.workspace_snapshot(
++        phase="post",
++        ws_hash="ws_post_xyz",
++        source_changes=["modified:codec.c"],
++        ts="2026-04-30T10:05:00Z",
++    )
++
++    payloads = event_payloads(current_layout)
++    assert [payload["kind"] for payload in payloads] == [
++        "compile_start",
++        "llm_call",
++        "memory_op",
++        "kg_op",
++        "user_action",
++        "workspace_snapshot_post",
++    ]
++    assert payloads[0]["pid"] == 12345
++    assert payloads[1]["model"] == "moonshot-v1-128k"
++    assert payloads[2]["path"] == "learned/rules/rule_001.yaml"
++    assert payloads[3]["backup_ref"] == "kg_backups/backup_001.yaml"
++    assert payloads[4]["args"] == ["--reason", "inspect"]
++    assert payloads[5]["source_changes"] == ["modified:codec.c"]
++
++
++def test_trace_session_writer_rejects_invalid_workspace_snapshot_phase(
++    tmp_path: Path,
++) -> None:
++    writer = TraceSessionWriter.for_layout(
++        layout(tmp_path),
++        session_id="sess_20260430_abc",
++    )
++
++    with pytest.raises(TraceSessionError, match="phase"):
++        writer.workspace_snapshot(
++            phase="middle",
++            ws_hash="ws_mid_xyz",
++            ts="2026-04-30T10:00:00Z",
++        )

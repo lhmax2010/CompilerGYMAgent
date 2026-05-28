@@ -25,6 +25,7 @@ Completed:
 - Subtask 3.4 added `TraceCheckpointWriter`, a workflow helper that appends trace events and then persists `checkpoint.trace_line_count` in the required order for lifecycle state transitions.
 - Subtask 3.4 external review approved the helper; the only Info follow-up was closed by documenting partial-failure retry semantics.
 - Subtask 3.4 was validated on Ubuntu/Linux with Python 3.11.15: full pytest passed 333/333, targeted trace/checkpoint suites passed, Linux fcntl passed, and the checkpointed trace writer manual probe matched expected output.
+- Subtask 3.5 expanded the session producer layer with strict rejected-candidate contracts and convenience helpers for process, LLM, memory, KG, user-action, and workspace-snapshot trace events.
 
 Remaining:
-- Proceed to Subtask 3.5 or the next milestone.
+- Request external review and Ubuntu validation for Subtask 3.5, then continue to the next milestone.

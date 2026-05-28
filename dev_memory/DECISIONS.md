@@ -500,3 +500,17 @@ Decision records must include:
   - Move checkpoint persistence into `TraceSessionWriter.append()`, which would make all trace events require checkpoint data even for pure observability events.
   - Put trace appends inside `write_checkpoint_state()`, which would couple a generic mutable checkpoint writer to trace event semantics and event payload shapes.
   - Try to make trace append plus checkpoint write atomic across two files, which is not available through normal filesystem primitives; the documented recovery model accepts append-before-checkpoint skew and uses `byte_ref` plus future doctor reconciliation.
+
+## 2026-05-28T05:53:16Z - Keep trace storage open while tightening workflow producer contracts
+
+- affected_requirement:
+  - REQUIREMENTS.md section 4.6.2
+  - REQUIREMENTS.md section 5.1.2
+  - REQUIREMENTS.md section 5.1.3
+- decision: Keep the low-level trace JSONL writer as strict-common/open-payload, but make `TraceSessionWriter.candidate_rejected()` enforce the documented rejection reason field matrix. Add lightweight convenience producers for process, LLM, memory, KG, user-action, and workspace-snapshot event families without introducing closed Pydantic event unions.
+- rationale: Section 4.6.2 requires rejected candidates to include enough matched-rule or matched-history metadata for trace debugging, while section 5.1 lists heterogeneous event families that later workflows will emit. Enforcing the rejected-candidate contract at the producer layer prevents missing rule references before append, but keeping other event families lightweight avoids prematurely modeling workflow-specific payloads before their owning modules exist.
+- alternatives_considered:
+  - Define a closed union for all trace event kinds now, which would overfit placeholder process/KG/user-action payloads before those workflows are implemented.
+  - Leave `candidate_rejected()` fully open like raw `append()`, which would allow missing `matched_rule_id`, `matched_rule_path`, `filter_strength`, or penalty fields despite the trace-debugging requirement.
+  - Split every rejected-candidate reason into a separate public method, which would multiply APIs before the candidate engine exists and make simple trace tests noisier.
+  - Put rejected-candidate validation in `append_trace_event()`, which would make the storage primitive understand workflow semantics and break the strict-common/open-payload boundary.

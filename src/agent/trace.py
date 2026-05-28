@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
+import math
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -21,6 +22,27 @@ from .fs_memory import (
 
 class TraceSessionError(TraceError):
     """Raised when a trace producer would emit inconsistent session metadata."""
+
+
+_REJECTION_REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
+    "duplicate_hash": ("matched_trial",),
+    "whitelist_unknown_option": ("unknown_options",),
+    "mutual_exclusion": ("conflict_group", "conflicting_options"),
+    "failed_subset_match": ("matched_failed", "matched_failed_path"),
+    "experience_hard_filter": (
+        "matched_rule_id",
+        "matched_rule_path",
+        "filter_strength",
+    ),
+    "experience_soft_filter_with_low_score": (
+        "matched_rule_id",
+        "matched_rule_path",
+        "filter_strength",
+        "penalty",
+        "score_after_penalty",
+    ),
+    "module_incompatibility": ("matched_failed", "matched_failed_path"),
+}
 
 
 def count_trace_events(path: str | Path) -> int:
@@ -179,14 +201,23 @@ class TraceSessionWriter:
         self,
         *,
         candidate: Sequence[str],
+        generator: str,
         rejection_reason: str,
+        candidate_hash: str | None = None,
         **fields: Any,
     ) -> TraceAppendResult:
+        _validate_candidate_rejection(rejection_reason, fields)
+        payload: dict[str, Any] = {
+            "candidate": list(candidate),
+            "generator": generator,
+            "rejection_reason": rejection_reason,
+            **fields,
+        }
+        if candidate_hash is not None:
+            payload["candidate_hash"] = candidate_hash
         return self.append(
             "candidate_rejected",
-            candidate=list(candidate),
-            rejection_reason=rejection_reason,
-            **fields,
+            **payload,
         )
 
     def trial_start(
@@ -230,6 +261,97 @@ class TraceSessionWriter:
             skill=skill,
             duration_ms=duration_ms,
             success=success,
+            **fields,
+        )
+
+    def process_event(
+        self,
+        kind: str,
+        *,
+        pid: int,
+        pgid: int,
+        create_time: float,
+        **fields: Any,
+    ) -> TraceAppendResult:
+        return self.append(
+            kind,
+            pid=pid,
+            pgid=pgid,
+            create_time=create_time,
+            **fields,
+        )
+
+    def llm_call(
+        self,
+        *,
+        model: str,
+        prompt_tokens: int,
+        completion_tokens: int,
+        **fields: Any,
+    ) -> TraceAppendResult:
+        return self.append(
+            "llm_call",
+            model=model,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            **fields,
+        )
+
+    def memory_op(
+        self,
+        *,
+        op_type: str,
+        path: str | Path,
+        **fields: Any,
+    ) -> TraceAppendResult:
+        return self.append(
+            "memory_op",
+            op_type=op_type,
+            path=Path(path).as_posix(),
+            **fields,
+        )
+
+    def kg_op(
+        self,
+        *,
+        op_id: str,
+        op_type: str,
+        backup_ref: str | None = None,
+        **fields: Any,
+    ) -> TraceAppendResult:
+        payload: dict[str, Any] = {
+            "op_id": op_id,
+            "op_type": op_type,
+            **fields,
+        }
+        if backup_ref is not None:
+            payload["backup_ref"] = backup_ref
+        return self.append("kg_op", **payload)
+
+    def user_action(
+        self,
+        *,
+        command: str,
+        args: Sequence[str] | None = None,
+        **fields: Any,
+    ) -> TraceAppendResult:
+        payload: dict[str, Any] = {"command": command, **fields}
+        if args is not None:
+            payload["args"] = list(args)
+        return self.append("user_action", **payload)
+
+    def workspace_snapshot(
+        self,
+        *,
+        phase: str,
+        ws_hash: str,
+        **fields: Any,
+    ) -> TraceAppendResult:
+        if phase not in {"pre", "post"}:
+            raise TraceSessionError("workspace snapshot phase must be 'pre' or 'post'")
+        return self.append(
+            f"workspace_snapshot_{phase}",
+            ws_hash=ws_hash,
             **fields,
         )
 
@@ -358,6 +480,42 @@ def _reject_context_overrides(payload: Mapping[str, Any]) -> None:
     for key in ("session_id", "namespace"):
         if key in payload:
             raise TraceSessionError(f"trace field {key!r} is managed by TraceSessionWriter")
+
+
+def _validate_candidate_rejection(
+    rejection_reason: str,
+    payload: Mapping[str, Any],
+) -> None:
+    required_fields = _REJECTION_REQUIRED_FIELDS.get(rejection_reason)
+    if required_fields is None:
+        raise TraceSessionError(f"unknown candidate rejection reason: {rejection_reason!r}")
+    missing = [field for field in required_fields if field not in payload]
+    if missing:
+        joined = ", ".join(missing)
+        raise TraceSessionError(
+            f"candidate_rejected {rejection_reason!r} missing required field(s): {joined}"
+        )
+
+    if rejection_reason == "experience_hard_filter":
+        _require_filter_strength(payload, "hard")
+    elif rejection_reason == "experience_soft_filter_with_low_score":
+        _require_filter_strength(payload, "soft")
+        for field in ("penalty", "score_after_penalty"):
+            _require_finite_number(payload[field], field)
+
+
+def _require_filter_strength(payload: Mapping[str, Any], expected: str) -> None:
+    if payload.get("filter_strength") != expected:
+        raise TraceSessionError(f"filter_strength must be {expected!r}")
+
+
+def _require_finite_number(value: Any, field: str) -> None:
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, int | float)
+        or not math.isfinite(float(value))
+    ):
+        raise TraceSessionError(f"{field} must be a finite number")
 
 
 def _validate_session_id(value: str) -> None:

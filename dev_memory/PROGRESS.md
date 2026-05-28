@@ -1060,3 +1060,17 @@ Next action: commit this sync record, push, then run Ubuntu validation for Subta
   - `writer_trace_line_count: 1`
 
 Next action: proceed to Subtask 3.5 or the next milestone.
+
+## 2026-05-28T05:53:16Z - Phase 03 / Subtask 3.5 implemented
+
+- Started and implemented Subtask 3.5: trace producer event-family coverage.
+- `TraceSessionWriter.candidate_rejected()` now requires `generator`, validates the documented `rejection_reason` field matrix, and rejects missing matched references before append.
+- Experience-rule rejection traces now require `matched_rule_id`, `matched_rule_path`, `filter_strength`, and, for soft filters, numeric `penalty` and `score_after_penalty`.
+- Added convenience producers for process events, LLM calls, memory operations, KG operations, user actions, and workspace snapshots.
+- UT results:
+  - `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -v` -> 26 passed.
+  - `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -q` -> 22 passed.
+  - `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q` -> 130 passed.
+  - `.venv\Scripts\python.exe -m pytest -q` -> 336 passed, 1 skipped on Windows.
+
+Next action: generate patch artifacts, commit/push Subtask 3.5, then request external review and Ubuntu validation.

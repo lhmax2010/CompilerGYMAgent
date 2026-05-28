@@ -225,6 +225,35 @@ subtasks:
       - src/agent/trace.py
       - src/agent/__init__.py
       - tests/test_trace_session.py
+  - id: "3.5"
+    title: "Expand trace producer coverage for rejected candidates and runtime event families"
+    status: done
+    related_requirements:
+      - REQUIREMENTS.md section 3.3.4
+      - REQUIREMENTS.md section 4.6.2
+      - REQUIREMENTS.md section 5.1.2
+      - REQUIREMENTS.md section 5.1.3
+    ut_required: true
+    ut_passed: true
+    targeted_ut: "26 trace session tests passed, 0 failed"
+    trace_regression_ut: "22 trace memory tests passed, 0 failed"
+    checkpoint_regression_ut: "130 fs_memory tests passed, 0 failed"
+    full_ut: "336 passed, 0 failed, 1 skipped"
+    self_review_required: true
+    self_reviewed: true
+    patch_required: true
+    patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/07_trace_producer_event_families.patch
+    patch_generated: true
+    commit_required: true
+    commit_pending: true
+    implementation_summary:
+      - "TraceSessionWriter.candidate_rejected now validates documented required fields by rejection_reason."
+      - "Experience hard/soft rejection traces enforce filter_strength and soft-filter numeric penalty fields."
+      - "Added process_event, llm_call, memory_op, kg_op, user_action, and workspace_snapshot producers."
+      - "Added focused tests for rejected candidate contracts and runtime event-family payloads."
+    files_modified:
+      - src/agent/trace.py
+      - tests/test_trace_session.py
 
 phase_exit_criteria:
   - "Trace events are append-only JSONL with strict common fields and flexible event-specific payloads."

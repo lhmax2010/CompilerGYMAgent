@@ -1,7 +1,7 @@
 phase_id: phase_03_trace_lifecycle
 phase_title: "Trace JSONL canonical event stream"
 started_at: 2026-05-21T14:06:00Z
-last_updated: 2026-05-27T06:20:06Z
+last_updated: 2026-05-28T05:53:16Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 3.3
@@ -226,10 +226,39 @@ subtasks:
         loaded_checkpoint_trace_line_count: 1
         writer_trace_line_count: 1
       runner: "venv + pytest"
+  - id: "3.5"
+    title: "Expand trace producer coverage for rejected candidates and runtime event families"
+    status: done
+    related_requirements:
+      - REQUIREMENTS.md section 3.3.4
+      - REQUIREMENTS.md section 4.6.2
+      - REQUIREMENTS.md section 5.1.2
+      - REQUIREMENTS.md section 5.1.3
+    files_modified:
+      - src/agent/trace.py
+      - tests/test_trace_session.py
+    ut_required: true
+    ut_passed: true
+    targeted_ut: "26 trace session tests passed, 0 failed"
+    trace_regression_ut: "22 trace memory tests passed, 0 failed"
+    checkpoint_regression_ut: "130 fs_memory tests passed, 0 failed"
+    full_ut: "336 passed, 0 failed, 1 skipped"
+    self_review_required: true
+    self_reviewed: true
+    patch_required: true
+    patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/07_trace_producer_event_families.patch
+    patch_generated: true
+    commit_required: true
+    commit_pending: true
+    implementation_summary:
+      - "Made TraceSessionWriter.candidate_rejected enforce the documented rejection reason field matrix."
+      - "Recorded full experience-rule rejection details: matched_rule_id, matched_rule_path, filter_strength, penalty, and score_after_penalty."
+      - "Added convenience producers for process events, LLM calls, memory ops, KG ops, user actions, and workspace snapshots."
+      - "Kept low-level trace storage open-payload while making workflow-facing producers harder to misuse."
 notes: |
   Phase 03 starts with the canonical `trace/events.jsonl` append-only event
   stream because REQUIREMENTS.md defines runtime recovery state as
   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
   trace storage primitive before wiring lifecycle stages, rejected candidates,
   dry-run injection, or process/user-action event producers.
-next_action: "Proceed to Subtask 3.5 or the next milestone."
+next_action: "Generate implementation/sync commits for Subtask 3.5, then request external review and Ubuntu validation."

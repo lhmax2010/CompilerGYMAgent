@@ -357,8 +357,8 @@ def test_trace_session_writer_convenience_events(tmp_path: Path) -> None:
 
     writer.candidate_rejected(
         candidate=["-O3", "-funroll-loops"],
-        rejection_reason="duplicate_hash",
         generator="local_mutation",
+        rejection_reason="duplicate_hash",
         matched_trial="r8_t2",
         ts="2026-04-30T10:00:00Z",
     )
@@ -391,3 +391,157 @@ def test_trace_session_writer_convenience_events(tmp_path: Path) -> None:
     assert payloads[1]["success"] is True
     assert payloads[2]["score"] == 1.234
     assert payloads[3]["path"] == "trials/data/2026-04/trial_r12_t3.yaml"
+
+
+def test_trace_session_writer_candidate_rejected_requires_reason_fields(
+    tmp_path: Path,
+) -> None:
+    writer = TraceSessionWriter.for_layout(
+        layout(tmp_path),
+        session_id="sess_20260430_abc",
+    )
+
+    with pytest.raises(TraceSessionError, match="matched_rule_id"):
+        writer.candidate_rejected(
+            candidate=["-O3", "-flto=thin"],
+            generator="llm_proposer",
+            rejection_reason="experience_soft_filter_with_low_score",
+            matched_rule_path="experiences/tentative/exp_001.yaml",
+            filter_strength="soft",
+            penalty=0.3,
+            score_after_penalty=0.42,
+            ts="2026-04-30T10:00:00Z",
+        )
+    with pytest.raises(TraceSessionError, match="filter_strength"):
+        writer.candidate_rejected(
+            candidate=["-O3"],
+            generator="llm_proposer",
+            rejection_reason="experience_hard_filter",
+            matched_rule_id="exp_002",
+            matched_rule_path="experiences/verified/exp_002.yaml",
+            filter_strength="soft",
+            ts="2026-04-30T10:00:00Z",
+        )
+    with pytest.raises(TraceSessionError, match="unknown"):
+        writer.candidate_rejected(
+            candidate=["-O3"],
+            generator="llm_proposer",
+            rejection_reason="mystery_filter",
+            ts="2026-04-30T10:00:00Z",
+        )
+
+    assert not layout(tmp_path).trace_path.exists()
+
+
+def test_trace_session_writer_candidate_rejected_records_rule_match_contract(
+    tmp_path: Path,
+) -> None:
+    current_layout = layout(tmp_path)
+    writer = TraceSessionWriter.for_layout(
+        current_layout,
+        session_id="sess_20260430_abc",
+    )
+
+    result = writer.candidate_rejected(
+        candidate=["-O3", "-flto=thin"],
+        candidate_hash="sha256:" + "a" * 64,
+        generator="llm_proposer",
+        rejection_reason="experience_soft_filter_with_low_score",
+        matched_rule_id="exp_001",
+        matched_rule_path="experiences/tentative/exp_001.yaml",
+        filter_strength="soft",
+        penalty=0.3,
+        score_after_penalty=0.42,
+        ts="2026-04-30T10:00:00Z",
+    )
+
+    payload = event_payloads(current_layout)[0]
+    assert result.trace_id == "events.jsonl#L1"
+    assert payload["kind"] == "candidate_rejected"
+    assert payload["candidate"] == ["-O3", "-flto=thin"]
+    assert payload["candidate_hash"] == "sha256:" + "a" * 64
+    assert payload["generator"] == "llm_proposer"
+    assert payload["matched_rule_id"] == "exp_001"
+    assert payload["matched_rule_path"] == "experiences/tentative/exp_001.yaml"
+    assert payload["filter_strength"] == "soft"
+    assert payload["penalty"] == 0.3
+    assert payload["score_after_penalty"] == 0.42
+
+
+def test_trace_session_writer_runtime_event_family_helpers(tmp_path: Path) -> None:
+    current_layout = layout(tmp_path)
+    writer = TraceSessionWriter.for_layout(
+        current_layout,
+        session_id="sess_20260430_abc",
+    )
+
+    writer.process_event(
+        "compile_start",
+        pid=12345,
+        pgid=12345,
+        create_time=1730000000.123,
+        cmdline_hash="sha256:" + "b" * 64,
+        ts="2026-04-30T10:00:00Z",
+    )
+    writer.llm_call(
+        model="moonshot-v1-128k",
+        prompt_tokens=1234,
+        completion_tokens=567,
+        cost_usd=0.12,
+        ts="2026-04-30T10:01:00Z",
+    )
+    writer.memory_op(
+        op_type="read",
+        path=Path("learned/rules/rule_001.yaml"),
+        hits=3,
+        ts="2026-04-30T10:02:00Z",
+    )
+    writer.kg_op(
+        op_id="kgop_001",
+        op_type="merge",
+        backup_ref="kg_backups/backup_001.yaml",
+        ts="2026-04-30T10:03:00Z",
+    )
+    writer.user_action(
+        command="pause",
+        args=["--reason", "inspect"],
+        ts="2026-04-30T10:04:00Z",
+    )
+    writer.workspace_snapshot(
+        phase="post",
+        ws_hash="ws_post_xyz",
+        source_changes=["modified:codec.c"],
+        ts="2026-04-30T10:05:00Z",
+    )
+
+    payloads = event_payloads(current_layout)
+    assert [payload["kind"] for payload in payloads] == [
+        "compile_start",
+        "llm_call",
+        "memory_op",
+        "kg_op",
+        "user_action",
+        "workspace_snapshot_post",
+    ]
+    assert payloads[0]["pid"] == 12345
+    assert payloads[1]["model"] == "moonshot-v1-128k"
+    assert payloads[2]["path"] == "learned/rules/rule_001.yaml"
+    assert payloads[3]["backup_ref"] == "kg_backups/backup_001.yaml"
+    assert payloads[4]["args"] == ["--reason", "inspect"]
+    assert payloads[5]["source_changes"] == ["modified:codec.c"]
+
+
+def test_trace_session_writer_rejects_invalid_workspace_snapshot_phase(
+    tmp_path: Path,
+) -> None:
+    writer = TraceSessionWriter.for_layout(
+        layout(tmp_path),
+        session_id="sess_20260430_abc",
+    )
+
+    with pytest.raises(TraceSessionError, match="phase"):
+        writer.workspace_snapshot(
+            phase="middle",
+            ws_hash="ws_mid_xyz",
+            ts="2026-04-30T10:00:00Z",
+        )

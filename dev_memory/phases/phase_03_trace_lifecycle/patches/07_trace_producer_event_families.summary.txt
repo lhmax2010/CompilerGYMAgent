@@ -1,0 +1,22 @@
+Phase 03 / Subtask 3.5 - Trace producer event families
+
+- Tightened `TraceSessionWriter.candidate_rejected()` so rejected-candidate
+  events validate the documented `rejection_reason` field matrix before append.
+- Required generator metadata for rejected candidates and preserved optional
+  `candidate_hash` projection.
+- Enforced experience-rule rejection details:
+  `matched_rule_id`, `matched_rule_path`, `filter_strength`, and soft-filter
+  `penalty` / `score_after_penalty`.
+- Added lightweight producer helpers for runtime event families listed in
+  REQUIREMENTS.md section 5.1:
+  process events, LLM calls, memory operations, KG operations, user actions,
+  and workspace snapshots.
+- Kept the low-level `append_trace_event()` strict-common/open-payload and
+  avoided adding closed event unions before the owning workflows exist.
+- Added focused tests covering rejected candidate validation, rule-match trace
+  payloads, runtime event family helpers, and invalid workspace snapshot phases.
+- Test results:
+  - `tests/test_trace_session.py -v` -> 26 passed.
+  - `tests/test_trace_memory.py -q` -> 22 passed.
+  - `tests/test_fs_memory.py -q` -> 130 passed.
+  - Full suite -> 336 passed, 1 skipped on Windows.

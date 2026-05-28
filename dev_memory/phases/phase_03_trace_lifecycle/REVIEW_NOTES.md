@@ -294,3 +294,32 @@ Review conclusion:
 
 Validation conclusion:
 - Subtask 3.4 is validated on the target Linux environment. Phase 03 can proceed to Subtask 3.5 or the next milestone.
+
+## Subtask 3.5 - trace producer event families
+
+Scope:
+- Tighten the rejected-candidate producer contract without adding the candidate engine itself.
+- Add workflow-facing helpers for the remaining Phase 03 event families listed in REQUIREMENTS.md section 5.1.
+- Keep `append_trace_event()` open-payload and storage-only.
+
+Implementation checklist:
+- [x] `candidate_rejected()` requires `generator` and validates the documented `rejection_reason` field matrix.
+- [x] `experience_hard_filter` enforces `filter_strength: hard`.
+- [x] `experience_soft_filter_with_low_score` enforces `filter_strength: soft`, `penalty`, and `score_after_penalty`.
+- [x] Duplicate/failed-subset/module-incompatibility rejection reasons keep their documented matched references.
+- [x] Added helpers for process events, LLM calls, memory operations, KG operations, user actions, and workspace snapshots.
+- [x] No new public symbols were exported from `agent.__init__`.
+
+Tests:
+- `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -v` -> 26 passed.
+- `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -q` -> 22 passed.
+- `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q` -> 130 passed.
+- `.venv\Scripts\python.exe -m pytest -q` -> 336 passed, 1 skipped on Windows.
+
+Self-review notes:
+- The low-level JSONL writer remains strict-common/open-payload. The stricter field matrix lives only at the workflow producer layer, where candidate filtering semantics are known.
+- The existing `candidate_rejected` convenience method remains compatible with duplicate-hash traces, while experience-rule rejections now fail before append if required rule metadata is missing.
+- Runtime event-family helpers intentionally stay lightweight; detailed schemas for process cleaner, KG merge, and user commands should be introduced with those workflows.
+
+Review conclusion:
+- Subtask 3.5 is ready for external review and Ubuntu validation.
