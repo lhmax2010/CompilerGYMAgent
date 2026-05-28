@@ -1218,3 +1218,14 @@ Next action: run Ubuntu validation for Subtask 3.7 and record target-environment
   - `.venv\Scripts\python.exe -m pytest -q` -> 370 passed, 1 skipped.
 
 Next action: commit/push the validation fix, then rerun Ubuntu validation for Subtask 3.7.
+
+## 2026-05-28T08:05:01Z - Phase 03 / Subtask 3.7 Ubuntu validation completed
+
+- Environment: Ubuntu/Linux, Python 3.11.15, venv + pytest.
+- Full suite: `pytest -q` -> 371 passed.
+- Identifier targeted suite: `pytest tests/test_identifiers.py -v` -> 22 passed.
+- Trace session targeted suite: `pytest tests/test_trace_session.py -q` -> 36 passed.
+- Checkpoint/fs-memory regression suite: `pytest tests/test_fs_memory.py -q` -> 130 passed.
+- Linux fcntl regression: `pytest tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter -v` -> 1 passed.
+
+Next action: proceed to Subtask 3.8 or the next milestone.

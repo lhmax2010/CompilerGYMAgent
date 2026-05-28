@@ -35,6 +35,7 @@ Completed:
 - Subtask 3.7 added cross-module identifier tests and passed the Windows development full suite with 370 passed and 1 Linux-only fcntl skip.
 - Subtask 3.7 external review approved the shared validator after verifying 20 session id cases across checkpoint, workspace lock, and trace with no drift.
 - Subtask 3.7 Ubuntu validation initially exposed a test collection portability issue; `test_identifiers.py` is now self-contained and no longer imports from another test module.
+- Subtask 3.7 was validated on Ubuntu/Linux with Python 3.11.15 after the collection fix: full pytest passed 371/371, identifiers passed 22/22, trace session passed 36/36, fs_memory passed 130/130, and the real fcntl test passed.
 
 Remaining:
-- Pull the Subtask 3.7 validation fix on Ubuntu, rerun validation, and record target-environment results.
+- Proceed to Subtask 3.8 or the next milestone.

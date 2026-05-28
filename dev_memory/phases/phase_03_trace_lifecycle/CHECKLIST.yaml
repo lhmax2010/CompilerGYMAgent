@@ -372,6 +372,16 @@ subtasks:
     validation_fix_patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/10_session_id_validation_ubuntu_fix.patch
     validation_fix_targeted_ut: "22 identifier tests passed, 0 failed"
     validation_fix_full_ut: "370 passed, 0 failed, 1 skipped"
+    target_environment_validation:
+      os: Ubuntu/Linux
+      python: 3.11.15
+      full_pytest: "371 passed"
+      targeted_pytest:
+        identifiers: "22 passed"
+        trace_session: "36 passed"
+        fs_memory: "130 passed"
+        linux_fcntl: "1 passed"
+      runner: "venv + pytest"
     deferred_low_priority_followups:
       - "dry_run checkpoint persistence remains future workflow scope."
       - "trace/checkpoint doctor reconcile remains future doctor scope."
