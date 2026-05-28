@@ -1038,3 +1038,25 @@ Next action: commit/push this review fix, then run Ubuntu validation for Subtask
   - Documented `TraceCheckpointWriter.append_and_checkpoint()` partial-failure retry semantics.
 
 Next action: commit this sync record, push, then run Ubuntu validation for Subtask 3.4.
+
+## 2026-05-28T05:10:51Z - Phase 03 / Subtask 3.4 Ubuntu validation completed
+
+- Environment: Ubuntu/Linux, Python 3.11.15, venv + pytest.
+- Git commits confirmed:
+  - `f0bba01 phase_03_trace_lifecycle: record 3.4 review fix sync`
+  - `f90aad0 phase_03_trace_lifecycle: 3.4 review docs`
+  - `e1d1b63 phase_03_trace_lifecycle: record 3.4 sync`
+  - `396a0d0 phase_03_trace_lifecycle: 3.4 checkpointed trace writer`
+- Full suite: `pytest -q` -> 333 passed.
+- Trace session targeted suite: `pytest tests/test_trace_session.py -v` -> 22 passed.
+- Trace memory regression suite: `pytest tests/test_trace_memory.py -q` -> 22 passed.
+- Checkpoint/fs-memory regression suite: `pytest tests/test_fs_memory.py -q` -> 130 passed.
+- Linux fcntl regression: `pytest tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter -v` -> 1 passed.
+- Manual checkpointed trace writer probe matched expected output:
+  - `trace_id: events.jsonl#L1`
+  - `event_count: 1`
+  - `result_checkpoint_trace_line_count: 1`
+  - `loaded_checkpoint_trace_line_count: 1`
+  - `writer_trace_line_count: 1`
+
+Next action: proceed to Subtask 3.5 or the next milestone.
