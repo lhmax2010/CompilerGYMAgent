@@ -299,3 +299,28 @@
   - Experience-rule candidate rejection traces include matched rule id/path, filter strength, penalty, and score after penalty.
   - Process, LLM, memory, KG, user-action, and workspace snapshot helper methods round-trip their event payloads.
   - Invalid workspace snapshot phases are rejected before append.
+
+## Subtask 3.5 - Ubuntu validation
+
+- timestamp_utc: 2026-05-28T06:16:27Z
+- environment:
+  - os: Ubuntu/Linux
+  - python: 3.11.15
+  - runner: `venv + pytest`
+- full_command: `pytest -q`
+- full_result: 337 passed, 0 failed
+- targeted_command: `pytest tests/test_trace_session.py -v`
+- targeted_result: 26 passed, 0 failed
+- trace_regression_command: `pytest tests/test_trace_memory.py -q`
+- trace_regression_result: 22 passed, 0 failed
+- checkpoint_regression_command: `pytest tests/test_fs_memory.py -q`
+- checkpoint_regression_result: 130 passed, 0 failed
+- linux_fcntl_command: `pytest tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter -v`
+- linux_fcntl_result: 1 passed, 0 failed
+- manual_probe:
+  - `trace_id: events.jsonl#L1`
+  - `event_count: 2`
+  - `first_kind: candidate_rejected`
+  - `matched_rule_id: exp_001`
+  - `filter_strength: soft`
+  - `second_kind: llm_call`

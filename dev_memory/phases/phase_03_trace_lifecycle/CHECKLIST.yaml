@@ -261,6 +261,23 @@ subtasks:
       - "Rejected-candidate reference fields are currently presence-checked, not non-empty/type-checked."
       - "llm_call token counts are not yet constrained to non-negative values."
       - "process_event kind remains open until the process workflow owns concrete event shapes."
+    target_environment_validation:
+      os: Ubuntu/Linux
+      python: 3.11.15
+      full_pytest: "337 passed"
+      targeted_pytest:
+        trace_session: "26 passed"
+        trace_memory: "22 passed"
+        fs_memory: "130 passed"
+        linux_fcntl: "1 passed"
+      manual_probe:
+        trace_id: "events.jsonl#L1"
+        event_count: 2
+        first_kind: candidate_rejected
+        matched_rule_id: exp_001
+        filter_strength: soft
+        second_kind: llm_call
+      runner: "venv + pytest"
     files_modified:
       - src/agent/trace.py
       - tests/test_trace_session.py

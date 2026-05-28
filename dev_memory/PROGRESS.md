@@ -1102,3 +1102,21 @@ Next action: commit this sync record, push, then request external review and Ubu
   - `process_event` kind remains open until the process workflow owns concrete event shapes.
 
 Next action: commit/push this review sync, then run Ubuntu validation for Subtask 3.5.
+
+## 2026-05-28T06:16:27Z - Phase 03 / Subtask 3.5 Ubuntu validation completed
+
+- Environment: Ubuntu/Linux, Python 3.11.15, venv + pytest.
+- Full suite: `pytest -q` -> 337 passed.
+- Trace session targeted suite: `pytest tests/test_trace_session.py -v` -> 26 passed.
+- Trace memory regression suite: `pytest tests/test_trace_memory.py -q` -> 22 passed.
+- Checkpoint/fs-memory regression suite: `pytest tests/test_fs_memory.py -q` -> 130 passed.
+- Linux fcntl regression: `pytest tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter -v` -> 1 passed.
+- Manual rejected-candidate/LLM trace producer probe matched expected output:
+  - `trace_id: events.jsonl#L1`
+  - `event_count: 2`
+  - `first_kind: candidate_rejected`
+  - `matched_rule_id: exp_001`
+  - `filter_strength: soft`
+  - `second_kind: llm_call`
+
+Next action: proceed to Subtask 3.6 or the next milestone.

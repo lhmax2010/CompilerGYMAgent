@@ -348,3 +348,28 @@ Info-level follow-ups deferred:
 
 Review conclusion:
 - Subtask 3.5 is approved and ready for Ubuntu validation.
+
+## Subtask 3.5 - Ubuntu validation
+
+- timestamp_utc: 2026-05-28T06:16:27Z
+- environment: Ubuntu/Linux, Python 3.11.15
+- full_command: `pytest -q`
+- full_result: 337 passed, 0 failed
+- targeted_command: `pytest tests/test_trace_session.py -v`
+- targeted_result: 26 passed, 0 failed
+- trace_regression_command: `pytest tests/test_trace_memory.py -q`
+- trace_regression_result: 22 passed, 0 failed
+- checkpoint_regression_command: `pytest tests/test_fs_memory.py -q`
+- checkpoint_regression_result: 130 passed, 0 failed
+- linux_fcntl_command: `pytest tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter -v`
+- linux_fcntl_result: 1 passed, 0 failed
+- manual_probe_expected_output_matched:
+  - `trace_id: events.jsonl#L1`
+  - `event_count: 2`
+  - `first_kind: candidate_rejected`
+  - `matched_rule_id: exp_001`
+  - `filter_strength: soft`
+  - `second_kind: llm_call`
+
+Validation conclusion:
+- Subtask 3.5 is validated on the target Linux environment. Phase 03 can proceed to Subtask 3.6 or the next milestone.
