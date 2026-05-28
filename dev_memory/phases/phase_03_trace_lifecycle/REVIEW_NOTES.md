@@ -185,3 +185,30 @@ Tests:
 
 Review conclusion:
 - The requested minor documentation fix is complete. Subtask 3.3 is ready for Ubuntu validation.
+
+## Subtask 3.3 - Ubuntu validation
+
+- timestamp_utc: 2026-05-28T03:14:57Z
+- environment: Ubuntu/Linux, Python 3.11.15
+- git commits confirmed:
+  - `03d14df phase_03_trace_lifecycle: record 3.3 review fix sync`
+  - `3e31dac phase_03_trace_lifecycle: 3.3 review contract docs`
+  - `d8bac12 phase_03_trace_lifecycle: 3.3 checkpoint trace counter`
+- full_command: `pytest -q`
+- full_result: 329 passed, 0 failed
+- targeted_command: `pytest tests/test_trace_session.py -v`
+- targeted_result: 18 passed, 0 failed
+- checkpoint_regression_command: `pytest tests/test_fs_memory.py -q`
+- checkpoint_regression_result: 130 passed, 0 failed
+- trace_regression_command: `pytest tests/test_trace_memory.py -q`
+- trace_regression_result: 22 passed, 0 failed
+- linux_fcntl_command: `pytest tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter -v`
+- linux_fcntl_result: 1 passed, 0 failed
+- manual_probe_expected_output_matched:
+  - `writer_start_next_line: 2`
+  - `resume_trace_id: events.jsonl#L2`
+  - `writer_trace_line_count: 2`
+  - `checkpoint_trace_line_count: 2`
+
+Validation conclusion:
+- Subtask 3.3 is validated on the target Linux environment. Phase 03 can proceed to Subtask 3.4.

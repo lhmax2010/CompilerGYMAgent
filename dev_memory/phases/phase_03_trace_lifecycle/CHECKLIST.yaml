@@ -147,6 +147,21 @@ subtasks:
     review_fix_commit_hash: 3e31dac
     review_fix_commit_message: "phase_03_trace_lifecycle: 3.3 review contract docs"
     review_fix_targeted_ut: "18 trace session tests passed, 0 failed"
+    target_environment_validation:
+      os: Ubuntu/Linux
+      python: 3.11.15
+      full_pytest: "329 passed"
+      targeted_pytest:
+        trace_session: "18 passed"
+        fs_memory: "130 passed"
+        trace_memory: "22 passed"
+        linux_fcntl: "1 passed"
+      manual_probe:
+        writer_start_next_line: 2
+        resume_trace_id: "events.jsonl#L2"
+        writer_trace_line_count: 2
+        checkpoint_trace_line_count: 2
+      runner: "venv + pytest"
     files_modified:
       - src/agent/fs_memory.py
       - src/agent/trace.py

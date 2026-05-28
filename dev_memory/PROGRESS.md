@@ -971,3 +971,23 @@ Next action: commit/push this review fix, then run Ubuntu validation for Subtask
   - `dev_memory/phases/phase_03_trace_lifecycle/patches/05_trace_checkpoint_counter_review_docs.review.md`
 
 Next action: commit this sync record, push, then run Ubuntu validation for Subtask 3.3.
+
+## 2026-05-28T03:14:57Z - Phase 03 / Subtask 3.3 Ubuntu validation completed
+
+- Environment: Ubuntu/Linux, Python 3.11.15, venv + pytest.
+- Git commits confirmed:
+  - `03d14df phase_03_trace_lifecycle: record 3.3 review fix sync`
+  - `3e31dac phase_03_trace_lifecycle: 3.3 review contract docs`
+  - `d8bac12 phase_03_trace_lifecycle: 3.3 checkpoint trace counter`
+- Full suite: `pytest -q` -> 329 passed.
+- Trace session targeted suite: `pytest tests/test_trace_session.py -v` -> 18 passed.
+- Checkpoint/fs-memory regression suite: `pytest tests/test_fs_memory.py -q` -> 130 passed.
+- Trace memory regression suite: `pytest tests/test_trace_memory.py -q` -> 22 passed.
+- Linux fcntl regression: `pytest tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter -v` -> 1 passed.
+- Manual checkpoint trace-counter probe matched expected output:
+  - `writer_start_next_line: 2`
+  - `resume_trace_id: events.jsonl#L2`
+  - `writer_trace_line_count: 2`
+  - `checkpoint_trace_line_count: 2`
+
+Next action: proceed to Subtask 3.4.
