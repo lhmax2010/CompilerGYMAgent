@@ -426,6 +426,17 @@ subtasks:
     external_reviewed_at: 2026-05-28T08:23:13Z
     external_review_tests: "376 passed, 0 failed"
     external_review_notes: "Claude approved after independent probes for all four alignment states and full doctor repair -> resume flow."
+    target_environment_validation:
+      os: Ubuntu/Linux
+      python: 3.11.15
+      full_pytest: "376 passed"
+      targeted_pytest:
+        trace_session: "41 passed"
+        trace_memory: "22 passed"
+        fs_memory: "130 passed"
+        identifiers: "22 passed"
+        linux_fcntl: "1 passed"
+      runner: "venv + pytest"
     deferred_low_priority_followups:
       - "dry_run checkpoint persistence remains future workflow scope."
       - "process_event kind whitelist remains future process workflow scope."

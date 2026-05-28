@@ -39,6 +39,7 @@ Completed:
 - Subtask 3.8 added non-hot-path trace/checkpoint alignment helpers so doctor/resume-repair code can detect aligned, legacy-missing, trace-ahead, and checkpoint-ahead states.
 - Subtask 3.8 reconciles only safe forward cases and fails conservative when checkpoint claims more trace lines than validated trace contains.
 - Subtask 3.8 external review approved the four-state alignment model and verified a complete doctor repair -> resume cycle.
+- Subtask 3.8 was validated on Ubuntu/Linux with Python 3.11.15: full pytest passed 376/376, trace session passed 41/41, trace memory passed 22/22, fs_memory passed 130/130, identifiers passed 22/22, and the real fcntl test passed.
 
 Remaining:
-- Run Ubuntu validation for Subtask 3.8 and record target-environment results.
+- Proceed to Subtask 3.9 or the next milestone.

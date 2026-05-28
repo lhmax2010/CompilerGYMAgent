@@ -464,3 +464,23 @@
   - Trace-ahead crash skew can be reconciled by advancing checkpoint count.
   - Checkpoint-ahead state is reported but not reconciled because it may indicate trace truncation.
   - Namespace mismatch is rejected before alignment.
+
+## Subtask 3.8 - Ubuntu validation
+
+- timestamp_utc: 2026-05-28T08:38:20Z
+- environment:
+  - os: Ubuntu/Linux
+  - python: 3.11.15
+  - runner: `venv + pytest`
+- full_command: `pytest -q`
+- full_result: 376 passed, 0 failed
+- trace_session_command: `pytest tests/test_trace_session.py -v`
+- trace_session_result: 41 passed, 0 failed
+- trace_memory_command: `pytest tests/test_trace_memory.py -q`
+- trace_memory_result: 22 passed, 0 failed
+- fs_memory_command: `pytest tests/test_fs_memory.py -q`
+- fs_memory_result: 130 passed, 0 failed
+- identifiers_command: `pytest tests/test_identifiers.py -v`
+- identifiers_result: 22 passed, 0 failed
+- linux_fcntl_command: `pytest tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter -v`
+- linux_fcntl_result: 1 passed, 0 failed

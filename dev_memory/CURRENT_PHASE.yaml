@@ -1,7 +1,7 @@
 phase_id: phase_03_trace_lifecycle
 phase_title: "Trace JSONL canonical event stream"
 started_at: 2026-05-21T14:06:00Z
-last_updated: 2026-05-28T08:23:13Z
+last_updated: 2026-05-28T08:38:20Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 3.3
@@ -433,6 +433,17 @@ subtasks:
     external_reviewed_at: 2026-05-28T08:23:13Z
     external_review_tests: "376 passed, 0 failed"
     external_review_notes: "Claude verified the four-state trace/checkpoint alignment model and complete doctor repair -> resume flow."
+    target_environment_validation:
+      os: Ubuntu/Linux
+      python: 3.11.15
+      full_pytest: "376 passed"
+      targeted_pytest:
+        trace_session: "41 passed"
+        trace_memory: "22 passed"
+        fs_memory: "130 passed"
+        identifiers: "22 passed"
+        linux_fcntl: "1 passed"
+      runner: "venv + pytest"
     deferred_low_priority_followups:
       - "Persist dry_run session state in checkpoint when dry-run resume becomes workflow-owned."
       - "Keep process_event kind open until the process owning module defines concrete event kinds."
@@ -442,4 +453,4 @@ notes: |
   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
   trace storage primitive before wiring lifecycle stages, rejected candidates,
   dry-run injection, or process/user-action event producers.
-next_action: "Run Ubuntu validation for Subtask 3.8, then record target-environment results."
+next_action: "Proceed to Subtask 3.9 or the next milestone."

@@ -1262,3 +1262,15 @@ Next action: generate patch artifacts, commit/push Subtask 3.8, then request ext
   - Independent probes verified full doctor repair -> resume behavior.
 
 Next action: run Ubuntu validation for Subtask 3.8 and record target-environment results.
+
+## 2026-05-28T08:38:20Z - Phase 03 / Subtask 3.8 Ubuntu validation completed
+
+- Environment: Ubuntu/Linux, Python 3.11.15, venv + pytest.
+- Full suite: `pytest -q` -> 376 passed.
+- Trace session targeted suite: `pytest tests/test_trace_session.py -v` -> 41 passed.
+- Trace memory regression suite: `pytest tests/test_trace_memory.py -q` -> 22 passed.
+- Checkpoint/fs-memory regression suite: `pytest tests/test_fs_memory.py -q` -> 130 passed.
+- Identifier regression suite: `pytest tests/test_identifiers.py -v` -> 22 passed.
+- Linux fcntl regression: `pytest tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter -v` -> 1 passed.
+
+Next action: proceed to Subtask 3.9 or the next milestone.
