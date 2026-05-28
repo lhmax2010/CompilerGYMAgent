@@ -1,0 +1,20 @@
+Phase 03 / Subtask 3.6 - Trace producer validation polish
+
+- Closed the two cheap Info-level validation gaps from Subtask 3.5 review.
+- `TraceSessionWriter.candidate_rejected()` now rejects unusable required
+  references before append:
+  - empty or whitespace-only string references;
+  - non-string string-reference fields;
+  - empty option-list references;
+  - option-list references containing empty elements.
+- `TraceSessionWriter.llm_call()` now requires prompt and completion token
+  counts to be non-negative integers, rejecting negative values, booleans, and
+  floats.
+- Kept `process_event(kind=...)` open for the future process workflow that will
+  own concrete process event shapes.
+- The low-level `append_trace_event()` remains strict-common/open-payload.
+- Test results:
+  - `tests/test_trace_session.py -v` -> 36 passed.
+  - `tests/test_trace_memory.py -q` -> 22 passed.
+  - `tests/test_fs_memory.py -q` -> 130 passed.
+  - Full suite -> 346 passed, 1 skipped on Windows.

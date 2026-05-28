@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence as SequenceABC
 from dataclasses import dataclass
 from datetime import UTC, datetime
 import math
@@ -43,6 +44,23 @@ _REJECTION_REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
     ),
     "module_incompatibility": ("matched_failed", "matched_failed_path"),
 }
+_REJECTION_STRING_FIELDS = frozenset(
+    {
+        "conflict_group",
+        "filter_strength",
+        "matched_failed",
+        "matched_failed_path",
+        "matched_rule_id",
+        "matched_rule_path",
+        "matched_trial",
+    }
+)
+_REJECTION_SEQUENCE_FIELDS = frozenset(
+    {
+        "conflicting_options",
+        "unknown_options",
+    }
+)
 
 
 def count_trace_events(path: str | Path) -> int:
@@ -289,6 +307,8 @@ class TraceSessionWriter:
         completion_tokens: int,
         **fields: Any,
     ) -> TraceAppendResult:
+        _require_non_negative_int(prompt_tokens, "prompt_tokens")
+        _require_non_negative_int(completion_tokens, "completion_tokens")
         return self.append(
             "llm_call",
             model=model,
@@ -495,6 +515,8 @@ def _validate_candidate_rejection(
         raise TraceSessionError(
             f"candidate_rejected {rejection_reason!r} missing required field(s): {joined}"
         )
+    for field in required_fields:
+        _require_rejection_field_value(field, payload[field])
 
     if rejection_reason == "experience_hard_filter":
         _require_filter_strength(payload, "hard")
@@ -516,6 +538,31 @@ def _require_finite_number(value: Any, field: str) -> None:
         or not math.isfinite(float(value))
     ):
         raise TraceSessionError(f"{field} must be a finite number")
+
+
+def _require_non_negative_int(value: Any, field: str) -> None:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise TraceSessionError(f"{field} must be a non-negative integer")
+
+
+def _require_rejection_field_value(field: str, value: Any) -> None:
+    if field in _REJECTION_STRING_FIELDS:
+        if not isinstance(value, str) or not value.strip():
+            raise TraceSessionError(f"{field} must be a non-empty string")
+        return
+    if field in _REJECTION_SEQUENCE_FIELDS:
+        if (
+            not isinstance(value, SequenceABC)
+            or isinstance(value, str | bytes)
+            or not value
+        ):
+            raise TraceSessionError(f"{field} must be a non-empty list")
+        for item in value:
+            if not isinstance(item, str) or not item.strip():
+                raise TraceSessionError(f"{field} must contain non-empty strings")
+        return
+    if value is None:
+        raise TraceSessionError(f"{field} must not be null")
 
 
 def _validate_session_id(value: str) -> None:

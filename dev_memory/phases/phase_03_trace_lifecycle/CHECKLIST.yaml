@@ -281,6 +281,34 @@ subtasks:
     files_modified:
       - src/agent/trace.py
       - tests/test_trace_session.py
+  - id: "3.6"
+    title: "Polish trace producer validation contracts"
+    status: done
+    related_requirements:
+      - REQUIREMENTS.md section 4.6.2
+      - REQUIREMENTS.md section 5.1.2
+      - REQUIREMENTS.md section 5.1.3
+    ut_required: true
+    ut_passed: true
+    targeted_ut: "36 trace session tests passed, 0 failed"
+    trace_regression_ut: "22 trace memory tests passed, 0 failed"
+    checkpoint_regression_ut: "130 fs_memory tests passed, 0 failed"
+    full_ut: "346 passed, 0 failed, 1 skipped"
+    self_review_required: true
+    self_reviewed: true
+    patch_required: true
+    patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/08_trace_producer_validation_polish.patch
+    patch_generated: true
+    commit_required: true
+    commit_pending: true
+    implementation_summary:
+      - "candidate_rejected required references reject empty or whitespace-only strings."
+      - "candidate_rejected required option lists reject empty collections and empty elements."
+      - "llm_call token counters reject negative, bool, and non-integer values."
+      - "Deferred process kind whitelisting remains assigned to the future process workflow."
+    files_modified:
+      - src/agent/trace.py
+      - tests/test_trace_session.py
 
 phase_exit_criteria:
   - "Trace events are append-only JSONL with strict common fields and flexible event-specific payloads."

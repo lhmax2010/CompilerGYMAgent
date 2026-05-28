@@ -28,6 +28,7 @@ Completed:
 - Subtask 3.5 expanded the session producer layer with strict rejected-candidate contracts and convenience helpers for process, LLM, memory, KG, user-action, and workspace-snapshot trace events.
 - Subtask 3.5 external review approved the producer contracts after verifying all seven rejected-candidate reasons against REQUIREMENTS.md section 4.6.2.
 - Subtask 3.5 was validated on Ubuntu/Linux with Python 3.11.15: full pytest passed 337/337, targeted trace/checkpoint suites passed, Linux fcntl passed, and the rejected-candidate/LLM manual probe matched expected output.
+- Subtask 3.6 polished trace producer validation by rejecting empty rejected-candidate references and invalid LLM token counters while keeping process event shapes open for their future owning module.
 
 Remaining:
-- Proceed to Subtask 3.6 or the next milestone.
+- Request external review and Ubuntu validation for Subtask 3.6, then continue to the next milestone.

@@ -1120,3 +1120,18 @@ Next action: commit/push this review sync, then run Ubuntu validation for Subtas
   - `second_kind: llm_call`
 
 Next action: proceed to Subtask 3.6 or the next milestone.
+
+## 2026-05-28T06:33:40Z - Phase 03 / Subtask 3.6 implemented
+
+- Started and implemented Subtask 3.6: trace producer validation polish.
+- Rejected-candidate required string references now reject empty, whitespace-only, and non-string values.
+- Required option-list references now reject empty lists and empty/whitespace-only elements.
+- `TraceSessionWriter.llm_call()` now rejects negative, boolean, and non-integer token counters.
+- Kept `process_event(kind=...)` open for the future process owning module.
+- UT results:
+  - `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -v` -> 36 passed.
+  - `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -q` -> 22 passed.
+  - `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q` -> 130 passed.
+  - `.venv\Scripts\python.exe -m pytest -q` -> 346 passed, 1 skipped on Windows.
+
+Next action: generate patch artifacts, commit/push Subtask 3.6, then request external review and Ubuntu validation.

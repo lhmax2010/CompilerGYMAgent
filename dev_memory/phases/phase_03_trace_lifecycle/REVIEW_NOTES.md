@@ -373,3 +373,31 @@ Review conclusion:
 
 Validation conclusion:
 - Subtask 3.5 is validated on the target Linux environment. Phase 03 can proceed to Subtask 3.6 or the next milestone.
+
+## Subtask 3.6 - trace producer validation polish
+
+Scope:
+- Close the two cheap Info-level validation gaps from the Subtask 3.5 review.
+- Keep larger deferred items assigned to their owning modules: process-event kind whitelists, dry-run persistence, shared session-id validation, and doctor reconcile.
+
+Implementation checklist:
+- [x] Rejected-candidate string references reject empty and whitespace-only values.
+- [x] Rejected-candidate string references reject non-string values.
+- [x] Required option-list fields reject empty lists.
+- [x] Required option-list fields reject empty/whitespace-only elements.
+- [x] LLM prompt/completion token counts reject negative, boolean, and non-integer values.
+- [x] Existing valid rejected-candidate and LLM traces continue to round-trip.
+
+Tests:
+- `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -v` -> 36 passed.
+- `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -q` -> 22 passed.
+- `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q` -> 130 passed.
+- `.venv\Scripts\python.exe -m pytest -q` -> 346 passed, 1 skipped on Windows.
+
+Self-review notes:
+- This remains producer-layer validation. The low-level JSONL writer stays strict-common/open-payload.
+- `process_event(kind=...)` remains intentionally open until the process workflow owns concrete event kinds.
+- The new checks reject bad data before append, so failed producer calls do not create stray trace events.
+
+Review conclusion:
+- Subtask 3.6 is ready for external review and Ubuntu validation.

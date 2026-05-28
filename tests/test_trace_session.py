@@ -433,6 +433,45 @@ def test_trace_session_writer_candidate_rejected_requires_reason_fields(
     assert not layout(tmp_path).trace_path.exists()
 
 
+@pytest.mark.parametrize(
+    ("rejection_reason", "field", "value", "extra"),
+    [
+        ("duplicate_hash", "matched_trial", "", {}),
+        ("duplicate_hash", "matched_trial", "  ", {}),
+        ("failed_subset_match", "matched_failed_path", 12, {"matched_failed": "fail_1"}),
+        ("whitelist_unknown_option", "unknown_options", [], {}),
+        ("whitelist_unknown_option", "unknown_options", ["-O3", ""], {}),
+        (
+            "mutual_exclusion",
+            "conflicting_options",
+            ["-O2", "  "],
+            {"conflict_group": "opt_level"},
+        ),
+    ],
+)
+def test_trace_session_writer_candidate_rejected_rejects_empty_references(
+    tmp_path: Path,
+    rejection_reason: str,
+    field: str,
+    value: object,
+    extra: dict[str, object],
+) -> None:
+    writer = TraceSessionWriter.for_layout(
+        layout(tmp_path),
+        session_id="sess_20260430_abc",
+    )
+
+    with pytest.raises(TraceSessionError, match=field):
+        writer.candidate_rejected(
+            candidate=["-O3"],
+            generator="llm_proposer",
+            rejection_reason=rejection_reason,
+            ts="2026-04-30T10:00:00Z",
+            **extra,
+            **{field: value},
+        )
+
+
 def test_trace_session_writer_candidate_rejected_records_rule_match_contract(
     tmp_path: Path,
 ) -> None:
@@ -529,6 +568,36 @@ def test_trace_session_writer_runtime_event_family_helpers(tmp_path: Path) -> No
     assert payloads[3]["backup_ref"] == "kg_backups/backup_001.yaml"
     assert payloads[4]["args"] == ["--reason", "inspect"]
     assert payloads[5]["source_changes"] == ["modified:codec.c"]
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("prompt_tokens", -1),
+        ("completion_tokens", -1),
+        ("prompt_tokens", 1.5),
+        ("completion_tokens", True),
+    ],
+)
+def test_trace_session_writer_llm_call_rejects_invalid_token_counts(
+    tmp_path: Path,
+    field: str,
+    value: object,
+) -> None:
+    writer = TraceSessionWriter.for_layout(
+        layout(tmp_path),
+        session_id="sess_20260430_abc",
+    )
+    kwargs: dict[str, object] = {
+        "model": "moonshot-v1-128k",
+        "prompt_tokens": 1,
+        "completion_tokens": 2,
+        field: value,
+        "ts": "2026-04-30T10:00:00Z",
+    }
+
+    with pytest.raises(TraceSessionError, match=field):
+        writer.llm_call(**kwargs)
 
 
 def test_trace_session_writer_rejects_invalid_workspace_snapshot_phase(

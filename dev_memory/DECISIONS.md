@@ -514,3 +514,17 @@ Decision records must include:
   - Leave `candidate_rejected()` fully open like raw `append()`, which would allow missing `matched_rule_id`, `matched_rule_path`, `filter_strength`, or penalty fields despite the trace-debugging requirement.
   - Split every rejected-candidate reason into a separate public method, which would multiply APIs before the candidate engine exists and make simple trace tests noisier.
   - Put rejected-candidate validation in `append_trace_event()`, which would make the storage primitive understand workflow semantics and break the strict-common/open-payload boundary.
+
+## 2026-05-28T06:33:40Z - Validate known trace producer scalars without closing future event schemas
+
+- affected_requirement:
+  - REQUIREMENTS.md section 4.6.2
+  - REQUIREMENTS.md section 5.1.2
+  - REQUIREMENTS.md section 5.1.3
+- decision: Reject empty rejected-candidate matched references and invalid LLM token counters in `TraceSessionWriter`, while keeping process-event kinds open until the process workflow owns concrete event shapes.
+- rationale: The rejected-candidate field matrix is already documented and references must be useful for trace debugging, so empty strings or empty option lists should fail before append. LLM token counters are also known non-negative integers. Process events, KG operations, and user actions remain heterogeneous and should not receive premature closed enums in the trace producer layer.
+- alternatives_considered:
+  - Keep producer validation at presence-only, which allowed unusable references like `matched_trial: ""` despite the debugging requirement.
+  - Move these scalar checks into `append_trace_event()`, which would make the storage primitive understand workflow-specific payload keys.
+  - Close all runtime event families now, which would force process/KG/user-command schemas before those owning modules exist.
+  - Defer all polish to later phases, which would preserve review noise around two cheap and deterministic trace producer contracts.

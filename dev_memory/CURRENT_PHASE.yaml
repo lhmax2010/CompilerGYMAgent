@@ -1,7 +1,7 @@
 phase_id: phase_03_trace_lifecycle
 phase_title: "Trace JSONL canonical event stream"
 started_at: 2026-05-21T14:06:00Z
-last_updated: 2026-05-28T05:53:16Z
+last_updated: 2026-05-28T06:33:40Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 3.3
@@ -282,10 +282,38 @@ subtasks:
         filter_strength: soft
         second_kind: llm_call
       runner: "venv + pytest"
+  - id: "3.6"
+    title: "Polish trace producer validation contracts"
+    status: done
+    related_requirements:
+      - REQUIREMENTS.md section 4.6.2
+      - REQUIREMENTS.md section 5.1.2
+      - REQUIREMENTS.md section 5.1.3
+    files_modified:
+      - src/agent/trace.py
+      - tests/test_trace_session.py
+    ut_required: true
+    ut_passed: true
+    targeted_ut: "36 trace session tests passed, 0 failed"
+    trace_regression_ut: "22 trace memory tests passed, 0 failed"
+    checkpoint_regression_ut: "130 fs_memory tests passed, 0 failed"
+    full_ut: "346 passed, 0 failed, 1 skipped"
+    self_review_required: true
+    self_reviewed: true
+    patch_required: true
+    patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/08_trace_producer_validation_polish.patch
+    patch_generated: true
+    commit_required: true
+    commit_pending: true
+    implementation_summary:
+      - "Rejected-candidate required string references now reject empty, whitespace-only, and non-string values."
+      - "Required option-list references now reject empty lists and empty option atoms."
+      - "llm_call prompt/completion token counts now require non-negative integers."
+      - "Kept process_event kind open for the future process owning module."
 notes: |
   Phase 03 starts with the canonical `trace/events.jsonl` append-only event
   stream because REQUIREMENTS.md defines runtime recovery state as
   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
   trace storage primitive before wiring lifecycle stages, rejected candidates,
   dry-run injection, or process/user-action event producers.
-next_action: "Proceed to Subtask 3.6 or the next milestone."
+next_action: "Generate implementation/sync commits for Subtask 3.6, then request external review and Ubuntu validation."
