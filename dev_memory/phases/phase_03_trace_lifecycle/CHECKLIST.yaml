@@ -365,6 +365,13 @@ subtasks:
     external_reviewed_at: 2026-05-28T07:26:20Z
     external_review_tests: "371 passed, 0 failed"
     external_review_notes: "Claude verified 20 session id cases across checkpoint, workspace lock, and trace with no drift."
+    validation_fix_status: done
+    validation_fix_summary:
+      - "Removed cross-test import from tests/test_identifiers.py so Ubuntu pytest collection works without tests/ being a package."
+      - "Retained direct helper and cross-module coverage with a local checkpoint fixture."
+    validation_fix_patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/10_session_id_validation_ubuntu_fix.patch
+    validation_fix_targeted_ut: "22 identifier tests passed, 0 failed"
+    validation_fix_full_ut: "370 passed, 0 failed, 1 skipped"
     deferred_low_priority_followups:
       - "dry_run checkpoint persistence remains future workflow scope."
       - "trace/checkpoint doctor reconcile remains future doctor scope."

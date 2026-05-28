@@ -34,6 +34,7 @@ Completed:
 - Subtask 3.7 centralized session id validation into `agent.identifiers.validate_session_id_atom()` and reused it from checkpoint, workspace lock, and trace session writers.
 - Subtask 3.7 added cross-module identifier tests and passed the Windows development full suite with 370 passed and 1 Linux-only fcntl skip.
 - Subtask 3.7 external review approved the shared validator after verifying 20 session id cases across checkpoint, workspace lock, and trace with no drift.
+- Subtask 3.7 Ubuntu validation initially exposed a test collection portability issue; `test_identifiers.py` is now self-contained and no longer imports from another test module.
 
 Remaining:
-- Run Ubuntu validation for Subtask 3.7 and record target-environment results.
+- Pull the Subtask 3.7 validation fix on Ubuntu, rerun validation, and record target-environment results.

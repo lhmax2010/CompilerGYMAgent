@@ -11,8 +11,6 @@ from agent.registry import ProjectNamespace
 from agent.trace import TraceSessionError, TraceSessionWriter
 from agent.workspace_lock import WorkspaceLockHolder
 
-from tests.test_fs_memory import checkpoint_data
-
 
 def _namespace() -> ProjectNamespace:
     return ProjectNamespace(
@@ -26,6 +24,39 @@ def _namespace() -> ProjectNamespace:
 
 def _layout(tmp_path: Path) -> NamespaceLayout:
     return NamespaceLayout(workspace=tmp_path, namespace=_namespace())
+
+
+def _checkpoint_data() -> dict:
+    return {
+        "session_id": "sess_20260430_abc",
+        "namespace": str(_namespace()),
+        "last_completed_trial": "r12_t2",
+        "current_trial": {
+            "trial_id": "r12_t3",
+            "started_at": "2026-04-30T10:18:00Z",
+            "current_stage": "compiling",
+            "stage_started_at": "2026-04-30T10:23:21Z",
+            "spec_backup_path": "spec_backups/pre_trial_r12_t3.spec.bak",
+            "workspace_snapshot_pre": "ws_pre_xyz",
+            "build_dir": "~/.agent_workspace/build_dirs/r12_t3",
+            "artifact_staging": "~/.agent_workspace/artifacts/staging/r12_t3",
+            "process": {
+                "pid": 12345,
+                "pgid": 12345,
+                "create_time": 1730000000.123,
+                "cmdline_hash": "sha256:" + ("d" * 64),
+                "session_marker": "AGENT_SESSION_ID=sess_20260430_abc",
+            },
+        },
+        "current_best": {
+            "trial_id": "r12_t2",
+            "score": 1.231,
+        },
+        "explorer_state": {"frontier": ["r12_t4"], "cursor": 7},
+        "random_seed": 42,
+        "total_tokens_consumed": 152400,
+        "last_updated": "2026-04-30T10:30:22Z",
+    }
 
 
 def test_validate_session_id_atom_accepts_documented_safe_shape() -> None:
@@ -46,7 +77,7 @@ def test_validate_session_id_atom_accepts_documented_safe_shape() -> None:
         "../../etc",
         ".",
         "..",
-        "sess_é",
+        "sess_\u00e9",
     ],
 )
 def test_validate_session_id_atom_rejects_unsafe_values(session_id: str) -> None:
@@ -76,7 +107,7 @@ def test_session_id_rules_are_shared_across_runtime_models(
     tmp_path: Path,
     session_id: str,
 ) -> None:
-    data = checkpoint_data()
+    data = _checkpoint_data()
     data["session_id"] = session_id
     data["current_trial"]["process"]["session_marker"] = f"AGENT_SESSION_ID={session_id}"
 

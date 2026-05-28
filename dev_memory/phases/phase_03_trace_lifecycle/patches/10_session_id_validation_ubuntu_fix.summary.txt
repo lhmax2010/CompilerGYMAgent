@@ -1,0 +1,11 @@
+Phase 03 / Subtask 3.7 Ubuntu validation fix.
+
+- Fixed `tests/test_identifiers.py` so it no longer imports helpers from `tests.test_fs_memory`.
+- Inlined the small checkpoint fixture needed by the cross-module session id test.
+- Rewrote the non-ASCII rejection sample as `sess_\u00e9` to keep the test file ASCII-friendly.
+- Recorded the Ubuntu collection issue and local validation results in dev_memory.
+
+Validation:
+- `.venv\Scripts\python.exe -m pytest tests/test_identifiers.py -q` -> 22 passed.
+- `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py tests/test_fs_memory.py tests/test_workspace_lock.py -q` -> 194 passed, 1 skipped.
+- `.venv\Scripts\python.exe -m pytest -q` -> 370 passed, 1 skipped.

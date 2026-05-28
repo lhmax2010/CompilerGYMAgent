@@ -398,3 +398,19 @@
   - Direct helper acceptance/rejection for safe and unsafe session ids.
   - Custom error type propagation for trace session errors.
   - Cross-module invariant that checkpoint, workspace lock, and trace writers reject the same unsafe session ids.
+
+## Subtask 3.7 - Ubuntu collection fix
+
+- timestamp_utc: 2026-05-28T07:32:38Z
+- environment:
+  - os: Windows development host
+  - python: 3.14.3
+  - runner: `.venv\Scripts\python.exe -m pytest`
+- issue: Ubuntu collection failed when `tests/test_identifiers.py` imported `tests.test_fs_memory`.
+- fix: Made `tests/test_identifiers.py` self-contained and removed cross-test-module imports.
+- targeted_command: `.venv\Scripts\python.exe -m pytest tests/test_identifiers.py -q`
+- targeted_result: 22 passed, 0 failed
+- regression_command: `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py tests/test_fs_memory.py tests/test_workspace_lock.py -q`
+- regression_result: 194 passed, 0 failed, 1 skipped
+- full_command: `.venv\Scripts\python.exe -m pytest -q`
+- full_result: 370 passed, 0 failed, 1 skipped

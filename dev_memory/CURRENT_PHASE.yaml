@@ -1,7 +1,7 @@
 phase_id: phase_03_trace_lifecycle
 phase_title: "Trace JSONL canonical event stream"
 started_at: 2026-05-21T14:06:00Z
-last_updated: 2026-05-28T07:26:20Z
+last_updated: 2026-05-28T07:32:38Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 3.3
@@ -375,6 +375,13 @@ subtasks:
     external_reviewed_at: 2026-05-28T07:26:20Z
     external_review_tests: "371 passed, 0 failed"
     external_review_notes: "Claude verified the shared session id helper, caller-specific error types, and cross-module behavior consistency across checkpoint, workspace lock, and trace."
+    validation_fix_status: done
+    validation_fix_summary:
+      - "Made tests/test_identifiers.py self-contained instead of importing helpers from tests.test_fs_memory, because Ubuntu collection does not treat tests/ as an importable package."
+      - "Kept the non-ASCII rejection case as a Unicode escape so the test file remains ASCII-friendly."
+    validation_fix_patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/10_session_id_validation_ubuntu_fix.patch
+    validation_fix_targeted_ut: "22 identifier tests passed, 0 failed"
+    validation_fix_full_ut: "370 passed, 0 failed, 1 skipped"
     deferred_low_priority_followups:
       - "Persist dry_run session state in checkpoint when dry-run resume becomes workflow-owned."
       - "Add doctor/reconcile support for trace/checkpoint skew outside the hot path."
@@ -385,4 +392,4 @@ notes: |
   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
   trace storage primitive before wiring lifecycle stages, rejected candidates,
   dry-run injection, or process/user-action event producers.
-next_action: "Run Ubuntu validation for Subtask 3.7, then record target-environment results."
+next_action: "Pull validation fix on Ubuntu, rerun Subtask 3.7 validation, then record target-environment results."

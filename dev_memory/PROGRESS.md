@@ -1206,3 +1206,15 @@ Next action: generate patch artifacts, commit/push Subtask 3.7, then request ext
   - Remaining deferred items are outside this subtask: dry_run checkpoint persistence, trace/checkpoint doctor reconcile, and process-event kind whitelisting.
 
 Next action: run Ubuntu validation for Subtask 3.7 and record target-environment results.
+
+## 2026-05-28T07:32:38Z - Phase 03 / Subtask 3.7 Ubuntu collection fix implemented
+
+- Ubuntu validation found a collection error: `tests/test_identifiers.py` imported `checkpoint_data` from `tests.test_fs_memory`, but `tests/` is not an importable package on the target environment.
+- Fixed `tests/test_identifiers.py` by inlining the small checkpoint fixture locally and removing the cross-test-module import.
+- Kept the non-ASCII session id rejection case as `sess_\u00e9` so the file remains ASCII-friendly.
+- Local validation:
+  - `.venv\Scripts\python.exe -m pytest tests/test_identifiers.py -q` -> 22 passed.
+  - `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py tests/test_fs_memory.py tests/test_workspace_lock.py -q` -> 194 passed, 1 skipped.
+  - `.venv\Scripts\python.exe -m pytest -q` -> 370 passed, 1 skipped.
+
+Next action: commit/push the validation fix, then rerun Ubuntu validation for Subtask 3.7.

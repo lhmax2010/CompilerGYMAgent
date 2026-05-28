@@ -498,3 +498,18 @@ Deferred items:
 
 Review conclusion:
 - Subtask 3.7 is approved and ready for Ubuntu validation.
+
+## Subtask 3.7 - Ubuntu collection fix
+
+- timestamp_utc: 2026-05-28T07:32:38Z
+- issue: Ubuntu pytest collection failed because `tests/test_identifiers.py` imported `checkpoint_data` from `tests.test_fs_memory`, but `tests/` is not an importable package on the target environment.
+- fix: Made `test_identifiers.py` self-contained with a local checkpoint fixture and kept the non-ASCII rejection case as an escape sequence.
+- targeted_command: `.venv\Scripts\python.exe -m pytest tests/test_identifiers.py -q`
+- targeted_result: 22 passed, 0 failed
+- regression_command: `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py tests/test_fs_memory.py tests/test_workspace_lock.py -q`
+- regression_result: 194 passed, 0 failed, 1 skipped
+- full_command: `.venv\Scripts\python.exe -m pytest -q`
+- full_result: 370 passed, 0 failed, 1 skipped
+
+Next action:
+- Pull the validation fix on Ubuntu and rerun Subtask 3.7 validation.
