@@ -1,0 +1,446 @@
+﻿diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index 4b82689..3f0da96 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -447,10 +447,44 @@ subtasks:
+     deferred_low_priority_followups:
+       - "Persist dry_run session state in checkpoint when dry-run resume becomes workflow-owned."
+       - "Keep process_event kind open until the process owning module defines concrete event kinds."
++  - id: "3.9"
++    title: "Add conservative trace session span inspection"
++    status: done
++    related_requirements:
++      - REQUIREMENTS.md section 3.3.4
++      - REQUIREMENTS.md section 4.13
++      - REQUIREMENTS.md section 4.14.7a
++    files_modified:
++      - src/agent/trace.py
++      - src/agent/__init__.py
++      - tests/test_trace_session.py
++    ut_required: true
++    ut_passed: true
++    targeted_ut: "44 trace session tests passed, 0 failed"
++    trace_regression_ut: "22 trace memory tests passed, 0 failed"
++    checkpoint_regression_ut: "130 fs_memory tests passed, 0 failed"
++    identifier_regression_ut: "22 identifier tests passed, 0 failed"
++    workspace_lock_regression_ut: "28 passed, 0 failed, 1 skipped"
++    full_ut: "378 passed, 0 failed, 1 skipped"
++    self_review_required: true
++    self_reviewed: true
++    patch_required: true
++    patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/12_trace_session_spans.patch
++    patch_generated: true
++    commit_required: true
++    commit_pending: false
++    implementation_summary:
++      - "Added TraceSessionSpan to describe the conservative line range occupied by one trace session."
++      - "Added inspect_trace_session_spans() to scan validated trace events for session boundaries used by future clean/status/doctor paths."
++      - "Ignored legacy or bootstrap events that have no session_id, and rejected invalid session_id values when present."
++      - "Exported the new read-only span helper through agent.__init__."
++    deferred_low_priority_followups:
++      - "Persist dry_run session state in checkpoint when dry-run resume becomes workflow-owned."
++      - "Keep process_event kind open until the process owning module defines concrete event kinds."
+ notes: |
+   Phase 03 starts with the canonical `trace/events.jsonl` append-only event
+   stream because REQUIREMENTS.md defines runtime recovery state as
+   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
+   trace storage primitive before wiring lifecycle stages, rejected candidates,
+   dry-run injection, or process/user-action event producers.
+-next_action: "Proceed to Subtask 3.9 or the next milestone."
++next_action: "Request external review for Subtask 3.9, then run Ubuntu validation."
+diff --git a/dev_memory/DECISIONS.md b/dev_memory/DECISIONS.md
+index 2563004..6e8673b 100644
+--- a/dev_memory/DECISIONS.md
++++ b/dev_memory/DECISIONS.md
+@@ -554,3 +554,17 @@ Decision records must include:
+   - Verify trace/checkpoint counts on every `TraceSessionWriter.for_checkpoint()` call, which would undo the O(1) resume behavior introduced in Subtask 3.3.
+   - Let `checkpoint_with_trace_line_count()` move counters backward, which would make data-loss symptoms look like normal reconciliation.
+   - Leave reconciliation entirely to future doctor code with no shared helper, which would force later modules to duplicate the subtle status matrix.
++
++## 2026-05-28T08:52:08Z - Expose conservative trace session spans for clean/status planning
++
++- affected_requirement:
++  - REQUIREMENTS.md section 3.3.4
++  - REQUIREMENTS.md section 4.13
++  - REQUIREMENTS.md section 4.14.7a
++- decision: Add `TraceSessionSpan` and `inspect_trace_session_spans()` as a non-mutating scan over validated `trace/events.jsonl`. The helper groups events by valid `session_id`, records first and last line numbers plus event count, ignores legacy/bootstrap events without a session id, and treats non-contiguous events for the same session as one conservative span.
++- rationale: Section 4.14.7a requires future `agent clean trace` logic to preserve active-session events and events protected by recent checkpoint state. Phase 03 owns trace primitives, so it should expose a safe read-only session-boundary view without implementing clean commands early. Collapsing non-contiguous events into a first-to-last span favors data preservation if sessions ever interleave.
++- alternatives_considered:
++  - Defer all session-boundary logic to the future clean command, which would make that command duplicate trace parsing and session-id validation.
++  - Return one span per contiguous chunk, which is more precise but easier for cleanup code to misuse by trimming the gap between chunks of the same active session.
++  - Require every trace event to carry `session_id`, which would reject low-level bootstrap events and older trace fixtures that predate `TraceSessionWriter`.
++  - Compute byte offsets for each span now, which would require a second trace parser or extending the low-level iterator before any cleanup writer exists.
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index 189a92f..da90c6e 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -1274,3 +1274,20 @@ Next action: run Ubuntu validation for Subtask 3.8 and record target-environment
+ - Linux fcntl regression: `pytest tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter -v` -> 1 passed.
+ 
+ Next action: proceed to Subtask 3.9 or the next milestone.
++
++## 2026-05-28T08:52:08Z - Phase 03 / Subtask 3.9 implemented
++
++- Started and implemented Subtask 3.9: conservative trace session span inspection for future clean/status/doctor planning.
++- Added `TraceSessionSpan` to describe one session's first line, last line, and event count in `trace/events.jsonl`.
++- Added `inspect_trace_session_spans()` as a read-only scan over validated trace events.
++- The helper ignores legacy/bootstrap events without `session_id`, rejects invalid session ids through the shared identifier validator, and collapses non-contiguous chunks for the same session into one conservative first-to-last span.
++- Exported the new span helper from `agent.__init__`.
++- UT results:
++  - `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -q` -> 44 passed.
++  - `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -q` -> 22 passed.
++  - `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q` -> 130 passed.
++  - `.venv\Scripts\python.exe -m pytest tests/test_identifiers.py -q` -> 22 passed.
++  - `.venv\Scripts\python.exe -m pytest tests/test_workspace_lock.py -q` -> 28 passed, 1 skipped.
++  - `.venv\Scripts\python.exe -m pytest -q` -> 378 passed, 1 skipped.
++
++Next action: generate patch artifacts, commit/push Subtask 3.9, then request external review and Ubuntu validation.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml b/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml
+index c7d5589..0b39d0b 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml
+@@ -444,6 +444,39 @@ subtasks:
+       - src/agent/trace.py
+       - src/agent/__init__.py
+       - tests/test_trace_session.py
++  - id: "3.9"
++    title: "Add conservative trace session span inspection"
++    status: done
++    related_requirements:
++      - REQUIREMENTS.md section 3.3.4
++      - REQUIREMENTS.md section 4.13
++      - REQUIREMENTS.md section 4.14.7a
++    ut_required: true
++    ut_passed: true
++    targeted_ut: "44 trace session tests passed, 0 failed"
++    trace_regression_ut: "22 trace memory tests passed, 0 failed"
++    checkpoint_regression_ut: "130 fs_memory tests passed, 0 failed"
++    identifier_regression_ut: "22 identifier tests passed, 0 failed"
++    workspace_lock_regression_ut: "28 passed, 0 failed, 1 skipped"
++    full_ut: "378 passed, 0 failed, 1 skipped"
++    self_review_required: true
++    self_reviewed: true
++    patch_required: true
++    patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/12_trace_session_spans.patch
++    patch_generated: true
++    commit_required: true
++    commit_pending: false
++    implementation_summary:
++      - "Added TraceSessionSpan and inspect_trace_session_spans() for future clean/status/doctor callers."
++      - "Session spans are conservative: non-contiguous events for one session collapse into first-to-last line range."
++      - "Events without session_id are ignored; invalid session_id values fail through the shared validator."
++    deferred_low_priority_followups:
++      - "dry_run checkpoint persistence remains future workflow scope."
++      - "process_event kind whitelist remains future process workflow scope."
++    files_modified:
++      - src/agent/trace.py
++      - src/agent/__init__.py
++      - tests/test_trace_session.py
+ 
+ phase_exit_criteria:
+   - "Trace events are append-only JSONL with strict common fields and flexible event-specific payloads."
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md b/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
+index cc97f88..1739edc 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
++++ b/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
+@@ -601,3 +601,29 @@ Review conclusion:
+ 
+ Validation conclusion:
+ - Subtask 3.8 is validated on the target Linux environment. Phase 03 can proceed to Subtask 3.9 or the next milestone.
++
++## Subtask 3.9 - trace session span inspection self-review
++
++Checklist:
++- [x] `inspect_trace_session_spans()` is read-only and does not mutate trace or checkpoint state.
++- [x] The helper scans validated `events.jsonl`, so malformed trace lines still fail through the existing trace loader.
++- [x] Events without `session_id` are ignored to preserve compatibility with low-level/bootstrap trace events.
++- [x] Events with invalid `session_id` fail through the shared `validate_session_id_atom()` rule.
++- [x] Non-contiguous chunks from the same session collapse into a conservative first-to-last span for future clean protection.
++- [x] The new helper is exported from `agent.__init__` for future clean/status/doctor callers.
++
++Notes:
++- This subtask does not implement `agent clean trace`; it provides the read-only session-boundary primitive required by future clean planning.
++- The span model intentionally does not compute byte offsets yet. Future cleanup writers can choose line-based or byte-based truncation after their ownership boundary is defined.
++- Dry-run checkpoint persistence and process-event kind whitelisting remain future workflow scope.
++
++Validation:
++- `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -q` -> 44 passed.
++- `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -q` -> 22 passed.
++- `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q` -> 130 passed.
++- `.venv\Scripts\python.exe -m pytest tests/test_identifiers.py -q` -> 22 passed.
++- `.venv\Scripts\python.exe -m pytest tests/test_workspace_lock.py -q` -> 28 passed, 1 skipped.
++- `.venv\Scripts\python.exe -m pytest -q` -> 378 passed, 1 skipped.
++
++Next action:
++- Commit/push Subtask 3.9, then request external review and Ubuntu validation.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md b/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
+index 0172e1d..3cda327 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
++++ b/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
+@@ -40,6 +40,8 @@ Completed:
+ - Subtask 3.8 reconciles only safe forward cases and fails conservative when checkpoint claims more trace lines than validated trace contains.
+ - Subtask 3.8 external review approved the four-state alignment model and verified a complete doctor repair -> resume cycle.
+ - Subtask 3.8 was validated on Ubuntu/Linux with Python 3.11.15: full pytest passed 376/376, trace session passed 41/41, trace memory passed 22/22, fs_memory passed 130/130, identifiers passed 22/22, and the real fcntl test passed.
++- Subtask 3.9 added `TraceSessionSpan` and `inspect_trace_session_spans()` so future clean/status/doctor code can inspect conservative per-session line ranges in validated `trace/events.jsonl`.
++- Subtask 3.9 keeps the helper read-only and non-hot-path: it ignores events without `session_id`, rejects invalid session ids, and collapses non-contiguous chunks from the same session into a first-to-last protected span.
+ 
+ Remaining:
+-- Proceed to Subtask 3.9 or the next milestone.
++- Request external review for Subtask 3.9, then run Ubuntu validation.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md b/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
+index 152fa97..a0ff040 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
++++ b/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
+@@ -484,3 +484,34 @@
+ - identifiers_result: 22 passed, 0 failed
+ - linux_fcntl_command: `pytest tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter -v`
+ - linux_fcntl_result: 1 passed, 0 failed
++
++## Subtask 3.9 - trace session spans
++
++- timestamp_utc: 2026-05-28T08:52:08Z
++- environment:
++  - os: Windows development host
++  - python: 3.14.3
++  - runner: `.venv\Scripts\python.exe -m pytest`
++- requirements:
++  - REQUIREMENTS.md section 3.3.4
++  - REQUIREMENTS.md section 4.13
++  - REQUIREMENTS.md section 4.14.7a
++- targeted_command: `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -q`
++- targeted_result: 44 passed, 0 failed
++- trace_regression_command: `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -q`
++- trace_regression_result: 22 passed, 0 failed
++- checkpoint_regression_command: `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q`
++- checkpoint_regression_result: 130 passed, 0 failed
++- identifier_regression_command: `.venv\Scripts\python.exe -m pytest tests/test_identifiers.py -q`
++- identifier_regression_result: 22 passed, 0 failed
++- workspace_lock_regression_command: `.venv\Scripts\python.exe -m pytest tests/test_workspace_lock.py -q`
++- workspace_lock_regression_result: 28 passed, 0 failed, 1 skipped
++- full_command: `.venv\Scripts\python.exe -m pytest -q`
++- full_result: 378 passed, 0 failed, 1 skipped
++- skipped:
++  - `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter` requires Linux fcntl and must be covered by Ubuntu validation.
++- new_coverage:
++  - Session spans report first line, last line, and event count for validated trace session ids.
++  - Events without session_id are ignored for bootstrap/legacy compatibility.
++  - Non-contiguous chunks for one session collapse to a conservative first-to-last protected span.
++  - Invalid trace session_id values are rejected through the shared identifier validator.
+diff --git a/src/agent/__init__.py b/src/agent/__init__.py
+index 666b826..51ae3bc 100644
+--- a/src/agent/__init__.py
++++ b/src/agent/__init__.py
+@@ -133,11 +133,13 @@ from .trace import (
+     TraceCheckpointResult,
+     TraceCheckpointWriter,
+     TraceSessionError,
++    TraceSessionSpan,
+     TraceSessionWriter,
+     checkpoint_with_reconciled_trace_count,
+     checkpoint_with_trace_line_count,
+     count_trace_events,
+     inspect_trace_checkpoint_alignment,
++    inspect_trace_session_spans,
+ )
+ from .workspace_lock import (
+     LockReadResult,
+@@ -207,6 +209,7 @@ __all__ = [
+     "TraceEvent",
+     "TraceLoadError",
+     "TraceSessionError",
++    "TraceSessionSpan",
+     "TraceSessionWriter",
+     "TraceWriteError",
+     "TrialDiscoveryError",
+@@ -250,6 +253,7 @@ __all__ = [
+     "iter_trial_record_paths",
+     "iter_trace_events",
+     "inspect_trace_checkpoint_alignment",
++    "inspect_trace_session_spans",
+     "learned_rule_path",
+     "learned_rule_payload",
+     "load_config",
+diff --git a/src/agent/trace.py b/src/agent/trace.py
+index a3c58d9..34364d4 100644
+--- a/src/agent/trace.py
++++ b/src/agent/trace.py
+@@ -17,6 +17,7 @@ from .fs_memory import (
+     append_trace_event,
+     checkpoint_payload,
+     iter_trace_events,
++    trace_event_payload,
+     write_checkpoint_state,
+ )
+ from .identifiers import validate_session_id_atom
+@@ -119,6 +120,16 @@ class TraceCheckpointAlignment:
+         return self.status in {"checkpoint_missing", "trace_ahead"}
+ 
+ 
++@dataclass(frozen=True)
++class TraceSessionSpan:
++    """Line range occupied by one session in a canonical trace file."""
++
++    session_id: str
++    first_line_number: int
++    last_line_number: int
++    event_count: int
++
++
+ def inspect_trace_checkpoint_alignment(
+     layout: NamespaceLayout,
+     checkpoint: CheckpointState | Mapping[str, Any],
+@@ -145,6 +156,52 @@ def inspect_trace_checkpoint_alignment(
+     )
+ 
+ 
++def inspect_trace_session_spans(
++    layout_or_path: NamespaceLayout | str | Path,
++) -> tuple[TraceSessionSpan, ...]:
++    """Return conservative session line spans from a validated trace file.
++
++    This helper scans `events.jsonl` for doctor/status/clean planning paths.
++    Events without `session_id` are ignored for backwards compatibility with
++    low-level trace tests and early bootstrap events. If a session appears in
++    non-contiguous chunks, the span covers the first through last occurrence so
++    later cleanup code can preserve conservatively.
++    """
++
++    trace_path = (
++        layout_or_path.trace_path
++        if isinstance(layout_or_path, NamespaceLayout)
++        else Path(layout_or_path)
++    )
++    spans: dict[str, TraceSessionSpan] = {}
++    for line_number, event in enumerate(iter_trace_events(trace_path), start=1):
++        payload = trace_event_payload(event)
++        raw_session_id = payload.get("session_id")
++        if raw_session_id is None:
++            continue
++        session_id = validate_session_id_atom(
++            raw_session_id,
++            "trace session_id",
++            error_type=TraceSessionError,
++        )
++        previous = spans.get(session_id)
++        if previous is None:
++            spans[session_id] = TraceSessionSpan(
++                session_id=session_id,
++                first_line_number=line_number,
++                last_line_number=line_number,
++                event_count=1,
++            )
++        else:
++            spans[session_id] = TraceSessionSpan(
++                session_id=session_id,
++                first_line_number=previous.first_line_number,
++                last_line_number=line_number,
++                event_count=previous.event_count + 1,
++            )
++    return tuple(sorted(spans.values(), key=lambda span: span.first_line_number))
++
++
+ def checkpoint_with_reconciled_trace_count(
+     layout: NamespaceLayout,
+     checkpoint: CheckpointState | Mapping[str, Any],
+diff --git a/tests/test_trace_session.py b/tests/test_trace_session.py
+index 727a734..b513ba0 100644
+--- a/tests/test_trace_session.py
++++ b/tests/test_trace_session.py
+@@ -19,11 +19,13 @@ from agent.trace import (
+     TraceCheckpointAlignment,
+     TraceCheckpointWriter,
+     TraceSessionError,
++    TraceSessionSpan,
+     TraceSessionWriter,
+     checkpoint_with_reconciled_trace_count,
+     checkpoint_with_trace_line_count,
+     count_trace_events,
+     inspect_trace_checkpoint_alignment,
++    inspect_trace_session_spans,
+ )
+ 
+ 
+@@ -286,6 +288,83 @@ def test_trace_checkpoint_alignment_rejects_namespace_mismatch(
+         inspect_trace_checkpoint_alignment(current_layout, checkpoint)
+ 
+ 
++def test_trace_session_spans_report_conservative_line_ranges(
++    tmp_path: Path,
++) -> None:
++    current_layout = layout(tmp_path)
++    append_trace_event(
++        current_layout,
++        {
++            "ts": "2026-04-30T10:00:00Z",
++            "kind": "round_start",
++            "session_id": "sess_a",
++        },
++        expected_line_number=1,
++    )
++    append_trace_event(
++        current_layout,
++        {"ts": "2026-04-30T10:01:00Z", "kind": "bootstrap_probe"},
++        expected_line_number=2,
++    )
++    append_trace_event(
++        current_layout,
++        {
++            "ts": "2026-04-30T10:02:00Z",
++            "kind": "round_start",
++            "session_id": "sess_b",
++        },
++        expected_line_number=3,
++    )
++    append_trace_event(
++        current_layout,
++        {
++            "ts": "2026-04-30T10:03:00Z",
++            "kind": "trial_end",
++            "session_id": "sess_a",
++        },
++        expected_line_number=4,
++    )
++
++    spans = inspect_trace_session_spans(current_layout)
++
++    assert spans == (
++        TraceSessionSpan(
++            session_id="sess_a",
++            first_line_number=1,
++            last_line_number=4,
++            event_count=2,
++        ),
++        TraceSessionSpan(
++            session_id="sess_b",
++            first_line_number=3,
++            last_line_number=3,
++            event_count=1,
++        ),
++    )
++
++
++def test_trace_session_spans_accept_path_and_missing_trace(tmp_path: Path) -> None:
++    current_layout = layout(tmp_path)
++
++    assert inspect_trace_session_spans(current_layout.trace_path) == ()
++
++
++def test_trace_session_spans_reject_invalid_session_id(tmp_path: Path) -> None:
++    current_layout = layout(tmp_path)
++    append_trace_event(
++        current_layout,
++        {
++            "ts": "2026-04-30T10:00:00Z",
++            "kind": "round_start",
++            "session_id": "bad session",
++        },
++        expected_line_number=1,
++    )
++
++    with pytest.raises(TraceSessionError, match="trace session_id"):
++        inspect_trace_session_spans(current_layout)
++
++
+ def test_checkpoint_with_trace_line_count_updates_checkpoint_payload(
+     tmp_path: Path,
+ ) -> None:

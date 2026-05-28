@@ -447,10 +447,44 @@ subtasks:
     deferred_low_priority_followups:
       - "Persist dry_run session state in checkpoint when dry-run resume becomes workflow-owned."
       - "Keep process_event kind open until the process owning module defines concrete event kinds."
+  - id: "3.9"
+    title: "Add conservative trace session span inspection"
+    status: done
+    related_requirements:
+      - REQUIREMENTS.md section 3.3.4
+      - REQUIREMENTS.md section 4.13
+      - REQUIREMENTS.md section 4.14.7a
+    files_modified:
+      - src/agent/trace.py
+      - src/agent/__init__.py
+      - tests/test_trace_session.py
+    ut_required: true
+    ut_passed: true
+    targeted_ut: "44 trace session tests passed, 0 failed"
+    trace_regression_ut: "22 trace memory tests passed, 0 failed"
+    checkpoint_regression_ut: "130 fs_memory tests passed, 0 failed"
+    identifier_regression_ut: "22 identifier tests passed, 0 failed"
+    workspace_lock_regression_ut: "28 passed, 0 failed, 1 skipped"
+    full_ut: "378 passed, 0 failed, 1 skipped"
+    self_review_required: true
+    self_reviewed: true
+    patch_required: true
+    patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/12_trace_session_spans.patch
+    patch_generated: true
+    commit_required: true
+    commit_pending: false
+    implementation_summary:
+      - "Added TraceSessionSpan to describe the conservative line range occupied by one trace session."
+      - "Added inspect_trace_session_spans() to scan validated trace events for session boundaries used by future clean/status/doctor paths."
+      - "Ignored legacy or bootstrap events that have no session_id, and rejected invalid session_id values when present."
+      - "Exported the new read-only span helper through agent.__init__."
+    deferred_low_priority_followups:
+      - "Persist dry_run session state in checkpoint when dry-run resume becomes workflow-owned."
+      - "Keep process_event kind open until the process owning module defines concrete event kinds."
 notes: |
   Phase 03 starts with the canonical `trace/events.jsonl` append-only event
   stream because REQUIREMENTS.md defines runtime recovery state as
   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
   trace storage primitive before wiring lifecycle stages, rejected candidates,
   dry-run injection, or process/user-action event producers.
-next_action: "Proceed to Subtask 3.9 or the next milestone."
+next_action: "Request external review for Subtask 3.9, then run Ubuntu validation."

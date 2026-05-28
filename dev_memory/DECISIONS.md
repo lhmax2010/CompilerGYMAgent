@@ -554,3 +554,17 @@ Decision records must include:
   - Verify trace/checkpoint counts on every `TraceSessionWriter.for_checkpoint()` call, which would undo the O(1) resume behavior introduced in Subtask 3.3.
   - Let `checkpoint_with_trace_line_count()` move counters backward, which would make data-loss symptoms look like normal reconciliation.
   - Leave reconciliation entirely to future doctor code with no shared helper, which would force later modules to duplicate the subtle status matrix.
+
+## 2026-05-28T08:52:08Z - Expose conservative trace session spans for clean/status planning
+
+- affected_requirement:
+  - REQUIREMENTS.md section 3.3.4
+  - REQUIREMENTS.md section 4.13
+  - REQUIREMENTS.md section 4.14.7a
+- decision: Add `TraceSessionSpan` and `inspect_trace_session_spans()` as a non-mutating scan over validated `trace/events.jsonl`. The helper groups events by valid `session_id`, records first and last line numbers plus event count, ignores legacy/bootstrap events without a session id, and treats non-contiguous events for the same session as one conservative span.
+- rationale: Section 4.14.7a requires future `agent clean trace` logic to preserve active-session events and events protected by recent checkpoint state. Phase 03 owns trace primitives, so it should expose a safe read-only session-boundary view without implementing clean commands early. Collapsing non-contiguous events into a first-to-last span favors data preservation if sessions ever interleave.
+- alternatives_considered:
+  - Defer all session-boundary logic to the future clean command, which would make that command duplicate trace parsing and session-id validation.
+  - Return one span per contiguous chunk, which is more precise but easier for cleanup code to misuse by trimming the gap between chunks of the same active session.
+  - Require every trace event to carry `session_id`, which would reject low-level bootstrap events and older trace fixtures that predate `TraceSessionWriter`.
+  - Compute byte offsets for each span now, which would require a second trace parser or extending the low-level iterator before any cleanup writer exists.

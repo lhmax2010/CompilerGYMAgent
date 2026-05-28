@@ -444,6 +444,39 @@ subtasks:
       - src/agent/trace.py
       - src/agent/__init__.py
       - tests/test_trace_session.py
+  - id: "3.9"
+    title: "Add conservative trace session span inspection"
+    status: done
+    related_requirements:
+      - REQUIREMENTS.md section 3.3.4
+      - REQUIREMENTS.md section 4.13
+      - REQUIREMENTS.md section 4.14.7a
+    ut_required: true
+    ut_passed: true
+    targeted_ut: "44 trace session tests passed, 0 failed"
+    trace_regression_ut: "22 trace memory tests passed, 0 failed"
+    checkpoint_regression_ut: "130 fs_memory tests passed, 0 failed"
+    identifier_regression_ut: "22 identifier tests passed, 0 failed"
+    workspace_lock_regression_ut: "28 passed, 0 failed, 1 skipped"
+    full_ut: "378 passed, 0 failed, 1 skipped"
+    self_review_required: true
+    self_reviewed: true
+    patch_required: true
+    patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/12_trace_session_spans.patch
+    patch_generated: true
+    commit_required: true
+    commit_pending: false
+    implementation_summary:
+      - "Added TraceSessionSpan and inspect_trace_session_spans() for future clean/status/doctor callers."
+      - "Session spans are conservative: non-contiguous events for one session collapse into first-to-last line range."
+      - "Events without session_id are ignored; invalid session_id values fail through the shared validator."
+    deferred_low_priority_followups:
+      - "dry_run checkpoint persistence remains future workflow scope."
+      - "process_event kind whitelist remains future process workflow scope."
+    files_modified:
+      - src/agent/trace.py
+      - src/agent/__init__.py
+      - tests/test_trace_session.py
 
 phase_exit_criteria:
   - "Trace events are append-only JSONL with strict common fields and flexible event-specific payloads."

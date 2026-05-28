@@ -601,3 +601,29 @@ Review conclusion:
 
 Validation conclusion:
 - Subtask 3.8 is validated on the target Linux environment. Phase 03 can proceed to Subtask 3.9 or the next milestone.
+
+## Subtask 3.9 - trace session span inspection self-review
+
+Checklist:
+- [x] `inspect_trace_session_spans()` is read-only and does not mutate trace or checkpoint state.
+- [x] The helper scans validated `events.jsonl`, so malformed trace lines still fail through the existing trace loader.
+- [x] Events without `session_id` are ignored to preserve compatibility with low-level/bootstrap trace events.
+- [x] Events with invalid `session_id` fail through the shared `validate_session_id_atom()` rule.
+- [x] Non-contiguous chunks from the same session collapse into a conservative first-to-last span for future clean protection.
+- [x] The new helper is exported from `agent.__init__` for future clean/status/doctor callers.
+
+Notes:
+- This subtask does not implement `agent clean trace`; it provides the read-only session-boundary primitive required by future clean planning.
+- The span model intentionally does not compute byte offsets yet. Future cleanup writers can choose line-based or byte-based truncation after their ownership boundary is defined.
+- Dry-run checkpoint persistence and process-event kind whitelisting remain future workflow scope.
+
+Validation:
+- `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -q` -> 44 passed.
+- `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -q` -> 22 passed.
+- `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q` -> 130 passed.
+- `.venv\Scripts\python.exe -m pytest tests/test_identifiers.py -q` -> 22 passed.
+- `.venv\Scripts\python.exe -m pytest tests/test_workspace_lock.py -q` -> 28 passed, 1 skipped.
+- `.venv\Scripts\python.exe -m pytest -q` -> 378 passed, 1 skipped.
+
+Next action:
+- Commit/push Subtask 3.9, then request external review and Ubuntu validation.

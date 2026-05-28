@@ -484,3 +484,34 @@
 - identifiers_result: 22 passed, 0 failed
 - linux_fcntl_command: `pytest tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter -v`
 - linux_fcntl_result: 1 passed, 0 failed
+
+## Subtask 3.9 - trace session spans
+
+- timestamp_utc: 2026-05-28T08:52:08Z
+- environment:
+  - os: Windows development host
+  - python: 3.14.3
+  - runner: `.venv\Scripts\python.exe -m pytest`
+- requirements:
+  - REQUIREMENTS.md section 3.3.4
+  - REQUIREMENTS.md section 4.13
+  - REQUIREMENTS.md section 4.14.7a
+- targeted_command: `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -q`
+- targeted_result: 44 passed, 0 failed
+- trace_regression_command: `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -q`
+- trace_regression_result: 22 passed, 0 failed
+- checkpoint_regression_command: `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q`
+- checkpoint_regression_result: 130 passed, 0 failed
+- identifier_regression_command: `.venv\Scripts\python.exe -m pytest tests/test_identifiers.py -q`
+- identifier_regression_result: 22 passed, 0 failed
+- workspace_lock_regression_command: `.venv\Scripts\python.exe -m pytest tests/test_workspace_lock.py -q`
+- workspace_lock_regression_result: 28 passed, 0 failed, 1 skipped
+- full_command: `.venv\Scripts\python.exe -m pytest -q`
+- full_result: 378 passed, 0 failed, 1 skipped
+- skipped:
+  - `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter` requires Linux fcntl and must be covered by Ubuntu validation.
+- new_coverage:
+  - Session spans report first line, last line, and event count for validated trace session ids.
+  - Events without session_id are ignored for bootstrap/legacy compatibility.
+  - Non-contiguous chunks for one session collapse to a conservative first-to-last protected span.
+  - Invalid trace session_id values are rejected through the shared identifier validator.

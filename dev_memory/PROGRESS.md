@@ -1274,3 +1274,20 @@ Next action: run Ubuntu validation for Subtask 3.8 and record target-environment
 - Linux fcntl regression: `pytest tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter -v` -> 1 passed.
 
 Next action: proceed to Subtask 3.9 or the next milestone.
+
+## 2026-05-28T08:52:08Z - Phase 03 / Subtask 3.9 implemented
+
+- Started and implemented Subtask 3.9: conservative trace session span inspection for future clean/status/doctor planning.
+- Added `TraceSessionSpan` to describe one session's first line, last line, and event count in `trace/events.jsonl`.
+- Added `inspect_trace_session_spans()` as a read-only scan over validated trace events.
+- The helper ignores legacy/bootstrap events without `session_id`, rejects invalid session ids through the shared identifier validator, and collapses non-contiguous chunks for the same session into one conservative first-to-last span.
+- Exported the new span helper from `agent.__init__`.
+- UT results:
+  - `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -q` -> 44 passed.
+  - `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -q` -> 22 passed.
+  - `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q` -> 130 passed.
+  - `.venv\Scripts\python.exe -m pytest tests/test_identifiers.py -q` -> 22 passed.
+  - `.venv\Scripts\python.exe -m pytest tests/test_workspace_lock.py -q` -> 28 passed, 1 skipped.
+  - `.venv\Scripts\python.exe -m pytest -q` -> 378 passed, 1 skipped.
+
+Next action: generate patch artifacts, commit/push Subtask 3.9, then request external review and Ubuntu validation.

@@ -17,6 +17,7 @@ from .fs_memory import (
     append_trace_event,
     checkpoint_payload,
     iter_trace_events,
+    trace_event_payload,
     write_checkpoint_state,
 )
 from .identifiers import validate_session_id_atom
@@ -119,6 +120,16 @@ class TraceCheckpointAlignment:
         return self.status in {"checkpoint_missing", "trace_ahead"}
 
 
+@dataclass(frozen=True)
+class TraceSessionSpan:
+    """Line range occupied by one session in a canonical trace file."""
+
+    session_id: str
+    first_line_number: int
+    last_line_number: int
+    event_count: int
+
+
 def inspect_trace_checkpoint_alignment(
     layout: NamespaceLayout,
     checkpoint: CheckpointState | Mapping[str, Any],
@@ -143,6 +154,52 @@ def inspect_trace_checkpoint_alignment(
         actual_trace_line_count=actual_count,
         status=status,
     )
+
+
+def inspect_trace_session_spans(
+    layout_or_path: NamespaceLayout | str | Path,
+) -> tuple[TraceSessionSpan, ...]:
+    """Return conservative session line spans from a validated trace file.
+
+    This helper scans `events.jsonl` for doctor/status/clean planning paths.
+    Events without `session_id` are ignored for backwards compatibility with
+    low-level trace tests and early bootstrap events. If a session appears in
+    non-contiguous chunks, the span covers the first through last occurrence so
+    later cleanup code can preserve conservatively.
+    """
+
+    trace_path = (
+        layout_or_path.trace_path
+        if isinstance(layout_or_path, NamespaceLayout)
+        else Path(layout_or_path)
+    )
+    spans: dict[str, TraceSessionSpan] = {}
+    for line_number, event in enumerate(iter_trace_events(trace_path), start=1):
+        payload = trace_event_payload(event)
+        raw_session_id = payload.get("session_id")
+        if raw_session_id is None:
+            continue
+        session_id = validate_session_id_atom(
+            raw_session_id,
+            "trace session_id",
+            error_type=TraceSessionError,
+        )
+        previous = spans.get(session_id)
+        if previous is None:
+            spans[session_id] = TraceSessionSpan(
+                session_id=session_id,
+                first_line_number=line_number,
+                last_line_number=line_number,
+                event_count=1,
+            )
+        else:
+            spans[session_id] = TraceSessionSpan(
+                session_id=session_id,
+                first_line_number=previous.first_line_number,
+                last_line_number=line_number,
+                event_count=previous.event_count + 1,
+            )
+    return tuple(sorted(spans.values(), key=lambda span: span.first_line_number))
 
 
 def checkpoint_with_reconciled_trace_count(

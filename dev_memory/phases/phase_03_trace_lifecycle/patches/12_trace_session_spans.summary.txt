@@ -1,0 +1,24 @@
+Subtask 3.9 - Trace session span inspection
+
+Requirements:
+- REQUIREMENTS.md section 3.3.4
+- REQUIREMENTS.md section 4.13
+- REQUIREMENTS.md section 4.14.7a
+
+Summary:
+- Added `TraceSessionSpan`, a frozen dataclass describing the first line,
+  last line, and event count for one session in `trace/events.jsonl`.
+- Added `inspect_trace_session_spans()` as a read-only, non-hot-path trace scan
+  for future clean/status/doctor planning.
+- The helper ignores trace events without `session_id`, rejects invalid session
+  ids through the shared identifier validator, and collapses non-contiguous
+  chunks from the same session into one conservative first-to-last span.
+- Exported the new helper through `agent.__init__`.
+
+Validation:
+- `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -q` -> 44 passed.
+- `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -q` -> 22 passed.
+- `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q` -> 130 passed.
+- `.venv\Scripts\python.exe -m pytest tests/test_identifiers.py -q` -> 22 passed.
+- `.venv\Scripts\python.exe -m pytest tests/test_workspace_lock.py -q` -> 28 passed, 1 skipped.
+- `.venv\Scripts\python.exe -m pytest -q` -> 378 passed, 1 skipped.

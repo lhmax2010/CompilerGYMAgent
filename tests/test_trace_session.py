@@ -19,11 +19,13 @@ from agent.trace import (
     TraceCheckpointAlignment,
     TraceCheckpointWriter,
     TraceSessionError,
+    TraceSessionSpan,
     TraceSessionWriter,
     checkpoint_with_reconciled_trace_count,
     checkpoint_with_trace_line_count,
     count_trace_events,
     inspect_trace_checkpoint_alignment,
+    inspect_trace_session_spans,
 )
 
 
@@ -284,6 +286,83 @@ def test_trace_checkpoint_alignment_rejects_namespace_mismatch(
 
     with pytest.raises(TraceSessionError, match="namespace does not match"):
         inspect_trace_checkpoint_alignment(current_layout, checkpoint)
+
+
+def test_trace_session_spans_report_conservative_line_ranges(
+    tmp_path: Path,
+) -> None:
+    current_layout = layout(tmp_path)
+    append_trace_event(
+        current_layout,
+        {
+            "ts": "2026-04-30T10:00:00Z",
+            "kind": "round_start",
+            "session_id": "sess_a",
+        },
+        expected_line_number=1,
+    )
+    append_trace_event(
+        current_layout,
+        {"ts": "2026-04-30T10:01:00Z", "kind": "bootstrap_probe"},
+        expected_line_number=2,
+    )
+    append_trace_event(
+        current_layout,
+        {
+            "ts": "2026-04-30T10:02:00Z",
+            "kind": "round_start",
+            "session_id": "sess_b",
+        },
+        expected_line_number=3,
+    )
+    append_trace_event(
+        current_layout,
+        {
+            "ts": "2026-04-30T10:03:00Z",
+            "kind": "trial_end",
+            "session_id": "sess_a",
+        },
+        expected_line_number=4,
+    )
+
+    spans = inspect_trace_session_spans(current_layout)
+
+    assert spans == (
+        TraceSessionSpan(
+            session_id="sess_a",
+            first_line_number=1,
+            last_line_number=4,
+            event_count=2,
+        ),
+        TraceSessionSpan(
+            session_id="sess_b",
+            first_line_number=3,
+            last_line_number=3,
+            event_count=1,
+        ),
+    )
+
+
+def test_trace_session_spans_accept_path_and_missing_trace(tmp_path: Path) -> None:
+    current_layout = layout(tmp_path)
+
+    assert inspect_trace_session_spans(current_layout.trace_path) == ()
+
+
+def test_trace_session_spans_reject_invalid_session_id(tmp_path: Path) -> None:
+    current_layout = layout(tmp_path)
+    append_trace_event(
+        current_layout,
+        {
+            "ts": "2026-04-30T10:00:00Z",
+            "kind": "round_start",
+            "session_id": "bad session",
+        },
+        expected_line_number=1,
+    )
+
+    with pytest.raises(TraceSessionError, match="trace session_id"):
+        inspect_trace_session_spans(current_layout)
 
 
 def test_checkpoint_with_trace_line_count_updates_checkpoint_payload(
