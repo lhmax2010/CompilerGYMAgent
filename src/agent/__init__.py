@@ -129,6 +129,8 @@ from .registry import (
     validate_project_against_registry,
 )
 from .trace import (
+    TraceCheckpointResult,
+    TraceCheckpointWriter,
     TraceSessionError,
     TraceSessionWriter,
     checkpoint_with_trace_line_count,
@@ -195,6 +197,8 @@ __all__ = [
     "ScoreVsBest",
     "SourceTreeChange",
     "TraceAppendResult",
+    "TraceCheckpointResult",
+    "TraceCheckpointWriter",
     "TraceError",
     "TraceEvent",
     "TraceLoadError",

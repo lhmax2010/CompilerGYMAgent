@@ -199,3 +199,31 @@
   - `resume_trace_id: events.jsonl#L2`
   - `writer_trace_line_count: 2`
   - `checkpoint_trace_line_count: 2`
+
+## Subtask 3.4 - checkpointed trace writer
+
+- timestamp_utc: 2026-05-28T03:39:20Z
+- environment:
+  - os: Windows development host
+  - python: 3.14.3
+  - runner: `.venv\Scripts\python.exe -m pytest`
+- requirements:
+  - REQUIREMENTS.md section 3.3.3
+  - REQUIREMENTS.md section 3.3.4
+  - REQUIREMENTS.md section 4.11.3
+  - REQUIREMENTS.md section 5.1.2
+- targeted_command: `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -v`
+- targeted_result: 22 passed, 0 failed
+- trace_regression_command: `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -q`
+- trace_regression_result: 22 passed, 0 failed
+- checkpoint_regression_command: `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q`
+- checkpoint_regression_result: 130 passed, 0 failed
+- full_command: `.venv\Scripts\python.exe -m pytest -q`
+- full_result: 332 passed, 0 failed, 1 skipped
+- skipped:
+  - `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter` requires Linux fcntl and must be covered by Ubuntu validation.
+- new_coverage:
+  - `TraceCheckpointWriter` appends a trace event before checkpoint persistence.
+  - Persisted checkpoint files receive the writer's current `trace_line_count`.
+  - The writer reuses its updated checkpoint state for subsequent events.
+  - Checkpoint session/namespace mismatch is rejected before trace or checkpoint writes.

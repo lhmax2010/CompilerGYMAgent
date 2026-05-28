@@ -212,3 +212,31 @@ Review conclusion:
 
 Validation conclusion:
 - Subtask 3.3 is validated on the target Linux environment. Phase 03 can proceed to Subtask 3.4.
+
+## Subtask 3.4 - checkpointed trace writer
+
+Scope:
+- Provide a workflow-facing helper for events that must be coupled to checkpoint recovery state.
+- Encode the Subtask 3.3 ordering contract in one reusable call path.
+- Keep low-level `append_trace_event()` and `write_checkpoint_state()` independent.
+
+Implementation checklist:
+- [x] Added `TraceCheckpointResult`.
+- [x] Added `TraceCheckpointWriter.for_checkpoint()`.
+- [x] Added `TraceCheckpointWriter.append_and_checkpoint()` to append trace first, then write checkpoint with the updated trace line count.
+- [x] Validated checkpoint session_id and namespace before appending so bad checkpoint context cannot emit stray trace events.
+- [x] Exported the new public helper classes from `agent.__init__`.
+
+Tests:
+- `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -v` -> 22 passed.
+- `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -q` -> 22 passed.
+- `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q` -> 130 passed.
+- `.venv\Scripts\python.exe -m pytest -q` -> 332 passed, 1 skipped on Windows.
+
+Self-review notes:
+- The helper intentionally does not make two-file writes atomic. It centralizes the documented append-before-checkpoint sequence and leaves crash-skew reconciliation to future doctor/resume checks.
+- Context validation happens before trace append, which prevents mismatched checkpoint state from creating a trace event that cannot be paired with a valid checkpoint write.
+- Pure observability events can still use `TraceSessionWriter` directly; only lifecycle/recovery events need `TraceCheckpointWriter`.
+
+Review conclusion:
+- Subtask 3.4 is ready for external review and Ubuntu validation.

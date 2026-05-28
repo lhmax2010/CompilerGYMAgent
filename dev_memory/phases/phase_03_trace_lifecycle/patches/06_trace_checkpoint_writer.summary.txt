@@ -1,0 +1,21 @@
+Phase 03 / Subtask 3.4 - Checkpointed trace writer
+
+- Added `TraceCheckpointWriter`, a workflow-facing helper that preserves the
+  required ordering for lifecycle state transitions:
+  trace append succeeds, then checkpoint is persisted with the updated
+  `trace_line_count`.
+- Added `TraceCheckpointResult` to return both `TraceAppendResult` metadata and
+  the persisted `CheckpointState`.
+- The helper validates checkpoint namespace and session id before appending, so
+  mismatched checkpoint state cannot emit a stray trace event.
+- `TraceCheckpointWriter` reuses the updated checkpoint state for subsequent
+  events.
+- Exported `TraceCheckpointWriter` and `TraceCheckpointResult` from
+  `agent.__init__`.
+- Added tests covering trace-before-checkpoint ordering, checkpoint counter
+  persistence, repeated checkpointed events, and pre-append context rejection.
+- Test results:
+  - `tests/test_trace_session.py -v` -> 22 passed.
+  - `tests/test_trace_memory.py -q` -> 22 passed.
+  - `tests/test_fs_memory.py -q` -> 130 passed.
+  - Full suite -> 332 passed, 1 skipped on Windows.

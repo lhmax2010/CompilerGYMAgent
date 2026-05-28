@@ -9,12 +9,14 @@ from agent.fs_memory import (
     CheckpointState,
     NamespaceLayout,
     append_trace_event,
+    load_checkpoint_for_layout,
     load_trace_events,
     trace_event_payload,
     write_checkpoint_state,
 )
 from agent.registry import ProjectNamespace
 from agent.trace import (
+    TraceCheckpointWriter,
     TraceSessionError,
     TraceSessionWriter,
     checkpoint_with_trace_line_count,
@@ -193,6 +195,98 @@ def test_checkpoint_with_trace_line_count_updates_checkpoint_payload(
         checkpoint_with_trace_line_count(payload, trace_line_count=1)
     with pytest.raises(TraceSessionError, match="non-negative integer"):
         checkpoint_with_trace_line_count(payload, trace_line_count=-1)
+
+
+def test_trace_checkpoint_writer_appends_then_persists_checkpoint_counter(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    current_layout = layout(tmp_path)
+    original_write = write_checkpoint_state
+    observed_trace_counts: list[int] = []
+
+    def spy_write_checkpoint_state(
+        target_layout: NamespaceLayout,
+        checkpoint: CheckpointState | dict,
+    ) -> Path:
+        observed_trace_counts.append(len(load_trace_events(target_layout.trace_path)))
+        return original_write(target_layout, checkpoint)
+
+    monkeypatch.setattr("agent.trace.write_checkpoint_state", spy_write_checkpoint_state)
+    writer = TraceCheckpointWriter.for_checkpoint(
+        current_layout,
+        checkpoint_data(trace_line_count=0),
+    )
+
+    result = writer.append_and_checkpoint(
+        "session_resume",
+        ts="2026-04-30T10:00:00Z",
+        reason="manual",
+    )
+
+    assert observed_trace_counts == [1]
+    assert result.trace.trace_id == "events.jsonl#L1"
+    assert result.checkpoint_path == current_layout.checkpoint_path
+    assert result.checkpoint.trace_line_count == 1
+    assert writer.trace_line_count == 1
+
+    loaded_checkpoint = load_checkpoint_for_layout(current_layout)
+    assert loaded_checkpoint.trace_line_count == 1
+    assert event_payloads(current_layout)[0]["kind"] == "session_resume"
+
+
+def test_trace_checkpoint_writer_reuses_updated_checkpoint_for_next_event(
+    tmp_path: Path,
+) -> None:
+    current_layout = layout(tmp_path)
+    writer = TraceCheckpointWriter.for_checkpoint(
+        current_layout,
+        checkpoint_data(trace_line_count=0),
+    )
+
+    first = writer.append_and_checkpoint(
+        "session_resume",
+        ts="2026-04-30T10:00:00Z",
+    )
+    second = writer.append_and_checkpoint(
+        "round_start",
+        round=1,
+        phase="warmup",
+        ts="2026-04-30T10:01:00Z",
+    )
+
+    assert first.trace.trace_id == "events.jsonl#L1"
+    assert second.trace.trace_id == "events.jsonl#L2"
+    assert second.checkpoint.trace_line_count == 2
+    assert load_checkpoint_for_layout(current_layout).trace_line_count == 2
+
+
+@pytest.mark.parametrize(
+    "override",
+    [
+        {"session_id": "sess_other"},
+        {"namespace": "other/ffmpeg/gcc-13.2.0/code-a1b2c3d/kg-v3"},
+    ],
+)
+def test_trace_checkpoint_writer_rejects_checkpoint_context_mismatch_before_append(
+    tmp_path: Path,
+    override: dict[str, str],
+) -> None:
+    current_layout = layout(tmp_path)
+    writer = TraceCheckpointWriter.for_checkpoint(
+        current_layout,
+        checkpoint_data(trace_line_count=0),
+    )
+
+    with pytest.raises(TraceSessionError, match="checkpoint"):
+        writer.append_and_checkpoint(
+            "session_resume",
+            checkpoint=checkpoint_data(trace_line_count=0, **override),
+            ts="2026-04-30T10:00:00Z",
+        )
+
+    assert not current_layout.trace_path.exists()
+    assert not current_layout.checkpoint_path.exists()
 
 
 def test_trace_session_writer_dry_run_injects_mode_and_rejects_conflict(

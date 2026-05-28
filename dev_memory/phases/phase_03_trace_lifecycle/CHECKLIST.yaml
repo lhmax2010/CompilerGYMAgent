@@ -168,6 +168,35 @@ subtasks:
       - src/agent/__init__.py
       - tests/test_trace_session.py
       - tests/test_fs_memory.py
+  - id: "3.4"
+    title: "Add checkpointed trace event writer for lifecycle state transitions"
+    status: done
+    related_requirements:
+      - REQUIREMENTS.md section 3.3.3
+      - REQUIREMENTS.md section 3.3.4
+      - REQUIREMENTS.md section 4.11.3
+      - REQUIREMENTS.md section 5.1.2
+    ut_required: true
+    ut_passed: true
+    targeted_ut: "22 trace session tests passed, 0 failed"
+    trace_regression_ut: "22 trace memory tests passed, 0 failed"
+    checkpoint_regression_ut: "130 fs_memory tests passed, 0 failed"
+    full_ut: "332 passed, 0 failed, 1 skipped"
+    self_review_required: true
+    self_reviewed: true
+    patch_required: true
+    patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/06_trace_checkpoint_writer.patch
+    patch_generated: true
+    commit_required: true
+    commit_pending: true
+    implementation_summary:
+      - "TraceCheckpointWriter appends events then persists checkpoint.trace_line_count."
+      - "TraceCheckpointResult returns trace append metadata plus persisted checkpoint state."
+      - "Checkpoint context mismatches are rejected before any trace append."
+    files_modified:
+      - src/agent/trace.py
+      - src/agent/__init__.py
+      - tests/test_trace_session.py
 
 phase_exit_criteria:
   - "Trace events are append-only JSONL with strict common fields and flexible event-specific payloads."

@@ -485,3 +485,18 @@ Decision records must include:
   - Make `append_trace_event()` read or mutate checkpoint state directly, which would couple the storage primitive back to mutable workflow recovery state.
   - Add a separate sidecar line-count file, which would create another mutable coordination artifact outside the documented canonical checkpoint.
   - Require `trace_line_count` on all checkpoints immediately, which would reject existing user-readable checkpoint files from earlier Phase 02/03 builds.
+
+## 2026-05-28T03:39:20Z - Encode trace append then checkpoint persistence in a workflow helper
+
+- affected_requirement:
+  - REQUIREMENTS.md section 3.3.3
+  - REQUIREMENTS.md section 3.3.4
+  - REQUIREMENTS.md section 4.11.3
+  - REQUIREMENTS.md section 5.1.2
+- decision: Add `TraceCheckpointWriter` as the workflow-facing helper for events that must update canonical recovery state. It validates checkpoint session/namespace context before appending, appends the trace event through `TraceSessionWriter`, then persists `checkpoint.trace_line_count` through `write_checkpoint_state()`.
+- rationale: Section 3.3 says trial lifecycle stage transitions write both checkpoint and trace. Subtask 3.3 documented the ordering contract; this helper makes that contract a reusable primitive so future LangGraph nodes do not duplicate or accidentally invert the append/checkpoint sequence. The helper stays above low-level trace storage and checkpoint YAML writers, preserving the existing storage/workflow boundary.
+- alternatives_considered:
+  - Let every future workflow node manually call `TraceSessionWriter.append()` and `write_checkpoint_state()`, which would repeat the same crash-consistency ordering at each call site.
+  - Move checkpoint persistence into `TraceSessionWriter.append()`, which would make all trace events require checkpoint data even for pure observability events.
+  - Put trace appends inside `write_checkpoint_state()`, which would couple a generic mutable checkpoint writer to trace event semantics and event payload shapes.
+  - Try to make trace append plus checkpoint write atomic across two files, which is not available through normal filesystem primitives; the documented recovery model accepts append-before-checkpoint skew and uses `byte_ref` plus future doctor reconciliation.

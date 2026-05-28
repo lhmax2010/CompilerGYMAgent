@@ -991,3 +991,18 @@ Next action: commit this sync record, push, then run Ubuntu validation for Subta
   - `checkpoint_trace_line_count: 2`
 
 Next action: proceed to Subtask 3.4.
+
+## 2026-05-28T03:39:20Z - Phase 03 / Subtask 3.4 implemented
+
+- Started and implemented Subtask 3.4: checkpointed trace writer for lifecycle state transitions.
+- Added `TraceCheckpointWriter` to encode the required ordering: append trace event, then persist checkpoint with updated `trace_line_count`.
+- Added `TraceCheckpointResult` so callers receive both trace append metadata and persisted checkpoint state.
+- `TraceCheckpointWriter` validates checkpoint `session_id` and namespace before append, so invalid checkpoint context cannot create stray trace events.
+- Public exports added in `src/agent/__init__.py`.
+- UT results:
+  - `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -v` -> 22 passed.
+  - `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -q` -> 22 passed.
+  - `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q` -> 130 passed.
+  - `.venv\Scripts\python.exe -m pytest -q` -> 332 passed, 1 skipped on Windows.
+
+Next action: generate patch artifacts, commit/push Subtask 3.4, then request external review and Ubuntu validation.

@@ -1,0 +1,465 @@
+﻿diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index 64b7e87..e9a1568 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -168,10 +168,40 @@ subtasks:
+         writer_trace_line_count: 2
+         checkpoint_trace_line_count: 2
+       runner: "venv + pytest"
++  - id: "3.4"
++    title: "Add checkpointed trace event writer for lifecycle state transitions"
++    status: done
++    related_requirements:
++      - REQUIREMENTS.md section 3.3.3
++      - REQUIREMENTS.md section 3.3.4
++      - REQUIREMENTS.md section 4.11.3
++      - REQUIREMENTS.md section 5.1.2
++    files_modified:
++      - src/agent/trace.py
++      - src/agent/__init__.py
++      - tests/test_trace_session.py
++    ut_required: true
++    ut_passed: true
++    targeted_ut: "22 trace session tests passed, 0 failed"
++    trace_regression_ut: "22 trace memory tests passed, 0 failed"
++    checkpoint_regression_ut: "130 fs_memory tests passed, 0 failed"
++    full_ut: "332 passed, 0 failed, 1 skipped"
++    self_review_required: true
++    self_reviewed: true
++    patch_required: true
++    patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/06_trace_checkpoint_writer.patch
++    patch_generated: true
++    commit_required: true
++    commit_pending: true
++    implementation_summary:
++      - "Added TraceCheckpointWriter to encode trace append -> checkpoint.trace_line_count persistence ordering."
++      - "Added TraceCheckpointResult to return both trace metadata and persisted checkpoint state."
++      - "Validated checkpoint session_id and namespace before trace append so mismatched checkpoint state cannot emit stray events."
++      - "Exported the new workflow-facing helper from agent.__init__."
+ notes: |
+   Phase 03 starts with the canonical `trace/events.jsonl` append-only event
+   stream because REQUIREMENTS.md defines runtime recovery state as
+   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
+   trace storage primitive before wiring lifecycle stages, rejected candidates,
+   dry-run injection, or process/user-action event producers.
+-next_action: "Proceed to Subtask 3.4."
++next_action: "Commit/push Subtask 3.4, then request external review and Ubuntu validation."
+diff --git a/dev_memory/DECISIONS.md b/dev_memory/DECISIONS.md
+index 024e05c..e0b87d8 100644
+--- a/dev_memory/DECISIONS.md
++++ b/dev_memory/DECISIONS.md
+@@ -485,3 +485,18 @@ Decision records must include:
+   - Make `append_trace_event()` read or mutate checkpoint state directly, which would couple the storage primitive back to mutable workflow recovery state.
+   - Add a separate sidecar line-count file, which would create another mutable coordination artifact outside the documented canonical checkpoint.
+   - Require `trace_line_count` on all checkpoints immediately, which would reject existing user-readable checkpoint files from earlier Phase 02/03 builds.
++
++## 2026-05-28T03:39:20Z - Encode trace append then checkpoint persistence in a workflow helper
++
++- affected_requirement:
++  - REQUIREMENTS.md section 3.3.3
++  - REQUIREMENTS.md section 3.3.4
++  - REQUIREMENTS.md section 4.11.3
++  - REQUIREMENTS.md section 5.1.2
++- decision: Add `TraceCheckpointWriter` as the workflow-facing helper for events that must update canonical recovery state. It validates checkpoint session/namespace context before appending, appends the trace event through `TraceSessionWriter`, then persists `checkpoint.trace_line_count` through `write_checkpoint_state()`.
++- rationale: Section 3.3 says trial lifecycle stage transitions write both checkpoint and trace. Subtask 3.3 documented the ordering contract; this helper makes that contract a reusable primitive so future LangGraph nodes do not duplicate or accidentally invert the append/checkpoint sequence. The helper stays above low-level trace storage and checkpoint YAML writers, preserving the existing storage/workflow boundary.
++- alternatives_considered:
++  - Let every future workflow node manually call `TraceSessionWriter.append()` and `write_checkpoint_state()`, which would repeat the same crash-consistency ordering at each call site.
++  - Move checkpoint persistence into `TraceSessionWriter.append()`, which would make all trace events require checkpoint data even for pure observability events.
++  - Put trace appends inside `write_checkpoint_state()`, which would couple a generic mutable checkpoint writer to trace event semantics and event payload shapes.
++  - Try to make trace append plus checkpoint write atomic across two files, which is not available through normal filesystem primitives; the documented recovery model accepts append-before-checkpoint skew and uses `byte_ref` plus future doctor reconciliation.
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index 0eb2ee3..ad1833c 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -991,3 +991,18 @@ Next action: commit this sync record, push, then run Ubuntu validation for Subta
+   - `checkpoint_trace_line_count: 2`
+ 
+ Next action: proceed to Subtask 3.4.
++
++## 2026-05-28T03:39:20Z - Phase 03 / Subtask 3.4 implemented
++
++- Started and implemented Subtask 3.4: checkpointed trace writer for lifecycle state transitions.
++- Added `TraceCheckpointWriter` to encode the required ordering: append trace event, then persist checkpoint with updated `trace_line_count`.
++- Added `TraceCheckpointResult` so callers receive both trace append metadata and persisted checkpoint state.
++- `TraceCheckpointWriter` validates checkpoint `session_id` and namespace before append, so invalid checkpoint context cannot create stray trace events.
++- Public exports added in `src/agent/__init__.py`.
++- UT results:
++  - `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -v` -> 22 passed.
++  - `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -q` -> 22 passed.
++  - `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q` -> 130 passed.
++  - `.venv\Scripts\python.exe -m pytest -q` -> 332 passed, 1 skipped on Windows.
++
++Next action: generate patch artifacts, commit/push Subtask 3.4, then request external review and Ubuntu validation.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml b/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml
+index ec818f7..c6e306b 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml
+@@ -168,6 +168,35 @@ subtasks:
+       - src/agent/__init__.py
+       - tests/test_trace_session.py
+       - tests/test_fs_memory.py
++  - id: "3.4"
++    title: "Add checkpointed trace event writer for lifecycle state transitions"
++    status: done
++    related_requirements:
++      - REQUIREMENTS.md section 3.3.3
++      - REQUIREMENTS.md section 3.3.4
++      - REQUIREMENTS.md section 4.11.3
++      - REQUIREMENTS.md section 5.1.2
++    ut_required: true
++    ut_passed: true
++    targeted_ut: "22 trace session tests passed, 0 failed"
++    trace_regression_ut: "22 trace memory tests passed, 0 failed"
++    checkpoint_regression_ut: "130 fs_memory tests passed, 0 failed"
++    full_ut: "332 passed, 0 failed, 1 skipped"
++    self_review_required: true
++    self_reviewed: true
++    patch_required: true
++    patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/06_trace_checkpoint_writer.patch
++    patch_generated: true
++    commit_required: true
++    commit_pending: true
++    implementation_summary:
++      - "TraceCheckpointWriter appends events then persists checkpoint.trace_line_count."
++      - "TraceCheckpointResult returns trace append metadata plus persisted checkpoint state."
++      - "Checkpoint context mismatches are rejected before any trace append."
++    files_modified:
++      - src/agent/trace.py
++      - src/agent/__init__.py
++      - tests/test_trace_session.py
+ 
+ phase_exit_criteria:
+   - "Trace events are append-only JSONL with strict common fields and flexible event-specific payloads."
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md b/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
+index 42f72c7..1ac9a24 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
++++ b/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
+@@ -212,3 +212,31 @@ Review conclusion:
+ 
+ Validation conclusion:
+ - Subtask 3.3 is validated on the target Linux environment. Phase 03 can proceed to Subtask 3.4.
++
++## Subtask 3.4 - checkpointed trace writer
++
++Scope:
++- Provide a workflow-facing helper for events that must be coupled to checkpoint recovery state.
++- Encode the Subtask 3.3 ordering contract in one reusable call path.
++- Keep low-level `append_trace_event()` and `write_checkpoint_state()` independent.
++
++Implementation checklist:
++- [x] Added `TraceCheckpointResult`.
++- [x] Added `TraceCheckpointWriter.for_checkpoint()`.
++- [x] Added `TraceCheckpointWriter.append_and_checkpoint()` to append trace first, then write checkpoint with the updated trace line count.
++- [x] Validated checkpoint session_id and namespace before appending so bad checkpoint context cannot emit stray trace events.
++- [x] Exported the new public helper classes from `agent.__init__`.
++
++Tests:
++- `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -v` -> 22 passed.
++- `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -q` -> 22 passed.
++- `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q` -> 130 passed.
++- `.venv\Scripts\python.exe -m pytest -q` -> 332 passed, 1 skipped on Windows.
++
++Self-review notes:
++- The helper intentionally does not make two-file writes atomic. It centralizes the documented append-before-checkpoint sequence and leaves crash-skew reconciliation to future doctor/resume checks.
++- Context validation happens before trace append, which prevents mismatched checkpoint state from creating a trace event that cannot be paired with a valid checkpoint write.
++- Pure observability events can still use `TraceSessionWriter` directly; only lifecycle/recovery events need `TraceCheckpointWriter`.
++
++Review conclusion:
++- Subtask 3.4 is ready for external review and Ubuntu validation.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md b/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
+index 87a90d9..254a700 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
++++ b/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
+@@ -22,6 +22,7 @@ Completed:
+ - Subtask 3.3 added optional `CheckpointState.trace_line_count` and checkpoint-aware trace writer construction, so current checkpoints can restore `TraceSessionWriter.next_line_number` without scanning long trace files.
+ - Subtask 3.3 external review requested one minor documentation fix; the workflow ordering contract is now documented in code and DECISIONS.
+ - Subtask 3.3 was validated on Ubuntu/Linux with Python 3.11.15: full pytest passed 329/329, targeted trace/checkpoint suites passed, Linux fcntl passed, and the checkpoint trace-counter manual probe matched expected output.
++- Subtask 3.4 added `TraceCheckpointWriter`, a workflow helper that appends trace events and then persists `checkpoint.trace_line_count` in the required order for lifecycle state transitions.
+ 
+ Remaining:
+-- Proceed to Subtask 3.4.
++- Commit/push Subtask 3.4, then request external review and Ubuntu validation.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md b/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
+index e34721e..c98f350 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
++++ b/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
+@@ -199,3 +199,31 @@
+   - `resume_trace_id: events.jsonl#L2`
+   - `writer_trace_line_count: 2`
+   - `checkpoint_trace_line_count: 2`
++
++## Subtask 3.4 - checkpointed trace writer
++
++- timestamp_utc: 2026-05-28T03:39:20Z
++- environment:
++  - os: Windows development host
++  - python: 3.14.3
++  - runner: `.venv\Scripts\python.exe -m pytest`
++- requirements:
++  - REQUIREMENTS.md section 3.3.3
++  - REQUIREMENTS.md section 3.3.4
++  - REQUIREMENTS.md section 4.11.3
++  - REQUIREMENTS.md section 5.1.2
++- targeted_command: `.venv\Scripts\python.exe -m pytest tests/test_trace_session.py -v`
++- targeted_result: 22 passed, 0 failed
++- trace_regression_command: `.venv\Scripts\python.exe -m pytest tests/test_trace_memory.py -q`
++- trace_regression_result: 22 passed, 0 failed
++- checkpoint_regression_command: `.venv\Scripts\python.exe -m pytest tests/test_fs_memory.py -q`
++- checkpoint_regression_result: 130 passed, 0 failed
++- full_command: `.venv\Scripts\python.exe -m pytest -q`
++- full_result: 332 passed, 0 failed, 1 skipped
++- skipped:
++  - `tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter` requires Linux fcntl and must be covered by Ubuntu validation.
++- new_coverage:
++  - `TraceCheckpointWriter` appends a trace event before checkpoint persistence.
++  - Persisted checkpoint files receive the writer's current `trace_line_count`.
++  - The writer reuses its updated checkpoint state for subsequent events.
++  - Checkpoint session/namespace mismatch is rejected before trace or checkpoint writes.
+diff --git a/src/agent/__init__.py b/src/agent/__init__.py
+index 60f8ad3..662498f 100644
+--- a/src/agent/__init__.py
++++ b/src/agent/__init__.py
+@@ -129,6 +129,8 @@ from .registry import (
+     validate_project_against_registry,
+ )
+ from .trace import (
++    TraceCheckpointResult,
++    TraceCheckpointWriter,
+     TraceSessionError,
+     TraceSessionWriter,
+     checkpoint_with_trace_line_count,
+@@ -195,6 +197,8 @@ __all__ = [
+     "ScoreVsBest",
+     "SourceTreeChange",
+     "TraceAppendResult",
++    "TraceCheckpointResult",
++    "TraceCheckpointWriter",
+     "TraceError",
+     "TraceEvent",
+     "TraceLoadError",
+diff --git a/src/agent/trace.py b/src/agent/trace.py
+index 1eed048..852f504 100644
+--- a/src/agent/trace.py
++++ b/src/agent/trace.py
+@@ -15,6 +15,7 @@ from .fs_memory import (
+     append_trace_event,
+     checkpoint_payload,
+     iter_trace_events,
++    write_checkpoint_state,
+ )
+ 
+ 
+@@ -259,6 +260,95 @@ class TraceSessionWriter:
+         }
+ 
+ 
++@dataclass(frozen=True)
++class TraceCheckpointResult:
++    """Result of an append followed by checkpoint persistence."""
++
++    trace: TraceAppendResult
++    checkpoint_path: Path
++    checkpoint: CheckpointState
++
++
++@dataclass
++class TraceCheckpointWriter:
++    """Workflow helper that preserves trace -> checkpoint ordering.
++
++    Callers must use this while holding the workspace lock. The helper appends
++    the trace event first, then persists `checkpoint.trace_line_count` with the
++    writer's current line count. This encodes the crash-consistency contract
++    documented on `TraceSessionWriter.for_checkpoint()`.
++    """
++
++    writer: TraceSessionWriter
++    checkpoint: CheckpointState
++
++    def __post_init__(self) -> None:
++        self.checkpoint = self._validate_checkpoint_context(self.checkpoint)
++
++    @classmethod
++    def for_checkpoint(
++        cls,
++        layout: NamespaceLayout,
++        checkpoint: CheckpointState | Mapping[str, Any],
++        *,
++        dry_run: bool = False,
++    ) -> TraceCheckpointWriter:
++        state = CheckpointState.model_validate(checkpoint)
++        writer = TraceSessionWriter.for_checkpoint(
++            layout,
++            state,
++            dry_run=dry_run,
++        )
++        return cls(writer=writer, checkpoint=state)
++
++    @property
++    def trace_line_count(self) -> int:
++        return self.writer.trace_line_count
++
++    def append_and_checkpoint(
++        self,
++        kind: str,
++        *,
++        checkpoint: CheckpointState | Mapping[str, Any] | None = None,
++        ts: datetime | str | None = None,
++        **fields: Any,
++    ) -> TraceCheckpointResult:
++        """Append an event, then persist checkpoint with the updated trace line."""
++
++        checkpoint_state = self._validate_checkpoint_context(
++            self.checkpoint if checkpoint is None else checkpoint
++        )
++        trace_result = self.writer.append(kind, ts=ts, **fields)
++        checkpoint_data = self.writer.checkpoint_with_current_trace_count(
++            checkpoint_state
++        )
++        checkpoint_path = write_checkpoint_state(self.writer.layout, checkpoint_data)
++        self.checkpoint = CheckpointState.model_validate(checkpoint_data)
++        return TraceCheckpointResult(
++            trace=trace_result,
++            checkpoint_path=checkpoint_path,
++            checkpoint=self.checkpoint,
++        )
++
++    def _validate_checkpoint_context(
++        self,
++        checkpoint: CheckpointState | Mapping[str, Any],
++    ) -> CheckpointState:
++        state = CheckpointState.model_validate(checkpoint)
++        expected_namespace = str(self.writer.layout.namespace)
++        if state.namespace != expected_namespace:
++            raise TraceSessionError(
++                "checkpoint namespace does not match layout "
++                f"(expected={expected_namespace!r}, actual={state.namespace!r})"
++            )
++        if state.session_id != self.writer.session_id:
++            raise TraceSessionError(
++                "checkpoint session_id does not match trace writer "
++                f"(expected={self.writer.session_id!r}, actual={state.session_id!r})"
++            )
++        return state
++
++
+ def _reject_context_overrides(payload: Mapping[str, Any]) -> None:
+     for key in ("session_id", "namespace"):
+         if key in payload:
+diff --git a/tests/test_trace_session.py b/tests/test_trace_session.py
+index 6afd7bc..07d1b81 100644
+--- a/tests/test_trace_session.py
++++ b/tests/test_trace_session.py
+@@ -9,12 +9,14 @@ from agent.fs_memory import (
+     CheckpointState,
+     NamespaceLayout,
+     append_trace_event,
++    load_checkpoint_for_layout,
+     load_trace_events,
+     trace_event_payload,
+     write_checkpoint_state,
+ )
+ from agent.registry import ProjectNamespace
+ from agent.trace import (
++    TraceCheckpointWriter,
+     TraceSessionError,
+     TraceSessionWriter,
+     checkpoint_with_trace_line_count,
+@@ -195,6 +197,98 @@ def test_checkpoint_with_trace_line_count_updates_checkpoint_payload(
+         checkpoint_with_trace_line_count(payload, trace_line_count=-1)
+ 
+ 
++def test_trace_checkpoint_writer_appends_then_persists_checkpoint_counter(
++    tmp_path: Path,
++    monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    current_layout = layout(tmp_path)
++    original_write = write_checkpoint_state
++    observed_trace_counts: list[int] = []
++
++    def spy_write_checkpoint_state(
++        target_layout: NamespaceLayout,
++        checkpoint: CheckpointState | dict,
++    ) -> Path:
++        observed_trace_counts.append(len(load_trace_events(target_layout.trace_path)))
++        return original_write(target_layout, checkpoint)
++
++    monkeypatch.setattr("agent.trace.write_checkpoint_state", spy_write_checkpoint_state)
++    writer = TraceCheckpointWriter.for_checkpoint(
++        current_layout,
++        checkpoint_data(trace_line_count=0),
++    )
++
++    result = writer.append_and_checkpoint(
++        "session_resume",
++        ts="2026-04-30T10:00:00Z",
++        reason="manual",
++    )
++
++    assert observed_trace_counts == [1]
++    assert result.trace.trace_id == "events.jsonl#L1"
++    assert result.checkpoint_path == current_layout.checkpoint_path
++    assert result.checkpoint.trace_line_count == 1
++    assert writer.trace_line_count == 1
++
++    loaded_checkpoint = load_checkpoint_for_layout(current_layout)
++    assert loaded_checkpoint.trace_line_count == 1
++    assert event_payloads(current_layout)[0]["kind"] == "session_resume"
++
++
++def test_trace_checkpoint_writer_reuses_updated_checkpoint_for_next_event(
++    tmp_path: Path,
++) -> None:
++    current_layout = layout(tmp_path)
++    writer = TraceCheckpointWriter.for_checkpoint(
++        current_layout,
++        checkpoint_data(trace_line_count=0),
++    )
++
++    first = writer.append_and_checkpoint(
++        "session_resume",
++        ts="2026-04-30T10:00:00Z",
++    )
++    second = writer.append_and_checkpoint(
++        "round_start",
++        round=1,
++        phase="warmup",
++        ts="2026-04-30T10:01:00Z",
++    )
++
++    assert first.trace.trace_id == "events.jsonl#L1"
++    assert second.trace.trace_id == "events.jsonl#L2"
++    assert second.checkpoint.trace_line_count == 2
++    assert load_checkpoint_for_layout(current_layout).trace_line_count == 2
++
++
++@pytest.mark.parametrize(
++    "override",
++    [
++        {"session_id": "sess_other"},
++        {"namespace": "other/ffmpeg/gcc-13.2.0/code-a1b2c3d/kg-v3"},
++    ],
++)
++def test_trace_checkpoint_writer_rejects_checkpoint_context_mismatch_before_append(
++    tmp_path: Path,
++    override: dict[str, str],
++) -> None:
++    current_layout = layout(tmp_path)
++    writer = TraceCheckpointWriter.for_checkpoint(
++        current_layout,
++        checkpoint_data(trace_line_count=0),
++    )
++
++    with pytest.raises(TraceSessionError, match="checkpoint"):
++        writer.append_and_checkpoint(
++            "session_resume",
++            checkpoint=checkpoint_data(trace_line_count=0, **override),
++            ts="2026-04-30T10:00:00Z",
++        )
++
++    assert not current_layout.trace_path.exists()
++    assert not current_layout.checkpoint_path.exists()
++
++
+ def test_trace_session_writer_dry_run_injects_mode_and_rejects_conflict(
+     tmp_path: Path,
+ ) -> None:

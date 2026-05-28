@@ -15,6 +15,7 @@ from .fs_memory import (
     append_trace_event,
     checkpoint_payload,
     iter_trace_events,
+    write_checkpoint_state,
 )
 
 
@@ -257,6 +258,95 @@ class TraceSessionWriter:
             "namespace": str(self.layout.namespace),
             **payload,
         }
+
+
+@dataclass(frozen=True)
+class TraceCheckpointResult:
+    """Result of an append followed by checkpoint persistence."""
+
+    trace: TraceAppendResult
+    checkpoint_path: Path
+    checkpoint: CheckpointState
+
+
+@dataclass
+class TraceCheckpointWriter:
+    """Workflow helper that preserves trace -> checkpoint ordering.
+
+    Callers must use this while holding the workspace lock. The helper appends
+    the trace event first, then persists `checkpoint.trace_line_count` with the
+    writer's current line count. This encodes the crash-consistency contract
+    documented on `TraceSessionWriter.for_checkpoint()`.
+    """
+
+    writer: TraceSessionWriter
+    checkpoint: CheckpointState
+
+    def __post_init__(self) -> None:
+        self.checkpoint = self._validate_checkpoint_context(self.checkpoint)
+
+    @classmethod
+    def for_checkpoint(
+        cls,
+        layout: NamespaceLayout,
+        checkpoint: CheckpointState | Mapping[str, Any],
+        *,
+        dry_run: bool = False,
+    ) -> TraceCheckpointWriter:
+        state = CheckpointState.model_validate(checkpoint)
+        writer = TraceSessionWriter.for_checkpoint(
+            layout,
+            state,
+            dry_run=dry_run,
+        )
+        return cls(writer=writer, checkpoint=state)
+
+    @property
+    def trace_line_count(self) -> int:
+        return self.writer.trace_line_count
+
+    def append_and_checkpoint(
+        self,
+        kind: str,
+        *,
+        checkpoint: CheckpointState | Mapping[str, Any] | None = None,
+        ts: datetime | str | None = None,
+        **fields: Any,
+    ) -> TraceCheckpointResult:
+        """Append an event, then persist checkpoint with the updated trace line."""
+
+        checkpoint_state = self._validate_checkpoint_context(
+            self.checkpoint if checkpoint is None else checkpoint
+        )
+        trace_result = self.writer.append(kind, ts=ts, **fields)
+        checkpoint_data = self.writer.checkpoint_with_current_trace_count(
+            checkpoint_state
+        )
+        checkpoint_path = write_checkpoint_state(self.writer.layout, checkpoint_data)
+        self.checkpoint = CheckpointState.model_validate(checkpoint_data)
+        return TraceCheckpointResult(
+            trace=trace_result,
+            checkpoint_path=checkpoint_path,
+            checkpoint=self.checkpoint,
+        )
+
+    def _validate_checkpoint_context(
+        self,
+        checkpoint: CheckpointState | Mapping[str, Any],
+    ) -> CheckpointState:
+        state = CheckpointState.model_validate(checkpoint)
+        expected_namespace = str(self.writer.layout.namespace)
+        if state.namespace != expected_namespace:
+            raise TraceSessionError(
+                "checkpoint namespace does not match layout "
+                f"(expected={expected_namespace!r}, actual={state.namespace!r})"
+            )
+        if state.session_id != self.writer.session_id:
+            raise TraceSessionError(
+                "checkpoint session_id does not match trace writer "
+                f"(expected={self.writer.session_id!r}, actual={state.session_id!r})"
+            )
+        return state
 
 
 def _reject_context_overrides(payload: Mapping[str, Any]) -> None:

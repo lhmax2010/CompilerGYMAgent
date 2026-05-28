@@ -22,6 +22,7 @@ Completed:
 - Subtask 3.3 added optional `CheckpointState.trace_line_count` and checkpoint-aware trace writer construction, so current checkpoints can restore `TraceSessionWriter.next_line_number` without scanning long trace files.
 - Subtask 3.3 external review requested one minor documentation fix; the workflow ordering contract is now documented in code and DECISIONS.
 - Subtask 3.3 was validated on Ubuntu/Linux with Python 3.11.15: full pytest passed 329/329, targeted trace/checkpoint suites passed, Linux fcntl passed, and the checkpoint trace-counter manual probe matched expected output.
+- Subtask 3.4 added `TraceCheckpointWriter`, a workflow helper that appends trace events and then persists `checkpoint.trace_line_count` in the required order for lifecycle state transitions.
 
 Remaining:
-- Proceed to Subtask 3.4.
+- Commit/push Subtask 3.4, then request external review and Ubuntu validation.
