@@ -1429,3 +1429,19 @@ Next action: generate patch artifacts, commit/push Subtask 3.11, then request ex
 - dev_memory now records the 3.11 implementation hash and next action.
 
 Next action: push sync commit, then request external review for Subtask 3.11.
+
+## 2026-05-29T10:06:54Z - Phase 03 / Subtask 3.11 approved and validated
+
+- Reviewer: Claude.
+- Verdict: Approve.
+- Range: `ae580d5..335f3f9`.
+- Implementation commit: `9ff7660`; sync commit: `335f3f9`.
+- Findings: no blocking findings; only Info follow-ups for future unified CLI entrypoint, held-by-self force cleanup hardening, and `_copy_bytes()` short-copy hardening.
+- Ubuntu/Linux validation:
+  - `uv run --python 3.11 --extra dev pytest -q` -> 410 passed.
+  - `uv run --python 3.11 --extra dev pytest tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter -q` -> 1 passed.
+  - `uv run --python 3.11 agent clean trace --help` -> help rendered.
+  - `uv run --python 3.11 agent doctor trace --help` -> help rendered.
+- Phase 03 trace lifecycle is now complete: Subtasks 3.1 through 3.11 are implemented, approved, and Ubuntu validated.
+
+Next action: push validation sync commit, then await next phase/subtask direction.

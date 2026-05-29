@@ -787,3 +787,29 @@ Validation:
 
 Next action:
 - Commit/push Subtask 3.11, then request external review.
+
+## Subtask 3.11 - external review and Ubuntu validation
+
+- timestamp_utc: 2026-05-29T10:06:54Z
+- reviewer: Claude
+- verdict: Approve
+- range: `ae580d5..335f3f9`
+- implementation: `9ff7660`
+- sync: `335f3f9`
+- tests: 410 passed, 0 failed on Linux
+
+Findings:
+- Critical / High / Medium / Low: none.
+- Info-1: `[project.scripts] agent` currently points to `agent.cli.clean_trace:main`; Phase 10 should refactor this into a unified entrypoint when run/status/pause and other commands arrive.
+- Info-2: `force_inactive_only` + held-by-self execution does not reacquire the lock; a theoretical race exists if the same process releases the lock between plan and execute. This is dev-mode-only and non-blocking.
+- Info-3: `_copy_bytes(limit=N)` silently accepts early EOF. Stale-plan checks plus workspace lock cover normal execution, but raising on short copy would be a future hardening improvement.
+
+Validation:
+- `uv run --python 3.11 --extra dev pytest -q` -> 410 passed.
+- `uv run --python 3.11 --extra dev pytest tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter -q` -> 1 passed.
+- `uv run --python 3.11 agent clean trace --help` -> help rendered.
+- `uv run --python 3.11 agent doctor trace --help` -> help rendered.
+
+Review conclusion:
+- Subtask 3.11 is approved with no review-fix required.
+- Phase 03 trace lifecycle is complete: 3.1 through 3.11 are implemented, approved, and validated on Ubuntu/Linux.

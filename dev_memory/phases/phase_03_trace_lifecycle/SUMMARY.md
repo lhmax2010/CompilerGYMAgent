@@ -1,6 +1,6 @@
 # Phase 03 Summary
 
-Status: in_progress
+Status: done
 
 Phase scope:
 - Canonical local trace stream at `trace/events.jsonl`.
@@ -56,6 +56,9 @@ Completed:
 - Subtask 3.11 writes backups by default under `_trash/<UTC timestamp>/events.jsonl`; callers can disable that with `backup=False` / `--no-backup`.
 - Subtask 3.11 added the `agent` console script with `agent clean trace` dry-run by default, `--yes` execution, `--force-clean-inactive-only`, `--no-backup`, and read-only `agent doctor trace`.
 - Subtask 3.11 passed Ubuntu/Linux validation with Python 3.11.15: execute/CLI targeted tests passed 14/14 and full pytest passed 410/410.
+- Subtask 3.11 external review approved the execute/CLI implementation with Info-only follow-ups and no required review fix.
+- Subtask 3.11 final Ubuntu/Linux validation passed: full pytest 410/410, real fcntl regression 1/1, and clean/doctor trace CLI help smoke checks rendered.
+- Phase 03 trace lifecycle is complete: Subtasks 3.1 through 3.11 are implemented, externally approved, and target-environment validated.
 
 Remaining:
-- Request external review for Subtask 3.11 execute/CLI trace cleanup.
+- Cross-phase deferred items remain: dry_run checkpoint persistence, process_event kind whitelist, future Phase 10 unified CLI entrypoint, and minor cleanup hardening items from the 3.11 Info review.

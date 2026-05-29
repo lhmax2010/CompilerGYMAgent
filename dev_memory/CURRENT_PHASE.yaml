@@ -1,13 +1,13 @@
 phase_id: phase_03_trace_lifecycle
 phase_title: "Trace JSONL canonical event stream"
 started_at: 2026-05-21T14:06:00Z
-last_updated: 2026-05-29T09:57:19Z
+last_updated: 2026-05-29T10:06:54Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 3.3
   - REQUIREMENTS.md section 4.13
   - REQUIREMENTS.md section 5.1
-status: in_progress
+status: done
 subtasks:
   - id: "3.1"
     title: "Implement append-only trace/events.jsonl schema, writer, and loader"
@@ -594,7 +594,25 @@ subtasks:
       - "Default backup writes a durable copy under _trash/<UTC timestamp>/events.jsonl; --no-backup skips it."
       - "Added agent clean trace dry-run-by-default CLI, --yes execution, --force-clean-inactive-only, --no-backup, and read-only agent doctor trace rendering."
       - "Force inactive cleanup works when the current process already owns the workspace lock, while held-by-other locks still refuse execution."
+    external_review_verdict: approve
+    external_reviewed_at: 2026-05-29T10:06:54Z
+    external_review_range: "ae580d5..335f3f9"
+    external_review_tests: "410 passed, 0 failed on Linux"
+    external_review_notes: "Claude approved with Info-only follow-ups: future unified agent CLI entrypoint, theoretical held-by-self force race hardening, and _copy_bytes EOF hardening."
+    target_environment_validation:
+      os: Ubuntu/Linux
+      kernel: "6.17.0-1023-oem"
+      python: 3.11.15
+      runner: "uv-managed venv + pytest"
+      full_pytest: "410 passed"
+      linux_fcntl: "1 passed"
+      cli_help:
+        clean_trace: "rendered"
+        doctor_trace: "rendered"
     deferred_low_priority_followups:
+      - "Refactor [project.scripts] agent to a unified CLI entrypoint when Phase 10 adds run/status/pause and sibling commands."
+      - "Consider hardening force-clean-inactive-only held-by-self execution against a theoretical self-lock release race between plan and execute."
+      - "Consider making _copy_bytes(limit=N) raise if source EOF arrives before N bytes are copied."
       - "Persist dry_run session state in checkpoint when dry-run resume becomes workflow-owned."
       - "Keep process_event kind open until the process owning module defines concrete event kinds."
 notes: |
@@ -603,4 +621,4 @@ notes: |
   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
   trace storage primitive before wiring lifecycle stages, rejected candidates,
   dry-run injection, or process/user-action event producers.
-next_action: "Push Subtask 3.11 sync commit, then request external review."
+next_action: "Phase 03 trace lifecycle complete; await next phase/subtask direction."

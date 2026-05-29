@@ -618,3 +618,23 @@
   - Crash probes before and after replace leave either the original trace or complete rewritten trace loadable.
   - Execution holds or confirms the workspace lock during rewrite, including real held-by-self force cleanup.
   - CLI dry-run is default, `--yes` executes, `--force-clean-inactive-only` works under a current-process lock, and `doctor trace` is read-only.
+
+## Subtask 3.11 - final Ubuntu validation
+
+- timestamp_utc: 2026-05-29T10:06:54Z
+- environment:
+  - os: Ubuntu/Linux
+  - kernel: 6.17.0-1023-oem
+  - python: 3.11.15
+  - runner: `uv-managed venv + pytest`
+- full_command: `uv run --python 3.11 --extra dev pytest -q`
+- full_result: 410 passed, 0 failed
+- linux_fcntl_command: `uv run --python 3.11 --extra dev pytest tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter -q`
+- linux_fcntl_result: 1 passed, 0 failed
+- clean_trace_help_command: `uv run --python 3.11 agent clean trace --help`
+- clean_trace_help_result: rendered usage/options successfully
+- doctor_trace_help_command: `uv run --python 3.11 agent doctor trace --help`
+- doctor_trace_help_result: rendered usage/options successfully
+- validation_conclusion:
+  - Subtask 3.11 execute/CLI path is validated on Ubuntu/Linux.
+  - Phase 03 trace lifecycle has all subtasks implemented, approved, and target-environment validated.
