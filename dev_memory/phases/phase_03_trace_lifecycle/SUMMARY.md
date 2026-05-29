@@ -49,4 +49,4 @@ Completed:
 - Subtask 3.10 passed Ubuntu/Linux validation with Python 3.11.15: trace-cleanup targeted tests passed 14/14 and full pytest passed 393/393.
 
 Remaining:
-- Commit/push Subtask 3.10, then request external review.
+- Request external review for Subtask 3.10, then run Ubuntu validation if needed.

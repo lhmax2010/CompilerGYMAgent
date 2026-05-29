@@ -514,7 +514,9 @@ subtasks:
     patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/13_trace_clean_plan.patch
     patch_generated: true
     commit_required: true
-    commit_pending: true
+    commit_pending: false
+    commit_hash: a2bca43
+    commit_message: "phase_03_trace_lifecycle: 3.10 trace clean plan"
     implementation_summary:
       - "CleanPlan is pure data and compute_clean_plan() performs only read-only IO."
       - "Planner protects checkpoint/active session spans, post-checkpoint lines, held-by-other lock state, and recent events."

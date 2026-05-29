@@ -523,7 +523,9 @@ subtasks:
     patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/13_trace_clean_plan.patch
     patch_generated: true
     commit_required: true
-    commit_pending: true
+    commit_pending: false
+    commit_hash: a2bca43
+    commit_message: "phase_03_trace_lifecycle: 3.10 trace clean plan"
     implementation_summary:
       - "Added LineRange, ByteRange, CleanPlan, and compute_clean_plan() as a read-only trace cleanup planner."
       - "The planner combines protected session spans, checkpoint trace boundaries, workspace lock holder state, and keep-days cutoff into removable line and byte ranges."
@@ -539,4 +541,4 @@ notes: |
   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
   trace storage primitive before wiring lifecycle stages, rejected candidates,
   dry-run injection, or process/user-action event producers.
-next_action: "Commit/push Subtask 3.10, then request external review."
+next_action: "Request external review for Subtask 3.10, then run Ubuntu validation if needed."

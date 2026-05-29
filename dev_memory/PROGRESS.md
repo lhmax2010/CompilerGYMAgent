@@ -1342,3 +1342,10 @@ Next action: proceed to Subtask 3.10 or the next milestone.
   - `uv run --python 3.11 --extra dev pytest -q` -> 393 passed.
 
 Next action: generate patch artifacts, commit/push Subtask 3.10, then request external review.
+
+## 2026-05-29T08:31:42Z - Phase 03 / Subtask 3.10 sync recorded
+
+- Implementation commit: `a2bca43 phase_03_trace_lifecycle: 3.10 trace clean plan`.
+- dev_memory now records the 3.10 implementation hash and next action.
+
+Next action: push sync commit, then request external review for Subtask 3.10.
