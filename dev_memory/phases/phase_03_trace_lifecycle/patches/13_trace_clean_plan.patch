@@ -1,0 +1,1236 @@
+diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index 0a0c981..7c9db04 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -1,7 +1,7 @@
+ phase_id: phase_03_trace_lifecycle
+ phase_title: "Trace JSONL canonical event stream"
+ started_at: 2026-05-21T14:06:00Z
+-last_updated: 2026-05-29T05:45:52Z
++last_updated: 2026-05-29T08:31:42Z
+ target_milestone: M1
+ related_requirements:
+   - REQUIREMENTS.md section 3.3
+@@ -498,10 +498,45 @@ subtasks:
+     deferred_low_priority_followups:
+       - "Persist dry_run session state in checkpoint when dry-run resume becomes workflow-owned."
+       - "Keep process_event kind open until the process owning module defines concrete event kinds."
++  - id: "3.10"
++    title: "Compute read-only trace clean plans"
++    status: done
++    related_requirements:
++      - REQUIREMENTS.md section 3.3.4
++      - REQUIREMENTS.md section 4.13
++      - REQUIREMENTS.md section 4.14.7a
++      - REQUIREMENTS.md section 4.15
++    files_created:
++      - src/agent/trace_cleanup.py
++      - tests/test_trace_cleanup.py
++    files_modified:
++      - src/agent/__init__.py
++    ut_required: true
++    ut_passed: true
++    targeted_ut: "14 trace cleanup tests passed, 0 failed"
++    trace_regression_ut: "80 trace cleanup/session/memory tests passed, 0 failed"
++    lock_checkpoint_regression_ut: "181 fs_memory/workspace_lock/identifier tests passed, 0 failed"
++    full_ut: "393 passed, 0 failed"
++    self_review_required: true
++    self_reviewed: true
++    patch_required: true
++    patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/13_trace_clean_plan.patch
++    patch_generated: true
++    commit_required: true
++    commit_pending: true
++    implementation_summary:
++      - "Added LineRange, ByteRange, CleanPlan, and compute_clean_plan() as a read-only trace cleanup planner."
++      - "The planner combines protected session spans, checkpoint trace boundaries, workspace lock holder state, and keep-days cutoff into removable line and byte ranges."
++      - "Workspace lock inspection is read-only: it reads holder metadata and process identity without acquiring the lock."
++      - "Byte ranges are derived from validated trace events plus raw line lengths and covered by rewrite round-trip tests."
++    deferred_low_priority_followups:
++      - "Implement execute_clean_plan() and CLI wiring in Subtask 3.11."
++      - "Persist dry_run session state in checkpoint when dry-run resume becomes workflow-owned."
++      - "Keep process_event kind open until the process owning module defines concrete event kinds."
+ notes: |
+   Phase 03 starts with the canonical `trace/events.jsonl` append-only event
+   stream because REQUIREMENTS.md defines runtime recovery state as
+   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
+   trace storage primitive before wiring lifecycle stages, rejected candidates,
+   dry-run injection, or process/user-action event producers.
+-next_action: "Proceed to Subtask 3.10 or the next milestone."
++next_action: "Commit/push Subtask 3.10, then request external review."
+diff --git a/dev_memory/DECISIONS.md b/dev_memory/DECISIONS.md
+index 6e8673b..2d47384 100644
+--- a/dev_memory/DECISIONS.md
++++ b/dev_memory/DECISIONS.md
+@@ -568,3 +568,18 @@ Decision records must include:
+   - Return one span per contiguous chunk, which is more precise but easier for cleanup code to misuse by trimming the gap between chunks of the same active session.
+   - Require every trace event to carry `session_id`, which would reject low-level bootstrap events and older trace fixtures that predate `TraceSessionWriter`.
+   - Compute byte offsets for each span now, which would require a second trace parser or extending the low-level iterator before any cleanup writer exists.
++
++## 2026-05-29T08:31:42Z - Separate trace clean planning from execution
++
++- affected_requirement:
++  - REQUIREMENTS.md section 3.3.4
++  - REQUIREMENTS.md section 4.13
++  - REQUIREMENTS.md section 4.14.7a
++  - REQUIREMENTS.md section 4.15
++- decision: Add `CleanPlan` and `compute_clean_plan()` as a read-only planning layer for future trace cleanup. The planner combines conservative session spans, checkpoint trace boundaries, read-only workspace lock holder state, and keep-days cutoff into removable line and byte ranges, but does not acquire locks or mutate trace files.
++- rationale: Section 4.14.7a requires multiple safety layers before trace cleanup can physically rewrite `events.jsonl`. Keeping calculation separate from execution lets doctor/status/CLI code render exactly what would be removed, while Subtask 3.11 can own lock acquisition, trash/rewrite mechanics, and high-risk flags.
++- alternatives_considered:
++  - Implement physical rewrite immediately, which would mix irreversible filesystem behavior into a data-planning subtask and make review of safety predicates harder.
++  - Re-parse session spans directly in cleanup code, which would duplicate the Subtask 3.9 conservative span primitive and risk drift.
++  - Acquire the workspace lock during planning, which would make dry-run/status rendering invasive and blur the boundary between diagnostic reads and cleanup execution.
++  - Return only line ranges, which would force Subtask 3.11 to rediscover byte offsets before rewrite and weaken pre-execution reviewability.
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index 3b6b687..e36e3a0 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -1326,3 +1326,19 @@ Next action: run Ubuntu validation for Subtask 3.9 and record target-environment
+ - Linux fcntl regression: `uv run --python 3.11 --extra dev pytest tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter -v` -> 1 passed.
+ 
+ Next action: proceed to Subtask 3.10 or the next milestone.
++
++## 2026-05-29T08:31:42Z - Phase 03 / Subtask 3.10 implemented
++
++- Started and implemented Subtask 3.10: read-only trace clean plan computation.
++- Added `src/agent/trace_cleanup.py` with `LineRange`, `ByteRange`, `CleanPlan`, `TraceCleanupError`, and `compute_clean_plan()`.
++- `compute_clean_plan()` combines Subtask 3.9 session spans, checkpoint trace boundaries, read-only workspace lock holder status, and keep-days cutoff into removable line and byte ranges.
++- The planner does not acquire locks, does not write files, and does not physically delete or rewrite trace data.
++- Exported the new cleanup planning API from `agent.__init__`.
++- Added `tests/test_trace_cleanup.py` covering protection layers, intersections, lock-state execution predicates, empty trace/no checkpoint cases, non-contiguous session protection, and byte-range rewrite round-trip.
++- UT results:
++  - `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py -q` -> 14 passed.
++  - `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py tests/test_trace_session.py tests/test_trace_memory.py -q` -> 80 passed.
++  - `uv run --python 3.11 --extra dev pytest tests/test_fs_memory.py tests/test_workspace_lock.py tests/test_identifiers.py -q` -> 181 passed.
++  - `uv run --python 3.11 --extra dev pytest -q` -> 393 passed.
++
++Next action: generate patch artifacts, commit/push Subtask 3.10, then request external review.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml b/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml
+index a314a7d..fe8c206 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml
+@@ -494,6 +494,41 @@ subtasks:
+       - src/agent/trace.py
+       - src/agent/__init__.py
+       - tests/test_trace_session.py
++  - id: "3.10"
++    title: "Compute read-only trace clean plans"
++    status: done
++    related_requirements:
++      - REQUIREMENTS.md section 3.3.4
++      - REQUIREMENTS.md section 4.13
++      - REQUIREMENTS.md section 4.14.7a
++      - REQUIREMENTS.md section 4.15
++    ut_required: true
++    ut_passed: true
++    targeted_ut: "14 trace cleanup tests passed, 0 failed"
++    trace_regression_ut: "80 trace cleanup/session/memory tests passed, 0 failed"
++    lock_checkpoint_regression_ut: "181 fs_memory/workspace_lock/identifier tests passed, 0 failed"
++    full_ut: "393 passed, 0 failed"
++    self_review_required: true
++    self_reviewed: true
++    patch_required: true
++    patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/13_trace_clean_plan.patch
++    patch_generated: true
++    commit_required: true
++    commit_pending: true
++    implementation_summary:
++      - "CleanPlan is pure data and compute_clean_plan() performs only read-only IO."
++      - "Planner protects checkpoint/active session spans, post-checkpoint lines, held-by-other lock state, and recent events."
++      - "Planner exposes normal and force-clean-inactive-only execution predicates for Subtask 3.11."
++      - "Tests cover each protection layer, intersections, time cutoff, lock states, empty traces, conservative non-contiguous sessions, and byte-range rewrite round-trip."
++    deferred_low_priority_followups:
++      - "execute_clean_plan() and agent clean trace CLI belong to Subtask 3.11."
++      - "dry_run checkpoint persistence remains future workflow scope."
++      - "process_event kind whitelist remains future process workflow scope."
++    files_created:
++      - src/agent/trace_cleanup.py
++      - tests/test_trace_cleanup.py
++    files_modified:
++      - src/agent/__init__.py
+ 
+ phase_exit_criteria:
+   - "Trace events are append-only JSONL with strict common fields and flexible event-specific payloads."
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md b/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
+index 868bdfb..d062f6d 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
++++ b/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
+@@ -671,3 +671,29 @@ Review conclusion:
+ 
+ Validation conclusion:
+ - Subtask 3.9 is validated on the target Linux environment. Phase 03 can proceed to Subtask 3.10 or the next milestone.
++
++## Subtask 3.10 - trace clean plan self-review
++
++Checklist:
++- [x] `compute_clean_plan()` is read-only: it reads checkpoint, trace, and lock holder state without acquiring the workspace lock or mutating files.
++- [x] `CleanPlan` is pure data and exposes `is_dry_run_safe`, `can_execute`, and `can_execute_with_force_inactive_only`.
++- [x] Protected sessions combine checkpoint session ids and active lock holder session ids.
++- [x] Protected line ranges reuse `inspect_trace_session_spans()` and merge overlapping/adjacent conservative spans.
++- [x] Post-checkpoint protection keeps all events after `checkpoint.trace_line_count`.
++- [x] Workspace lock inspection distinguishes `free`, `held_by_self`, and `held_by_other` from holder metadata and process identity.
++- [x] Removable byte ranges are generated from validated trace events plus raw line byte lengths.
++- [x] This subtask does not implement `execute_clean_plan`, CLI commands, lock acquisition, or physical trace rewrite.
++
++Notes:
++- If a checkpoint claims more lines than the validated trace contains, the plan records a refusal reason instead of allowing execution.
++- Empty trace files and missing checkpoints return a valid empty plan.
++- Existing deferred items remain outside scope: dry-run checkpoint persistence and process-event kind whitelisting.
++
++Validation:
++- `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py -q` -> 14 passed.
++- `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py tests/test_trace_session.py tests/test_trace_memory.py -q` -> 80 passed.
++- `uv run --python 3.11 --extra dev pytest tests/test_fs_memory.py tests/test_workspace_lock.py tests/test_identifiers.py -q` -> 181 passed.
++- `uv run --python 3.11 --extra dev pytest -q` -> 393 passed.
++
++Next action:
++- Commit/push Subtask 3.10, then request external review.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md b/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
+index 87ecc07..077fe43 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
++++ b/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
+@@ -44,6 +44,9 @@ Completed:
+ - Subtask 3.9 keeps the helper read-only and non-hot-path: it ignores events without `session_id`, rejects invalid session ids, and collapses non-contiguous chunks from the same session into a first-to-last protected span.
+ - Subtask 3.9 external review approved the physical-line span model and confirmed it supplies section 4.14.7a clean trace layer-one session-boundary data.
+ - Subtask 3.9 was validated on Ubuntu/Linux with Python 3.11.15: full pytest passed 379/379, trace session passed 44/44, trace memory passed 22/22, fs_memory passed 130/130, identifiers passed 22/22, and the real fcntl test passed.
++- Subtask 3.10 added read-only `CleanPlan` planning in `trace_cleanup.py`, combining conservative session spans, checkpoint trace boundaries, workspace lock holder status, and keep-days cutoff into removable line and byte ranges.
++- Subtask 3.10 keeps calculation and execution separate: it does not acquire locks, does not truncate or rewrite trace files, and only exposes execution predicates for future `execute_clean_plan()` / CLI work.
++- Subtask 3.10 passed Ubuntu/Linux validation with Python 3.11.15: trace-cleanup targeted tests passed 14/14 and full pytest passed 393/393.
+ 
+ Remaining:
+-- Proceed to Subtask 3.10 or the next milestone.
++- Commit/push Subtask 3.10, then request external review.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md b/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
+index efb0bba..ee5f2bc 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
++++ b/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
+@@ -535,3 +535,30 @@
+ - identifiers_result: 22 passed, 0 failed
+ - linux_fcntl_command: `uv run --python 3.11 --extra dev pytest tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter -v`
+ - linux_fcntl_result: 1 passed, 0 failed
++
++## Subtask 3.10 - trace clean plan computation
++
++- timestamp_utc: 2026-05-29T08:31:42Z
++- environment:
++  - os: Ubuntu/Linux
++  - python: 3.11.15
++  - runner: `uv-managed venv + pytest`
++- requirements:
++  - REQUIREMENTS.md section 3.3.4
++  - REQUIREMENTS.md section 4.13
++  - REQUIREMENTS.md section 4.14.7a
++  - REQUIREMENTS.md section 4.15
++- targeted_command: `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py -q`
++- targeted_result: 14 passed, 0 failed
++- trace_regression_command: `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py tests/test_trace_session.py tests/test_trace_memory.py -q`
++- trace_regression_result: 80 passed, 0 failed
++- lock_checkpoint_regression_command: `uv run --python 3.11 --extra dev pytest tests/test_fs_memory.py tests/test_workspace_lock.py tests/test_identifiers.py -q`
++- lock_checkpoint_regression_result: 181 passed, 0 failed
++- full_command: `uv run --python 3.11 --extra dev pytest -q`
++- full_result: 393 passed, 0 failed
++- new_coverage:
++  - CleanPlan and compute_clean_plan() are read-only and separate planning from execution.
++  - Session span, post-checkpoint boundary, workspace lock, and time cutoff protection layers are tested independently and in combination.
++  - Lock states free, held_by_self, and held_by_other drive can_execute and can_execute_with_force_inactive_only correctly.
++  - Byte ranges round-trip by skipping removable ranges and reloading the rewritten trace as valid JSONL.
++  - Non-contiguous session spans inherit the conservative first-to-last protection from Subtask 3.9.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/patches/13_trace_clean_plan.review.md b/dev_memory/phases/phase_03_trace_lifecycle/patches/13_trace_clean_plan.review.md
+new file mode 100644
+index 0000000..6f7c099
+--- /dev/null
++++ b/dev_memory/phases/phase_03_trace_lifecycle/patches/13_trace_clean_plan.review.md
+@@ -0,0 +1,33 @@
++# Subtask 3.10 Self Review - Trace Clean Plan Computation
++
++## Scope
++
++- Add a read-only plan computation layer for future `agent clean trace`.
++- Combine the section 4.14.7a protection data produced by earlier subtasks.
++- Do not implement physical cleanup, CLI, lock acquisition, or file mutation.
++
++## Checklist
++
++- [x] `compute_clean_plan()` performs read-only IO only.
++- [x] `CleanPlan` is pure data with execution predicates for later CLI/executor use.
++- [x] Session protection reuses `inspect_trace_session_spans()` from Subtask 3.9.
++- [x] Checkpoint-after protection uses `checkpoint.trace_line_count`.
++- [x] Workspace lock status is read from holder metadata without acquiring the lock.
++- [x] `held_by_other` returns a complete plan plus a refusal reason.
++- [x] `held_by_self` allows future `--force-clean-inactive-only` execution through the plan predicate.
++- [x] Removable byte ranges round-trip through a skip-and-reload test.
++- [x] Empty trace and missing checkpoint cases return a valid empty plan.
++- [x] No CLI or physical rewrite code was introduced.
++
++## Validation
++
++- `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py -q` -> 14 passed.
++- `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py tests/test_trace_session.py tests/test_trace_memory.py -q` -> 80 passed.
++- `uv run --python 3.11 --extra dev pytest tests/test_fs_memory.py tests/test_workspace_lock.py tests/test_identifiers.py -q` -> 181 passed.
++- `uv run --python 3.11 --extra dev pytest -q` -> 393 passed.
++
++## Notes
++
++- The planner refuses execution if checkpoint `trace_line_count` is ahead of the validated trace line count, because that can indicate trace truncation or data loss.
++- Byte ranges are computed from validated events plus raw physical line lengths, keeping validation and rewrite metadata tied to the same canonical file content.
++- Subtask 3.11 should own lock acquisition, trash/rewrite mechanics, and CLI behavior.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/patches/13_trace_clean_plan.summary.txt b/dev_memory/phases/phase_03_trace_lifecycle/patches/13_trace_clean_plan.summary.txt
+new file mode 100644
+index 0000000..f8f0216
+--- /dev/null
++++ b/dev_memory/phases/phase_03_trace_lifecycle/patches/13_trace_clean_plan.summary.txt
+@@ -0,0 +1,30 @@
++Subtask 3.10 - trace clean plan computation
++
++Implemented:
++- Added `src/agent/trace_cleanup.py` with:
++  - `LineRange` for 1-based inclusive physical line ranges.
++  - `ByteRange` for half-open physical byte ranges.
++  - `CleanPlan` as a pure-data cleanup plan.
++  - `TraceCleanupError`.
++  - `compute_clean_plan()` as a read-only planner.
++- `compute_clean_plan()` reads checkpoint, trace, and workspace lock holder state without acquiring locks or mutating files.
++- The planner combines:
++  - Subtask 3.9 conservative session spans for checkpoint and active lock-holder sessions.
++  - Checkpoint `trace_line_count` post-boundary protection.
++  - Workspace lock status: `free`, `held_by_self`, `held_by_other`.
++  - Keep-days timestamp cutoff.
++- Removable events are returned as both physical line ranges and byte ranges for future Subtask 3.11 execution.
++- Exported cleanup planning API from `agent.__init__`.
++- Added `tests/test_trace_cleanup.py`.
++
++Validation:
++- `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py -q` -> 14 passed.
++- `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py tests/test_trace_session.py tests/test_trace_memory.py -q` -> 80 passed.
++- `uv run --python 3.11 --extra dev pytest tests/test_fs_memory.py tests/test_workspace_lock.py tests/test_identifiers.py -q` -> 181 passed.
++- `uv run --python 3.11 --extra dev pytest -q` -> 393 passed.
++
++Out of scope:
++- `execute_clean_plan()`.
++- `agent clean trace` / doctor CLI.
++- Physical trace rewrite/truncate.
++- Workspace lock acquisition.
+diff --git a/src/agent/__init__.py b/src/agent/__init__.py
+index 51ae3bc..4994abd 100644
+--- a/src/agent/__init__.py
++++ b/src/agent/__init__.py
+@@ -141,6 +141,13 @@ from .trace import (
+     inspect_trace_checkpoint_alignment,
+     inspect_trace_session_spans,
+ )
++from .trace_cleanup import (
++    ByteRange,
++    CleanPlan,
++    LineRange,
++    TraceCleanupError,
++    compute_clean_plan,
++)
+ from .workspace_lock import (
+     LockReadResult,
+     WorkspaceBusyError,
+@@ -154,6 +161,7 @@ from .workspace_lock import (
+ __all__ = [
+     "AgentConfig",
+     "AtomicWriteError",
++    "ByteRange",
+     "CanaryRecord",
+     "CheckpointBest",
+     "CheckpointCurrentTrial",
+@@ -161,6 +169,7 @@ __all__ = [
+     "CheckpointLoadError",
+     "CheckpointProcess",
+     "CheckpointState",
++    "CleanPlan",
+     "ConfigLoadError",
+     "DiscoveredTrialRecord",
+     "Experience",
+@@ -193,6 +202,7 @@ __all__ = [
+     "LearnedRuleLoadError",
+     "LearnedRuleScope",
+     "LockReadResult",
++    "LineRange",
+     "ModulesRegistry",
+     "NamespaceMismatchError",
+     "NamespaceLayout",
+@@ -205,6 +215,7 @@ __all__ = [
+     "TraceCheckpointAlignment",
+     "TraceCheckpointResult",
+     "TraceCheckpointWriter",
++    "TraceCleanupError",
+     "TraceError",
+     "TraceEvent",
+     "TraceLoadError",
+@@ -239,6 +250,7 @@ __all__ = [
+     "collect_history_summary",
+     "collect_trial_startup_validation_inputs",
+     "compute_combo_hash",
++    "compute_clean_plan",
+     "compute_experience_local_payload_hash",
+     "compute_learned_rule_payload_hash",
+     "compute_payload_hash",
+diff --git a/src/agent/trace_cleanup.py b/src/agent/trace_cleanup.py
+new file mode 100644
+index 0000000..fa2b605
+--- /dev/null
++++ b/src/agent/trace_cleanup.py
+@@ -0,0 +1,406 @@
++"""Read-only trace cleanup planning helpers."""
++
++from __future__ import annotations
++
++import os
++from dataclasses import dataclass
++from datetime import UTC, datetime, timedelta
++from pathlib import Path
++from typing import Iterable, Literal
++
++import psutil
++
++from .fs_memory import (
++    CheckpointState,
++    NamespaceLayout,
++    TraceError,
++    TraceEvent,
++    iter_trace_events,
++    load_checkpoint_for_layout,
++    trace_event_payload,
++)
++from .trace import inspect_trace_session_spans
++from .workspace_lock import WorkspaceLock, WorkspaceLockHolder
++
++
++LockStatus = Literal["free", "held_by_self", "held_by_other"]
++_LOCK_CREATE_TIME_TOLERANCE_SECONDS = 0.5
++
++
++class TraceCleanupError(TraceError):
++    """Raised when a trace cleanup plan cannot be computed safely."""
++
++
++@dataclass(frozen=True)
++class LineRange:
++    """Physical 1-based line-number interval, inclusive."""
++
++    first: int
++    last: int
++
++    def __post_init__(self) -> None:
++        _require_int(self.first, "first")
++        _require_int(self.last, "last")
++        if self.first < 1:
++            raise TraceCleanupError("line range first must be >= 1")
++        if self.last < self.first:
++            raise TraceCleanupError("line range last must be >= first")
++
++
++@dataclass(frozen=True)
++class ByteRange:
++    """Physical byte interval, half-open."""
++
++    start: int
++    end: int
++
++    def __post_init__(self) -> None:
++        _require_int(self.start, "start")
++        _require_int(self.end, "end")
++        if self.start < 0:
++            raise TraceCleanupError("byte range start must be >= 0")
++        if self.end < self.start:
++            raise TraceCleanupError("byte range end must be >= start")
++
++
++@dataclass(frozen=True)
++class CleanPlan:
++    """Pure-data trace cleanup plan with no side effects."""
++
++    trace_path: Path
++    total_lines: int
++    file_size_bytes: int
++    protected_session_ids: frozenset[str]
++    protected_line_ranges: tuple[LineRange, ...]
++    post_checkpoint_boundary_line: int | None
++    lock_status: LockStatus
++    blocking_lock_holder: WorkspaceLockHolder | None
++    keep_days: int
++    cutoff_ts: datetime
++    removable_line_ranges: tuple[LineRange, ...]
++    removable_byte_ranges: tuple[ByteRange, ...]
++    removable_event_count: int
++    refusal_reason: str | None
++
++    @property
++    def is_dry_run_safe(self) -> bool:
++        """Clean plans are render-only objects and never mutate state."""
++
++        return True
++
++    @property
++    def can_execute(self) -> bool:
++        """Return whether normal clean trace execution would be allowed."""
++
++        return (
++            self.refusal_reason is None
++            and self.lock_status == "free"
++            and self.removable_event_count > 0
++        )
++
++    @property
++    def can_execute_with_force_inactive_only(self) -> bool:
++        """Return whether force-clean-inactive-only execution would be allowed."""
++
++        return (
++            self.refusal_reason is None
++            and self.lock_status in {"free", "held_by_self"}
++            and self.removable_event_count > 0
++        )
++
++
++@dataclass(frozen=True)
++class _TraceLine:
++    line_number: int
++    byte_start: int
++    byte_end: int
++    event: TraceEvent
++
++
++@dataclass(frozen=True)
++class _LockSnapshot:
++    status: LockStatus
++    active_holder: WorkspaceLockHolder | None
++    blocking_holder: WorkspaceLockHolder | None
++    refusal_reason: str | None
++
++
++def compute_clean_plan(
++    layout: NamespaceLayout,
++    *,
++    keep_days: int = 7,
++    now: datetime | None = None,
++) -> CleanPlan:
++    """Compute a read-only trace cleanup plan under the three protection layers."""
++
++    _validate_keep_days(keep_days)
++    now_utc = _normalize_now(now)
++    cutoff_ts = now_utc - timedelta(days=keep_days)
++
++    checkpoint = _load_checkpoint_if_present(layout)
++    lock_snapshot = _read_workspace_lock(layout)
++    trace_lines, file_size_bytes = _scan_trace_lines(layout.trace_path)
++    total_lines = len(trace_lines)
++
++    protected_session_ids = set[str]()
++    if checkpoint is not None:
++        protected_session_ids.add(checkpoint.session_id)
++    if lock_snapshot.active_holder is not None:
++        protected_session_ids.add(lock_snapshot.active_holder.session_id)
++
++    session_spans = inspect_trace_session_spans(layout)
++    protected_line_ranges = _merge_line_ranges(
++        LineRange(
++            first=span.first_line_number,
++            last=span.last_line_number,
++        )
++        for span in session_spans
++        if span.session_id in protected_session_ids
++    )
++    post_checkpoint_boundary_line = (
++        None if checkpoint is None else checkpoint.trace_line_count
++    )
++
++    refusal_reason = lock_snapshot.refusal_reason
++    if (
++        post_checkpoint_boundary_line is not None
++        and post_checkpoint_boundary_line > total_lines
++    ):
++        refusal_reason = _combine_refusal(
++            refusal_reason,
++            "checkpoint trace_line_count is ahead of validated trace events",
++        )
++
++    removable_lines = tuple(
++        trace_line
++        for trace_line in trace_lines
++        if _is_removable_trace_line(
++            trace_line,
++            protected_line_ranges=protected_line_ranges,
++            post_checkpoint_boundary_line=post_checkpoint_boundary_line,
++            cutoff_ts=cutoff_ts,
++        )
++    )
++    removable_line_ranges, removable_byte_ranges = _ranges_for_trace_lines(
++        removable_lines
++    )
++
++    return CleanPlan(
++        trace_path=layout.trace_path,
++        total_lines=total_lines,
++        file_size_bytes=file_size_bytes,
++        protected_session_ids=frozenset(protected_session_ids),
++        protected_line_ranges=protected_line_ranges,
++        post_checkpoint_boundary_line=post_checkpoint_boundary_line,
++        lock_status=lock_snapshot.status,
++        blocking_lock_holder=lock_snapshot.blocking_holder,
++        keep_days=keep_days,
++        cutoff_ts=cutoff_ts,
++        removable_line_ranges=removable_line_ranges,
++        removable_byte_ranges=removable_byte_ranges,
++        removable_event_count=len(removable_lines),
++        refusal_reason=refusal_reason,
++    )
++
++
++def _validate_keep_days(keep_days: int) -> None:
++    _require_int(keep_days, "keep_days")
++    if keep_days < 0:
++        raise TraceCleanupError("keep_days must be >= 0")
++
++
++def _require_int(value: int, name: str) -> None:
++    if not isinstance(value, int) or isinstance(value, bool):
++        raise TraceCleanupError(f"{name} must be an integer")
++
++
++def _normalize_now(now: datetime | None) -> datetime:
++    value = datetime.now(UTC) if now is None else now
++    if value.tzinfo is None or value.utcoffset() is None:
++        raise TraceCleanupError("now must be timezone-aware")
++    return value.astimezone(UTC)
++
++
++def _load_checkpoint_if_present(layout: NamespaceLayout) -> CheckpointState | None:
++    if not layout.checkpoint_path.exists():
++        return None
++    return load_checkpoint_for_layout(layout)
++
++
++def _read_workspace_lock(layout: NamespaceLayout) -> _LockSnapshot:
++    lock = WorkspaceLock(layout.workspace)
++    if not lock.lock_path.exists():
++        return _LockSnapshot(
++            status="free",
++            active_holder=None,
++            blocking_holder=None,
++            refusal_reason=None,
++        )
++
++    holder_result = lock.read_holder()
++    holder = holder_result.holder
++    if holder is None:
++        reason = holder_result.error or "workspace lock holder is unavailable"
++        return _LockSnapshot(
++            status="free",
++            active_holder=None,
++            blocking_holder=None,
++            refusal_reason=f"workspace lock metadata could not be read: {reason}",
++        )
++
++    status = _classify_lock_holder(holder)
++    if status == "free":
++        return _LockSnapshot(
++            status="free",
++            active_holder=None,
++            blocking_holder=None,
++            refusal_reason=None,
++        )
++    if status == "held_by_self":
++        return _LockSnapshot(
++            status="held_by_self",
++            active_holder=holder,
++            blocking_holder=None,
++            refusal_reason=None,
++        )
++    return _LockSnapshot(
++        status="held_by_other",
++        active_holder=holder,
++        blocking_holder=holder,
++        refusal_reason="workspace lock is held by another agent process",
++    )
++
++
++def _classify_lock_holder(holder: WorkspaceLockHolder) -> LockStatus:
++    try:
++        process_create_time = psutil.Process(holder.pid).create_time()
++    except psutil.NoSuchProcess:
++        return "free"
++    except psutil.Error:
++        return "held_by_other"
++    if (
++        abs(process_create_time - holder.create_time)
++        > _LOCK_CREATE_TIME_TOLERANCE_SECONDS
++    ):
++        return "free"
++    if holder.pid == os.getpid():
++        return "held_by_self"
++    return "held_by_other"
++
++
++def _scan_trace_lines(path: Path) -> tuple[tuple[_TraceLine, ...], int]:
++    events = tuple(iter_trace_events(path))
++    if not path.exists():
++        return (), 0
++
++    byte_ranges: list[tuple[int, int]] = []
++    offset = 0
++    with path.open("rb") as handle:
++        for raw_line in handle:
++            next_offset = offset + len(raw_line)
++            byte_ranges.append((offset, next_offset))
++            offset = next_offset
++
++    if len(byte_ranges) != len(events):
++        raise TraceCleanupError(
++            "trace changed while computing clean plan; retry after the writer is idle"
++        )
++
++    return (
++        tuple(
++            _TraceLine(
++                line_number=index,
++                byte_start=start,
++                byte_end=end,
++                event=event,
++            )
++            for index, ((start, end), event) in enumerate(
++                zip(byte_ranges, events),
++                start=1,
++            )
++        ),
++        offset,
++    )
++
++
++def _is_removable_trace_line(
++    trace_line: _TraceLine,
++    *,
++    protected_line_ranges: tuple[LineRange, ...],
++    post_checkpoint_boundary_line: int | None,
++    cutoff_ts: datetime,
++) -> bool:
++    if _line_is_in_ranges(trace_line.line_number, protected_line_ranges):
++        return False
++    if (
++        post_checkpoint_boundary_line is not None
++        and trace_line.line_number > post_checkpoint_boundary_line
++    ):
++        return False
++    event_ts = _parse_event_ts(trace_event_payload(trace_line.event)["ts"])
++    return event_ts < cutoff_ts
++
++
++def _parse_event_ts(value: str) -> datetime:
++    normalized = value[:-1] + "+00:00" if value.endswith("Z") else value
++    parsed = datetime.fromisoformat(normalized)
++    return parsed.astimezone(UTC)
++
++
++def _line_is_in_ranges(line_number: int, ranges: tuple[LineRange, ...]) -> bool:
++    return any(item.first <= line_number <= item.last for item in ranges)
++
++
++def _merge_line_ranges(ranges: Iterable[LineRange]) -> tuple[LineRange, ...]:
++    sorted_ranges = sorted(ranges, key=lambda item: (item.first, item.last))
++    merged: list[LineRange] = []
++    for item in sorted_ranges:
++        if not merged or item.first > merged[-1].last + 1:
++            merged.append(item)
++            continue
++        previous = merged[-1]
++        merged[-1] = LineRange(
++            first=previous.first,
++            last=max(previous.last, item.last),
++        )
++    return tuple(merged)
++
++
++def _ranges_for_trace_lines(
++    trace_lines: tuple[_TraceLine, ...],
++) -> tuple[tuple[LineRange, ...], tuple[ByteRange, ...]]:
++    if not trace_lines:
++        return (), ()
++
++    line_ranges: list[LineRange] = []
++    byte_ranges: list[ByteRange] = []
++    first_line = previous_line = trace_lines[0]
++
++    for current in trace_lines[1:]:
++        if (
++            current.line_number == previous_line.line_number + 1
++            and current.byte_start == previous_line.byte_end
++        ):
++            previous_line = current
++            continue
++        line_ranges.append(
++            LineRange(first=first_line.line_number, last=previous_line.line_number)
++        )
++        byte_ranges.append(
++            ByteRange(start=first_line.byte_start, end=previous_line.byte_end)
++        )
++        first_line = previous_line = current
++
++    line_ranges.append(
++        LineRange(first=first_line.line_number, last=previous_line.line_number)
++    )
++    byte_ranges.append(
++        ByteRange(start=first_line.byte_start, end=previous_line.byte_end)
++    )
++    return tuple(line_ranges), tuple(byte_ranges)
++
++
++def _combine_refusal(current: str | None, reason: str) -> str:
++    if current is None:
++        return reason
++    return f"{current}; {reason}"
+diff --git a/tests/test_trace_cleanup.py b/tests/test_trace_cleanup.py
+new file mode 100644
+index 0000000..1eeab9f
+--- /dev/null
++++ b/tests/test_trace_cleanup.py
+@@ -0,0 +1,448 @@
++from __future__ import annotations
++
++import os
++from datetime import UTC, datetime
++from pathlib import Path
++
++import psutil
++import pytest
++import yaml
++
++from agent.fs_memory import (
++    NamespaceLayout,
++    append_trace_event,
++    load_trace_events,
++    trace_event_payload,
++    write_checkpoint_state,
++)
++from agent.registry import ProjectNamespace
++from agent.trace_cleanup import (
++    ByteRange,
++    LineRange,
++    TraceCleanupError,
++    compute_clean_plan,
++)
++from agent.workspace_lock import WorkspaceLockHolder
++
++
++def namespace() -> ProjectNamespace:
++    return ProjectNamespace(
++        module="multimedia",
++        framework="ffmpeg",
++        compiler="gcc-13.2.0",
++        code_commit="code-a1b2c3d",
++        kg_version="kg-v3",
++    )
++
++
++def layout(tmp_path: Path) -> NamespaceLayout:
++    return NamespaceLayout(workspace=tmp_path, namespace=namespace())
++
++
++def checkpoint_data(**overrides: object) -> dict[str, object]:
++    data: dict[str, object] = {
++        "session_id": "sess_checkpoint",
++        "namespace": str(namespace()),
++        "last_completed_trial": None,
++        "current_trial": None,
++        "current_best": None,
++        "explorer_state": {},
++        "random_seed": 42,
++        "total_tokens_consumed": 100,
++        "last_updated": "2026-04-30T10:30:22Z",
++    }
++    data.update(overrides)
++    return data
++
++
++def append_event(
++    current_layout: NamespaceLayout,
++    line_number: int,
++    *,
++    ts: str,
++    session_id: str | None = None,
++    kind: str = "probe",
++) -> None:
++    payload = {"ts": ts, "kind": kind}
++    if session_id is not None:
++        payload["session_id"] = session_id
++    append_trace_event(
++        current_layout,
++        payload,
++        expected_line_number=line_number,
++    )
++
++
++def write_checkpoint(
++    current_layout: NamespaceLayout,
++    *,
++    session_id: str = "sess_checkpoint",
++    trace_line_count: int | None = None,
++) -> None:
++    payload = checkpoint_data(session_id=session_id)
++    if trace_line_count is not None:
++        payload["trace_line_count"] = trace_line_count
++    write_checkpoint_state(current_layout, payload)
++
++
++def write_lock_holder(
++    workspace: Path,
++    *,
++    session_id: str,
++    pid: int,
++    create_time: float,
++) -> None:
++    holder = WorkspaceLockHolder(
++        pid=pid,
++        pgid=pid,
++        create_time=create_time,
++        session_id=session_id,
++        command="agent run",
++        started_at="2026-05-29T00:00:00+00:00",
++        hostname="dev-host",
++        agent_version="0.1.test",
++    )
++    lock_path = workspace / "state" / "run.lock"
++    lock_path.parent.mkdir(parents=True, exist_ok=True)
++    lock_path.write_text(
++        yaml.safe_dump(holder.model_dump(mode="json"), sort_keys=False),
++        encoding="utf-8",
++    )
++
++
++class FakeProcess:
++    def __init__(self, create_time: float) -> None:
++        self._create_time = create_time
++
++    def create_time(self) -> float:
++        return self._create_time
++
++
++def fake_process_provider(create_time: float):
++    def fake_process(pid: int) -> FakeProcess:
++        return FakeProcess(create_time)
++
++    return fake_process
++
++
++def fixed_now() -> datetime:
++    return datetime(2026, 5, 10, tzinfo=UTC)
++
++
++def test_compute_clean_plan_protects_checkpoint_session_span_layer_one(
++    tmp_path: Path,
++) -> None:
++    current_layout = layout(tmp_path)
++    append_event(current_layout, 1, ts="2026-04-01T00:00:00Z", session_id="sess_old")
++    append_event(
++        current_layout,
++        2,
++        ts="2026-04-01T00:01:00Z",
++        session_id="sess_checkpoint",
++    )
++    append_event(current_layout, 3, ts="2026-04-01T00:02:00Z", session_id="sess_mid")
++    append_event(
++        current_layout,
++        4,
++        ts="2026-04-01T00:03:00Z",
++        session_id="sess_checkpoint",
++    )
++    write_checkpoint(current_layout, trace_line_count=4)
++
++    plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
++
++    assert plan.protected_session_ids == frozenset({"sess_checkpoint"})
++    assert plan.protected_line_ranges == (LineRange(2, 4),)
++    assert plan.removable_line_ranges == (LineRange(1, 1),)
++    assert plan.removable_event_count == 1
++    assert plan.can_execute is True
++
++
++def test_compute_clean_plan_protects_post_checkpoint_lines_layer_two(
++    tmp_path: Path,
++) -> None:
++    current_layout = layout(tmp_path)
++    for index in range(1, 5):
++        append_event(
++            current_layout,
++            index,
++            ts=f"2026-04-01T00:0{index}:00Z",
++            session_id=f"sess_old_{index}",
++        )
++    write_checkpoint(current_layout, session_id="sess_checkpoint", trace_line_count=2)
++
++    plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
++
++    assert plan.post_checkpoint_boundary_line == 2
++    assert plan.protected_line_ranges == ()
++    assert plan.removable_line_ranges == (LineRange(1, 2),)
++    assert plan.removable_event_count == 2
++
++
++def test_compute_clean_plan_reports_held_by_other_without_hiding_removable_lines(
++    tmp_path: Path,
++    monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    current_layout = layout(tmp_path)
++    append_event(current_layout, 1, ts="2026-04-01T00:00:00Z", session_id="sess_old")
++    monkeypatch.setattr(
++        "agent.trace_cleanup.psutil.Process",
++        fake_process_provider(123.0),
++    )
++    write_lock_holder(
++        tmp_path,
++        session_id="sess_active_elsewhere",
++        pid=90001,
++        create_time=123.0,
++    )
++
++    plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
++
++    assert plan.lock_status == "held_by_other"
++    assert plan.blocking_lock_holder is not None
++    assert plan.blocking_lock_holder.session_id == "sess_active_elsewhere"
++    assert plan.refusal_reason == "workspace lock is held by another agent process"
++    assert plan.removable_line_ranges == (LineRange(1, 1),)
++    assert plan.can_execute is False
++    assert plan.can_execute_with_force_inactive_only is False
++
++
++def test_compute_clean_plan_merges_layer_one_and_two_overlap(
++    tmp_path: Path,
++) -> None:
++    current_layout = layout(tmp_path)
++    append_event(current_layout, 1, ts="2026-04-01T00:00:00Z", session_id="sess_old")
++    append_event(
++        current_layout,
++        2,
++        ts="2026-04-01T00:01:00Z",
++        session_id="sess_checkpoint",
++    )
++    append_event(
++        current_layout,
++        3,
++        ts="2026-04-01T00:02:00Z",
++        session_id="sess_checkpoint",
++    )
++    append_event(current_layout, 4, ts="2026-04-01T00:03:00Z", session_id="sess_other")
++    write_checkpoint(current_layout, trace_line_count=2)
++
++    plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
++
++    assert plan.protected_line_ranges == (LineRange(2, 3),)
++    assert plan.post_checkpoint_boundary_line == 2
++    assert plan.removable_line_ranges == (LineRange(1, 1),)
++    assert plan.removable_event_count == 1
++
++
++def test_compute_clean_plan_can_remove_all_when_no_protection_and_old(
++    tmp_path: Path,
++) -> None:
++    current_layout = layout(tmp_path)
++    for index in range(1, 4):
++        append_event(
++            current_layout,
++            index,
++            ts=f"2026-04-01T00:0{index}:00Z",
++            session_id=f"sess_old_{index}",
++        )
++
++    plan = compute_clean_plan(current_layout, keep_days=0, now=fixed_now())
++
++    assert plan.protected_session_ids == frozenset()
++    assert plan.protected_line_ranges == ()
++    assert plan.post_checkpoint_boundary_line is None
++    assert plan.removable_line_ranges == (LineRange(1, 3),)
++    assert plan.removable_byte_ranges == (
++        ByteRange(0, current_layout.trace_path.stat().st_size),
++    )
++    assert plan.can_execute is True
++
++
++def test_compute_clean_plan_all_layers_trigger_without_removable_events(
++    tmp_path: Path,
++    monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    current_layout = layout(tmp_path)
++    append_event(current_layout, 1, ts="2026-04-01T00:00:00Z", session_id="sess_active")
++    append_event(
++        current_layout,
++        2,
++        ts="2026-04-01T00:01:00Z",
++        session_id="sess_checkpoint",
++    )
++    append_event(current_layout, 3, ts="2026-04-01T00:02:00Z", session_id="sess_other")
++    append_event(current_layout, 4, ts="2026-05-09T00:00:00Z", session_id="sess_recent")
++    write_checkpoint(current_layout, trace_line_count=2)
++    monkeypatch.setattr(
++        "agent.trace_cleanup.psutil.Process",
++        fake_process_provider(456.0),
++    )
++    write_lock_holder(tmp_path, session_id="sess_active", pid=90002, create_time=456.0)
++
++    plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
++
++    assert plan.lock_status == "held_by_other"
++    assert plan.protected_session_ids == frozenset({"sess_active", "sess_checkpoint"})
++    assert plan.protected_line_ranges == (LineRange(1, 2),)
++    assert plan.removable_line_ranges == ()
++    assert plan.removable_event_count == 0
++    assert plan.can_execute is False
++
++
++def test_compute_clean_plan_time_cutoff_splits_old_and_recent_events(
++    tmp_path: Path,
++) -> None:
++    current_layout = layout(tmp_path)
++    append_event(current_layout, 1, ts="2026-05-02T23:59:59Z", session_id="sess_old")
++    append_event(current_layout, 2, ts="2026-05-03T00:00:00Z", session_id="sess_edge")
++    append_event(current_layout, 3, ts="2026-05-04T00:00:00Z", session_id="sess_new")
++
++    plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
++
++    assert plan.cutoff_ts == datetime(2026, 5, 3, tzinfo=UTC)
++    assert plan.removable_line_ranges == (LineRange(1, 1),)
++    assert plan.removable_event_count == 1
++
++
++def test_compute_clean_plan_large_keep_days_keeps_everything(tmp_path: Path) -> None:
++    current_layout = layout(tmp_path)
++    append_event(current_layout, 1, ts="2026-04-01T00:00:00Z", session_id="sess_old")
++
++    plan = compute_clean_plan(current_layout, keep_days=10_000, now=fixed_now())
++
++    assert plan.removable_line_ranges == ()
++    assert plan.can_execute is False
++
++
++def test_compute_clean_plan_lock_status_execute_matrix(
++    tmp_path: Path,
++    monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    current_layout = layout(tmp_path / "free")
++    append_event(current_layout, 1, ts="2026-04-01T00:00:00Z")
++    free_plan = compute_clean_plan(current_layout, keep_days=0, now=fixed_now())
++
++    self_layout = layout(tmp_path / "self")
++    append_event(self_layout, 1, ts="2026-04-01T00:00:00Z")
++    current_process = psutil.Process()
++    write_lock_holder(
++        self_layout.workspace,
++        session_id="sess_self",
++        pid=os.getpid(),
++        create_time=current_process.create_time(),
++    )
++    self_plan = compute_clean_plan(self_layout, keep_days=0, now=fixed_now())
++
++    other_layout = layout(tmp_path / "other")
++    append_event(other_layout, 1, ts="2026-04-01T00:00:00Z")
++    monkeypatch.setattr(
++        "agent.trace_cleanup.psutil.Process",
++        fake_process_provider(789.0),
++    )
++    write_lock_holder(
++        other_layout.workspace,
++        session_id="sess_other",
++        pid=90003,
++        create_time=789.0,
++    )
++    other_plan = compute_clean_plan(other_layout, keep_days=0, now=fixed_now())
++
++    assert (free_plan.lock_status, free_plan.can_execute) == ("free", True)
++    assert free_plan.can_execute_with_force_inactive_only is True
++    assert (self_plan.lock_status, self_plan.can_execute) == ("held_by_self", False)
++    assert self_plan.can_execute_with_force_inactive_only is True
++    assert (other_plan.lock_status, other_plan.can_execute) == ("held_by_other", False)
++    assert other_plan.can_execute_with_force_inactive_only is False
++
++
++def test_compute_clean_plan_empty_trace_and_missing_checkpoint(tmp_path: Path) -> None:
++    current_layout = layout(tmp_path)
++
++    plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
++
++    assert plan.total_lines == 0
++    assert plan.file_size_bytes == 0
++    assert plan.post_checkpoint_boundary_line is None
++    assert plan.removable_line_ranges == ()
++    assert plan.removable_byte_ranges == ()
++    assert plan.is_dry_run_safe is True
++
++
++def test_compute_clean_plan_single_session_across_file_is_protected(
++    tmp_path: Path,
++) -> None:
++    current_layout = layout(tmp_path)
++    for index in range(1, 4):
++        append_event(
++            current_layout,
++            index,
++            ts=f"2026-04-01T00:0{index}:00Z",
++            session_id="sess_checkpoint",
++        )
++    write_checkpoint(current_layout, trace_line_count=3)
++
++    plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
++
++    assert plan.protected_line_ranges == (LineRange(1, 3),)
++    assert plan.removable_line_ranges == ()
++
++
++def test_compute_clean_plan_byte_ranges_round_trip(tmp_path: Path) -> None:
++    current_layout = layout(tmp_path)
++    append_event(current_layout, 1, ts="2026-04-01T00:00:00Z", session_id="sess_old_a")
++    append_event(current_layout, 2, ts="2026-05-05T00:00:00Z", session_id="sess_recent")
++    append_event(current_layout, 3, ts="2026-04-01T00:02:00Z", session_id="sess_old_b")
++    append_event(current_layout, 4, ts="2026-05-06T00:00:00Z", session_id="sess_recent")
++
++    plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
++    raw_trace = current_layout.trace_path.read_bytes()
++    rewritten = _bytes_without_ranges(raw_trace, plan.removable_byte_ranges)
++    rewritten_path = tmp_path / "rewritten-events.jsonl"
++    rewritten_path.write_bytes(rewritten)
++
++    loaded = load_trace_events(rewritten_path)
++
++    assert plan.removable_line_ranges == (LineRange(1, 1), LineRange(3, 3))
++    assert len(loaded) == plan.total_lines - plan.removable_event_count
++    assert [trace_event_payload(event)["session_id"] for event in loaded] == [
++        "sess_recent",
++        "sess_recent",
++    ]
++
++
++def test_compute_clean_plan_non_contiguous_session_span_over_preserves_middle_events(
++    tmp_path: Path,
++) -> None:
++    current_layout = layout(tmp_path)
++    append_event(current_layout, 1, ts="2026-04-01T00:00:00Z", session_id="sess_a")
++    append_event(current_layout, 2, ts="2026-04-01T00:01:00Z", session_id="sess_b")
++    append_event(current_layout, 3, ts="2026-04-01T00:02:00Z", session_id="sess_a")
++    append_event(current_layout, 4, ts="2026-04-01T00:03:00Z", session_id="sess_b")
++    append_event(current_layout, 5, ts="2026-04-01T00:04:00Z", session_id="sess_a")
++    write_checkpoint(current_layout, session_id="sess_a", trace_line_count=5)
++
++    plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
++
++    assert plan.protected_session_ids == frozenset({"sess_a"})
++    assert plan.protected_line_ranges == (LineRange(1, 5),)
++    assert plan.removable_line_ranges == ()
++
++
++def test_compute_clean_plan_rejects_invalid_time_inputs(tmp_path: Path) -> None:
++    current_layout = layout(tmp_path)
++
++    with pytest.raises(TraceCleanupError, match="keep_days"):
++        compute_clean_plan(current_layout, keep_days=-1, now=fixed_now())
++    with pytest.raises(TraceCleanupError, match="timezone-aware"):
++        compute_clean_plan(current_layout, keep_days=7, now=datetime(2026, 5, 10))
++
++
++def _bytes_without_ranges(raw: bytes, ranges: tuple[ByteRange, ...]) -> bytes:
++    chunks: list[bytes] = []
++    cursor = 0
++    for item in ranges:
++        chunks.append(raw[cursor : item.start])
++        cursor = item.end
++    chunks.append(raw[cursor:])
++    return b"".join(chunks)

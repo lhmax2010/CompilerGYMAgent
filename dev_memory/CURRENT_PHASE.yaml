@@ -1,7 +1,7 @@
 phase_id: phase_03_trace_lifecycle
 phase_title: "Trace JSONL canonical event stream"
 started_at: 2026-05-21T14:06:00Z
-last_updated: 2026-05-29T05:45:52Z
+last_updated: 2026-05-29T08:31:42Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 3.3
@@ -498,10 +498,45 @@ subtasks:
     deferred_low_priority_followups:
       - "Persist dry_run session state in checkpoint when dry-run resume becomes workflow-owned."
       - "Keep process_event kind open until the process owning module defines concrete event kinds."
+  - id: "3.10"
+    title: "Compute read-only trace clean plans"
+    status: done
+    related_requirements:
+      - REQUIREMENTS.md section 3.3.4
+      - REQUIREMENTS.md section 4.13
+      - REQUIREMENTS.md section 4.14.7a
+      - REQUIREMENTS.md section 4.15
+    files_created:
+      - src/agent/trace_cleanup.py
+      - tests/test_trace_cleanup.py
+    files_modified:
+      - src/agent/__init__.py
+    ut_required: true
+    ut_passed: true
+    targeted_ut: "14 trace cleanup tests passed, 0 failed"
+    trace_regression_ut: "80 trace cleanup/session/memory tests passed, 0 failed"
+    lock_checkpoint_regression_ut: "181 fs_memory/workspace_lock/identifier tests passed, 0 failed"
+    full_ut: "393 passed, 0 failed"
+    self_review_required: true
+    self_reviewed: true
+    patch_required: true
+    patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/13_trace_clean_plan.patch
+    patch_generated: true
+    commit_required: true
+    commit_pending: true
+    implementation_summary:
+      - "Added LineRange, ByteRange, CleanPlan, and compute_clean_plan() as a read-only trace cleanup planner."
+      - "The planner combines protected session spans, checkpoint trace boundaries, workspace lock holder state, and keep-days cutoff into removable line and byte ranges."
+      - "Workspace lock inspection is read-only: it reads holder metadata and process identity without acquiring the lock."
+      - "Byte ranges are derived from validated trace events plus raw line lengths and covered by rewrite round-trip tests."
+    deferred_low_priority_followups:
+      - "Implement execute_clean_plan() and CLI wiring in Subtask 3.11."
+      - "Persist dry_run session state in checkpoint when dry-run resume becomes workflow-owned."
+      - "Keep process_event kind open until the process owning module defines concrete event kinds."
 notes: |
   Phase 03 starts with the canonical `trace/events.jsonl` append-only event
   stream because REQUIREMENTS.md defines runtime recovery state as
   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
   trace storage primitive before wiring lifecycle stages, rejected candidates,
   dry-run injection, or process/user-action event producers.
-next_action: "Proceed to Subtask 3.10 or the next milestone."
+next_action: "Commit/push Subtask 3.10, then request external review."

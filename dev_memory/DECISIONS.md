@@ -568,3 +568,18 @@ Decision records must include:
   - Return one span per contiguous chunk, which is more precise but easier for cleanup code to misuse by trimming the gap between chunks of the same active session.
   - Require every trace event to carry `session_id`, which would reject low-level bootstrap events and older trace fixtures that predate `TraceSessionWriter`.
   - Compute byte offsets for each span now, which would require a second trace parser or extending the low-level iterator before any cleanup writer exists.
+
+## 2026-05-29T08:31:42Z - Separate trace clean planning from execution
+
+- affected_requirement:
+  - REQUIREMENTS.md section 3.3.4
+  - REQUIREMENTS.md section 4.13
+  - REQUIREMENTS.md section 4.14.7a
+  - REQUIREMENTS.md section 4.15
+- decision: Add `CleanPlan` and `compute_clean_plan()` as a read-only planning layer for future trace cleanup. The planner combines conservative session spans, checkpoint trace boundaries, read-only workspace lock holder state, and keep-days cutoff into removable line and byte ranges, but does not acquire locks or mutate trace files.
+- rationale: Section 4.14.7a requires multiple safety layers before trace cleanup can physically rewrite `events.jsonl`. Keeping calculation separate from execution lets doctor/status/CLI code render exactly what would be removed, while Subtask 3.11 can own lock acquisition, trash/rewrite mechanics, and high-risk flags.
+- alternatives_considered:
+  - Implement physical rewrite immediately, which would mix irreversible filesystem behavior into a data-planning subtask and make review of safety predicates harder.
+  - Re-parse session spans directly in cleanup code, which would duplicate the Subtask 3.9 conservative span primitive and risk drift.
+  - Acquire the workspace lock during planning, which would make dry-run/status rendering invasive and blur the boundary between diagnostic reads and cleanup execution.
+  - Return only line ranges, which would force Subtask 3.11 to rediscover byte offsets before rewrite and weaken pre-execution reviewability.

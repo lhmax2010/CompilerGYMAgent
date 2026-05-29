@@ -1,0 +1,30 @@
+Subtask 3.10 - trace clean plan computation
+
+Implemented:
+- Added `src/agent/trace_cleanup.py` with:
+  - `LineRange` for 1-based inclusive physical line ranges.
+  - `ByteRange` for half-open physical byte ranges.
+  - `CleanPlan` as a pure-data cleanup plan.
+  - `TraceCleanupError`.
+  - `compute_clean_plan()` as a read-only planner.
+- `compute_clean_plan()` reads checkpoint, trace, and workspace lock holder state without acquiring locks or mutating files.
+- The planner combines:
+  - Subtask 3.9 conservative session spans for checkpoint and active lock-holder sessions.
+  - Checkpoint `trace_line_count` post-boundary protection.
+  - Workspace lock status: `free`, `held_by_self`, `held_by_other`.
+  - Keep-days timestamp cutoff.
+- Removable events are returned as both physical line ranges and byte ranges for future Subtask 3.11 execution.
+- Exported cleanup planning API from `agent.__init__`.
+- Added `tests/test_trace_cleanup.py`.
+
+Validation:
+- `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py -q` -> 14 passed.
+- `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py tests/test_trace_session.py tests/test_trace_memory.py -q` -> 80 passed.
+- `uv run --python 3.11 --extra dev pytest tests/test_fs_memory.py tests/test_workspace_lock.py tests/test_identifiers.py -q` -> 181 passed.
+- `uv run --python 3.11 --extra dev pytest -q` -> 393 passed.
+
+Out of scope:
+- `execute_clean_plan()`.
+- `agent clean trace` / doctor CLI.
+- Physical trace rewrite/truncate.
+- Workspace lock acquisition.

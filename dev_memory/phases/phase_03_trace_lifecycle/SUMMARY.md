@@ -44,6 +44,9 @@ Completed:
 - Subtask 3.9 keeps the helper read-only and non-hot-path: it ignores events without `session_id`, rejects invalid session ids, and collapses non-contiguous chunks from the same session into a first-to-last protected span.
 - Subtask 3.9 external review approved the physical-line span model and confirmed it supplies section 4.14.7a clean trace layer-one session-boundary data.
 - Subtask 3.9 was validated on Ubuntu/Linux with Python 3.11.15: full pytest passed 379/379, trace session passed 44/44, trace memory passed 22/22, fs_memory passed 130/130, identifiers passed 22/22, and the real fcntl test passed.
+- Subtask 3.10 added read-only `CleanPlan` planning in `trace_cleanup.py`, combining conservative session spans, checkpoint trace boundaries, workspace lock holder status, and keep-days cutoff into removable line and byte ranges.
+- Subtask 3.10 keeps calculation and execution separate: it does not acquire locks, does not truncate or rewrite trace files, and only exposes execution predicates for future `execute_clean_plan()` / CLI work.
+- Subtask 3.10 passed Ubuntu/Linux validation with Python 3.11.15: trace-cleanup targeted tests passed 14/14 and full pytest passed 393/393.
 
 Remaining:
-- Proceed to Subtask 3.10 or the next milestone.
+- Commit/push Subtask 3.10, then request external review.

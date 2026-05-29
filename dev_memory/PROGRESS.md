@@ -1326,3 +1326,19 @@ Next action: run Ubuntu validation for Subtask 3.9 and record target-environment
 - Linux fcntl regression: `uv run --python 3.11 --extra dev pytest tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter -v` -> 1 passed.
 
 Next action: proceed to Subtask 3.10 or the next milestone.
+
+## 2026-05-29T08:31:42Z - Phase 03 / Subtask 3.10 implemented
+
+- Started and implemented Subtask 3.10: read-only trace clean plan computation.
+- Added `src/agent/trace_cleanup.py` with `LineRange`, `ByteRange`, `CleanPlan`, `TraceCleanupError`, and `compute_clean_plan()`.
+- `compute_clean_plan()` combines Subtask 3.9 session spans, checkpoint trace boundaries, read-only workspace lock holder status, and keep-days cutoff into removable line and byte ranges.
+- The planner does not acquire locks, does not write files, and does not physically delete or rewrite trace data.
+- Exported the new cleanup planning API from `agent.__init__`.
+- Added `tests/test_trace_cleanup.py` covering protection layers, intersections, lock-state execution predicates, empty trace/no checkpoint cases, non-contiguous session protection, and byte-range rewrite round-trip.
+- UT results:
+  - `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py -q` -> 14 passed.
+  - `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py tests/test_trace_session.py tests/test_trace_memory.py -q` -> 80 passed.
+  - `uv run --python 3.11 --extra dev pytest tests/test_fs_memory.py tests/test_workspace_lock.py tests/test_identifiers.py -q` -> 181 passed.
+  - `uv run --python 3.11 --extra dev pytest -q` -> 393 passed.
+
+Next action: generate patch artifacts, commit/push Subtask 3.10, then request external review.

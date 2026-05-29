@@ -671,3 +671,29 @@ Review conclusion:
 
 Validation conclusion:
 - Subtask 3.9 is validated on the target Linux environment. Phase 03 can proceed to Subtask 3.10 or the next milestone.
+
+## Subtask 3.10 - trace clean plan self-review
+
+Checklist:
+- [x] `compute_clean_plan()` is read-only: it reads checkpoint, trace, and lock holder state without acquiring the workspace lock or mutating files.
+- [x] `CleanPlan` is pure data and exposes `is_dry_run_safe`, `can_execute`, and `can_execute_with_force_inactive_only`.
+- [x] Protected sessions combine checkpoint session ids and active lock holder session ids.
+- [x] Protected line ranges reuse `inspect_trace_session_spans()` and merge overlapping/adjacent conservative spans.
+- [x] Post-checkpoint protection keeps all events after `checkpoint.trace_line_count`.
+- [x] Workspace lock inspection distinguishes `free`, `held_by_self`, and `held_by_other` from holder metadata and process identity.
+- [x] Removable byte ranges are generated from validated trace events plus raw line byte lengths.
+- [x] This subtask does not implement `execute_clean_plan`, CLI commands, lock acquisition, or physical trace rewrite.
+
+Notes:
+- If a checkpoint claims more lines than the validated trace contains, the plan records a refusal reason instead of allowing execution.
+- Empty trace files and missing checkpoints return a valid empty plan.
+- Existing deferred items remain outside scope: dry-run checkpoint persistence and process-event kind whitelisting.
+
+Validation:
+- `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py -q` -> 14 passed.
+- `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py tests/test_trace_session.py tests/test_trace_memory.py -q` -> 80 passed.
+- `uv run --python 3.11 --extra dev pytest tests/test_fs_memory.py tests/test_workspace_lock.py tests/test_identifiers.py -q` -> 181 passed.
+- `uv run --python 3.11 --extra dev pytest -q` -> 393 passed.
+
+Next action:
+- Commit/push Subtask 3.10, then request external review.

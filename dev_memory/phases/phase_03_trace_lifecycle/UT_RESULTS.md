@@ -535,3 +535,30 @@
 - identifiers_result: 22 passed, 0 failed
 - linux_fcntl_command: `uv run --python 3.11 --extra dev pytest tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter -v`
 - linux_fcntl_result: 1 passed, 0 failed
+
+## Subtask 3.10 - trace clean plan computation
+
+- timestamp_utc: 2026-05-29T08:31:42Z
+- environment:
+  - os: Ubuntu/Linux
+  - python: 3.11.15
+  - runner: `uv-managed venv + pytest`
+- requirements:
+  - REQUIREMENTS.md section 3.3.4
+  - REQUIREMENTS.md section 4.13
+  - REQUIREMENTS.md section 4.14.7a
+  - REQUIREMENTS.md section 4.15
+- targeted_command: `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py -q`
+- targeted_result: 14 passed, 0 failed
+- trace_regression_command: `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py tests/test_trace_session.py tests/test_trace_memory.py -q`
+- trace_regression_result: 80 passed, 0 failed
+- lock_checkpoint_regression_command: `uv run --python 3.11 --extra dev pytest tests/test_fs_memory.py tests/test_workspace_lock.py tests/test_identifiers.py -q`
+- lock_checkpoint_regression_result: 181 passed, 0 failed
+- full_command: `uv run --python 3.11 --extra dev pytest -q`
+- full_result: 393 passed, 0 failed
+- new_coverage:
+  - CleanPlan and compute_clean_plan() are read-only and separate planning from execution.
+  - Session span, post-checkpoint boundary, workspace lock, and time cutoff protection layers are tested independently and in combination.
+  - Lock states free, held_by_self, and held_by_other drive can_execute and can_execute_with_force_inactive_only correctly.
+  - Byte ranges round-trip by skipping removable ranges and reloading the rewritten trace as valid JSONL.
+  - Non-contiguous session spans inherit the conservative first-to-last protection from Subtask 3.9.

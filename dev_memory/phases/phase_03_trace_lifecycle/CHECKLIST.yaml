@@ -494,6 +494,41 @@ subtasks:
       - src/agent/trace.py
       - src/agent/__init__.py
       - tests/test_trace_session.py
+  - id: "3.10"
+    title: "Compute read-only trace clean plans"
+    status: done
+    related_requirements:
+      - REQUIREMENTS.md section 3.3.4
+      - REQUIREMENTS.md section 4.13
+      - REQUIREMENTS.md section 4.14.7a
+      - REQUIREMENTS.md section 4.15
+    ut_required: true
+    ut_passed: true
+    targeted_ut: "14 trace cleanup tests passed, 0 failed"
+    trace_regression_ut: "80 trace cleanup/session/memory tests passed, 0 failed"
+    lock_checkpoint_regression_ut: "181 fs_memory/workspace_lock/identifier tests passed, 0 failed"
+    full_ut: "393 passed, 0 failed"
+    self_review_required: true
+    self_reviewed: true
+    patch_required: true
+    patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/13_trace_clean_plan.patch
+    patch_generated: true
+    commit_required: true
+    commit_pending: true
+    implementation_summary:
+      - "CleanPlan is pure data and compute_clean_plan() performs only read-only IO."
+      - "Planner protects checkpoint/active session spans, post-checkpoint lines, held-by-other lock state, and recent events."
+      - "Planner exposes normal and force-clean-inactive-only execution predicates for Subtask 3.11."
+      - "Tests cover each protection layer, intersections, time cutoff, lock states, empty traces, conservative non-contiguous sessions, and byte-range rewrite round-trip."
+    deferred_low_priority_followups:
+      - "execute_clean_plan() and agent clean trace CLI belong to Subtask 3.11."
+      - "dry_run checkpoint persistence remains future workflow scope."
+      - "process_event kind whitelist remains future process workflow scope."
+    files_created:
+      - src/agent/trace_cleanup.py
+      - tests/test_trace_cleanup.py
+    files_modified:
+      - src/agent/__init__.py
 
 phase_exit_criteria:
   - "Trace events are append-only JSONL with strict common fields and flexible event-specific payloads."

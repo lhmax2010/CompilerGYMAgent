@@ -141,6 +141,13 @@ from .trace import (
     inspect_trace_checkpoint_alignment,
     inspect_trace_session_spans,
 )
+from .trace_cleanup import (
+    ByteRange,
+    CleanPlan,
+    LineRange,
+    TraceCleanupError,
+    compute_clean_plan,
+)
 from .workspace_lock import (
     LockReadResult,
     WorkspaceBusyError,
@@ -154,6 +161,7 @@ from .workspace_lock import (
 __all__ = [
     "AgentConfig",
     "AtomicWriteError",
+    "ByteRange",
     "CanaryRecord",
     "CheckpointBest",
     "CheckpointCurrentTrial",
@@ -161,6 +169,7 @@ __all__ = [
     "CheckpointLoadError",
     "CheckpointProcess",
     "CheckpointState",
+    "CleanPlan",
     "ConfigLoadError",
     "DiscoveredTrialRecord",
     "Experience",
@@ -193,6 +202,7 @@ __all__ = [
     "LearnedRuleLoadError",
     "LearnedRuleScope",
     "LockReadResult",
+    "LineRange",
     "ModulesRegistry",
     "NamespaceMismatchError",
     "NamespaceLayout",
@@ -205,6 +215,7 @@ __all__ = [
     "TraceCheckpointAlignment",
     "TraceCheckpointResult",
     "TraceCheckpointWriter",
+    "TraceCleanupError",
     "TraceError",
     "TraceEvent",
     "TraceLoadError",
@@ -239,6 +250,7 @@ __all__ = [
     "collect_history_summary",
     "collect_trial_startup_validation_inputs",
     "compute_combo_hash",
+    "compute_clean_plan",
     "compute_experience_local_payload_hash",
     "compute_learned_rule_payload_hash",
     "compute_payload_hash",
