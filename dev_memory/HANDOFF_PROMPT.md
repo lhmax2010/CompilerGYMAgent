@@ -11,7 +11,9 @@ Repository:
 - Expected current HEAD after `git pull`: latest `origin/main`; it should include the Subtask 3.9 sync commit below and may include this handoff dev_memory commit.
 - Important code baseline: 09d4a0d
 - Expected recent history:
+  - a `phase_03_trace_lifecycle: record 3.9 ubuntu validation` commit may appear at the top
   - a `dev_memory: add/update handoff prompt` commit may appear at the top
+  - f4f056f phase_03_trace_lifecycle: record 3.9 external review
   - 09d4a0d phase_03_trace_lifecycle: record 3.9 sync
   - ab22147 phase_03_trace_lifecycle: 3.9 trace session spans
   - d51ff49 phase_03_trace_lifecycle: record 3.8 ubuntu validation
@@ -30,7 +32,7 @@ Current status:
 - Phase 01 and Phase 02 are complete and validated.
 - Phase 03 trace lifecycle is in progress.
 - Subtasks 3.1 through 3.8 are implemented, externally reviewed, and Ubuntu-validated.
-- Subtask 3.9 is implemented, synced, and externally reviewed. It still needs Ubuntu validation.
+- Subtask 3.9 is implemented, synced, externally reviewed, and Ubuntu-validated.
 - Worktree should be clean and `main` should be aligned with `origin/main`.
 
 Subtask 3.9 review package:
@@ -78,18 +80,18 @@ Subtask 3.9 external review:
 - Tests: 379 passed, 0 failed on Linux
 - Review confirmed physical session spans, conservative non-contiguous merging, invalid session_id fail-fast, and section 4.14.7a layer-one coverage.
 
+Subtask 3.9 Ubuntu validation:
+- Environment: Ubuntu/Linux, Python 3.11.15, uv-managed venv + pytest
+- `uv run --python 3.11 --extra dev pytest -q` -> 379 passed
+- `uv run --python 3.11 --extra dev pytest tests/test_trace_session.py -v` -> 44 passed
+- `uv run --python 3.11 --extra dev pytest tests/test_trace_memory.py -q` -> 22 passed
+- `uv run --python 3.11 --extra dev pytest tests/test_fs_memory.py -q` -> 130 passed
+- `uv run --python 3.11 --extra dev pytest tests/test_identifiers.py -v` -> 22 passed
+- `uv run --python 3.11 --extra dev pytest tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter -v` -> 1 passed
+
 Next required steps:
-1. Run or request Ubuntu validation. Expected Ubuntu commands:
-   - `pytest -q` -> expected `379 passed`
-   - `pytest tests/test_trace_session.py -v` -> expected `44 passed`
-   - `pytest tests/test_trace_memory.py -q` -> expected `22 passed`
-   - `pytest tests/test_fs_memory.py -q` -> expected `130 passed`
-   - `pytest tests/test_identifiers.py -v` -> expected `22 passed`
-   - `pytest tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter -v` -> expected `1 passed`
-2. When Ubuntu validation is returned:
-   - Record it in dev_memory
-   - Commit and push a `record 3.9 ubuntu validation` commit
-3. Only then proceed to Subtask 3.10 or the next milestone.
+1. Proceed to Subtask 3.10 or the next milestone.
+2. Keep trace append/resume hot paths O(1); any new scans should remain in doctor/status/clean planning paths.
 
 Important design constraints and deferred items:
 - Do not implement `agent clean trace` inside Subtask 3.9. 3.9 only added the read-only span primitive required by future clean planning.

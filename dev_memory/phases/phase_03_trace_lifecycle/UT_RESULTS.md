@@ -515,3 +515,23 @@
   - Events without session_id are ignored for bootstrap/legacy compatibility.
   - Non-contiguous chunks for one session collapse to a conservative first-to-last protected span.
   - Invalid trace session_id values are rejected through the shared identifier validator.
+
+## Subtask 3.9 - Ubuntu validation
+
+- timestamp_utc: 2026-05-29T05:45:52Z
+- environment:
+  - os: Ubuntu/Linux
+  - python: 3.11.15
+  - runner: `uv-managed venv + pytest`
+- full_command: `uv run --python 3.11 --extra dev pytest -q`
+- full_result: 379 passed, 0 failed
+- trace_session_command: `uv run --python 3.11 --extra dev pytest tests/test_trace_session.py -v`
+- trace_session_result: 44 passed, 0 failed
+- trace_memory_command: `uv run --python 3.11 --extra dev pytest tests/test_trace_memory.py -q`
+- trace_memory_result: 22 passed, 0 failed
+- fs_memory_command: `uv run --python 3.11 --extra dev pytest tests/test_fs_memory.py -q`
+- fs_memory_result: 130 passed, 0 failed
+- identifiers_command: `uv run --python 3.11 --extra dev pytest tests/test_identifiers.py -v`
+- identifiers_result: 22 passed, 0 failed
+- linux_fcntl_command: `uv run --python 3.11 --extra dev pytest tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter -v`
+- linux_fcntl_result: 1 passed, 0 failed

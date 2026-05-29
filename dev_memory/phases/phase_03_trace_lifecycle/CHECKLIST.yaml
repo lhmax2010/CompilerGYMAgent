@@ -476,6 +476,17 @@ subtasks:
     external_reviewed_at: 2026-05-29T03:59:07Z
     external_review_tests: "379 passed, 0 failed"
     external_review_notes: "Claude approved after verifying physical line spans, conservative non-contiguous session merging, invalid session_id fail-fast, and clean trace section 4.14.7a layer-one coverage."
+    target_environment_validation:
+      os: Ubuntu/Linux
+      python: 3.11.15
+      full_pytest: "379 passed"
+      targeted_pytest:
+        trace_session: "44 passed"
+        trace_memory: "22 passed"
+        fs_memory: "130 passed"
+        identifiers: "22 passed"
+        linux_fcntl: "1 passed"
+      runner: "uv-managed venv + pytest"
     deferred_low_priority_followups:
       - "dry_run checkpoint persistence remains future workflow scope."
       - "process_event kind whitelist remains future process workflow scope."

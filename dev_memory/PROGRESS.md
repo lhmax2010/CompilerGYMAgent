@@ -1314,3 +1314,15 @@ Next action: push sync commit, then request external review and Ubuntu validatio
   - Missing or `None` session ids are ignored for legacy/bootstrap compatibility; invalid non-null session ids fail fast through shared validation.
 
 Next action: run Ubuntu validation for Subtask 3.9 and record target-environment results.
+
+## 2026-05-29T05:45:52Z - Phase 03 / Subtask 3.9 Ubuntu validation completed
+
+- Environment: Ubuntu/Linux, Python 3.11.15, uv-managed venv + pytest.
+- Full suite: `uv run --python 3.11 --extra dev pytest -q` -> 379 passed.
+- Trace session targeted suite: `uv run --python 3.11 --extra dev pytest tests/test_trace_session.py -v` -> 44 passed.
+- Trace memory regression suite: `uv run --python 3.11 --extra dev pytest tests/test_trace_memory.py -q` -> 22 passed.
+- Checkpoint/fs-memory regression suite: `uv run --python 3.11 --extra dev pytest tests/test_fs_memory.py -q` -> 130 passed.
+- Identifier regression suite: `uv run --python 3.11 --extra dev pytest tests/test_identifiers.py -v` -> 22 passed.
+- Linux fcntl regression: `uv run --python 3.11 --extra dev pytest tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter -v` -> 1 passed.
+
+Next action: proceed to Subtask 3.10 or the next milestone.
