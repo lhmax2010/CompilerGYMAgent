@@ -627,3 +627,27 @@ Validation:
 
 Next action:
 - Commit/push Subtask 3.9, then request external review and Ubuntu validation.
+
+## Subtask 3.9 - external review
+
+- timestamp_utc: 2026-05-29T03:59:07Z
+- reviewer: Claude
+- verdict: Approve
+- range: `d51ff49..09d4a0d`
+- implementation: `ab22147`
+- sync: `09d4a0d`
+- tests: 379 passed, 0 failed on Linux
+
+Review highlights:
+- `inspect_trace_session_spans()` supplies section 4.14.7a clean trace layer-one session-boundary data.
+- The helper uses physical line numbers from `enumerate(..., start=1)`, which is appropriate for future physical trace trimming and robust against logical `trace_id` skew.
+- Non-contiguous sessions are conservatively merged from first to last line so future cleanup cannot accidentally under-preserve an active session.
+- Missing or `None` session ids are ignored for compatibility, while invalid non-null session ids fail through the shared validator.
+- The helper is read-only and does not mutate trace or checkpoint state.
+
+Deferred items:
+- dry_run checkpoint persistence remains future workflow scope.
+- process_event kind whitelist remains future process workflow scope.
+
+Review conclusion:
+- Subtask 3.9 is approved and ready for Ubuntu validation.

@@ -1298,3 +1298,19 @@ Next action: generate patch artifacts, commit/push Subtask 3.9, then request ext
 - dev_memory now records the 3.9 implementation hash and next action.
 
 Next action: push sync commit, then request external review and Ubuntu validation for Subtask 3.9.
+
+## 2026-05-29T03:59:07Z - Phase 03 / Subtask 3.9 external review completed
+
+- Reviewer: Claude.
+- Verdict: Approve.
+- Range: `d51ff49..09d4a0d`.
+- Implementation: `ab22147`.
+- Sync: `09d4a0d`.
+- Tests: 379 passed, 0 failed on Linux; Linux real fcntl path passed.
+- Review highlights:
+  - `TraceSessionSpan` provides the section 4.14.7a layer-one data needed by future clean trace protection: `session_id` to physical line range.
+  - Physical line numbers are robust for future physical trace trimming and are not affected by logical `trace_id` skew.
+  - Non-contiguous events for one session intentionally collapse into a conservative first-to-last span, preferring over-preservation to accidental active-session trimming.
+  - Missing or `None` session ids are ignored for legacy/bootstrap compatibility; invalid non-null session ids fail fast through shared validation.
+
+Next action: run Ubuntu validation for Subtask 3.9 and record target-environment results.

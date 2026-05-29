@@ -30,7 +30,7 @@ Current status:
 - Phase 01 and Phase 02 are complete and validated.
 - Phase 03 trace lifecycle is in progress.
 - Subtasks 3.1 through 3.8 are implemented, externally reviewed, and Ubuntu-validated.
-- Subtask 3.9 is implemented and synced, but still needs external review and Ubuntu validation.
+- Subtask 3.9 is implemented, synced, and externally reviewed. It still needs Ubuntu validation.
 - Worktree should be clean and `main` should be aligned with `origin/main`.
 
 Subtask 3.9 review package:
@@ -72,29 +72,24 @@ Local Windows validation already recorded for 3.9:
 - `.venv\Scripts\python.exe -m pytest -q` -> 378 passed, 1 skipped
 - The skipped test is the Linux-only real fcntl workspace lock test.
 
+Subtask 3.9 external review:
+- Reviewer: Claude
+- Verdict: Approve
+- Tests: 379 passed, 0 failed on Linux
+- Review confirmed physical session spans, conservative non-contiguous merging, invalid session_id fail-fast, and section 4.14.7a layer-one coverage.
+
 Next required steps:
-1. Request external review for Subtask 3.9 using:
-   - Range `d51ff49..09d4a0d`
-   - Implementation commit `ab22147`
-   - Sync commit `09d4a0d`
-   - Requirements sections `3.3.4`, `4.13`, `4.14.7a`
-   - Local Windows tests listed above
-2. When the external review result is returned:
-   - Record it in `dev_memory/PROGRESS.md`
-   - Update `dev_memory/CURRENT_PHASE.yaml`
-   - Update `dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md`
-   - Commit and push a `record 3.9 external review` commit
-3. Run or request Ubuntu validation. Expected Ubuntu commands:
+1. Run or request Ubuntu validation. Expected Ubuntu commands:
    - `pytest -q` -> expected `379 passed`
    - `pytest tests/test_trace_session.py -v` -> expected `44 passed`
    - `pytest tests/test_trace_memory.py -q` -> expected `22 passed`
    - `pytest tests/test_fs_memory.py -q` -> expected `130 passed`
    - `pytest tests/test_identifiers.py -v` -> expected `22 passed`
    - `pytest tests/test_workspace_lock.py::test_real_fcntl_release_keeps_path_locked_for_preopened_waiter -v` -> expected `1 passed`
-4. When Ubuntu validation is returned:
+2. When Ubuntu validation is returned:
    - Record it in dev_memory
    - Commit and push a `record 3.9 ubuntu validation` commit
-5. Only then proceed to Subtask 3.10 or the next milestone.
+3. Only then proceed to Subtask 3.10 or the next milestone.
 
 Important design constraints and deferred items:
 - Do not implement `agent clean trace` inside Subtask 3.9. 3.9 only added the read-only span primitive required by future clean planning.

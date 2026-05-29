@@ -472,6 +472,10 @@ subtasks:
       - "Added TraceSessionSpan and inspect_trace_session_spans() for future clean/status/doctor callers."
       - "Session spans are conservative: non-contiguous events for one session collapse into first-to-last line range."
       - "Events without session_id are ignored; invalid session_id values fail through the shared validator."
+    external_review_verdict: approve
+    external_reviewed_at: 2026-05-29T03:59:07Z
+    external_review_tests: "379 passed, 0 failed"
+    external_review_notes: "Claude approved after verifying physical line spans, conservative non-contiguous session merging, invalid session_id fail-fast, and clean trace section 4.14.7a layer-one coverage."
     deferred_low_priority_followups:
       - "dry_run checkpoint persistence remains future workflow scope."
       - "process_event kind whitelist remains future process workflow scope."

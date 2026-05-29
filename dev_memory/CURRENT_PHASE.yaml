@@ -480,6 +480,10 @@ subtasks:
       - "Added inspect_trace_session_spans() to scan validated trace events for session boundaries used by future clean/status/doctor paths."
       - "Ignored legacy or bootstrap events that have no session_id, and rejected invalid session_id values when present."
       - "Exported the new read-only span helper through agent.__init__."
+    external_review_verdict: approve
+    external_reviewed_at: 2026-05-29T03:59:07Z
+    external_review_tests: "379 passed, 0 failed"
+    external_review_notes: "Claude approved after verifying physical line spans, conservative non-contiguous session merging, invalid session_id fail-fast, and clean trace section 4.14.7a layer-one coverage."
     deferred_low_priority_followups:
       - "Persist dry_run session state in checkpoint when dry-run resume becomes workflow-owned."
       - "Keep process_event kind open until the process owning module defines concrete event kinds."
@@ -489,4 +493,4 @@ notes: |
   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
   trace storage primitive before wiring lifecycle stages, rejected candidates,
   dry-run injection, or process/user-action event producers.
-next_action: "Request external review for Subtask 3.9, then run Ubuntu validation."
+next_action: "Run Ubuntu validation for Subtask 3.9, then record target-environment results."

@@ -42,6 +42,7 @@ Completed:
 - Subtask 3.8 was validated on Ubuntu/Linux with Python 3.11.15: full pytest passed 376/376, trace session passed 41/41, trace memory passed 22/22, fs_memory passed 130/130, identifiers passed 22/22, and the real fcntl test passed.
 - Subtask 3.9 added `TraceSessionSpan` and `inspect_trace_session_spans()` so future clean/status/doctor code can inspect conservative per-session line ranges in validated `trace/events.jsonl`.
 - Subtask 3.9 keeps the helper read-only and non-hot-path: it ignores events without `session_id`, rejects invalid session ids, and collapses non-contiguous chunks from the same session into a first-to-last protected span.
+- Subtask 3.9 external review approved the physical-line span model and confirmed it supplies section 4.14.7a clean trace layer-one session-boundary data.
 
 Remaining:
-- Request external review for Subtask 3.9, then run Ubuntu validation.
+- Run Ubuntu validation for Subtask 3.9, then record target-environment results.
