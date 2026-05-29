@@ -1387,3 +1387,19 @@ Next action: generate review-fix patch artifacts, commit/push, then request revi
 - dev_memory now records the 3.10 review-fix hash and next action.
 
 Next action: push sync commit, then request review-fix validation for Subtask 3.10.
+
+## 2026-05-29T09:36:02Z - Phase 03 / Subtask 3.10 review-fix validation completed
+
+- Reviewer: Claude.
+- Verdict: Approve.
+- Range: `35690d0..96be8d4`.
+- Fix commit: `a8bdf84`; sync: `96be8d4`.
+- Tests: 396 passed, 0 failed on Linux.
+- Validation highlights:
+  - Legacy checkpoint refusal now blocks both normal and force-inactive-only execution.
+  - Planner remains read-only and does not auto-reconcile or write checkpoint state.
+  - Diagnostic removable ranges/counts remain visible while execution is refused.
+  - Combined refusal reasons are preserved.
+  - Healthy checkpoint and no-checkpoint paths have no regression.
+
+Next action: proceed to Subtask 3.11 execute/CLI trace cleanup.

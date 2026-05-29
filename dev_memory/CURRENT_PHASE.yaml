@@ -545,6 +545,10 @@ subtasks:
     review_fix_targeted_ut: "17 trace cleanup tests passed, 0 failed"
     review_fix_trace_regression_ut: "83 trace cleanup/session/memory tests passed, 0 failed"
     review_fix_full_ut: "396 passed, 0 failed"
+    review_fix_external_verdict: approve
+    review_fix_external_reviewed_at: 2026-05-29T09:36:02Z
+    review_fix_external_tests: "396 passed, 0 failed on Linux"
+    review_fix_external_notes: "Reviewer verified legacy checkpoint refusal blocks both normal and force execution, combines with other refusal reasons, preserves read-only planning, and has no healthy-checkpoint/no-checkpoint regressions."
     deferred_low_priority_followups:
       - "Implement execute_clean_plan() and CLI wiring in Subtask 3.11."
       - "Persist dry_run session state in checkpoint when dry-run resume becomes workflow-owned."
@@ -555,4 +559,4 @@ notes: |
   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
   trace storage primitive before wiring lifecycle stages, rejected candidates,
   dry-run injection, or process/user-action event producers.
-next_action: "Request review-fix validation for Subtask 3.10, then run Ubuntu validation if needed."
+next_action: "Proceed to Subtask 3.11 execute/CLI trace cleanup."

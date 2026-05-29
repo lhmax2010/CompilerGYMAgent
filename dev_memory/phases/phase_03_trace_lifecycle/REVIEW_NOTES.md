@@ -736,3 +736,24 @@ Validation:
 
 Next action:
 - Request review-fix validation for Subtask 3.10, then run Ubuntu validation if needed.
+
+## Subtask 3.10 - review-fix validation
+
+- timestamp_utc: 2026-05-29T09:36:02Z
+- reviewer: Claude
+- verdict: Approve
+- range: `35690d0..96be8d4`
+- fix: `a8bdf84`
+- sync: `96be8d4`
+- tests: 396 passed, 0 failed on Linux
+
+Validation highlights:
+- Legacy checkpoints with `trace_line_count=None` now set `refusal_reason`.
+- Legacy checkpoint plans block both `can_execute` and `can_execute_with_force_inactive_only`.
+- Planner remains read-only and does not auto-reconcile or write checkpoint state.
+- Diagnostic removable counts/ranges remain visible even when execution is refused.
+- `_combine_refusal` preserves multiple refusal reasons, including legacy checkpoint plus held-by-other lock.
+- Healthy checkpoints and no-checkpoint traces have no regression.
+
+Review conclusion:
+- Subtask 3.10 review fixes are approved. Phase 03 can proceed to Subtask 3.11 execute/CLI trace cleanup.

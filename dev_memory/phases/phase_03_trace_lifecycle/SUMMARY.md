@@ -49,6 +49,7 @@ Completed:
 - Subtask 3.10 passed Ubuntu/Linux validation with Python 3.11.15: trace-cleanup targeted tests passed 14/14 and full pytest passed 393/393.
 - Subtask 3.10 external review approved with minor changes after finding that legacy checkpoints missing `trace_line_count` silently disabled layer-two protection.
 - Subtask 3.10 review fixes now refuse executable plans for legacy checkpoints until reconciliation supplies `trace_line_count`, and added regression tests for legacy refusal, malformed lock metadata, and trace byte-scan TOCTOU detection.
+- Subtask 3.10 review-fix validation approved the M-1 fix: legacy checkpoints now block both normal and force execution while preserving read-only diagnostics.
 
 Remaining:
-- Request review-fix validation for Subtask 3.10, then run Ubuntu validation if needed.
+- Proceed to Subtask 3.11 execute/CLI trace cleanup.

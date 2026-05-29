@@ -536,6 +536,10 @@ subtasks:
     review_fix_targeted_ut: "17 trace cleanup tests passed, 0 failed"
     review_fix_trace_regression_ut: "83 trace cleanup/session/memory tests passed, 0 failed"
     review_fix_full_ut: "396 passed, 0 failed"
+    review_fix_external_verdict: approve
+    review_fix_external_reviewed_at: 2026-05-29T09:36:02Z
+    review_fix_external_tests: "396 passed, 0 failed on Linux"
+    review_fix_external_notes: "Reviewer confirmed M-1 is closed: legacy checkpoint plans refuse normal and force execution while preserving diagnostics and read-only behavior."
     deferred_low_priority_followups:
       - "execute_clean_plan() and agent clean trace CLI belong to Subtask 3.11."
       - "dry_run checkpoint persistence remains future workflow scope."
