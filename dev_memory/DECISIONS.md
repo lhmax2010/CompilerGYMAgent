@@ -612,3 +612,67 @@ Decision records must include:
   - Disable backups by default, which would make early cleanup commands unnecessarily risky despite the documented trash mechanism.
   - Require `agent clean trace` to execute by default, which would violate the section 4.14.7a dry-run safety requirement.
   - Always acquire a second workspace lock for held-by-self force cleanup, which fails on Linux `flock` when the same process already owns the lock through another file descriptor.
+
+## 2026-05-29T11:50:44Z - FS assumption: Linux local POSIX only
+
+- affected_requirement:
+  - REQUIREMENTS.md section 1
+  - REQUIREMENTS.md section 4.7.5
+  - REQUIREMENTS.md section 4.15
+- decision: Treat v1 filesystem and process semantics as Linux local POSIX only. Atomic rename, parent-directory fsync, `fcntl.flock`, process groups, and psutil process/env inspection are required assumptions for correctness.
+- rationale: The implementation and safety model rely on POSIX behavior that is not portable to Windows and can be weakened on unusual remote/network filesystems. Making this explicit keeps Phase 04+ designs from adding false portability guarantees while the project is still building the v1 local agent.
+- alternatives_considered:
+  - Promise cross-platform support now, which would force alternate locking, process, and fsync implementations before the core workflow is complete.
+  - Silently rely on Linux behavior without documenting the assumption, which would make future failures on non-POSIX filesystems look like ordinary bugs instead of unsupported environments.
+  - Try to detect every filesystem edge case dynamically, which is better suited to a later hardening phase than to the v1 local-only contract.
+
+## 2026-05-29T11:50:44Z - quota+constraint underfill fallback
+
+- affected_requirement:
+  - REQUIREMENTS.md section 4.6.2
+  - REQUIREMENTS.md section 4.10
+- decision: If the constraint layer filters candidate pools below the schedule quota for a slot, the scheduler may fill remaining slots by generator priority from still-valid candidates; if no valid candidates remain, it records an idle slot and emits a trace event explaining the underfill.
+- rationale: Hard quota accounting must not force invalid or duplicate candidates through the constraint layer. A deterministic fallback keeps progress possible when constraints are strict, while explicit idle trace events make under-exploration visible to doctor/report tooling.
+- alternatives_considered:
+  - Treat quota underfill as a hard error, which would make normal sparse candidate spaces halt the run.
+  - Ignore quotas after constraint filtering, which would hide systematic schedule drift and make tuning behavior hard to explain.
+  - Relax constraints automatically, which could violate learned hard rules or KG constraints without an auditable decision.
+
+## 2026-05-29T11:50:44Z - process_cleanup vs workspace_lock ownership
+
+- affected_requirement:
+  - REQUIREMENTS.md section 3.3.5
+  - REQUIREMENTS.md section 4.11.4
+  - REQUIREMENTS.md section 4.15
+- decision: Process cleanup treats `checkpoint.process` as the primary source for stale child process identity. Workspace lock ownership is useful for current writer serialization, but it may have been replaced by a newer session and must not override checkpoint process evidence during cleanup.
+- rationale: After a crash or restart, the lock file can be absent, stale, or held by a newer agent session, while checkpoint process fields still describe the child process group that needs cleanup. Prioritizing checkpoint.process avoids leaking compiler/benchmark processes just because lock ownership changed.
+- alternatives_considered:
+  - Use the workspace lock holder as the cleanup source of truth, which misses crashed-session children after a new session acquires the lock.
+  - Kill processes based only on PID, which is unsafe without create_time, pgid, cmdline hash, and env marker validation.
+  - Require manual cleanup whenever lock and checkpoint disagree, which would make resume too fragile for common crash windows.
+
+## 2026-05-29T11:50:44Z - trace_line_count semantics after manual edit
+
+- affected_requirement:
+  - REQUIREMENTS.md section 3.3.4
+  - REQUIREMENTS.md section 4.11.3
+  - REQUIREMENTS.md section 4.13
+- decision: If a user manually edits `trace/events.jsonl`, they must run `agent doctor trace` to reconcile checkpoint trace counters before resume or clean operations proceed. Reconciliation must report mismatches with explicit repair instructions instead of silently trusting stale `checkpoint.trace_line_count`.
+- rationale: `trace_line_count` is an index into a user-editable canonical file. Manual edits can invalidate the checkpoint boundary used by resume and clean trace protection, so the system should force a visible doctor/reconcile step rather than guessing whether to move counters forward or backward.
+- alternatives_considered:
+  - Automatically rewrite checkpoint counters during normal resume, which would hide user edits and make recovery side effects surprising.
+  - Always trust checkpoint counters after manual trace edits, which can mislabel line references or disable post-checkpoint clean protection.
+  - Reject all manually edited traces permanently, which conflicts with the user-readable SoT principle.
+
+## 2026-05-29T11:50:44Z - v1 active writer + clean trace exclusion
+
+- affected_requirement:
+  - REQUIREMENTS.md section 3.3.4
+  - REQUIREMENTS.md section 4.13
+  - REQUIREMENTS.md section 4.14.7a
+- decision: In v1, `agent clean trace` must not run while the same process owns an active `TraceSessionWriter`. If a writer appends after the trace file was truncated or rewritten, it should raise `TraceWriteError` loudly instead of silently resetting `next_line_number`. Automatic writer counter recovery is deferred to v1.5.
+- rationale: Clean trace physically rewrites `events.jsonl`, while `TraceSessionWriter` holds an in-memory next-line counter. Mixing an active writer and cleanup in the same process risks stale line labels. A loud failure preserves trace integrity and keeps v1 simple; future v1.5 work can add explicit writer reset semantics once the full workflow owns active-writer lifecycle.
+- alternatives_considered:
+  - Automatically reset writer counters after clean trace in v1, which adds hidden mutable coordination between cleanup and writer state.
+  - Allow active writers during clean trace and rely on byte refs only, which would leave misleading line refs in later trace events.
+  - Forbid clean trace completely while any lock is held, which would remove the dev-mode force-clean-inactive-only use case already exposed by `CleanPlan`.

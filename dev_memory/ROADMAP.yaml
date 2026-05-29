@@ -21,12 +21,12 @@ cadence_assumption:
 # Overall sizing (calibrated)
 # ============================================================
 sizing:
-  v1_minimal_phases: ["04","05","06","07","08","09","10","11","12","13"]
+  v1_minimal_phases: ["04","05","06","08","7.0","07","09","10","11","12","13"]
   v1_minimal_estimate_subtasks: { low: 85, high: 130 }
   v1_minimal_estimate_workdays_at_current_pace: { low: 65, high: 100 }
   v1_minimal_estimate_weeks: { low: 13, high: 20 }
 
-  v1_full_phases: ["04","05","06","07","08","9.0","9.1","09","10","11","12","13","14","15a","15b","16"]
+  v1_full_phases: ["04","05","06","08","7.0","07","9.0","9.1","09","10","11","12","13","14","15a","15b","16"]
   v1_full_estimate_subtasks: { low: 110, high: 170 }
   v1_full_estimate_workdays_at_current_pace: { low: 85, high: 130 }
   v1_full_estimate_weeks: { low: 17, high: 26 }
@@ -81,19 +81,25 @@ planned_phases:
     goals:
       - "workspace_snapshot/verify, spec_backup/injector/restore skills"
       - "Replace 3.11's placeholder `agent = clean_trace:main` with proper subcommand dispatcher"
+      - "Introduce unified AgentError + exit_code framework"
+      - "Migrate WorkspaceLock holder writes to atomic_write_yaml"
       - "Establish test infrastructure: fake-workspace fixture"
     deliverables:
+      - "src/agent/errors.py (AgentError + exit_code framework)"
       - "src/agent/skills/workspace_snapshot.py"
       - "src/agent/skills/workspace_verify.py"
       - "src/agent/skills/spec_backup.py"
       - "src/agent/skills/spec_injector.py"
       - "src/agent/skills/spec_restore.py"
       - "src/agent/cli/__main__.py (unified dispatcher)"
+      - "Migrate WorkspaceLock._write_holder to atomic_write_yaml"
       - "tests/fixtures/fake_workspace.py"
     exit_criteria:
       - "5 skills round-trip in unit tests"
       - "`agent clean trace` / `agent doctor trace` still work after CLI reorganization"
       - "spec hash verify catches one-byte mutation"
+      - "CLI catches AgentError uniformly and returns each error's exit_code"
+      - "WorkspaceLock holder crash probe leaves complete old or complete new YAML"
     validation_plan: ["full pytest on Linux", "Ubuntu fcntl regression"]
 
   - id: "06"
@@ -108,11 +114,15 @@ planned_phases:
     goals:
       - "process_runner: independent process group + cmdline_hash + AGENT_SESSION_ID env marker"
       - "process_cleaner: stale process detection via psutil + multi-signal validation"
+      - "Shared ProcessIdentity model for checkpoint/process/trace/doctor surfaces"
+      - "State consistency validator for doctor/resume preflight"
       - "process_lab pytest fixture (controlled Python subprocess scripts, NOT raw fork)"
       - "Linux integration tests (start_new_session, killpg, timeout)"
     deliverables:
+      - "src/agent/process_identity.py"
       - "src/agent/skills/process_runner.py"
       - "src/agent/skills/process_cleaner.py"
+      - "src/agent/doctor/state_consistency.py"
       - "tests/fixtures/process_lab.py"
       - "tests/integration/test_process_lifecycle.py"
     exit_criteria:
@@ -181,12 +191,30 @@ planned_phases:
       - "Environment hash distinguishes hard-fail from soft-context fields per §4.9"
     validation_plan: ["Synthetic data benchmarks", "Ubuntu fcntl regression"]
 
+  - id: "7.0"
+    title: "Candidate Engine Constraint Solver Spike"
+    status: planned
+    milestone: "M2 (precursor)"
+    requirement_sections: ["4.6.2", "4.10"]
+    dependencies: ["08"]
+    estimate_subtasks: { low: 2, high: 3 }
+    risk: high
+    spike: true
+    goals:
+      - "Validate constraint solver performance over 10^3, 10^4, and 10^5 combo spaces"
+      - "Identify fallback strategy when constraints underfill schedule quotas"
+      - "Measure trace volume and rejected-candidate diagnostics cost"
+    exit_criteria:
+      - "Benchmark report records solver runtime/memory at 10^3, 10^4, and 10^5 combos"
+      - "Fallback decision is captured before Phase 07 implementation"
+    spike_findings_output: "dev_memory/spikes/7.0_candidate_constraint_solver_findings.md"
+
   - id: "07"
     title: "Candidate Engine + Constraint + Schedule"
     status: planned
     milestone: M2
     requirement_sections: ["4.6.1", "4.6.2 (existing trace contract from 3.5)", "4.6.3", "4.10"]
-    dependencies: ["02", "03", "08"]
+    dependencies: ["02", "03", "08", "7.0"]
     can_parallel_with: []
     estimate_subtasks: { low: 10, high: 16 }
     risk: high
@@ -426,8 +454,8 @@ cross_cutting:
 
   error_framework:
     description: "Unified CLI exit codes, error messages with actionable suggestions"
-    should_land_by: "Phase 10"
-    contributors: ["10 (cli/errors.py central)", "all phases that add CLI"]
+    should_land_by: "Phase 04"
+    contributors: ["04 (src/agent/errors.py)", "10 (full CLI semantics)", "all phases that add CLI"]
 
   performance_benchmarks:
     description: "Trace scan, candidate filtering, import tar scan"
