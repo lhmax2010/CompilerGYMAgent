@@ -50,6 +50,12 @@ Completed:
 - Subtask 3.10 external review approved with minor changes after finding that legacy checkpoints missing `trace_line_count` silently disabled layer-two protection.
 - Subtask 3.10 review fixes now refuse executable plans for legacy checkpoints until reconciliation supplies `trace_line_count`, and added regression tests for legacy refusal, malformed lock metadata, and trace byte-scan TOCTOU detection.
 - Subtask 3.10 review-fix validation approved the M-1 fix: legacy checkpoints now block both normal and force execution while preserving read-only diagnostics.
+- Subtask 3.11 added `execute_clean_plan()` and `CleanResult`, physically rewriting `trace/events.jsonl` from precomputed `CleanPlan.removable_byte_ranges`.
+- Subtask 3.11 keeps protection calculation in `compute_clean_plan()`: execution trusts plan predicates, then only validates layout/path, acquires or confirms the workspace lock, and rejects stale plans if trace size or validated line count changed.
+- Subtask 3.11 rewrites trace atomically through a same-directory temporary file, fsyncs the temp file, replaces `events.jsonl`, and fsyncs the parent directory.
+- Subtask 3.11 writes backups by default under `_trash/<UTC timestamp>/events.jsonl`; callers can disable that with `backup=False` / `--no-backup`.
+- Subtask 3.11 added the `agent` console script with `agent clean trace` dry-run by default, `--yes` execution, `--force-clean-inactive-only`, `--no-backup`, and read-only `agent doctor trace`.
+- Subtask 3.11 passed Ubuntu/Linux validation with Python 3.11.15: execute/CLI targeted tests passed 14/14 and full pytest passed 410/410.
 
 Remaining:
-- Proceed to Subtask 3.11 execute/CLI trace cleanup.
+- Request external review for Subtask 3.11 execute/CLI trace cleanup.

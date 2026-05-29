@@ -584,3 +584,37 @@
   - Legacy checkpoints missing trace_line_count produce a refusal_reason and cannot execute.
   - Malformed workspace lock metadata returns a graceful refusal instead of permitting execution.
   - Trace changes between event validation and byte-range scan are detected as a retryable planning error.
+
+## Subtask 3.11 - trace clean execute and CLI
+
+- timestamp_utc: 2026-05-29T09:52:40Z
+- environment:
+  - os: Ubuntu/Linux
+  - python: 3.11.15
+  - runner: `uv-managed venv + pytest`
+- requirements:
+  - REQUIREMENTS.md section 3.3.4
+  - REQUIREMENTS.md section 4.13
+  - REQUIREMENTS.md section 4.14
+  - REQUIREMENTS.md section 4.14.7a
+  - REQUIREMENTS.md section 4.15
+- targeted_command: `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup_execute.py tests/test_cli_clean_trace.py -q`
+- targeted_result: 14 passed, 0 failed
+- trace_cleanup_regression_command: `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py tests/test_trace_cleanup_execute.py tests/test_cli_clean_trace.py -q`
+- trace_cleanup_regression_result: 31 passed, 0 failed
+- trace_lock_regression_command: `uv run --python 3.11 --extra dev pytest tests/test_trace_session.py tests/test_trace_memory.py tests/test_workspace_lock.py -q`
+- trace_lock_regression_result: 95 passed, 0 failed
+- full_command: `uv run --python 3.11 --extra dev pytest -q`
+- full_result: 410 passed, 0 failed
+- cli_help_smoke:
+  - `uv run --python 3.11 agent --help` -> rendered top-level clean/doctor help.
+  - `uv run --python 3.11 agent clean trace --help` -> rendered clean trace options.
+  - `uv run --python 3.11 agent doctor trace --help` -> rendered doctor trace options.
+- new_coverage:
+  - `execute_clean_plan()` refuses non-executable plans before reading trace data or acquiring the lock.
+  - Execution detects stale plans after lock acquisition when trace line count or file size changed.
+  - Real byte-range rewrite leaves valid JSONL and preserves only protected/recent events.
+  - Default backup writes the original trace under `_trash/<timestamp>/events.jsonl`; `backup=False` / `--no-backup` skips it.
+  - Crash probes before and after replace leave either the original trace or complete rewritten trace loadable.
+  - Execution holds or confirms the workspace lock during rewrite, including real held-by-self force cleanup.
+  - CLI dry-run is default, `--yes` executes, `--force-clean-inactive-only` works under a current-process lock, and `doctor trace` is read-only.

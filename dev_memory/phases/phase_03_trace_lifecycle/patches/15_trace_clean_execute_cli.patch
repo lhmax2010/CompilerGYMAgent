@@ -1,0 +1,1402 @@
+diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index e30b9b0..e9344f5 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -1,7 +1,7 @@
+ phase_id: phase_03_trace_lifecycle
+ phase_title: "Trace JSONL canonical event stream"
+ started_at: 2026-05-21T14:06:00Z
+-last_updated: 2026-05-29T09:04:49Z
++last_updated: 2026-05-29T09:52:40Z
+ target_milestone: M1
+ related_requirements:
+   - REQUIREMENTS.md section 3.3
+@@ -553,10 +553,52 @@ subtasks:
+       - "Implement execute_clean_plan() and CLI wiring in Subtask 3.11."
+       - "Persist dry_run session state in checkpoint when dry-run resume becomes workflow-owned."
+       - "Keep process_event kind open until the process owning module defines concrete event kinds."
++  - id: "3.11"
++    title: "Execute trace clean plans and expose clean/doctor CLI"
++    status: done
++    related_requirements:
++      - REQUIREMENTS.md section 3.3.4
++      - REQUIREMENTS.md section 4.13
++      - REQUIREMENTS.md section 4.14
++      - REQUIREMENTS.md section 4.14.7a
++      - REQUIREMENTS.md section 4.15
++    files_created:
++      - src/agent/cli/__init__.py
++      - src/agent/cli/clean_trace.py
++      - tests/test_trace_cleanup_execute.py
++      - tests/test_cli_clean_trace.py
++    files_modified:
++      - pyproject.toml
++      - src/agent/__init__.py
++      - src/agent/trace_cleanup.py
++    ut_required: true
++    ut_passed: true
++    targeted_ut: "14 trace cleanup execute/CLI tests passed, 0 failed"
++    trace_cleanup_regression_ut: "31 trace cleanup/execute/CLI tests passed, 0 failed"
++    trace_lock_regression_ut: "95 trace session/memory/workspace lock tests passed, 0 failed"
++    full_ut: "410 passed, 0 failed"
++    cli_help_smoke: "agent, agent clean trace, and agent doctor trace help all render"
++    self_review_required: true
++    self_reviewed: true
++    patch_required: true
++    patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/15_trace_clean_execute_cli.patch
++    patch_generated: true
++    commit_required: true
++    commit_pending: true
++    implementation_summary:
++      - "Added CleanResult, CleanExecutionRefusedError, StaleCleanPlanError, and execute_clean_plan()."
++      - "Execution trusts CleanPlan predicates, then performs only layout/path validation, workspace-lock acquisition, and stale trace size/line-count checks before rewrite."
++      - "Trace rewrite skips precomputed byte ranges through a same-directory temporary file, fsyncs, atomically replaces events.jsonl, and fsyncs the parent directory."
++      - "Default backup writes a durable copy under _trash/<UTC timestamp>/events.jsonl; --no-backup skips it."
++      - "Added agent clean trace dry-run-by-default CLI, --yes execution, --force-clean-inactive-only, --no-backup, and read-only agent doctor trace rendering."
++      - "Force inactive cleanup works when the current process already owns the workspace lock, while held-by-other locks still refuse execution."
++    deferred_low_priority_followups:
++      - "Persist dry_run session state in checkpoint when dry-run resume becomes workflow-owned."
++      - "Keep process_event kind open until the process owning module defines concrete event kinds."
+ notes: |
+   Phase 03 starts with the canonical `trace/events.jsonl` append-only event
+   stream because REQUIREMENTS.md defines runtime recovery state as
+   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
+   trace storage primitive before wiring lifecycle stages, rejected candidates,
+   dry-run injection, or process/user-action event producers.
+-next_action: "Proceed to Subtask 3.11 execute/CLI trace cleanup."
++next_action: "Commit/push Subtask 3.11, then request external review."
+diff --git a/dev_memory/DECISIONS.md b/dev_memory/DECISIONS.md
+index e6e0737..53eb952 100644
+--- a/dev_memory/DECISIONS.md
++++ b/dev_memory/DECISIONS.md
+@@ -595,3 +595,20 @@ Decision records must include:
+   - Treat missing `trace_line_count` as no checkpoint, which keeps cleanup permissive but can remove events that should have been protected by layer two.
+   - Fall back to the full validated trace length automatically, which avoids deletion but hides the need to reconcile canonical checkpoint state.
+   - Reconcile and write checkpoint state from `compute_clean_plan()`, which would violate the Subtask 3.10 read-only planning boundary.
++
++## 2026-05-29T09:52:40Z - Execute trace cleanup from precomputed byte ranges
++
++- affected_requirement:
++  - REQUIREMENTS.md section 3.3.4
++  - REQUIREMENTS.md section 4.13
++  - REQUIREMENTS.md section 4.14
++  - REQUIREMENTS.md section 4.14.7a
++  - REQUIREMENTS.md section 4.15
++- decision: Add `execute_clean_plan()` as the physical trace cleanup path above `CleanPlan`. Execution checks the plan execution predicate, obtains or confirms workspace-lock ownership, rejects stale trace size/line-count snapshots, writes an optional `_trash/<UTC timestamp>/events.jsonl` backup, and atomically rewrites `trace/events.jsonl` by skipping the plan's byte ranges.
++- rationale: Subtask 3.10 made the three-layer protection decision auditable in a pure data plan. Keeping execution mechanically faithful to that plan prevents divergent cleanup logic while still protecting against TOCTOU by checking the trace snapshot under the write lock. Same-directory temp files plus fsync and `os.replace()` keep crash behavior bounded to the old complete trace or the new complete trace.
++- alternatives_considered:
++  - Recompute session/checkpoint/time protection inside execution, which would duplicate planner logic and weaken the compute/execute split.
++  - Rewrite by line number instead of byte ranges, which would make Subtask 3.11 rediscover physical offsets and weaken the 3.10 byte-range contract.
++  - Disable backups by default, which would make early cleanup commands unnecessarily risky despite the documented trash mechanism.
++  - Require `agent clean trace` to execute by default, which would violate the section 4.14.7a dry-run safety requirement.
++  - Always acquire a second workspace lock for held-by-self force cleanup, which fails on Linux `flock` when the same process already owns the lock through another file descriptor.
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index aeae4cf..4d2915a 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -1403,3 +1403,22 @@ Next action: push sync commit, then request review-fix validation for Subtask 3.
+   - Healthy checkpoint and no-checkpoint paths have no regression.
+
+ Next action: proceed to Subtask 3.11 execute/CLI trace cleanup.
++
++## 2026-05-29T09:52:40Z - Phase 03 / Subtask 3.11 implemented
++
++- Implemented `execute_clean_plan()` and `CleanResult` in `src/agent/trace_cleanup.py`.
++- Execution trusts `CleanPlan` predicates and does not recompute the section 4.14.7a session/checkpoint/time protection logic.
++- Added workspace-lock execution, including the real Linux held-by-self force path where the current process already owns the lock.
++- Added stale-plan detection under the lock by comparing validated event count and file size with the plan snapshot.
++- Added atomic trace rewrite from precomputed byte ranges: same-directory temp file, file fsync, `os.replace()`, parent fsync.
++- Added default `_trash/<UTC timestamp>/events.jsonl` backups plus `backup=False` / `--no-backup`.
++- Added `agent` console script with `agent clean trace` dry-run default, `--yes` execution, `--force-clean-inactive-only`, `--no-backup`, and read-only `agent doctor trace`.
++- Added execute and CLI tests covering refusal, stale plans, byte-range rewrite, backup/no-backup, crash probes, lock ownership, dry-run/default CLI, `--yes`, force mode, and doctor output.
++- UT results:
++  - `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup_execute.py tests/test_cli_clean_trace.py -q` -> 14 passed.
++  - `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py tests/test_trace_cleanup_execute.py tests/test_cli_clean_trace.py -q` -> 31 passed.
++  - `uv run --python 3.11 --extra dev pytest tests/test_trace_session.py tests/test_trace_memory.py tests/test_workspace_lock.py -q` -> 95 passed.
++  - `uv run --python 3.11 --extra dev pytest -q` -> 410 passed.
++  - CLI help smoke: `agent`, `agent clean trace`, and `agent doctor trace` help all render through `uv run --python 3.11`.
++
++Next action: generate patch artifacts, commit/push Subtask 3.11, then request external review.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml b/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml
+index 4b1dfae..f3f0699 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml
+@@ -549,6 +549,45 @@ subtasks:
+       - tests/test_trace_cleanup.py
+     files_modified:
+       - src/agent/__init__.py
++  - id: "3.11"
++    title: "Execute trace clean plans and expose clean/doctor CLI"
++    status: done
++    related_requirements:
++      - REQUIREMENTS.md section 3.3.4
++      - REQUIREMENTS.md section 4.13
++      - REQUIREMENTS.md section 4.14
++      - REQUIREMENTS.md section 4.14.7a
++      - REQUIREMENTS.md section 4.15
++    ut_required: true
++    ut_passed: true
++    targeted_ut: "14 trace cleanup execute/CLI tests passed, 0 failed"
++    trace_cleanup_regression_ut: "31 trace cleanup/execute/CLI tests passed, 0 failed"
++    trace_lock_regression_ut: "95 trace session/memory/workspace lock tests passed, 0 failed"
++    full_ut: "410 passed, 0 failed"
++    cli_help_smoke: "agent, agent clean trace, and agent doctor trace help all render"
++    self_review_required: true
++    self_reviewed: true
++    patch_required: true
++    patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/15_trace_clean_execute_cli.patch
++    patch_generated: true
++    commit_required: true
++    commit_pending: true
++    implementation_summary:
++      - "Added CleanResult and execute_clean_plan() to physically rewrite trace files according to precomputed CleanPlan byte ranges."
++      - "Execution checks only CleanPlan execution predicates before acquiring the workspace lock; protection logic stays in compute_clean_plan()."
++      - "After lock acquisition, execution rejects stale plans if trace file size or validated line count changed."
++      - "Atomic rewrite writes a same-directory temp file, fsyncs it, os.replace()s events.jsonl, and fsyncs the parent directory."
++      - "Default backup writes the original trace bytes under _trash/<UTC timestamp>/events.jsonl; --no-backup skips backup creation."
++      - "Added the agent console script with clean trace dry-run default, --yes execution, --force-clean-inactive-only, --no-backup, and read-only doctor trace."
++    files_created:
++      - src/agent/cli/__init__.py
++      - src/agent/cli/clean_trace.py
++      - tests/test_trace_cleanup_execute.py
++      - tests/test_cli_clean_trace.py
++    files_modified:
++      - pyproject.toml
++      - src/agent/__init__.py
++      - src/agent/trace_cleanup.py
+
+ phase_exit_criteria:
+   - "Trace events are append-only JSONL with strict common fields and flexible event-specific payloads."
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md b/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
+index c752fa7..1c29b05 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
++++ b/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
+@@ -757,3 +757,33 @@ Validation highlights:
+
+ Review conclusion:
+ - Subtask 3.10 review fixes are approved. Phase 03 can proceed to Subtask 3.11 execute/CLI trace cleanup.
++
++## Subtask 3.11 - trace clean execute and CLI self-review
++
++Checklist:
++- [x] `execute_clean_plan()` checks only `CleanPlan.can_execute` or `CleanPlan.can_execute_with_force_inactive_only` before execution; it does not recompute session/checkpoint/time protection.
++- [x] Execution validates that the plan belongs to the provided namespace layout.
++- [x] Execution acquires the workspace lock for normal plans and confirms an existing current-process lock for `--force-clean-inactive-only` held-by-self plans.
++- [x] Held-by-other locks still refuse execution through the plan predicate or lock acquisition.
++- [x] Execution rejects stale plans after lock acquisition if validated trace line count or file size changed.
++- [x] Physical rewrite uses precomputed byte ranges, a same-directory temporary file, flush/fsync, `os.replace()`, and parent-directory fsync.
++- [x] Default backup writes original trace bytes under `_trash/<UTC timestamp>/events.jsonl`; `--no-backup` skips it.
++- [x] CLI defaults `agent clean trace` to dry-run and requires `--yes` for execution.
++- [x] `agent doctor trace` renders the plan only and does not acquire the workspace lock or mutate files.
++
++Notes:
++- Execution intentionally avoids re-running the three-layer protection predicate. If stale trace metadata is detected, callers must compute a fresh plan.
++- Backups are durable copies of the original trace created before rewrite; the original `events.jsonl` path is then atomically replaced.
++- The held-by-self force path handles Linux `flock` behavior where a second fd in the same process cannot acquire the already-held lock.
++
++Validation:
++- `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup_execute.py tests/test_cli_clean_trace.py -q` -> 14 passed.
++- `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py tests/test_trace_cleanup_execute.py tests/test_cli_clean_trace.py -q` -> 31 passed.
++- `uv run --python 3.11 --extra dev pytest tests/test_trace_session.py tests/test_trace_memory.py tests/test_workspace_lock.py -q` -> 95 passed.
++- `uv run --python 3.11 --extra dev pytest -q` -> 410 passed.
++- `uv run --python 3.11 agent --help` -> help rendered.
++- `uv run --python 3.11 agent clean trace --help` -> help rendered.
++- `uv run --python 3.11 agent doctor trace --help` -> help rendered.
++
++Next action:
++- Commit/push Subtask 3.11, then request external review.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md b/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
+index 40e11d0..e5f95dc 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
++++ b/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
+@@ -50,6 +50,12 @@ Completed:
+ - Subtask 3.10 external review approved with minor changes after finding that legacy checkpoints missing `trace_line_count` silently disabled layer-two protection.
+ - Subtask 3.10 review fixes now refuse executable plans for legacy checkpoints until reconciliation supplies `trace_line_count`, and added regression tests for legacy refusal, malformed lock metadata, and trace byte-scan TOCTOU detection.
+ - Subtask 3.10 review-fix validation approved the M-1 fix: legacy checkpoints now block both normal and force execution while preserving read-only diagnostics.
++- Subtask 3.11 added `execute_clean_plan()` and `CleanResult`, physically rewriting `trace/events.jsonl` from precomputed `CleanPlan.removable_byte_ranges`.
++- Subtask 3.11 keeps protection calculation in `compute_clean_plan()`: execution trusts plan predicates, then only validates layout/path, acquires or confirms the workspace lock, and rejects stale plans if trace size or validated line count changed.
++- Subtask 3.11 rewrites trace atomically through a same-directory temporary file, fsyncs the temp file, replaces `events.jsonl`, and fsyncs the parent directory.
++- Subtask 3.11 writes backups by default under `_trash/<UTC timestamp>/events.jsonl`; callers can disable that with `backup=False` / `--no-backup`.
++- Subtask 3.11 added the `agent` console script with `agent clean trace` dry-run by default, `--yes` execution, `--force-clean-inactive-only`, `--no-backup`, and read-only `agent doctor trace`.
++- Subtask 3.11 passed Ubuntu/Linux validation with Python 3.11.15: execute/CLI targeted tests passed 14/14 and full pytest passed 410/410.
+
+ Remaining:
+-- Proceed to Subtask 3.11 execute/CLI trace cleanup.
++- Request external review for Subtask 3.11 execute/CLI trace cleanup.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md b/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
+index 4469f6c..46d2cff 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
++++ b/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
+@@ -584,3 +584,37 @@
+   - Legacy checkpoints missing trace_line_count produce a refusal_reason and cannot execute.
+   - Malformed workspace lock metadata returns a graceful refusal instead of permitting execution.
+   - Trace changes between event validation and byte-range scan are detected as a retryable planning error.
++
++## Subtask 3.11 - trace clean execute and CLI
++
++- timestamp_utc: 2026-05-29T09:52:40Z
++- environment:
++  - os: Ubuntu/Linux
++  - python: 3.11.15
++  - runner: `uv-managed venv + pytest`
++- requirements:
++  - REQUIREMENTS.md section 3.3.4
++  - REQUIREMENTS.md section 4.13
++  - REQUIREMENTS.md section 4.14
++  - REQUIREMENTS.md section 4.14.7a
++  - REQUIREMENTS.md section 4.15
++- targeted_command: `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup_execute.py tests/test_cli_clean_trace.py -q`
++- targeted_result: 14 passed, 0 failed
++- trace_cleanup_regression_command: `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py tests/test_trace_cleanup_execute.py tests/test_cli_clean_trace.py -q`
++- trace_cleanup_regression_result: 31 passed, 0 failed
++- trace_lock_regression_command: `uv run --python 3.11 --extra dev pytest tests/test_trace_session.py tests/test_trace_memory.py tests/test_workspace_lock.py -q`
++- trace_lock_regression_result: 95 passed, 0 failed
++- full_command: `uv run --python 3.11 --extra dev pytest -q`
++- full_result: 410 passed, 0 failed
++- cli_help_smoke:
++  - `uv run --python 3.11 agent --help` -> rendered top-level clean/doctor help.
++  - `uv run --python 3.11 agent clean trace --help` -> rendered clean trace options.
++  - `uv run --python 3.11 agent doctor trace --help` -> rendered doctor trace options.
++- new_coverage:
++  - `execute_clean_plan()` refuses non-executable plans before reading trace data or acquiring the lock.
++  - Execution detects stale plans after lock acquisition when trace line count or file size changed.
++  - Real byte-range rewrite leaves valid JSONL and preserves only protected/recent events.
++  - Default backup writes the original trace under `_trash/<timestamp>/events.jsonl`; `backup=False` / `--no-backup` skips it.
++  - Crash probes before and after replace leave either the original trace or complete rewritten trace loadable.
++  - Execution holds or confirms the workspace lock during rewrite, including real held-by-self force cleanup.
++  - CLI dry-run is default, `--yes` executes, `--force-clean-inactive-only` works under a current-process lock, and `doctor trace` is read-only.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/patches/15_trace_clean_execute_cli.review.md b/dev_memory/phases/phase_03_trace_lifecycle/patches/15_trace_clean_execute_cli.review.md
+new file mode 100644
+index 0000000..ef92318
+--- /dev/null
++++ b/dev_memory/phases/phase_03_trace_lifecycle/patches/15_trace_clean_execute_cli.review.md
+@@ -0,0 +1,45 @@
++# Subtask 3.11 Self Review - trace clean execute and CLI
++
++Verdict: ready for external review.
++
++Checklist:
++- [x] Execution checks CleanPlan.can_execute or CleanPlan.can_execute_with_force_inactive_only before any trace read or lock acquisition.
++- [x] Execution does not recompute the section 4.14.7a session/checkpoint/time protection logic.
++- [x] Execution validates that the plan trace path matches the provided NamespaceLayout trace path.
++- [x] Execution acquires WorkspaceLock for normal plans.
++- [x] Execution supports force-clean-inactive-only when the current process already owns the workspace lock.
++- [x] Held-by-other locks still refuse execution.
++- [x] Execution checks trace line count and file size under the lock and raises StaleCleanPlanError on drift.
++- [x] Rewrite skips CleanPlan.removable_byte_ranges exactly.
++- [x] Rewrite uses a same-directory temp file, flush/fsync, os.replace(), and parent fsync.
++- [x] Default backup writes original trace bytes under _trash/<UTC timestamp>/events.jsonl.
++- [x] backup=False and --no-backup skip backup creation.
++- [x] agent clean trace defaults to dry-run.
++- [x] agent clean trace --yes executes.
++- [x] agent doctor trace renders the plan and does not write.
++
++Important probes:
++- Non-executable plan raises CleanExecutionRefusedError before trace read or lock acquisition.
++- Stale plan after an append raises StaleCleanPlanError under the execution lock.
++- Real byte-range rewrite leaves valid JSONL and the expected remaining events.
++- Crash before replace leaves the original trace loadable.
++- Crash after replace leaves the rewritten trace loadable.
++- A competing WorkspaceLock acquisition fails during rewrite.
++- A current-process held lock works with force-clean-inactive-only on Linux flock.
++- CLI dry-run leaves the trace unchanged.
++- CLI --yes rewrites the trace.
++- CLI doctor leaves the trace unchanged.
++
++Notes for reviewer:
++- Backups are durable copies rather than a move of the original events.jsonl. This preserves the old complete trace until the atomic replacement step succeeds.
++- The only post-plan validation in execute is stale-plan validation against the plan snapshot. Protection logic remains planner-owned.
++- The held-by-self force path exists because Linux flock does not allow the same process to acquire the same lock again through a separate file descriptor.
++
++Validation:
++- `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup_execute.py tests/test_cli_clean_trace.py -q` -> 14 passed.
++- `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py tests/test_trace_cleanup_execute.py tests/test_cli_clean_trace.py -q` -> 31 passed.
++- `uv run --python 3.11 --extra dev pytest tests/test_trace_session.py tests/test_trace_memory.py tests/test_workspace_lock.py -q` -> 95 passed.
++- `uv run --python 3.11 --extra dev pytest -q` -> 410 passed.
++- `uv run --python 3.11 agent --help` -> help rendered.
++- `uv run --python 3.11 agent clean trace --help` -> help rendered.
++- `uv run --python 3.11 agent doctor trace --help` -> help rendered.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/patches/15_trace_clean_execute_cli.summary.txt b/dev_memory/phases/phase_03_trace_lifecycle/patches/15_trace_clean_execute_cli.summary.txt
+new file mode 100644
+index 0000000..1ba34c6
+--- /dev/null
++++ b/dev_memory/phases/phase_03_trace_lifecycle/patches/15_trace_clean_execute_cli.summary.txt
+@@ -0,0 +1,50 @@
++Subtask 3.11 - trace clean execute and CLI
++
++Implemented:
++- Added CleanResult, CleanExecutionRefusedError, StaleCleanPlanError, and execute_clean_plan().
++- execute_clean_plan() trusts CleanPlan execution predicates and does not recompute session/checkpoint/time protection.
++- Execution acquires the workspace lock for normal plans and supports force-clean-inactive-only when the current process already owns the lock.
++- Execution rejects stale plans under the lock when trace file size or validated line count changed after planning.
++- Atomic trace rewrite uses precomputed removable byte ranges, a same-directory temporary file, fsync, os.replace(), and parent-directory fsync.
++- Default backup writes original trace bytes to _trash/<UTC timestamp>/events.jsonl; backup=False and --no-backup skip it.
++- Added agent console script with:
++  - agent clean trace
++  - agent clean trace --yes
++  - agent clean trace --force-clean-inactive-only
++  - agent clean trace --no-backup
++  - agent doctor trace
++- clean trace defaults to dry-run. doctor trace is read-only.
++
++Files created:
++- src/agent/cli/__init__.py
++- src/agent/cli/clean_trace.py
++- tests/test_trace_cleanup_execute.py
++- tests/test_cli_clean_trace.py
++
++Files modified:
++- pyproject.toml
++- src/agent/__init__.py
++- src/agent/trace_cleanup.py
++- dev_memory/CURRENT_PHASE.yaml
++- dev_memory/DECISIONS.md
++- dev_memory/PROGRESS.md
++- dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml
++- dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
++- dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
++- dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
++
++Validation:
++- uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup_execute.py tests/test_cli_clean_trace.py -q
++  -> 14 passed
++- uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py tests/test_trace_cleanup_execute.py tests/test_cli_clean_trace.py -q
++  -> 31 passed
++- uv run --python 3.11 --extra dev pytest tests/test_trace_session.py tests/test_trace_memory.py tests/test_workspace_lock.py -q
++  -> 95 passed
++- uv run --python 3.11 --extra dev pytest -q
++  -> 410 passed
++- uv run --python 3.11 agent --help
++  -> help rendered
++- uv run --python 3.11 agent clean trace --help
++  -> help rendered
++- uv run --python 3.11 agent doctor trace --help
++  -> help rendered
+diff --git a/pyproject.toml b/pyproject.toml
+index 9c90810..be6f33a 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -14,6 +14,9 @@ dependencies = [
+   "PyYAML>=6.0,<7",
+ ]
+
++[project.scripts]
++agent = "agent.cli.clean_trace:main"
++
+ [project.optional-dependencies]
+ dev = [
+   "pytest>=8.0,<10",
+diff --git a/src/agent/__init__.py b/src/agent/__init__.py
+index 4994abd..cbe6360 100644
+--- a/src/agent/__init__.py
++++ b/src/agent/__init__.py
+@@ -143,10 +143,14 @@ from .trace import (
+ )
+ from .trace_cleanup import (
+     ByteRange,
++    CleanExecutionRefusedError,
+     CleanPlan,
++    CleanResult,
+     LineRange,
++    StaleCleanPlanError,
+     TraceCleanupError,
+     compute_clean_plan,
++    execute_clean_plan,
+ )
+ from .workspace_lock import (
+     LockReadResult,
+@@ -163,6 +167,7 @@ __all__ = [
+     "AtomicWriteError",
+     "ByteRange",
+     "CanaryRecord",
++    "CleanExecutionRefusedError",
+     "CheckpointBest",
+     "CheckpointCurrentTrial",
+     "CheckpointError",
+@@ -170,6 +175,7 @@ __all__ = [
+     "CheckpointProcess",
+     "CheckpointState",
+     "CleanPlan",
++    "CleanResult",
+     "ConfigLoadError",
+     "DiscoveredTrialRecord",
+     "Experience",
+@@ -211,6 +217,7 @@ __all__ = [
+     "RegistryValidationError",
+     "ScoreVsBest",
+     "SourceTreeChange",
++    "StaleCleanPlanError",
+     "TraceAppendResult",
+     "TraceCheckpointAlignment",
+     "TraceCheckpointResult",
+@@ -261,6 +268,7 @@ __all__ = [
+     "experience_path",
+     "experience_payload",
+     "existing_trial_compiler_versions",
++    "execute_clean_plan",
+     "ensure_trial_index_current",
+     "iter_trial_record_paths",
+     "iter_trace_events",
+diff --git a/src/agent/cli/__init__.py b/src/agent/cli/__init__.py
+new file mode 100644
+index 0000000..bb197c2
+--- /dev/null
++++ b/src/agent/cli/__init__.py
+@@ -0,0 +1 @@
++"""Command-line entry points for the local agent."""
+diff --git a/src/agent/cli/clean_trace.py b/src/agent/cli/clean_trace.py
+new file mode 100644
+index 0000000..357652e
+--- /dev/null
++++ b/src/agent/cli/clean_trace.py
+@@ -0,0 +1,185 @@
++"""CLI commands for read-only and executable trace cleanup."""
++
++from __future__ import annotations
++
++import argparse
++import sys
++from pathlib import Path
++from typing import Sequence, TextIO
++
++from agent.config import ConfigLoadError, load_config
++from agent.fs_memory import namespace_layout_for_config
++from agent.trace_cleanup import (
++    CleanExecutionRefusedError,
++    CleanPlan,
++    StaleCleanPlanError,
++    compute_clean_plan,
++    execute_clean_plan,
++)
++from agent.workspace_lock import WorkspaceLockError
++
++
++def main(argv: Sequence[str] | None = None) -> int:
++    parser = build_parser()
++    args = parser.parse_args(argv)
++    try:
++        return args.func(args, stdout=sys.stdout, stderr=sys.stderr)
++    except (ConfigLoadError, CleanExecutionRefusedError, StaleCleanPlanError) as exc:
++        print(f"error: {exc}", file=sys.stderr)
++        return 2
++    except WorkspaceLockError as exc:
++        print(f"error: {exc}", file=sys.stderr)
++        return 3
++
++
++def build_parser() -> argparse.ArgumentParser:
++    parser = argparse.ArgumentParser(prog="agent")
++    subcommands = parser.add_subparsers(dest="command", required=True)
++
++    clean_parser = subcommands.add_parser("clean")
++    clean_subcommands = clean_parser.add_subparsers(
++        dest="clean_command",
++        required=True,
++    )
++    clean_trace = clean_subcommands.add_parser("trace")
++    _add_trace_plan_args(clean_trace)
++    clean_trace.add_argument(
++        "--force-clean-inactive-only",
++        action="store_true",
++        help="allow execution when this process already holds the workspace lock",
++    )
++    clean_trace.add_argument(
++        "--yes",
++        action="store_true",
++        help="execute the clean plan; omitted by default for dry-run safety",
++    )
++    clean_trace.add_argument(
++        "--no-backup",
++        action="store_true",
++        help="skip writing a backup copy under _trash",
++    )
++    clean_trace.set_defaults(func=_cmd_clean_trace)
++
++    doctor_parser = subcommands.add_parser("doctor")
++    doctor_subcommands = doctor_parser.add_subparsers(
++        dest="doctor_command",
++        required=True,
++    )
++    doctor_trace = doctor_subcommands.add_parser("trace")
++    _add_trace_plan_args(doctor_trace)
++    doctor_trace.set_defaults(func=_cmd_doctor_trace)
++    return parser
++
++
++def _add_trace_plan_args(parser: argparse.ArgumentParser) -> None:
++    parser.add_argument(
++        "--config",
++        default="agent.config.yaml",
++        help="path to agent.config.yaml",
++    )
++    parser.add_argument(
++        "--keep-days",
++        type=int,
++        default=7,
++        help="retain trace events newer than this many days",
++    )
++
++
++def _cmd_clean_trace(
++    args: argparse.Namespace,
++    *,
++    stdout: TextIO,
++    stderr: TextIO,
++) -> int:
++    del stderr
++    layout = _layout_from_config(args.config)
++    plan = compute_clean_plan(layout, keep_days=args.keep_days)
++    if not args.yes:
++        print(render_clean_plan(plan, mode="dry-run"), file=stdout)
++        return 0
++
++    print(render_clean_plan(plan, mode="execute"), file=stdout)
++    result = execute_clean_plan(
++        layout,
++        plan,
++        force_inactive_only=args.force_clean_inactive_only,
++        backup=not args.no_backup,
++    )
++    print(
++        "REMOVED "
++        f"{result.removed_event_count} events, "
++        f"{result.bytes_freed} bytes freed, "
++        f"backup={result.backup_path if result.backup_path is not None else '-'}",
++        file=stdout,
++    )
++    return 0
++
++
++def _cmd_doctor_trace(
++    args: argparse.Namespace,
++    *,
++    stdout: TextIO,
++    stderr: TextIO,
++) -> int:
++    del stderr
++    layout = _layout_from_config(args.config)
++    plan = compute_clean_plan(layout, keep_days=args.keep_days)
++    print(render_clean_plan(plan, mode="doctor"), file=stdout)
++    return 0
++
++
++def _layout_from_config(config_path: str | Path):
++    config = load_config(config_path)
++    return namespace_layout_for_config(config)
++
++
++def render_clean_plan(plan: CleanPlan, *, mode: str) -> str:
++    action = {
++        "doctor": "TRACE DOCTOR",
++        "dry-run": "DRY RUN: WOULD REMOVE",
++        "execute": "EXECUTE: WILL REMOVE",
++    }.get(mode, mode)
++    lines = [
++        f"{action} {plan.removable_event_count} trace events",
++        f"trace_path: {plan.trace_path}",
++        f"total_lines: {plan.total_lines}",
++        f"file_size_bytes: {plan.file_size_bytes}",
++        f"keep_days: {plan.keep_days}",
++        f"cutoff_ts: {plan.cutoff_ts.isoformat()}",
++        f"lock_status: {plan.lock_status}",
++        "blocking_lock_holder: "
++        + (
++            "-"
++            if plan.blocking_lock_holder is None
++            else (
++                f"pid={plan.blocking_lock_holder.pid} "
++                f"session={plan.blocking_lock_holder.session_id}"
++            )
++        ),
++        "protected_session_ids: "
++        + (
++            "-"
++            if not plan.protected_session_ids
++            else ", ".join(sorted(plan.protected_session_ids))
++        ),
++        "protected_line_ranges: " + _format_line_ranges(plan.protected_line_ranges),
++        f"post_checkpoint_boundary_line: {plan.post_checkpoint_boundary_line}",
++        "removable_line_ranges: " + _format_line_ranges(plan.removable_line_ranges),
++        f"removable_event_count: {plan.removable_event_count}",
++        f"can_execute: {plan.can_execute}",
++        "can_execute_with_force_inactive_only: "
++        f"{plan.can_execute_with_force_inactive_only}",
++        f"refusal_reason: {plan.refusal_reason or '-'}",
++    ]
++    return "\n".join(lines)
++
++
++def _format_line_ranges(ranges: object) -> str:
++    values = tuple(ranges)
++    if not values:
++        return "-"
++    return ", ".join(f"{item.first}-{item.last}" for item in values)
++
++
++if __name__ == "__main__":  # pragma: no cover
++    raise SystemExit(main())
+diff --git a/src/agent/trace_cleanup.py b/src/agent/trace_cleanup.py
+index d281187..d2fc866 100644
+--- a/src/agent/trace_cleanup.py
++++ b/src/agent/trace_cleanup.py
+@@ -3,10 +3,12 @@
+ from __future__ import annotations
+
+ import os
++import tempfile
++from contextlib import contextmanager
+ from dataclasses import dataclass
+ from datetime import UTC, datetime, timedelta
+ from pathlib import Path
+-from typing import Iterable, Literal
++from typing import Iterable, Iterator, Literal
+
+ import psutil
+
+@@ -20,7 +22,7 @@ from .fs_memory import (
+     trace_event_payload,
+ )
+ from .trace import inspect_trace_session_spans
+-from .workspace_lock import WorkspaceLock, WorkspaceLockHolder
++from .workspace_lock import WorkspaceBusyError, WorkspaceLock, WorkspaceLockHolder
+
+
+ LockStatus = Literal["free", "held_by_self", "held_by_other"]
+@@ -31,6 +33,14 @@ class TraceCleanupError(TraceError):
+     """Raised when a trace cleanup plan cannot be computed safely."""
+
+
++class CleanExecutionRefusedError(TraceCleanupError):
++    """Raised when a clean plan is not executable."""
++
++
++class StaleCleanPlanError(TraceCleanupError):
++    """Raised when a clean plan no longer matches the trace file."""
++
++
+ @dataclass(frozen=True)
+ class LineRange:
+     """Physical 1-based line-number interval, inclusive."""
+@@ -109,6 +119,18 @@ class CleanPlan:
+         )
+
+
++@dataclass(frozen=True)
++class CleanResult:
++    """Result snapshot for one physical trace cleanup execution."""
++
++    trace_path: Path
++    removed_event_count: int
++    removed_line_ranges: tuple[LineRange, ...]
++    removed_byte_ranges: tuple[ByteRange, ...]
++    bytes_freed: int
++    backup_path: Path | None
++
++
+ @dataclass(frozen=True)
+ class _TraceLine:
+     line_number: int
+@@ -209,6 +231,217 @@ def compute_clean_plan(
+     )
+
+
++def execute_clean_plan(
++    layout: NamespaceLayout,
++    plan: CleanPlan,
++    *,
++    force_inactive_only: bool = False,
++    backup: bool = True,
++    now: datetime | None = None,
++) -> CleanResult:
++    """Physically rewrite `trace/events.jsonl` according to an executable plan."""
++
++    _validate_plan_for_layout(layout, plan)
++    _require_plan_execution_allowed(
++        plan,
++        force_inactive_only=force_inactive_only,
++    )
++
++    with _execution_workspace_lock(
++        layout,
++        plan,
++        force_inactive_only=force_inactive_only,
++    ):
++        _require_plan_still_matches_trace(plan)
++        backup_path = _backup_trace_file(layout, plan, now=now) if backup else None
++        _rewrite_trace_file(plan)
++
++    return CleanResult(
++        trace_path=plan.trace_path,
++        removed_event_count=plan.removable_event_count,
++        removed_line_ranges=plan.removable_line_ranges,
++        removed_byte_ranges=plan.removable_byte_ranges,
++        bytes_freed=sum(
++            byte_range.end - byte_range.start
++            for byte_range in plan.removable_byte_ranges
++        ),
++        backup_path=backup_path,
++    )
++
++
++def _validate_plan_for_layout(layout: NamespaceLayout, plan: CleanPlan) -> None:
++    if plan.trace_path != layout.trace_path:
++        raise CleanExecutionRefusedError(
++            "clean plan trace_path does not match layout trace_path"
++        )
++
++
++def _require_plan_execution_allowed(
++    plan: CleanPlan,
++    *,
++    force_inactive_only: bool,
++) -> None:
++    allowed = (
++        plan.can_execute_with_force_inactive_only
++        if force_inactive_only
++        else plan.can_execute
++    )
++    if not allowed:
++        detail = plan.refusal_reason or "clean plan is not executable"
++        raise CleanExecutionRefusedError(detail)
++
++
++@contextmanager
++def _execution_workspace_lock(
++    layout: NamespaceLayout,
++    plan: CleanPlan,
++    *,
++    force_inactive_only: bool,
++) -> Iterator[None]:
++    lock = WorkspaceLock(layout.workspace)
++    try:
++        lock.acquire("agent clean trace", "agent_clean_trace")
++    except WorkspaceBusyError as exc:
++        if not _can_execute_under_existing_self_lock(
++            plan,
++            exc,
++            force_inactive_only=force_inactive_only,
++        ):
++            raise
++        yield
++        return
++    try:
++        yield
++    finally:
++        lock.release()
++
++
++def _can_execute_under_existing_self_lock(
++    plan: CleanPlan,
++    exc: WorkspaceBusyError,
++    *,
++    force_inactive_only: bool,
++) -> bool:
++    return (
++        force_inactive_only
++        and plan.lock_status == "held_by_self"
++        and exc.holder is not None
++        and _classify_lock_holder(exc.holder) == "held_by_self"
++    )
++
++
++def _require_plan_still_matches_trace(plan: CleanPlan) -> None:
++    total_lines = sum(1 for _ in iter_trace_events(plan.trace_path))
++    try:
++        file_size = plan.trace_path.stat().st_size
++    except FileNotFoundError as exc:
++        raise StaleCleanPlanError("trace file disappeared after planning") from exc
++    if total_lines != plan.total_lines or file_size != plan.file_size_bytes:
++        raise StaleCleanPlanError(
++            "clean plan is stale; trace line count or file size changed"
++        )
++
++
++def _backup_trace_file(
++    layout: NamespaceLayout,
++    plan: CleanPlan,
++    *,
++    now: datetime | None,
++) -> Path:
++    backup_path = _unique_backup_path(layout.workspace, now=now)
++    _atomic_copy_file(plan.trace_path, backup_path)
++    return backup_path
++
++
++def _unique_backup_path(workspace: Path, *, now: datetime | None) -> Path:
++    timestamp = _timestamp_for_path(_normalize_now(now))
++    backup_dir = workspace / "_trash" / timestamp
++    backup_path = backup_dir / "events.jsonl"
++    if not backup_path.exists():
++        return backup_path
++    suffix = 1
++    while True:
++        candidate = workspace / "_trash" / f"{timestamp}-{suffix}" / "events.jsonl"
++        if not candidate.exists():
++            return candidate
++        suffix += 1
++
++
++def _timestamp_for_path(value: datetime) -> str:
++    return value.astimezone(UTC).strftime("%Y%m%dT%H%M%SZ")
++
++
++def _atomic_copy_file(source_path: Path, target_path: Path) -> None:
++    target_path.parent.mkdir(parents=True, exist_ok=True)
++    fd, temp_name = tempfile.mkstemp(
++        prefix=f".{target_path.name}.{os.getpid()}.",
++        suffix=".tmp",
++        dir=target_path.parent,
++    )
++    temp_path = Path(temp_name)
++    try:
++        with source_path.open("rb") as source, os.fdopen(fd, "wb") as target:
++            _copy_bytes(source, target)
++            target.flush()
++            os.fsync(target.fileno())
++        os.replace(temp_path, target_path)
++        _fsync_parent_dir(target_path.parent)
++    except Exception:
++        _unlink_if_exists(temp_path)
++        raise
++
++
++def _rewrite_trace_file(plan: CleanPlan) -> None:
++    target_path = plan.trace_path
++    fd, temp_name = tempfile.mkstemp(
++        prefix=f".{target_path.name}.{os.getpid()}.",
++        suffix=".tmp",
++        dir=target_path.parent,
++    )
++    temp_path = Path(temp_name)
++    try:
++        with target_path.open("rb") as source, os.fdopen(fd, "wb") as target:
++            cursor = 0
++            for byte_range in plan.removable_byte_ranges:
++                source.seek(cursor)
++                _copy_bytes(source, target, byte_range.start - cursor)
++                cursor = byte_range.end
++            source.seek(cursor)
++            _copy_bytes(source, target)
++            target.flush()
++            os.fsync(target.fileno())
++        _replace_file(temp_path, target_path)
++        _fsync_parent_dir(target_path.parent)
++    except Exception:
++        _unlink_if_exists(temp_path)
++        raise
++
++
++def _copy_bytes(source: object, target: object, limit: int | None = None) -> None:
++    remaining = limit
++    while remaining is None or remaining > 0:
++        chunk_size = 1024 * 1024 if remaining is None else min(1024 * 1024, remaining)
++        chunk = source.read(chunk_size)
++        if not chunk:
++            break
++        target.write(chunk)
++        if remaining is not None:
++            remaining -= len(chunk)
++
++
++def _replace_file(source: Path, target: Path) -> None:
++    os.replace(source, target)
++
++
++def _unlink_if_exists(path: Path) -> None:
++    try:
++        path.unlink()
++    except FileNotFoundError:
++        pass
++    except OSError:
++        pass
++
++
+ def _validate_keep_days(keep_days: int) -> None:
+     _require_int(keep_days, "keep_days")
+     if keep_days < 0:
+@@ -410,3 +643,14 @@ def _combine_refusal(current: str | None, reason: str) -> str:
+     if current is None:
+         return reason
+     return f"{current}; {reason}"
++
++
++def _fsync_parent_dir(path: Path) -> None:
++    flags = getattr(os, "O_DIRECTORY", None)
++    if flags is None:
++        return
++    dir_fd = os.open(path, os.O_RDONLY | flags)
++    try:
++        os.fsync(dir_fd)
++    finally:
++        os.close(dir_fd)
+diff --git a/tests/test_cli_clean_trace.py b/tests/test_cli_clean_trace.py
+new file mode 100644
+index 0000000..8254535
+--- /dev/null
++++ b/tests/test_cli_clean_trace.py
+@@ -0,0 +1,177 @@
++from __future__ import annotations
++
++from pathlib import Path
++
++import yaml
++
++from agent.cli.clean_trace import main
++from agent.config import load_config
++from agent.fs_memory import (
++    NamespaceLayout,
++    append_trace_event,
++    load_trace_events,
++    namespace_layout_for_config,
++)
++from agent.workspace_lock import WorkspaceLock
++
++
++def write_config(tmp_path: Path) -> Path:
++    path = tmp_path / "agent.config.yaml"
++    data = {
++        "project": {
++            "module": "multimedia",
++            "framework": "ffmpeg",
++            "compiler": {"type": "gcc", "version": "13.2.0"},
++            "code_commit": "a1b2c3d",
++            "kg_version": "v3",
++        },
++        "memory": {"workspace": str(tmp_path / "workspace")},
++        "spec": {"source_path": "/path/to/project.spec"},
++        "workspace_protection": {"source_tree_path": "/path/to/source"},
++    }
++    path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
++    return path
++
++
++def layout_for_config(path: Path) -> NamespaceLayout:
++    return namespace_layout_for_config(load_config(path))
++
++
++def append_event(
++    current_layout: NamespaceLayout,
++    line_number: int,
++    *,
++    ts: str,
++    session_id: str,
++) -> None:
++    append_trace_event(
++        current_layout,
++        {"ts": ts, "kind": "probe", "session_id": session_id},
++        expected_line_number=line_number,
++    )
++
++
++def old_recent_trace(current_layout: NamespaceLayout) -> None:
++    append_event(current_layout, 1, ts="2026-04-01T00:00:00Z", session_id="sess_old")
++    append_event(
++        current_layout,
++        2,
++        ts="2026-05-29T00:00:00Z",
++        session_id="sess_recent",
++    )
++
++
++def test_clean_trace_cli_defaults_to_dry_run(
++    tmp_path: Path,
++    capsys,
++) -> None:
++    config_path = write_config(tmp_path)
++    current_layout = layout_for_config(config_path)
++    old_recent_trace(current_layout)
++    before = current_layout.trace_path.read_bytes()
++
++    exit_code = main(["clean", "trace", "--config", str(config_path), "--keep-days", "7"])
++
++    captured = capsys.readouterr()
++    assert exit_code == 0
++    assert "DRY RUN: WOULD REMOVE" in captured.out
++    assert "removable_event_count: 1" in captured.out
++    assert current_layout.trace_path.read_bytes() == before
++
++
++def test_clean_trace_cli_yes_executes(
++    tmp_path: Path,
++    capsys,
++) -> None:
++    config_path = write_config(tmp_path)
++    current_layout = layout_for_config(config_path)
++    old_recent_trace(current_layout)
++
++    exit_code = main(
++        [
++            "clean",
++            "trace",
++            "--config",
++            str(config_path),
++            "--keep-days",
++            "7",
++            "--yes",
++        ]
++    )
++
++    captured = capsys.readouterr()
++    assert exit_code == 0
++    assert "EXECUTE: WILL REMOVE" in captured.out
++    assert "REMOVED 1 events" in captured.out
++    assert len(load_trace_events(current_layout.trace_path)) == 1
++    assert (current_layout.workspace / "_trash").exists()
++
++
++def test_clean_trace_cli_yes_no_backup_skips_trash(
++    tmp_path: Path,
++) -> None:
++    config_path = write_config(tmp_path)
++    current_layout = layout_for_config(config_path)
++    old_recent_trace(current_layout)
++
++    exit_code = main(
++        [
++            "clean",
++            "trace",
++            "--config",
++            str(config_path),
++            "--keep-days",
++            "7",
++            "--yes",
++            "--no-backup",
++        ]
++    )
++
++    assert exit_code == 0
++    assert len(load_trace_events(current_layout.trace_path)) == 1
++    assert not (current_layout.workspace / "_trash").exists()
++
++
++def test_clean_trace_cli_force_executes_under_existing_self_lock(
++    tmp_path: Path,
++) -> None:
++    config_path = write_config(tmp_path)
++    current_layout = layout_for_config(config_path)
++    old_recent_trace(current_layout)
++
++    with WorkspaceLock(current_layout.workspace).acquire("agent run", "sess_active"):
++        exit_code = main(
++            [
++                "clean",
++                "trace",
++                "--config",
++                str(config_path),
++                "--keep-days",
++                "7",
++                "--yes",
++                "--force-clean-inactive-only",
++                "--no-backup",
++            ]
++        )
++
++    assert exit_code == 0
++    assert len(load_trace_events(current_layout.trace_path)) == 1
++    assert not (current_layout.workspace / "_trash").exists()
++
++
++def test_doctor_trace_cli_renders_plan_without_writing(
++    tmp_path: Path,
++    capsys,
++) -> None:
++    config_path = write_config(tmp_path)
++    current_layout = layout_for_config(config_path)
++    old_recent_trace(current_layout)
++    before = current_layout.trace_path.read_bytes()
++
++    exit_code = main(["doctor", "trace", "--config", str(config_path), "--keep-days", "7"])
++
++    captured = capsys.readouterr()
++    assert exit_code == 0
++    assert "TRACE DOCTOR" in captured.out
++    assert "removable_event_count: 1" in captured.out
++    assert current_layout.trace_path.read_bytes() == before
+diff --git a/tests/test_trace_cleanup_execute.py b/tests/test_trace_cleanup_execute.py
+new file mode 100644
+index 0000000..1c8b330
+--- /dev/null
++++ b/tests/test_trace_cleanup_execute.py
+@@ -0,0 +1,282 @@
++from __future__ import annotations
++
++import os
++from dataclasses import replace
++from datetime import UTC, datetime
++from pathlib import Path
++
++import pytest
++
++from agent.fs_memory import (
++    NamespaceLayout,
++    append_trace_event,
++    load_trace_events,
++    trace_event_payload,
++)
++from agent.registry import ProjectNamespace
++import agent.trace_cleanup as trace_cleanup
++from agent.trace_cleanup import (
++    ByteRange,
++    CleanExecutionRefusedError,
++    CleanPlan,
++    StaleCleanPlanError,
++    compute_clean_plan,
++    execute_clean_plan,
++)
++from agent.workspace_lock import WorkspaceBusyError, WorkspaceLock
++
++
++def namespace() -> ProjectNamespace:
++    return ProjectNamespace(
++        module="multimedia",
++        framework="ffmpeg",
++        compiler="gcc-13.2.0",
++        code_commit="code-a1b2c3d",
++        kg_version="kg-v3",
++    )
++
++
++def layout(tmp_path: Path) -> NamespaceLayout:
++    return NamespaceLayout(workspace=tmp_path, namespace=namespace())
++
++
++def append_event(
++    current_layout: NamespaceLayout,
++    line_number: int,
++    *,
++    ts: str,
++    session_id: str | None = None,
++) -> None:
++    payload = {"ts": ts, "kind": "probe"}
++    if session_id is not None:
++        payload["session_id"] = session_id
++    append_trace_event(
++        current_layout,
++        payload,
++        expected_line_number=line_number,
++    )
++
++
++def old_recent_trace(current_layout: NamespaceLayout) -> None:
++    append_event(current_layout, 1, ts="2026-04-01T00:00:00Z", session_id="sess_old")
++    append_event(
++        current_layout,
++        2,
++        ts="2026-05-09T00:00:00Z",
++        session_id="sess_recent",
++    )
++    append_event(
++        current_layout,
++        3,
++        ts="2026-04-01T00:02:00Z",
++        session_id="sess_old_2",
++    )
++
++
++def fixed_now() -> datetime:
++    return datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
++
++
++def payloads(path: Path) -> list[dict]:
++    return [trace_event_payload(event) for event in load_trace_events(path)]
++
++
++def test_execute_refuses_before_reading_trace_or_acquiring_lock(
++    tmp_path: Path,
++    monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    current_layout = layout(tmp_path)
++    plan = CleanPlan(
++        trace_path=current_layout.trace_path,
++        total_lines=1,
++        file_size_bytes=100,
++        protected_session_ids=frozenset(),
++        protected_line_ranges=(),
++        post_checkpoint_boundary_line=None,
++        lock_status="free",
++        blocking_lock_holder=None,
++        keep_days=7,
++        cutoff_ts=fixed_now(),
++        removable_line_ranges=(),
++        removable_byte_ranges=(ByteRange(0, 10),),
++        removable_event_count=1,
++        refusal_reason="blocked by test",
++    )
++
++    def fail_if_lock_created(workspace: Path) -> WorkspaceLock:
++        raise AssertionError(f"unexpected lock acquisition for {workspace}")
++
++    monkeypatch.setattr("agent.trace_cleanup.WorkspaceLock", fail_if_lock_created)
++
++    with pytest.raises(CleanExecutionRefusedError, match="blocked by test"):
++        execute_clean_plan(current_layout, plan)
++
++
++def test_execute_detects_stale_plan_after_lock_acquisition(tmp_path: Path) -> None:
++    current_layout = layout(tmp_path)
++    old_recent_trace(current_layout)
++    plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
++    append_event(
++        current_layout,
++        4,
++        ts="2026-04-01T00:03:00Z",
++        session_id="sess_late",
++    )
++
++    with pytest.raises(StaleCleanPlanError, match="stale"):
++        execute_clean_plan(current_layout, plan, backup=False)
++
++
++def test_execute_rewrites_trace_from_real_plan_and_writes_backup(tmp_path: Path) -> None:
++    current_layout = layout(tmp_path)
++    old_recent_trace(current_layout)
++    original_payloads = payloads(current_layout.trace_path)
++    plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
++
++    result = execute_clean_plan(current_layout, plan, now=fixed_now())
++
++    assert result.removed_event_count == 2
++    assert result.bytes_freed == sum(
++        byte_range.end - byte_range.start for byte_range in plan.removable_byte_ranges
++    )
++    assert result.backup_path == (
++        tmp_path / "_trash" / "20260510T120000Z" / "events.jsonl"
++    )
++    assert result.backup_path is not None
++    assert payloads(result.backup_path) == original_payloads
++    assert [payload["session_id"] for payload in payloads(current_layout.trace_path)] == [
++        "sess_recent"
++    ]
++
++
++def test_execute_no_backup_skips_trash(tmp_path: Path) -> None:
++    current_layout = layout(tmp_path)
++    old_recent_trace(current_layout)
++    plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
++
++    result = execute_clean_plan(
++        current_layout,
++        plan,
++        backup=False,
++        now=fixed_now(),
++    )
++
++    assert result.backup_path is None
++    assert not (tmp_path / "_trash").exists()
++    assert len(load_trace_events(current_layout.trace_path)) == 1
++
++
++def test_execute_force_inactive_only_uses_plan_predicate(tmp_path: Path) -> None:
++    current_layout = layout(tmp_path)
++    old_recent_trace(current_layout)
++    plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
++    held_by_self_plan = replace(plan, lock_status="held_by_self")
++
++    with pytest.raises(CleanExecutionRefusedError):
++        execute_clean_plan(current_layout, held_by_self_plan, backup=False)
++
++    result = execute_clean_plan(
++        current_layout,
++        held_by_self_plan,
++        force_inactive_only=True,
++        backup=False,
++    )
++
++    assert result.removed_event_count == 2
++
++
++def test_execute_force_inactive_only_runs_under_existing_self_lock(
++    tmp_path: Path,
++) -> None:
++    current_layout = layout(tmp_path)
++    old_recent_trace(current_layout)
++
++    with WorkspaceLock(current_layout.workspace).acquire("agent run", "sess_active"):
++        plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
++
++        assert plan.lock_status == "held_by_self"
++        assert plan.can_execute is False
++        assert plan.can_execute_with_force_inactive_only is True
++
++        result = execute_clean_plan(
++            current_layout,
++            plan,
++            force_inactive_only=True,
++            backup=False,
++        )
++
++    assert result.removed_event_count == 2
++    assert [payload["session_id"] for payload in payloads(current_layout.trace_path)] == [
++        "sess_recent"
++    ]
++
++
++def test_execute_crash_before_replace_leaves_original_trace_intact(
++    tmp_path: Path,
++    monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    current_layout = layout(tmp_path)
++    old_recent_trace(current_layout)
++    original = current_layout.trace_path.read_bytes()
++    plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
++
++    def fail_before_replace(source: Path, target: Path) -> None:
++        del source, target
++        raise RuntimeError("boom before replace")
++
++    monkeypatch.setattr("agent.trace_cleanup._replace_file", fail_before_replace)
++
++    with pytest.raises(RuntimeError, match="boom before replace"):
++        execute_clean_plan(current_layout, plan, backup=False)
++
++    assert current_layout.trace_path.read_bytes() == original
++    assert len(load_trace_events(current_layout.trace_path)) == 3
++
++
++def test_execute_crash_after_replace_leaves_complete_new_trace(
++    tmp_path: Path,
++    monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    current_layout = layout(tmp_path)
++    old_recent_trace(current_layout)
++    plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
++
++    def replace_then_fail(source: Path, target: Path) -> None:
++        os.replace(source, target)
++        raise RuntimeError("boom after replace")
++
++    monkeypatch.setattr("agent.trace_cleanup._replace_file", replace_then_fail)
++
++    with pytest.raises(RuntimeError, match="boom after replace"):
++        execute_clean_plan(current_layout, plan, backup=False)
++
++    assert [payload["session_id"] for payload in payloads(current_layout.trace_path)] == [
++        "sess_recent"
++    ]
++
++
++def test_execute_holds_workspace_lock_during_rewrite(
++    tmp_path: Path,
++    monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    current_layout = layout(tmp_path)
++    old_recent_trace(current_layout)
++    plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
++    original_rewrite = trace_cleanup._rewrite_trace_file
++
++    def assert_lock_held_during_rewrite(active_plan: CleanPlan) -> None:
++        with pytest.raises(WorkspaceBusyError):
++            WorkspaceLock(current_layout.workspace).acquire(
++                "agent run",
++                "sess_competing",
++            )
++        original_rewrite(active_plan)
++
++    monkeypatch.setattr(
++        "agent.trace_cleanup._rewrite_trace_file",
++        assert_lock_held_during_rewrite,
++    )
++
++    result = execute_clean_plan(current_layout, plan, backup=False)
++
++    assert result.removed_event_count == 2

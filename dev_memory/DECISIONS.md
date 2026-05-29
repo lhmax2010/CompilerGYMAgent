@@ -595,3 +595,20 @@ Decision records must include:
   - Treat missing `trace_line_count` as no checkpoint, which keeps cleanup permissive but can remove events that should have been protected by layer two.
   - Fall back to the full validated trace length automatically, which avoids deletion but hides the need to reconcile canonical checkpoint state.
   - Reconcile and write checkpoint state from `compute_clean_plan()`, which would violate the Subtask 3.10 read-only planning boundary.
+
+## 2026-05-29T09:52:40Z - Execute trace cleanup from precomputed byte ranges
+
+- affected_requirement:
+  - REQUIREMENTS.md section 3.3.4
+  - REQUIREMENTS.md section 4.13
+  - REQUIREMENTS.md section 4.14
+  - REQUIREMENTS.md section 4.14.7a
+  - REQUIREMENTS.md section 4.15
+- decision: Add `execute_clean_plan()` as the physical trace cleanup path above `CleanPlan`. Execution checks the plan execution predicate, obtains or confirms workspace-lock ownership, rejects stale trace size/line-count snapshots, writes an optional `_trash/<UTC timestamp>/events.jsonl` backup, and atomically rewrites `trace/events.jsonl` by skipping the plan's byte ranges.
+- rationale: Subtask 3.10 made the three-layer protection decision auditable in a pure data plan. Keeping execution mechanically faithful to that plan prevents divergent cleanup logic while still protecting against TOCTOU by checking the trace snapshot under the write lock. Same-directory temp files plus fsync and `os.replace()` keep crash behavior bounded to the old complete trace or the new complete trace.
+- alternatives_considered:
+  - Recompute session/checkpoint/time protection inside execution, which would duplicate planner logic and weaken the compute/execute split.
+  - Rewrite by line number instead of byte ranges, which would make Subtask 3.11 rediscover physical offsets and weaken the 3.10 byte-range contract.
+  - Disable backups by default, which would make early cleanup commands unnecessarily risky despite the documented trash mechanism.
+  - Require `agent clean trace` to execute by default, which would violate the section 4.14.7a dry-run safety requirement.
+  - Always acquire a second workspace lock for held-by-self force cleanup, which fails on Linux `flock` when the same process already owns the lock through another file descriptor.

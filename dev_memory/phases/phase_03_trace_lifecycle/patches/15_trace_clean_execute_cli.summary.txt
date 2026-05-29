@@ -1,0 +1,50 @@
+Subtask 3.11 - trace clean execute and CLI
+
+Implemented:
+- Added CleanResult, CleanExecutionRefusedError, StaleCleanPlanError, and execute_clean_plan().
+- execute_clean_plan() trusts CleanPlan execution predicates and does not recompute session/checkpoint/time protection.
+- Execution acquires the workspace lock for normal plans and supports force-clean-inactive-only when the current process already owns the lock.
+- Execution rejects stale plans under the lock when trace file size or validated line count changed after planning.
+- Atomic trace rewrite uses precomputed removable byte ranges, a same-directory temporary file, fsync, os.replace(), and parent-directory fsync.
+- Default backup writes original trace bytes to _trash/<UTC timestamp>/events.jsonl; backup=False and --no-backup skip it.
+- Added agent console script with:
+  - agent clean trace
+  - agent clean trace --yes
+  - agent clean trace --force-clean-inactive-only
+  - agent clean trace --no-backup
+  - agent doctor trace
+- clean trace defaults to dry-run. doctor trace is read-only.
+
+Files created:
+- src/agent/cli/__init__.py
+- src/agent/cli/clean_trace.py
+- tests/test_trace_cleanup_execute.py
+- tests/test_cli_clean_trace.py
+
+Files modified:
+- pyproject.toml
+- src/agent/__init__.py
+- src/agent/trace_cleanup.py
+- dev_memory/CURRENT_PHASE.yaml
+- dev_memory/DECISIONS.md
+- dev_memory/PROGRESS.md
+- dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml
+- dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
+- dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
+- dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
+
+Validation:
+- uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup_execute.py tests/test_cli_clean_trace.py -q
+  -> 14 passed
+- uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py tests/test_trace_cleanup_execute.py tests/test_cli_clean_trace.py -q
+  -> 31 passed
+- uv run --python 3.11 --extra dev pytest tests/test_trace_session.py tests/test_trace_memory.py tests/test_workspace_lock.py -q
+  -> 95 passed
+- uv run --python 3.11 --extra dev pytest -q
+  -> 410 passed
+- uv run --python 3.11 agent --help
+  -> help rendered
+- uv run --python 3.11 agent clean trace --help
+  -> help rendered
+- uv run --python 3.11 agent doctor trace --help
+  -> help rendered

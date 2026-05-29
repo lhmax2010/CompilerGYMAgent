@@ -143,10 +143,14 @@ from .trace import (
 )
 from .trace_cleanup import (
     ByteRange,
+    CleanExecutionRefusedError,
     CleanPlan,
+    CleanResult,
     LineRange,
+    StaleCleanPlanError,
     TraceCleanupError,
     compute_clean_plan,
+    execute_clean_plan,
 )
 from .workspace_lock import (
     LockReadResult,
@@ -163,6 +167,7 @@ __all__ = [
     "AtomicWriteError",
     "ByteRange",
     "CanaryRecord",
+    "CleanExecutionRefusedError",
     "CheckpointBest",
     "CheckpointCurrentTrial",
     "CheckpointError",
@@ -170,6 +175,7 @@ __all__ = [
     "CheckpointProcess",
     "CheckpointState",
     "CleanPlan",
+    "CleanResult",
     "ConfigLoadError",
     "DiscoveredTrialRecord",
     "Experience",
@@ -211,6 +217,7 @@ __all__ = [
     "RegistryValidationError",
     "ScoreVsBest",
     "SourceTreeChange",
+    "StaleCleanPlanError",
     "TraceAppendResult",
     "TraceCheckpointAlignment",
     "TraceCheckpointResult",
@@ -261,6 +268,7 @@ __all__ = [
     "experience_path",
     "experience_payload",
     "existing_trial_compiler_versions",
+    "execute_clean_plan",
     "ensure_trial_index_current",
     "iter_trial_record_paths",
     "iter_trace_events",

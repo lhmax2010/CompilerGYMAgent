@@ -1403,3 +1403,22 @@ Next action: push sync commit, then request review-fix validation for Subtask 3.
   - Healthy checkpoint and no-checkpoint paths have no regression.
 
 Next action: proceed to Subtask 3.11 execute/CLI trace cleanup.
+
+## 2026-05-29T09:52:40Z - Phase 03 / Subtask 3.11 implemented
+
+- Implemented `execute_clean_plan()` and `CleanResult` in `src/agent/trace_cleanup.py`.
+- Execution trusts `CleanPlan` predicates and does not recompute the section 4.14.7a session/checkpoint/time protection logic.
+- Added workspace-lock execution, including the real Linux held-by-self force path where the current process already owns the lock.
+- Added stale-plan detection under the lock by comparing validated event count and file size with the plan snapshot.
+- Added atomic trace rewrite from precomputed byte ranges: same-directory temp file, file fsync, `os.replace()`, parent fsync.
+- Added default `_trash/<UTC timestamp>/events.jsonl` backups plus `backup=False` / `--no-backup`.
+- Added `agent` console script with `agent clean trace` dry-run default, `--yes` execution, `--force-clean-inactive-only`, `--no-backup`, and read-only `agent doctor trace`.
+- Added execute and CLI tests covering refusal, stale plans, byte-range rewrite, backup/no-backup, crash probes, lock ownership, dry-run/default CLI, `--yes`, force mode, and doctor output.
+- UT results:
+  - `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup_execute.py tests/test_cli_clean_trace.py -q` -> 14 passed.
+  - `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py tests/test_trace_cleanup_execute.py tests/test_cli_clean_trace.py -q` -> 31 passed.
+  - `uv run --python 3.11 --extra dev pytest tests/test_trace_session.py tests/test_trace_memory.py tests/test_workspace_lock.py -q` -> 95 passed.
+  - `uv run --python 3.11 --extra dev pytest -q` -> 410 passed.
+  - CLI help smoke: `agent`, `agent clean trace`, and `agent doctor trace` help all render through `uv run --python 3.11`.
+
+Next action: generate patch artifacts, commit/push Subtask 3.11, then request external review.

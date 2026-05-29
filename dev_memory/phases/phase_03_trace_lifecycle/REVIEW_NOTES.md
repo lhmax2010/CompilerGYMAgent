@@ -757,3 +757,33 @@ Validation highlights:
 
 Review conclusion:
 - Subtask 3.10 review fixes are approved. Phase 03 can proceed to Subtask 3.11 execute/CLI trace cleanup.
+
+## Subtask 3.11 - trace clean execute and CLI self-review
+
+Checklist:
+- [x] `execute_clean_plan()` checks only `CleanPlan.can_execute` or `CleanPlan.can_execute_with_force_inactive_only` before execution; it does not recompute session/checkpoint/time protection.
+- [x] Execution validates that the plan belongs to the provided namespace layout.
+- [x] Execution acquires the workspace lock for normal plans and confirms an existing current-process lock for `--force-clean-inactive-only` held-by-self plans.
+- [x] Held-by-other locks still refuse execution through the plan predicate or lock acquisition.
+- [x] Execution rejects stale plans after lock acquisition if validated trace line count or file size changed.
+- [x] Physical rewrite uses precomputed byte ranges, a same-directory temporary file, flush/fsync, `os.replace()`, and parent-directory fsync.
+- [x] Default backup writes original trace bytes under `_trash/<UTC timestamp>/events.jsonl`; `--no-backup` skips it.
+- [x] CLI defaults `agent clean trace` to dry-run and requires `--yes` for execution.
+- [x] `agent doctor trace` renders the plan only and does not acquire the workspace lock or mutate files.
+
+Notes:
+- Execution intentionally avoids re-running the three-layer protection predicate. If stale trace metadata is detected, callers must compute a fresh plan.
+- Backups are durable copies of the original trace created before rewrite; the original `events.jsonl` path is then atomically replaced.
+- The held-by-self force path handles Linux `flock` behavior where a second fd in the same process cannot acquire the already-held lock.
+
+Validation:
+- `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup_execute.py tests/test_cli_clean_trace.py -q` -> 14 passed.
+- `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py tests/test_trace_cleanup_execute.py tests/test_cli_clean_trace.py -q` -> 31 passed.
+- `uv run --python 3.11 --extra dev pytest tests/test_trace_session.py tests/test_trace_memory.py tests/test_workspace_lock.py -q` -> 95 passed.
+- `uv run --python 3.11 --extra dev pytest -q` -> 410 passed.
+- `uv run --python 3.11 agent --help` -> help rendered.
+- `uv run --python 3.11 agent clean trace --help` -> help rendered.
+- `uv run --python 3.11 agent doctor trace --help` -> help rendered.
+
+Next action:
+- Commit/push Subtask 3.11, then request external review.

@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import os
+import tempfile
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Iterable, Literal
+from typing import Iterable, Iterator, Literal
 
 import psutil
 
@@ -20,7 +22,7 @@ from .fs_memory import (
     trace_event_payload,
 )
 from .trace import inspect_trace_session_spans
-from .workspace_lock import WorkspaceLock, WorkspaceLockHolder
+from .workspace_lock import WorkspaceBusyError, WorkspaceLock, WorkspaceLockHolder
 
 
 LockStatus = Literal["free", "held_by_self", "held_by_other"]
@@ -29,6 +31,14 @@ _LOCK_CREATE_TIME_TOLERANCE_SECONDS = 0.5
 
 class TraceCleanupError(TraceError):
     """Raised when a trace cleanup plan cannot be computed safely."""
+
+
+class CleanExecutionRefusedError(TraceCleanupError):
+    """Raised when a clean plan is not executable."""
+
+
+class StaleCleanPlanError(TraceCleanupError):
+    """Raised when a clean plan no longer matches the trace file."""
 
 
 @dataclass(frozen=True)
@@ -107,6 +117,18 @@ class CleanPlan:
             and self.lock_status in {"free", "held_by_self"}
             and self.removable_event_count > 0
         )
+
+
+@dataclass(frozen=True)
+class CleanResult:
+    """Result snapshot for one physical trace cleanup execution."""
+
+    trace_path: Path
+    removed_event_count: int
+    removed_line_ranges: tuple[LineRange, ...]
+    removed_byte_ranges: tuple[ByteRange, ...]
+    bytes_freed: int
+    backup_path: Path | None
 
 
 @dataclass(frozen=True)
@@ -207,6 +229,217 @@ def compute_clean_plan(
         removable_event_count=len(removable_lines),
         refusal_reason=refusal_reason,
     )
+
+
+def execute_clean_plan(
+    layout: NamespaceLayout,
+    plan: CleanPlan,
+    *,
+    force_inactive_only: bool = False,
+    backup: bool = True,
+    now: datetime | None = None,
+) -> CleanResult:
+    """Physically rewrite `trace/events.jsonl` according to an executable plan."""
+
+    _validate_plan_for_layout(layout, plan)
+    _require_plan_execution_allowed(
+        plan,
+        force_inactive_only=force_inactive_only,
+    )
+
+    with _execution_workspace_lock(
+        layout,
+        plan,
+        force_inactive_only=force_inactive_only,
+    ):
+        _require_plan_still_matches_trace(plan)
+        backup_path = _backup_trace_file(layout, plan, now=now) if backup else None
+        _rewrite_trace_file(plan)
+
+    return CleanResult(
+        trace_path=plan.trace_path,
+        removed_event_count=plan.removable_event_count,
+        removed_line_ranges=plan.removable_line_ranges,
+        removed_byte_ranges=plan.removable_byte_ranges,
+        bytes_freed=sum(
+            byte_range.end - byte_range.start
+            for byte_range in plan.removable_byte_ranges
+        ),
+        backup_path=backup_path,
+    )
+
+
+def _validate_plan_for_layout(layout: NamespaceLayout, plan: CleanPlan) -> None:
+    if plan.trace_path != layout.trace_path:
+        raise CleanExecutionRefusedError(
+            "clean plan trace_path does not match layout trace_path"
+        )
+
+
+def _require_plan_execution_allowed(
+    plan: CleanPlan,
+    *,
+    force_inactive_only: bool,
+) -> None:
+    allowed = (
+        plan.can_execute_with_force_inactive_only
+        if force_inactive_only
+        else plan.can_execute
+    )
+    if not allowed:
+        detail = plan.refusal_reason or "clean plan is not executable"
+        raise CleanExecutionRefusedError(detail)
+
+
+@contextmanager
+def _execution_workspace_lock(
+    layout: NamespaceLayout,
+    plan: CleanPlan,
+    *,
+    force_inactive_only: bool,
+) -> Iterator[None]:
+    lock = WorkspaceLock(layout.workspace)
+    try:
+        lock.acquire("agent clean trace", "agent_clean_trace")
+    except WorkspaceBusyError as exc:
+        if not _can_execute_under_existing_self_lock(
+            plan,
+            exc,
+            force_inactive_only=force_inactive_only,
+        ):
+            raise
+        yield
+        return
+    try:
+        yield
+    finally:
+        lock.release()
+
+
+def _can_execute_under_existing_self_lock(
+    plan: CleanPlan,
+    exc: WorkspaceBusyError,
+    *,
+    force_inactive_only: bool,
+) -> bool:
+    return (
+        force_inactive_only
+        and plan.lock_status == "held_by_self"
+        and exc.holder is not None
+        and _classify_lock_holder(exc.holder) == "held_by_self"
+    )
+
+
+def _require_plan_still_matches_trace(plan: CleanPlan) -> None:
+    total_lines = sum(1 for _ in iter_trace_events(plan.trace_path))
+    try:
+        file_size = plan.trace_path.stat().st_size
+    except FileNotFoundError as exc:
+        raise StaleCleanPlanError("trace file disappeared after planning") from exc
+    if total_lines != plan.total_lines or file_size != plan.file_size_bytes:
+        raise StaleCleanPlanError(
+            "clean plan is stale; trace line count or file size changed"
+        )
+
+
+def _backup_trace_file(
+    layout: NamespaceLayout,
+    plan: CleanPlan,
+    *,
+    now: datetime | None,
+) -> Path:
+    backup_path = _unique_backup_path(layout.workspace, now=now)
+    _atomic_copy_file(plan.trace_path, backup_path)
+    return backup_path
+
+
+def _unique_backup_path(workspace: Path, *, now: datetime | None) -> Path:
+    timestamp = _timestamp_for_path(_normalize_now(now))
+    backup_dir = workspace / "_trash" / timestamp
+    backup_path = backup_dir / "events.jsonl"
+    if not backup_path.exists():
+        return backup_path
+    suffix = 1
+    while True:
+        candidate = workspace / "_trash" / f"{timestamp}-{suffix}" / "events.jsonl"
+        if not candidate.exists():
+            return candidate
+        suffix += 1
+
+
+def _timestamp_for_path(value: datetime) -> str:
+    return value.astimezone(UTC).strftime("%Y%m%dT%H%M%SZ")
+
+
+def _atomic_copy_file(source_path: Path, target_path: Path) -> None:
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temp_name = tempfile.mkstemp(
+        prefix=f".{target_path.name}.{os.getpid()}.",
+        suffix=".tmp",
+        dir=target_path.parent,
+    )
+    temp_path = Path(temp_name)
+    try:
+        with source_path.open("rb") as source, os.fdopen(fd, "wb") as target:
+            _copy_bytes(source, target)
+            target.flush()
+            os.fsync(target.fileno())
+        os.replace(temp_path, target_path)
+        _fsync_parent_dir(target_path.parent)
+    except Exception:
+        _unlink_if_exists(temp_path)
+        raise
+
+
+def _rewrite_trace_file(plan: CleanPlan) -> None:
+    target_path = plan.trace_path
+    fd, temp_name = tempfile.mkstemp(
+        prefix=f".{target_path.name}.{os.getpid()}.",
+        suffix=".tmp",
+        dir=target_path.parent,
+    )
+    temp_path = Path(temp_name)
+    try:
+        with target_path.open("rb") as source, os.fdopen(fd, "wb") as target:
+            cursor = 0
+            for byte_range in plan.removable_byte_ranges:
+                source.seek(cursor)
+                _copy_bytes(source, target, byte_range.start - cursor)
+                cursor = byte_range.end
+            source.seek(cursor)
+            _copy_bytes(source, target)
+            target.flush()
+            os.fsync(target.fileno())
+        _replace_file(temp_path, target_path)
+        _fsync_parent_dir(target_path.parent)
+    except Exception:
+        _unlink_if_exists(temp_path)
+        raise
+
+
+def _copy_bytes(source: object, target: object, limit: int | None = None) -> None:
+    remaining = limit
+    while remaining is None or remaining > 0:
+        chunk_size = 1024 * 1024 if remaining is None else min(1024 * 1024, remaining)
+        chunk = source.read(chunk_size)
+        if not chunk:
+            break
+        target.write(chunk)
+        if remaining is not None:
+            remaining -= len(chunk)
+
+
+def _replace_file(source: Path, target: Path) -> None:
+    os.replace(source, target)
+
+
+def _unlink_if_exists(path: Path) -> None:
+    try:
+        path.unlink()
+    except FileNotFoundError:
+        pass
+    except OSError:
+        pass
 
 
 def _validate_keep_days(keep_days: int) -> None:
@@ -410,3 +643,14 @@ def _combine_refusal(current: str | None, reason: str) -> str:
     if current is None:
         return reason
     return f"{current}; {reason}"
+
+
+def _fsync_parent_dir(path: Path) -> None:
+    flags = getattr(os, "O_DIRECTORY", None)
+    if flags is None:
+        return
+    dir_fd = os.open(path, os.O_RDONLY | flags)
+    try:
+        os.fsync(dir_fd)
+    finally:
+        os.close(dir_fd)

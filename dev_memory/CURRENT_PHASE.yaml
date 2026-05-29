@@ -1,7 +1,7 @@
 phase_id: phase_03_trace_lifecycle
 phase_title: "Trace JSONL canonical event stream"
 started_at: 2026-05-21T14:06:00Z
-last_updated: 2026-05-29T09:04:49Z
+last_updated: 2026-05-29T09:52:40Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 3.3
@@ -553,10 +553,52 @@ subtasks:
       - "Implement execute_clean_plan() and CLI wiring in Subtask 3.11."
       - "Persist dry_run session state in checkpoint when dry-run resume becomes workflow-owned."
       - "Keep process_event kind open until the process owning module defines concrete event kinds."
+  - id: "3.11"
+    title: "Execute trace clean plans and expose clean/doctor CLI"
+    status: done
+    related_requirements:
+      - REQUIREMENTS.md section 3.3.4
+      - REQUIREMENTS.md section 4.13
+      - REQUIREMENTS.md section 4.14
+      - REQUIREMENTS.md section 4.14.7a
+      - REQUIREMENTS.md section 4.15
+    files_created:
+      - src/agent/cli/__init__.py
+      - src/agent/cli/clean_trace.py
+      - tests/test_trace_cleanup_execute.py
+      - tests/test_cli_clean_trace.py
+    files_modified:
+      - pyproject.toml
+      - src/agent/__init__.py
+      - src/agent/trace_cleanup.py
+    ut_required: true
+    ut_passed: true
+    targeted_ut: "14 trace cleanup execute/CLI tests passed, 0 failed"
+    trace_cleanup_regression_ut: "31 trace cleanup/execute/CLI tests passed, 0 failed"
+    trace_lock_regression_ut: "95 trace session/memory/workspace lock tests passed, 0 failed"
+    full_ut: "410 passed, 0 failed"
+    cli_help_smoke: "agent, agent clean trace, and agent doctor trace help all render"
+    self_review_required: true
+    self_reviewed: true
+    patch_required: true
+    patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/15_trace_clean_execute_cli.patch
+    patch_generated: true
+    commit_required: true
+    commit_pending: true
+    implementation_summary:
+      - "Added CleanResult, CleanExecutionRefusedError, StaleCleanPlanError, and execute_clean_plan()."
+      - "Execution trusts CleanPlan predicates, then performs only layout/path validation, workspace-lock acquisition, and stale trace size/line-count checks before rewrite."
+      - "Trace rewrite skips precomputed byte ranges through a same-directory temporary file, fsyncs, atomically replaces events.jsonl, and fsyncs the parent directory."
+      - "Default backup writes a durable copy under _trash/<UTC timestamp>/events.jsonl; --no-backup skips it."
+      - "Added agent clean trace dry-run-by-default CLI, --yes execution, --force-clean-inactive-only, --no-backup, and read-only agent doctor trace rendering."
+      - "Force inactive cleanup works when the current process already owns the workspace lock, while held-by-other locks still refuse execution."
+    deferred_low_priority_followups:
+      - "Persist dry_run session state in checkpoint when dry-run resume becomes workflow-owned."
+      - "Keep process_event kind open until the process owning module defines concrete event kinds."
 notes: |
   Phase 03 starts with the canonical `trace/events.jsonl` append-only event
   stream because REQUIREMENTS.md defines runtime recovery state as
   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
   trace storage primitive before wiring lifecycle stages, rejected candidates,
   dry-run injection, or process/user-action event producers.
-next_action: "Proceed to Subtask 3.11 execute/CLI trace cleanup."
+next_action: "Commit/push Subtask 3.11, then request external review."
