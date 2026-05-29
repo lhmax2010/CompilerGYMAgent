@@ -51,4 +51,4 @@ Completed:
 - Subtask 3.10 review fixes now refuse executable plans for legacy checkpoints until reconciliation supplies `trace_line_count`, and added regression tests for legacy refusal, malformed lock metadata, and trace byte-scan TOCTOU detection.
 
 Remaining:
-- Commit/push Subtask 3.10 review fixes, then request review-fix validation.
+- Request review-fix validation for Subtask 3.10, then run Ubuntu validation if needed.

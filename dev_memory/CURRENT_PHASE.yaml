@@ -540,6 +540,8 @@ subtasks:
       - "Legacy checkpoints with missing trace_line_count now set refusal_reason so future execution cannot proceed until reconciliation."
       - "Added regression tests for legacy checkpoint refusal, malformed lock metadata graceful refusal, and trace mutation between validation and byte scan."
     review_fix_patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/14_trace_clean_plan_review_fixes.patch
+    review_fix_commit_hash: a8bdf84
+    review_fix_commit_message: "phase_03_trace_lifecycle: 3.10 review fixes"
     review_fix_targeted_ut: "17 trace cleanup tests passed, 0 failed"
     review_fix_trace_regression_ut: "83 trace cleanup/session/memory tests passed, 0 failed"
     review_fix_full_ut: "396 passed, 0 failed"
@@ -553,4 +555,4 @@ notes: |
   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
   trace storage primitive before wiring lifecycle stages, rejected candidates,
   dry-run injection, or process/user-action event producers.
-next_action: "Commit/push Subtask 3.10 review fixes, then request review-fix validation."
+next_action: "Request review-fix validation for Subtask 3.10, then run Ubuntu validation if needed."

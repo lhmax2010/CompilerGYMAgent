@@ -531,6 +531,8 @@ subtasks:
       - "Refuse executable clean plans for legacy checkpoints until trace checkpoint reconciliation supplies trace_line_count."
       - "Added tests for legacy checkpoint refusal, trace/byte-scan TOCTOU detection, and malformed lock metadata graceful refusal."
     review_fix_patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/14_trace_clean_plan_review_fixes.patch
+    review_fix_commit_hash: a8bdf84
+    review_fix_commit_message: "phase_03_trace_lifecycle: 3.10 review fixes"
     review_fix_targeted_ut: "17 trace cleanup tests passed, 0 failed"
     review_fix_trace_regression_ut: "83 trace cleanup/session/memory tests passed, 0 failed"
     review_fix_full_ut: "396 passed, 0 failed"

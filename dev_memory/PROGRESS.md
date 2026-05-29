@@ -1380,3 +1380,10 @@ Next action: implement the M-1 review fix before Subtask 3.11.
   - `uv run --python 3.11 --extra dev pytest -q` -> 396 passed.
 
 Next action: generate review-fix patch artifacts, commit/push, then request review-fix validation.
+
+## 2026-05-29T09:04:49Z - Phase 03 / Subtask 3.10 review-fix sync recorded
+
+- Review-fix commit: `a8bdf84 phase_03_trace_lifecycle: 3.10 review fixes`.
+- dev_memory now records the 3.10 review-fix hash and next action.
+
+Next action: push sync commit, then request review-fix validation for Subtask 3.10.

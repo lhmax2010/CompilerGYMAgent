@@ -735,4 +735,4 @@ Validation:
 - `uv run --python 3.11 --extra dev pytest -q` -> 396 passed.
 
 Next action:
-- Commit/push Subtask 3.10 review fixes, then request review-fix validation.
+- Request review-fix validation for Subtask 3.10, then run Ubuntu validation if needed.
