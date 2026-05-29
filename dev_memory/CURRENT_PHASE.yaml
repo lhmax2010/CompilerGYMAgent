@@ -1,7 +1,7 @@
 phase_id: phase_03_trace_lifecycle
 phase_title: "Trace JSONL canonical event stream"
 started_at: 2026-05-21T14:06:00Z
-last_updated: 2026-05-29T09:52:40Z
+last_updated: 2026-05-29T09:57:19Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 3.3
@@ -584,7 +584,9 @@ subtasks:
     patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/15_trace_clean_execute_cli.patch
     patch_generated: true
     commit_required: true
-    commit_pending: true
+    commit_pending: false
+    commit_hash: 9ff7660
+    commit_message: "phase_03_trace_lifecycle: 3.11 trace clean execute cli"
     implementation_summary:
       - "Added CleanResult, CleanExecutionRefusedError, StaleCleanPlanError, and execute_clean_plan()."
       - "Execution trusts CleanPlan predicates, then performs only layout/path validation, workspace-lock acquisition, and stale trace size/line-count checks before rewrite."
@@ -601,4 +603,4 @@ notes: |
   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
   trace storage primitive before wiring lifecycle stages, rejected candidates,
   dry-run injection, or process/user-action event producers.
-next_action: "Commit/push Subtask 3.11, then request external review."
+next_action: "Push Subtask 3.11 sync commit, then request external review."

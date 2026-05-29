@@ -571,7 +571,9 @@ subtasks:
     patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/15_trace_clean_execute_cli.patch
     patch_generated: true
     commit_required: true
-    commit_pending: true
+    commit_pending: false
+    commit_hash: 9ff7660
+    commit_message: "phase_03_trace_lifecycle: 3.11 trace clean execute cli"
     implementation_summary:
       - "Added CleanResult and execute_clean_plan() to physically rewrite trace files according to precomputed CleanPlan byte ranges."
       - "Execution checks only CleanPlan execution predicates before acquiring the workspace lock; protection logic stays in compute_clean_plan()."
