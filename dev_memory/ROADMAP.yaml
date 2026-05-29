@@ -1,0 +1,496 @@
+# dev_memory/ROADMAP.yaml
+roadmap_version: 1
+last_updated: 2026-05-30T00:00:00Z
+status: active
+
+# ============================================================
+# Cadence assumption (calibrated from Phase 01-03 actual data)
+# ============================================================
+cadence_assumption:
+  subtasks_per_workday: 1.3
+  calibration_basis: "Phase 01: 9 subtasks in ~6 days; Phase 02: 11 in ~13 days; Phase 03: 15 in ~9 days; avg ~1.3"
+  phase_expansion_factor: "1.5-2.0x nominal subtask count (actual Phase 03 was 15 vs nominal 10; Phase 02 was 11 vs nominal 8)"
+  review_fix_rounds_per_subtask: 0-3
+  ubuntu_validation_required: true
+  notes: |
+    Every "subtask" in dev_memory count includes implementation commit,
+    Claude review, review-fix iterations, and Ubuntu validation sync commits.
+    Use this number directly to estimate remaining time, NOT raw feature count.
+
+# ============================================================
+# Overall sizing (calibrated)
+# ============================================================
+sizing:
+  v1_minimal_phases: ["04","05","06","07","08","09","10","11","12","13"]
+  v1_minimal_estimate_subtasks: { low: 85, high: 130 }
+  v1_minimal_estimate_workdays_at_current_pace: { low: 65, high: 100 }
+  v1_minimal_estimate_weeks: { low: 13, high: 20 }
+
+  v1_full_phases: ["04","05","06","07","08","9.0","9.1","09","10","11","12","13","14","15a","15b","16"]
+  v1_full_estimate_subtasks: { low: 110, high: 170 }
+  v1_full_estimate_workdays_at_current_pace: { low: 85, high: 130 }
+  v1_full_estimate_weeks: { low: 17, high: 26 }
+
+  comparison_to_requirements_section_9:
+    nominal_v1_minimal_weeks: "6-8 weeks"
+    nominal_v1_poc_weeks: "11 weeks"
+    actual_pace_multiplier: "~2-3x nominal"
+    reason: |
+      Requirements §9 assumes full-time uninterrupted implementation.
+      Actual workflow includes Codex impl + Claude review + review-fix
+      loops + Ubuntu validation gates + occasional engineering-debt
+      cleanup. The slowdown is intentional quality-control overhead.
+
+# ============================================================
+# Completed phases (frozen reference)
+# ============================================================
+completed_phases:
+  - id: "01"
+    title: "Config / Init / Workspace Lock"
+    milestone: M1
+    requirement_sections: ["4.1", "4.15"]
+    actual_subtasks_done: 9
+    closed_at: "2026-05-08T14:58:01+08:00"
+  - id: "02"
+    title: "FS-Memory SoT writers"
+    milestone: M1
+    requirement_sections: ["4.2", "4.7.5"]
+    actual_subtasks_done: 11
+    closed_at: "2026-05-21T21:50:57+08:00"
+  - id: "03"
+    title: "Trace lifecycle"
+    milestone: "M1 + M3 (partial)"
+    requirement_sections: ["3.3.4", "4.13", "4.14.7a"]
+    actual_subtasks_done: 15
+    closed_at: "2026-05-29T18:09:00+08:00"
+
+# ============================================================
+# Planned phases (Codex-recommended order)
+# ============================================================
+planned_phases:
+
+  - id: "04"
+    title: "Workspace Protection Skills + CLI Entrypoint Skeleton"
+    status: planned
+    milestone: M1
+    requirement_sections: ["4.7.1", "4.7.4", "4.7.5"]
+    dependencies: ["02", "03"]
+    can_parallel_with: []
+    estimate_subtasks: { low: 8, high: 12 }
+    risk: medium
+    goals:
+      - "workspace_snapshot/verify, spec_backup/injector/restore skills"
+      - "Replace 3.11's placeholder `agent = clean_trace:main` with proper subcommand dispatcher"
+      - "Establish test infrastructure: fake-workspace fixture"
+    deliverables:
+      - "src/agent/skills/workspace_snapshot.py"
+      - "src/agent/skills/workspace_verify.py"
+      - "src/agent/skills/spec_backup.py"
+      - "src/agent/skills/spec_injector.py"
+      - "src/agent/skills/spec_restore.py"
+      - "src/agent/cli/__main__.py (unified dispatcher)"
+      - "tests/fixtures/fake_workspace.py"
+    exit_criteria:
+      - "5 skills round-trip in unit tests"
+      - "`agent clean trace` / `agent doctor trace` still work after CLI reorganization"
+      - "spec hash verify catches one-byte mutation"
+    validation_plan: ["full pytest on Linux", "Ubuntu fcntl regression"]
+
+  - id: "06"
+    title: "Process Management (runner + cleaner + monitor)"
+    status: planned
+    milestone: "M3 (advanced)"
+    requirement_sections: ["3.3.5", "4.7.1 (process_cleaner)", "4.11.x"]
+    dependencies: ["01", "03"]
+    can_parallel_with: ["04 (after CLI dispatcher done)"]
+    estimate_subtasks: { low: 6, high: 9 }
+    risk: high
+    goals:
+      - "process_runner: independent process group + cmdline_hash + AGENT_SESSION_ID env marker"
+      - "process_cleaner: stale process detection via psutil + multi-signal validation"
+      - "process_lab pytest fixture (controlled Python subprocess scripts, NOT raw fork)"
+      - "Linux integration tests (start_new_session, killpg, timeout)"
+    deliverables:
+      - "src/agent/skills/process_runner.py"
+      - "src/agent/skills/process_cleaner.py"
+      - "tests/fixtures/process_lab.py"
+      - "tests/integration/test_process_lifecycle.py"
+    exit_criteria:
+      - "kill-9 a runaway process and clean it up via cmdline+pgid+env_marker"
+      - "psutil mock tests cover: pid_gone, create_time_drift, pgid_mismatch, cmdline_mismatch, env_marker_missing, AccessDenied"
+      - "Linux integration test boots/kills 3 nested process groups in <2s"
+      - "Closes deferred Item: process_event kind whitelist (3.5 I-3)"
+    validation_plan: ["Linux integration tests required", "Ubuntu fcntl regression"]
+    risk_notes:
+      - "psutil cross-platform quirks (macOS/WSL may behave differently than Linux)"
+      - "process_lab design influences all subsequent compile/benchmark testing"
+
+  - id: "05"
+    title: "Compile / Benchmark Skills"
+    status: planned
+    milestone: "M1 end / M2 start"
+    requirement_sections: ["4.7.1 (gbs_compile, build_only_check, error_analyzer, benchmark_runner, quick_benchmark, score_aggregator)"]
+    dependencies: ["04", "06"]
+    can_parallel_with: []
+    estimate_subtasks: { low: 8, high: 12 }
+    risk: medium
+    goals:
+      - "gbs_compile skill (uses Phase 06 process_runner)"
+      - "build_only_check (gbs sub-mode interface placeholder)"
+      - "error_analyzer with 5-class compile error taxonomy (§4.7.3)"
+      - "benchmark_runner / quick_benchmark / score_aggregator"
+      - "fake_gbs test harness (deterministic, side-effect-free)"
+    deliverables:
+      - "src/agent/skills/gbs_compile.py"
+      - "src/agent/skills/build_only_check.py"
+      - "src/agent/skills/error_analyzer.py"
+      - "src/agent/skills/benchmark_runner.py"
+      - "src/agent/skills/quick_benchmark.py"
+      - "src/agent/skills/score_aggregator.py"
+      - "tests/fixtures/fake_gbs.py"
+    exit_criteria:
+      - "Full compile-benchmark cycle on fake_gbs produces valid TrialRecord data"
+      - "error_analyzer correctly classifies 5 sample error categories"
+      - "score_aggregator computes geomean + stddev + bootstrap CI"
+    validation_plan: ["Linux integration with fake_gbs", "Ubuntu fcntl regression"]
+    deferred_items: ["Real gbs integration → Phase 16"]
+
+  - id: "08"
+    title: "Baseline + Statistical Significance"
+    status: planned
+    milestone: "M2 + M4 (partial)"
+    requirement_sections: ["4.8", "4.9", "4.6.4 (convergence detector)"]
+    dependencies: ["05"]
+    can_parallel_with: ["07 algorithmic portions (after this lands)"]
+    estimate_subtasks: { low: 7, high: 10 }
+    risk: medium
+    goals:
+      - "Baseline snapshot + environment hash (hard/soft fields split)"
+      - "Bootstrap CI (paired/unpaired/directional, lower_is_better support)"
+      - "Significance test plug-in interface"
+      - "Convergence detector + stagnation"
+    deliverables:
+      - "src/agent/baseline.py"
+      - "src/agent/environment_snapshot.py"
+      - "src/agent/stats/bootstrap.py"
+      - "src/agent/stats/significance.py"
+      - "src/agent/convergence.py"
+    exit_criteria:
+      - "Bootstrap CI matches scipy reference within 1% on synthetic data"
+      - "Convergence detector fires within ±2 trials of nominal on synthetic series"
+      - "Environment hash distinguishes hard-fail from soft-context fields per §4.9"
+    validation_plan: ["Synthetic data benchmarks", "Ubuntu fcntl regression"]
+
+  - id: "07"
+    title: "Candidate Engine + Constraint + Schedule"
+    status: planned
+    milestone: M2
+    requirement_sections: ["4.6.1", "4.6.2 (existing trace contract from 3.5)", "4.6.3", "4.10"]
+    dependencies: ["02", "03", "08"]
+    can_parallel_with: []
+    estimate_subtasks: { low: 10, high: 16 }
+    risk: high
+    goals:
+      - "LLMClient/LLMProposer protocol"
+      - "MockLLMClient (deterministic, UT-only)"
+      - "Kimi adapter (first real provider)"
+      - "LocalMutation + WeightedRandom proposers"
+      - "Constraint Layer (5 rejection categories from §4.6.2 already in trace)"
+      - "Exploration Schedule with windowed mode quotas"
+      - "Anti-duplicate hash + termination logic"
+    deliverables:
+      - "src/agent/llm/client.py (protocol)"
+      - "src/agent/llm/mock.py"
+      - "src/agent/llm/kimi.py"
+      - "src/agent/candidate/proposers.py"
+      - "src/agent/candidate/constraint.py"
+      - "src/agent/candidate/schedule.py"
+      - "src/agent/candidate/dedup.py"
+    exit_criteria:
+      - "End-to-end synthetic 30-round convergence on mock LLM + fake_gbs"
+      - "All 7 rejection reasons trace-validated against §4.6.2 (already from 3.5)"
+      - "Anti-duplicate hash blocks repeat combos"
+    validation_plan: ["30-round synthetic convergence", "Ubuntu fcntl regression"]
+    risk_notes:
+      - "Largest phase, likely longest review/fix cycles"
+      - "Kimi API integration depends on external service availability"
+    deferred_items: ["Claude/OpenAI adapters → v1.5"]
+
+  - id: "9.0"
+    title: "LangGraph Skeleton Spike"
+    status: planned
+    milestone: "M3 (precursor)"
+    requirement_sections: ["3.3.4"]
+    dependencies: ["07"]
+    estimate_subtasks: { low: 2, high: 3 }
+    risk: high
+    spike: true
+    goals:
+      - "fake-skills LangGraph graph runs one trial end-to-end"
+      - "Validates: stage transition, trace append, checkpoint write/restore"
+      - "Identifies API mismatches between graph cache and canonical state"
+    exit_criteria:
+      - "One green test demonstrating full trial via LangGraph"
+      - "Written-up doc: 'LangGraph cache vs canonical state findings'"
+    spike_findings_output: "dev_memory/spikes/9.0_langgraph_skeleton_findings.md"
+
+  - id: "9.1"
+    title: "Canonical Ownership Spike"
+    status: planned
+    milestone: "M3 (precursor)"
+    requirement_sections: ["3.3.4", "3.3.6"]
+    dependencies: ["9.0"]
+    estimate_subtasks: { low: 1, high: 2 }
+    risk: high
+    spike: true
+    goals:
+      - "Define: LangGraph cache discard rules when user edits SoT"
+      - "Define: cache reconstruction policy on resume"
+      - "Define: each stage's idempotency contract (replay-safe? trace duplicates?)"
+    exit_criteria:
+      - "Decision doc: 'When does LangGraph cache get invalidated' (with test plan)"
+      - "Per-stage replay matrix: { stage, idempotent?, side-effects, replay-policy }"
+    spike_findings_output: "dev_memory/spikes/9.1_canonical_ownership_decisions.md"
+
+  - id: "09"
+    title: "LangGraph Workflow Orchestration"
+    status: planned
+    milestone: M3
+    requirement_sections: ["3.3.3", "3.3.4", "+ all skill phases"]
+    dependencies: ["9.0", "9.1", "07", "08"]
+    estimate_subtasks: { low: 10, high: 16 }
+    risk: high
+    goals:
+      - "Implement LangGraph nodes per spike findings"
+      - "Wire skills (04+05+06) into trial lifecycle"
+      - "Implement 8 trial stages with idempotent recovery (§3.3.3)"
+      - "Cache invalidation on user SoT edit"
+    exit_criteria:
+      - "Mock 30-round full graph run with crash-resume at each stage"
+      - "User edits trial yaml mid-run → cache discarded correctly"
+    validation_plan: ["30-round end-to-end mock", "crash-recovery matrix tests", "Ubuntu validation"]
+    risk_notes:
+      - "Highest-risk phase: LangGraph internals + canonical state coupling"
+
+  - id: "15a"
+    title: "Dry-run Skeleton (guard + forbidden writes + mode tagging)"
+    status: planned
+    milestone: "M3 (early)"
+    requirement_sections: ["4.13"]
+    dependencies: ["09"]
+    estimate_subtasks: { low: 3, high: 5 }
+    risk: medium
+    goals:
+      - "Wire dry_run flag through CheckpointState (closes 3.3 I-2 deferred)"
+      - "Forbidden writes guard at SoT writer level"
+      - "Trace mode=dry_run already supported from 3.2 (verify all paths inject it)"
+    deliverables:
+      - "src/agent/dry_run.py (guard + invariants)"
+      - "Updates to fs_memory writers to consult dry_run guard"
+    exit_criteria:
+      - "Dry-run session never writes real trials/checkpoints/experiences"
+      - "Resume from dry-run checkpoint preserves dry_run mode"
+    deferred_items: ["Mock skills + decision path report → 15b"]
+
+  - id: "10"
+    title: "CLI + Resume + Doctor (full semantics)"
+    status: planned
+    milestone: "M3 end"
+    requirement_sections: ["3.3.7", "4.11", "4.14"]
+    dependencies: ["09", "15a"]
+    estimate_subtasks: { low: 10, high: 14 }
+    risk: high
+    goals:
+      - "agent run / status / pause / resume / stop full semantics"
+      - "agent doctor (comprehensive health checks beyond trace doctor)"
+      - "agent reindex / abort-current / kill --force"
+      - "agent clean (cache/tmp/session/trials/namespace/all beyond clean trace)"
+      - "Unified exit code + error message framework"
+    deliverables:
+      - "src/agent/cli/run.py"
+      - "src/agent/cli/status.py"
+      - "src/agent/cli/pause.py"
+      - "src/agent/cli/resume.py"
+      - "src/agent/cli/stop.py"
+      - "src/agent/cli/doctor.py"
+      - "src/agent/cli/clean.py (full clean command family)"
+      - "src/agent/cli/errors.py (unified exit code framework)"
+    exit_criteria:
+      - "pause/stop at trial boundary verified"
+      - "crash-resume across each of 8 trial stages tested"
+      - "doctor catches: spec backup residue, orphan processes, stale index, build_dir residue, checkpoint/SoT divergence"
+    validation_plan: ["Crash-resume matrix", "Ubuntu fcntl regression"]
+
+  - id: "11"
+    title: "Experience Injection + Canary"
+    status: planned
+    milestone: "M4 main"
+    requirement_sections: ["4.3"]
+    dependencies: ["02", "07", "09"]
+    estimate_subtasks: { low: 8, high: 12 }
+    risk: medium
+    goals:
+      - "Experience injection at LLM prompt build (quoted per §4.4 prompt injection rules)"
+      - "Canary validation queue (build_only default, with rate limiting)"
+      - "Soft/hard filter integration with §4.6.2 constraint layer"
+      - "Trust level promotion mechanism"
+    exit_criteria:
+      - "Tentative → verified promotion gated on canary success"
+      - "Prompt injection text always quoted regardless of trust level (§4.4 P0)"
+
+  - id: "12"
+    title: "Export / Import (full defense)"
+    status: planned
+    milestone: "M4 end"
+    requirement_sections: ["4.4"]
+    dependencies: ["02", "11"]
+    estimate_subtasks: { low: 8, high: 12 }
+    risk: high
+    goals:
+      - "agent export (with manifest + source_integrity)"
+      - "agent import (manifest validation, safe tar extraction, gzip bomb protection)"
+      - "items[].file path validation (already covered in 2.7 source_integrity)"
+      - "Dual-layer integrity rewrite (source + local)"
+    exit_criteria:
+      - "Malicious tar with path traversal → rejected"
+      - "Gzip bomb → rejected"
+      - "Round-trip on synthetic export validates integrity at both layers"
+
+  - id: "13"
+    title: "Recipe Export + Final Report"
+    status: planned
+    milestone: "M4 end"
+    requirement_sections: ["4.12"]
+    dependencies: ["09"]
+    can_parallel_with: ["11", "12"]
+    estimate_subtasks: { low: 4, high: 6 }
+    risk: low
+    goals:
+      - "Recipe export v1 (best trial → reproducible spec)"
+      - "Final report generation (with redact rules, default redact_enabled=true)"
+
+  - id: "M_v1_minimal_acceptance"
+    title: "v1-minimal acceptance gate"
+    status: planned
+    is_milestone_gate: true
+    requirements:
+      - "Mock gbs runs 30 rounds, converges"
+      - "Mid-run kill-9 + agent resume restores full state including process cleanup"
+      - "Export/import round-trip across machines"
+      - "Malicious tar + path traversal tests pass"
+      - "Spec corruption auto-recovery + workspace pollution detection alert"
+
+  - id: "14"
+    title: "KG Management"
+    status: planned
+    milestone: M5
+    requirement_sections: ["4.5"]
+    dependencies: ["07", "11", "12"]
+    estimate_subtasks: { low: 8, high: 12 }
+    risk: medium
+    note: "Minimal KG reader/index can land EARLIER in 07 if blocking"
+
+  - id: "15b"
+    title: "Dry-run Full (mock skills + config validation + decision path report)"
+    status: planned
+    milestone: M6
+    requirement_sections: ["4.13"]
+    dependencies: ["15a", "09"]
+    estimate_subtasks: { low: 4, high: 6 }
+
+  - id: "16"
+    title: "Integration + Real Env"
+    status: planned
+    milestone: M7
+    requirement_sections: ["All"]
+    dependencies: ["10", "11", "12", "13", "14", "15b"]
+    estimate_subtasks: { low: 6, high: 10 }
+    blocking_external: "Project team provides real gbs interface"
+
+# ============================================================
+# Cross-cutting workstreams (continuous, not phases)
+# ============================================================
+cross_cutting:
+  testing_infrastructure:
+    description: "Test fixtures, harnesses, mock services"
+    contributors: ["04 (workspace fixtures)", "05 (fake_gbs)", "06 (process_lab)", "07 (MockLLM)", "9.0 (fake skills)"]
+    owner: "Codex (created lazily per phase need)"
+
+  ci_cd:
+    description: "GitHub Actions Linux Python 3.11 full pytest + real fcntl test"
+    should_land_by: "End of Phase 04"
+    requirements:
+      - "All test_*.py pass on Linux"
+      - "Real fcntl integration test runs"
+      - "psutil-dependent tests skip on non-Linux gracefully"
+
+  error_framework:
+    description: "Unified CLI exit codes, error messages with actionable suggestions"
+    should_land_by: "Phase 10"
+    contributors: ["10 (cli/errors.py central)", "all phases that add CLI"]
+
+  performance_benchmarks:
+    description: "Trace scan, candidate filtering, import tar scan"
+    should_land_by: "End of Phase 09"
+    contributors: ["03 (trace baseline)", "07 (candidate filter)", "12 (import)"]
+
+  security_corpus:
+    description: "Path traversal, tar bomb, prompt injection, malformed YAML"
+    contributors: ["02 (yaml malformed already)", "12 (tar bomb / path traversal)", "11 (prompt injection)"]
+    accumulated_at: "tests/security/corpus/"
+
+  config_versioning:
+    description: "agent.config.yaml schema migrations"
+    should_land_by: "Phase 04 or first user-visible config change"
+    note: "Phase 01 already locked schema version; will need v2 migration path later"
+
+  documentation:
+    description: "CLI help, quickstart, resume/doctor troubleshooting guide"
+    contributors: ["All phases append help text", "10 (consolidates user-facing docs)"]
+    should_land_by: "Phase 10"
+
+  unresolved_engineering_debt:
+    - id: "session_id_dedup"
+      status: resolved
+      resolved_in: "3.7"
+    - id: "dry_run_persistence"
+      status: planned
+      resolves_in: "15a"
+    - id: "process_event_kind_whitelist"
+      status: deferred
+      resolves_in: "06"
+    - id: "agent_cli_dispatcher_reorganization"
+      status: planned
+      resolves_in: "04"
+
+# ============================================================
+# Phase quality gates
+# ============================================================
+phase_quality_gates:
+  required_for_every_phase:
+    - "patch 三件套: .patch + .summary.txt + .review.md"
+    - "DECISIONS.md entry with affected_requirement + decision + rationale + alternatives_considered"
+    - "REVIEW_NOTES.md self-review checklist (12 items)"
+    - "UT_RESULTS.md with passing test counts"
+    - "PROGRESS.md update"
+    - "CHECKLIST.yaml subtask completion tracking"
+    - "Claude review (external_review_verdict: approve | approve_with_minor | request_changes)"
+    - "Ubuntu validation (full pytest + Linux-specific fcntl)"
+    - "Sync commit recording validation results"
+
+  per_subtask_in_phase:
+    - "Implementation commit"
+    - "Local tests (Windows or Codex's dev env) pass"
+    - "Claude review per subtask"
+    - "Review-fix loop if needed (up to 3 rounds before stepping back)"
+    - "Sync commit for subtask completion"
+
+# ============================================================
+# Update protocol
+# ============================================================
+update_protocol:
+  - "When a phase starts: status: planned → in_progress + add `started_at`"
+  - "When subtasks accumulate: add to `actual_subtasks_done` count"
+  - "When a phase finishes: status: in_progress → done + add `closed_at` + move to completed_phases"
+  - "Cadence assumption review every 3 completed phases (re-calibrate if reality differs >20%)"
+  - "Roadmap revision (version bump) when major restructure needed (e.g. phase merge/split)"

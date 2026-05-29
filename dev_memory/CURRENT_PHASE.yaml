@@ -621,4 +621,4 @@ notes: |
   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
   trace storage primitive before wiring lifecycle stages, rejected candidates,
   dry-run injection, or process/user-action event producers.
-next_action: "Phase 03 trace lifecycle complete; await next phase/subtask direction."
+next_action: "Phase 03 has closed (per ROADMAP.yaml); next: begin Phase 04 (Workspace Protection Skills + CLI Entrypoint Skeleton)"
