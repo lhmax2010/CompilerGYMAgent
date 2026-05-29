@@ -11,6 +11,7 @@ import yaml
 from agent.fs_memory import (
     NamespaceLayout,
     append_trace_event,
+    iter_trace_events,
     load_trace_events,
     trace_event_payload,
     write_checkpoint_state,
@@ -179,6 +180,28 @@ def test_compute_clean_plan_protects_post_checkpoint_lines_layer_two(
     assert plan.removable_event_count == 2
 
 
+def test_compute_clean_plan_refuses_legacy_checkpoint_missing_trace_line_count(
+    tmp_path: Path,
+) -> None:
+    current_layout = layout(tmp_path)
+    for index in range(1, 6):
+        append_event(
+            current_layout,
+            index,
+            ts=f"2026-04-01T00:0{index}:00Z",
+            session_id=f"sess_old_{index}",
+        )
+    write_checkpoint(current_layout, session_id="sess_checkpoint")
+
+    plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
+
+    assert plan.post_checkpoint_boundary_line is None
+    assert "lacks trace_line_count" in str(plan.refusal_reason)
+    assert plan.removable_event_count == 5
+    assert plan.can_execute is False
+    assert plan.can_execute_with_force_inactive_only is False
+
+
 def test_compute_clean_plan_reports_held_by_other_without_hiding_removable_lines(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -205,6 +228,24 @@ def test_compute_clean_plan_reports_held_by_other_without_hiding_removable_lines
     assert plan.removable_line_ranges == (LineRange(1, 1),)
     assert plan.can_execute is False
     assert plan.can_execute_with_force_inactive_only is False
+
+
+def test_compute_clean_plan_bad_lock_metadata_returns_graceful_refusal(
+    tmp_path: Path,
+) -> None:
+    current_layout = layout(tmp_path)
+    append_event(current_layout, 1, ts="2026-04-01T00:00:00Z", session_id="sess_old")
+    lock_path = tmp_path / "state" / "run.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path.write_text("not: [valid\n", encoding="utf-8")
+
+    plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
+
+    assert plan.lock_status == "free"
+    assert plan.blocking_lock_holder is None
+    assert "workspace lock metadata could not be read" in str(plan.refusal_reason)
+    assert plan.removable_line_ranges == (LineRange(1, 1),)
+    assert plan.can_execute is False
 
 
 def test_compute_clean_plan_merges_layer_one_and_two_overlap(
@@ -409,6 +450,28 @@ def test_compute_clean_plan_byte_ranges_round_trip(tmp_path: Path) -> None:
         "sess_recent",
         "sess_recent",
     ]
+
+
+def test_compute_clean_plan_rejects_trace_changed_between_validation_and_byte_scan(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    current_layout = layout(tmp_path)
+    append_event(current_layout, 1, ts="2026-04-01T00:00:00Z", session_id="sess_old")
+
+    def mutate_after_validation(path: str | Path):
+        yield from iter_trace_events(path)
+        Path(path).open("ab").write(
+            b'{"ts":"2026-04-01T00:01:00Z","kind":"probe"}\n'
+        )
+
+    monkeypatch.setattr(
+        "agent.trace_cleanup.iter_trace_events",
+        mutate_after_validation,
+    )
+
+    with pytest.raises(TraceCleanupError, match="trace changed"):
+        compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
 
 
 def test_compute_clean_plan_non_contiguous_session_span_over_preserves_middle_events(

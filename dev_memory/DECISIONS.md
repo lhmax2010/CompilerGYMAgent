@@ -583,3 +583,15 @@ Decision records must include:
   - Re-parse session spans directly in cleanup code, which would duplicate the Subtask 3.9 conservative span primitive and risk drift.
   - Acquire the workspace lock during planning, which would make dry-run/status rendering invasive and blur the boundary between diagnostic reads and cleanup execution.
   - Return only line ranges, which would force Subtask 3.11 to rediscover byte offsets before rewrite and weaken pre-execution reviewability.
+
+## 2026-05-29T09:04:49Z - Refuse trace clean execution for legacy checkpoint boundaries
+
+- affected_requirement:
+  - REQUIREMENTS.md section 4.14.7a
+  - REQUIREMENTS.md section 4.11.3
+- decision: If a checkpoint exists but lacks `trace_line_count`, `compute_clean_plan()` records a refusal reason and leaves execution predicates false until trace/checkpoint reconciliation supplies the missing boundary.
+- rationale: A legacy checkpoint means layer-two post-checkpoint protection cannot determine which trace lines are after the last canonical recovery point. Allowing cleanup to execute in that state would silently disable one of the section 4.14.7a protection layers. The safe behavior is to report the candidate removable ranges for diagnostics while refusing execution until doctor/reconcile repairs the checkpoint.
+- alternatives_considered:
+  - Treat missing `trace_line_count` as no checkpoint, which keeps cleanup permissive but can remove events that should have been protected by layer two.
+  - Fall back to the full validated trace length automatically, which avoids deletion but hides the need to reconcile canonical checkpoint state.
+  - Reconcile and write checkpoint state from `compute_clean_plan()`, which would violate the Subtask 3.10 read-only planning boundary.

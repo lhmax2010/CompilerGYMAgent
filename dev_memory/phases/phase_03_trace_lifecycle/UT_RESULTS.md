@@ -562,3 +562,25 @@
   - Lock states free, held_by_self, and held_by_other drive can_execute and can_execute_with_force_inactive_only correctly.
   - Byte ranges round-trip by skipping removable ranges and reloading the rewritten trace as valid JSONL.
   - Non-contiguous session spans inherit the conservative first-to-last protection from Subtask 3.9.
+
+## Subtask 3.10 - review fixes
+
+- timestamp_utc: 2026-05-29T09:04:49Z
+- environment:
+  - os: Ubuntu/Linux
+  - python: 3.11.15
+  - runner: `uv-managed venv + pytest`
+- issue_fixed:
+  - "Legacy checkpoints with trace_line_count=None silently disabled layer-two post-checkpoint protection while still allowing can_execute=True."
+- targeted_command: `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py -q`
+- targeted_result: 17 passed, 0 failed
+- trace_regression_command: `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py tests/test_trace_session.py tests/test_trace_memory.py -q`
+- trace_regression_result: 83 passed, 0 failed
+- lock_checkpoint_regression_command: `uv run --python 3.11 --extra dev pytest tests/test_fs_memory.py tests/test_workspace_lock.py tests/test_identifiers.py -q`
+- lock_checkpoint_regression_result: 181 passed, 0 failed
+- full_command: `uv run --python 3.11 --extra dev pytest -q`
+- full_result: 396 passed, 0 failed
+- new_coverage:
+  - Legacy checkpoints missing trace_line_count produce a refusal_reason and cannot execute.
+  - Malformed workspace lock metadata returns a graceful refusal instead of permitting execution.
+  - Trace changes between event validation and byte-range scan are detected as a retryable planning error.

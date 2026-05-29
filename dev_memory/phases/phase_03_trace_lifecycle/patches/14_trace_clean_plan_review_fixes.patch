@@ -1,0 +1,383 @@
+diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index 88f786b..c4df949 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -1,7 +1,7 @@
+ phase_id: phase_03_trace_lifecycle
+ phase_title: "Trace JSONL canonical event stream"
+ started_at: 2026-05-21T14:06:00Z
+-last_updated: 2026-05-29T08:31:42Z
++last_updated: 2026-05-29T09:04:49Z
+ target_milestone: M1
+ related_requirements:
+   - REQUIREMENTS.md section 3.3
+@@ -531,6 +531,18 @@ subtasks:
+       - "The planner combines protected session spans, checkpoint trace boundaries, workspace lock holder state, and keep-days cutoff into removable line and byte ranges."
+       - "Workspace lock inspection is read-only: it reads holder metadata and process identity without acquiring the lock."
+       - "Byte ranges are derived from validated trace events plus raw line lengths and covered by rewrite round-trip tests."
++    external_review_verdict: approve_with_minor_changes
++    external_reviewed_at: 2026-05-29T09:04:49Z
++    external_review_tests: "393 passed, 0 failed on Linux"
++    external_review_notes: "Reviewer found M-1: legacy checkpoints missing trace_line_count disabled layer-two protection silently; requested conservative refusal before 3.11 execution."
++    review_fix_status: done
++    review_fix_summary:
++      - "Legacy checkpoints with missing trace_line_count now set refusal_reason so future execution cannot proceed until reconciliation."
++      - "Added regression tests for legacy checkpoint refusal, malformed lock metadata graceful refusal, and trace mutation between validation and byte scan."
++    review_fix_patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/14_trace_clean_plan_review_fixes.patch
++    review_fix_targeted_ut: "17 trace cleanup tests passed, 0 failed"
++    review_fix_trace_regression_ut: "83 trace cleanup/session/memory tests passed, 0 failed"
++    review_fix_full_ut: "396 passed, 0 failed"
+     deferred_low_priority_followups:
+       - "Implement execute_clean_plan() and CLI wiring in Subtask 3.11."
+       - "Persist dry_run session state in checkpoint when dry-run resume becomes workflow-owned."
+@@ -541,4 +553,4 @@ notes: |
+   `state/checkpoint.yaml` plus `trace/events.jsonl`. This subtask creates the
+   trace storage primitive before wiring lifecycle stages, rejected candidates,
+   dry-run injection, or process/user-action event producers.
+-next_action: "Request external review for Subtask 3.10, then run Ubuntu validation if needed."
++next_action: "Commit/push Subtask 3.10 review fixes, then request review-fix validation."
+diff --git a/dev_memory/DECISIONS.md b/dev_memory/DECISIONS.md
+index 2d47384..e6e0737 100644
+--- a/dev_memory/DECISIONS.md
++++ b/dev_memory/DECISIONS.md
+@@ -583,3 +583,15 @@ Decision records must include:
+   - Re-parse session spans directly in cleanup code, which would duplicate the Subtask 3.9 conservative span primitive and risk drift.
+   - Acquire the workspace lock during planning, which would make dry-run/status rendering invasive and blur the boundary between diagnostic reads and cleanup execution.
+   - Return only line ranges, which would force Subtask 3.11 to rediscover byte offsets before rewrite and weaken pre-execution reviewability.
++
++## 2026-05-29T09:04:49Z - Refuse trace clean execution for legacy checkpoint boundaries
++
++- affected_requirement:
++  - REQUIREMENTS.md section 4.14.7a
++  - REQUIREMENTS.md section 4.11.3
++- decision: If a checkpoint exists but lacks `trace_line_count`, `compute_clean_plan()` records a refusal reason and leaves execution predicates false until trace/checkpoint reconciliation supplies the missing boundary.
++- rationale: A legacy checkpoint means layer-two post-checkpoint protection cannot determine which trace lines are after the last canonical recovery point. Allowing cleanup to execute in that state would silently disable one of the section 4.14.7a protection layers. The safe behavior is to report the candidate removable ranges for diagnostics while refusing execution until doctor/reconcile repairs the checkpoint.
++- alternatives_considered:
++  - Treat missing `trace_line_count` as no checkpoint, which keeps cleanup permissive but can remove events that should have been protected by layer two.
++  - Fall back to the full validated trace length automatically, which avoids deletion but hides the need to reconcile canonical checkpoint state.
++  - Reconcile and write checkpoint state from `compute_clean_plan()`, which would violate the Subtask 3.10 read-only planning boundary.
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index 4c41618..290c2c9 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -1349,3 +1349,34 @@ Next action: generate patch artifacts, commit/push Subtask 3.10, then request ex
+ - dev_memory now records the 3.10 implementation hash and next action.
+ 
+ Next action: push sync commit, then request external review for Subtask 3.10.
++
++## 2026-05-29T09:04:49Z - Phase 03 / Subtask 3.10 external review completed
++
++- Reviewer: Claude.
++- Verdict: Approve with minor changes.
++- Range: `39babee..35690d0`.
++- Implementation: `a2bca43`; sync: `35690d0`.
++- Tests: 393 passed, 0 failed on Linux.
++- Finding:
++  - M-1: legacy checkpoints with `trace_line_count=None` silently disabled layer-two post-checkpoint protection while still allowing execution.
++- Info-only notes:
++  - Timestamp parsing could eventually move to a shared helper.
++  - `is_dry_run_safe` is a documentation-style constant property.
++  - Protected line membership is O(n x m), acceptable for small protected span counts.
++
++Next action: implement the M-1 review fix before Subtask 3.11.
++
++## 2026-05-29T09:04:49Z - Phase 03 / Subtask 3.10 review fixes implemented
++
++- Legacy checkpoints missing `trace_line_count` now set a `refusal_reason`, preventing both normal and force-inactive-only execution until trace checkpoint reconciliation supplies the missing boundary.
++- Added regression tests for:
++  - legacy checkpoint refusal,
++  - malformed lock metadata graceful refusal,
++  - trace mutation between validated event scan and byte-range scan.
++- UT results:
++  - `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py -q` -> 17 passed.
++  - `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py tests/test_trace_session.py tests/test_trace_memory.py -q` -> 83 passed.
++  - `uv run --python 3.11 --extra dev pytest tests/test_fs_memory.py tests/test_workspace_lock.py tests/test_identifiers.py -q` -> 181 passed.
++  - `uv run --python 3.11 --extra dev pytest -q` -> 396 passed.
++
++Next action: generate review-fix patch artifacts, commit/push, then request review-fix validation.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml b/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml
+index 5fb31b3..13c4bc0 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_03_trace_lifecycle/CHECKLIST.yaml
+@@ -522,6 +522,18 @@ subtasks:
+       - "Planner protects checkpoint/active session spans, post-checkpoint lines, held-by-other lock state, and recent events."
+       - "Planner exposes normal and force-clean-inactive-only execution predicates for Subtask 3.11."
+       - "Tests cover each protection layer, intersections, time cutoff, lock states, empty traces, conservative non-contiguous sessions, and byte-range rewrite round-trip."
++    external_review_verdict: approve_with_minor_changes
++    external_reviewed_at: 2026-05-29T09:04:49Z
++    external_review_tests: "393 passed, 0 failed on Linux"
++    external_review_notes: "Reviewer found M-1: legacy checkpoint trace_line_count=None allowed execution with layer two disabled."
++    review_fix_status: done
++    review_fix_summary:
++      - "Refuse executable clean plans for legacy checkpoints until trace checkpoint reconciliation supplies trace_line_count."
++      - "Added tests for legacy checkpoint refusal, trace/byte-scan TOCTOU detection, and malformed lock metadata graceful refusal."
++    review_fix_patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/14_trace_clean_plan_review_fixes.patch
++    review_fix_targeted_ut: "17 trace cleanup tests passed, 0 failed"
++    review_fix_trace_regression_ut: "83 trace cleanup/session/memory tests passed, 0 failed"
++    review_fix_full_ut: "396 passed, 0 failed"
+     deferred_low_priority_followups:
+       - "execute_clean_plan() and agent clean trace CLI belong to Subtask 3.11."
+       - "dry_run checkpoint persistence remains future workflow scope."
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md b/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
+index 7c61cd2..58c1c82 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
++++ b/dev_memory/phases/phase_03_trace_lifecycle/REVIEW_NOTES.md
+@@ -697,3 +697,42 @@ Validation:
+ 
+ Next action:
+ - Request external review for Subtask 3.10, then run Ubuntu validation if needed.
++
++## Subtask 3.10 - external review
++
++- timestamp_utc: 2026-05-29T09:04:49Z
++- reviewer: Claude
++- verdict: Approve with minor changes
++- range: `39babee..35690d0`
++- implementation: `a2bca43`
++- sync: `35690d0`
++- tests: 393 passed, 0 failed on Linux
++
++Finding:
++- M-1: Legacy checkpoints with `trace_line_count=None` silently disabled layer-two post-checkpoint protection and allowed `can_execute=True` for old removable events.
++
++Info notes:
++- UTC timestamp parsing is duplicated locally instead of shared with fs_memory internals.
++- `CleanPlan.is_dry_run_safe` is a documentation-style constant property.
++- Protected range membership is O(n x m), acceptable for small protected span counts.
++
++Review conclusion:
++- Subtask 3.10 is approved with minor changes. Fix M-1 before Subtask 3.11 physical execution.
++
++## Subtask 3.10 - review fixes
++
++Checklist:
++- [x] Legacy checkpoints missing `trace_line_count` now set `refusal_reason`.
++- [x] `can_execute` and `can_execute_with_force_inactive_only` remain false when legacy checkpoint state requires reconciliation.
++- [x] Added regression coverage for legacy checkpoint refusal.
++- [x] Added regression coverage for malformed lock metadata graceful refusal.
++- [x] Added regression coverage for trace mutation between validated event scan and byte-range scan.
++
++Validation:
++- `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py -q` -> 17 passed.
++- `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py tests/test_trace_session.py tests/test_trace_memory.py -q` -> 83 passed.
++- `uv run --python 3.11 --extra dev pytest tests/test_fs_memory.py tests/test_workspace_lock.py tests/test_identifiers.py -q` -> 181 passed.
++- `uv run --python 3.11 --extra dev pytest -q` -> 396 passed.
++
++Next action:
++- Commit/push Subtask 3.10 review fixes, then request review-fix validation.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md b/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
+index 8897253..bdf5ee5 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
++++ b/dev_memory/phases/phase_03_trace_lifecycle/SUMMARY.md
+@@ -47,6 +47,8 @@ Completed:
+ - Subtask 3.10 added read-only `CleanPlan` planning in `trace_cleanup.py`, combining conservative session spans, checkpoint trace boundaries, workspace lock holder status, and keep-days cutoff into removable line and byte ranges.
+ - Subtask 3.10 keeps calculation and execution separate: it does not acquire locks, does not truncate or rewrite trace files, and only exposes execution predicates for future `execute_clean_plan()` / CLI work.
+ - Subtask 3.10 passed Ubuntu/Linux validation with Python 3.11.15: trace-cleanup targeted tests passed 14/14 and full pytest passed 393/393.
++- Subtask 3.10 external review approved with minor changes after finding that legacy checkpoints missing `trace_line_count` silently disabled layer-two protection.
++- Subtask 3.10 review fixes now refuse executable plans for legacy checkpoints until reconciliation supplies `trace_line_count`, and added regression tests for legacy refusal, malformed lock metadata, and trace byte-scan TOCTOU detection.
+ 
+ Remaining:
+-- Request external review for Subtask 3.10, then run Ubuntu validation if needed.
++- Commit/push Subtask 3.10 review fixes, then request review-fix validation.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md b/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
+index ee5f2bc..4469f6c 100644
+--- a/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
++++ b/dev_memory/phases/phase_03_trace_lifecycle/UT_RESULTS.md
+@@ -562,3 +562,25 @@
+   - Lock states free, held_by_self, and held_by_other drive can_execute and can_execute_with_force_inactive_only correctly.
+   - Byte ranges round-trip by skipping removable ranges and reloading the rewritten trace as valid JSONL.
+   - Non-contiguous session spans inherit the conservative first-to-last protection from Subtask 3.9.
++
++## Subtask 3.10 - review fixes
++
++- timestamp_utc: 2026-05-29T09:04:49Z
++- environment:
++  - os: Ubuntu/Linux
++  - python: 3.11.15
++  - runner: `uv-managed venv + pytest`
++- issue_fixed:
++  - "Legacy checkpoints with trace_line_count=None silently disabled layer-two post-checkpoint protection while still allowing can_execute=True."
++- targeted_command: `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py -q`
++- targeted_result: 17 passed, 0 failed
++- trace_regression_command: `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py tests/test_trace_session.py tests/test_trace_memory.py -q`
++- trace_regression_result: 83 passed, 0 failed
++- lock_checkpoint_regression_command: `uv run --python 3.11 --extra dev pytest tests/test_fs_memory.py tests/test_workspace_lock.py tests/test_identifiers.py -q`
++- lock_checkpoint_regression_result: 181 passed, 0 failed
++- full_command: `uv run --python 3.11 --extra dev pytest -q`
++- full_result: 396 passed, 0 failed
++- new_coverage:
++  - Legacy checkpoints missing trace_line_count produce a refusal_reason and cannot execute.
++  - Malformed workspace lock metadata returns a graceful refusal instead of permitting execution.
++  - Trace changes between event validation and byte-range scan are detected as a retryable planning error.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/patches/14_trace_clean_plan_review_fixes.review.md b/dev_memory/phases/phase_03_trace_lifecycle/patches/14_trace_clean_plan_review_fixes.review.md
+new file mode 100644
+index 0000000..af1a6e9
+--- /dev/null
++++ b/dev_memory/phases/phase_03_trace_lifecycle/patches/14_trace_clean_plan_review_fixes.review.md
+@@ -0,0 +1,31 @@
++# Subtask 3.10 Review Fix Self Review
++
++## Scope
++
++- Address external review finding M-1: legacy checkpoints missing
++  `trace_line_count` silently disabled layer-two post-checkpoint protection.
++- Add focused regression coverage for the review finding and two diagnostic
++  gaps raised by the review.
++
++## Checklist
++
++- [x] Existing checkpoint with `trace_line_count=None` records a refusal reason.
++- [x] Legacy checkpoint plans still expose diagnostic removable ranges but cannot execute.
++- [x] Normal checkpoint plans with a concrete trace boundary are unchanged.
++- [x] Malformed lock metadata returns a graceful refusal instead of permitting execution.
++- [x] Trace byte-scan TOCTOU detection is covered by test.
++- [x] No physical cleanup, lock acquisition, or CLI behavior was introduced.
++
++## Validation
++
++- `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py -q` -> 17 passed.
++- `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py tests/test_trace_session.py tests/test_trace_memory.py -q` -> 83 passed.
++- `uv run --python 3.11 --extra dev pytest tests/test_fs_memory.py tests/test_workspace_lock.py tests/test_identifiers.py -q` -> 181 passed.
++- `uv run --python 3.11 --extra dev pytest -q` -> 396 passed.
++
++## Notes
++
++- This fix keeps `compute_clean_plan()` read-only. It refuses execution rather
++  than reconciling checkpoint state in place.
++- Subtask 3.11 can continue to trust `CleanPlan.can_execute` and
++  `CleanPlan.can_execute_with_force_inactive_only`.
+diff --git a/dev_memory/phases/phase_03_trace_lifecycle/patches/14_trace_clean_plan_review_fixes.summary.txt b/dev_memory/phases/phase_03_trace_lifecycle/patches/14_trace_clean_plan_review_fixes.summary.txt
+new file mode 100644
+index 0000000..d734eb2
+--- /dev/null
++++ b/dev_memory/phases/phase_03_trace_lifecycle/patches/14_trace_clean_plan_review_fixes.summary.txt
+@@ -0,0 +1,17 @@
++Subtask 3.10 review fixes
++
++Fixed:
++- Legacy checkpoints with `trace_line_count=None` now set `CleanPlan.refusal_reason`.
++- Both `can_execute` and `can_execute_with_force_inactive_only` remain false while layer-two checkpoint boundary data is missing.
++- This keeps cleanup execution blocked until trace/checkpoint reconciliation supplies `trace_line_count`.
++
++Added tests:
++- Legacy checkpoint refusal for missing `trace_line_count`.
++- Malformed workspace lock metadata graceful refusal.
++- Trace changed between validated event scan and byte-range scan raises a retryable planning error.
++
++Validation:
++- `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py -q` -> 17 passed.
++- `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py tests/test_trace_session.py tests/test_trace_memory.py -q` -> 83 passed.
++- `uv run --python 3.11 --extra dev pytest tests/test_fs_memory.py tests/test_workspace_lock.py tests/test_identifiers.py -q` -> 181 passed.
++- `uv run --python 3.11 --extra dev pytest -q` -> 396 passed.
+diff --git a/src/agent/trace_cleanup.py b/src/agent/trace_cleanup.py
+index fa2b605..d281187 100644
+--- a/src/agent/trace_cleanup.py
++++ b/src/agent/trace_cleanup.py
+@@ -162,6 +162,12 @@ def compute_clean_plan(
+     )
+ 
+     refusal_reason = lock_snapshot.refusal_reason
++    if checkpoint is not None and checkpoint.trace_line_count is None:
++        refusal_reason = _combine_refusal(
++            refusal_reason,
++            "checkpoint lacks trace_line_count; reconcile trace checkpoint state "
++            "before clean trace execution",
++        )
+     if (
+         post_checkpoint_boundary_line is not None
+         and post_checkpoint_boundary_line > total_lines
+diff --git a/tests/test_trace_cleanup.py b/tests/test_trace_cleanup.py
+index 1eeab9f..5415960 100644
+--- a/tests/test_trace_cleanup.py
++++ b/tests/test_trace_cleanup.py
+@@ -11,6 +11,7 @@ import yaml
+ from agent.fs_memory import (
+     NamespaceLayout,
+     append_trace_event,
++    iter_trace_events,
+     load_trace_events,
+     trace_event_payload,
+     write_checkpoint_state,
+@@ -179,6 +180,28 @@ def test_compute_clean_plan_protects_post_checkpoint_lines_layer_two(
+     assert plan.removable_event_count == 2
+ 
+ 
++def test_compute_clean_plan_refuses_legacy_checkpoint_missing_trace_line_count(
++    tmp_path: Path,
++) -> None:
++    current_layout = layout(tmp_path)
++    for index in range(1, 6):
++        append_event(
++            current_layout,
++            index,
++            ts=f"2026-04-01T00:0{index}:00Z",
++            session_id=f"sess_old_{index}",
++        )
++    write_checkpoint(current_layout, session_id="sess_checkpoint")
++
++    plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
++
++    assert plan.post_checkpoint_boundary_line is None
++    assert "lacks trace_line_count" in str(plan.refusal_reason)
++    assert plan.removable_event_count == 5
++    assert plan.can_execute is False
++    assert plan.can_execute_with_force_inactive_only is False
++
++
+ def test_compute_clean_plan_reports_held_by_other_without_hiding_removable_lines(
+     tmp_path: Path,
+     monkeypatch: pytest.MonkeyPatch,
+@@ -207,6 +230,24 @@ def test_compute_clean_plan_reports_held_by_other_without_hiding_removable_lines
+     assert plan.can_execute_with_force_inactive_only is False
+ 
+ 
++def test_compute_clean_plan_bad_lock_metadata_returns_graceful_refusal(
++    tmp_path: Path,
++) -> None:
++    current_layout = layout(tmp_path)
++    append_event(current_layout, 1, ts="2026-04-01T00:00:00Z", session_id="sess_old")
++    lock_path = tmp_path / "state" / "run.lock"
++    lock_path.parent.mkdir(parents=True, exist_ok=True)
++    lock_path.write_text("not: [valid\n", encoding="utf-8")
++
++    plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
++
++    assert plan.lock_status == "free"
++    assert plan.blocking_lock_holder is None
++    assert "workspace lock metadata could not be read" in str(plan.refusal_reason)
++    assert plan.removable_line_ranges == (LineRange(1, 1),)
++    assert plan.can_execute is False
++
++
+ def test_compute_clean_plan_merges_layer_one_and_two_overlap(
+     tmp_path: Path,
+ ) -> None:
+@@ -411,6 +452,28 @@ def test_compute_clean_plan_byte_ranges_round_trip(tmp_path: Path) -> None:
+     ]
+ 
+ 
++def test_compute_clean_plan_rejects_trace_changed_between_validation_and_byte_scan(
++    tmp_path: Path,
++    monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    current_layout = layout(tmp_path)
++    append_event(current_layout, 1, ts="2026-04-01T00:00:00Z", session_id="sess_old")
++
++    def mutate_after_validation(path: str | Path):
++        yield from iter_trace_events(path)
++        Path(path).open("ab").write(
++            b'{"ts":"2026-04-01T00:01:00Z","kind":"probe"}\n'
++        )
++
++    monkeypatch.setattr(
++        "agent.trace_cleanup.iter_trace_events",
++        mutate_after_validation,
++    )
++
++    with pytest.raises(TraceCleanupError, match="trace changed"):
++        compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
++
++
+ def test_compute_clean_plan_non_contiguous_session_span_over_preserves_middle_events(
+     tmp_path: Path,
+ ) -> None:

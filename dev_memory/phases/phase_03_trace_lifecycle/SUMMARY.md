@@ -47,6 +47,8 @@ Completed:
 - Subtask 3.10 added read-only `CleanPlan` planning in `trace_cleanup.py`, combining conservative session spans, checkpoint trace boundaries, workspace lock holder status, and keep-days cutoff into removable line and byte ranges.
 - Subtask 3.10 keeps calculation and execution separate: it does not acquire locks, does not truncate or rewrite trace files, and only exposes execution predicates for future `execute_clean_plan()` / CLI work.
 - Subtask 3.10 passed Ubuntu/Linux validation with Python 3.11.15: trace-cleanup targeted tests passed 14/14 and full pytest passed 393/393.
+- Subtask 3.10 external review approved with minor changes after finding that legacy checkpoints missing `trace_line_count` silently disabled layer-two protection.
+- Subtask 3.10 review fixes now refuse executable plans for legacy checkpoints until reconciliation supplies `trace_line_count`, and added regression tests for legacy refusal, malformed lock metadata, and trace byte-scan TOCTOU detection.
 
 Remaining:
-- Request external review for Subtask 3.10, then run Ubuntu validation if needed.
+- Commit/push Subtask 3.10 review fixes, then request review-fix validation.

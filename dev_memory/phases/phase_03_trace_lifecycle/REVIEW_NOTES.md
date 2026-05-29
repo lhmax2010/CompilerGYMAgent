@@ -697,3 +697,42 @@ Validation:
 
 Next action:
 - Request external review for Subtask 3.10, then run Ubuntu validation if needed.
+
+## Subtask 3.10 - external review
+
+- timestamp_utc: 2026-05-29T09:04:49Z
+- reviewer: Claude
+- verdict: Approve with minor changes
+- range: `39babee..35690d0`
+- implementation: `a2bca43`
+- sync: `35690d0`
+- tests: 393 passed, 0 failed on Linux
+
+Finding:
+- M-1: Legacy checkpoints with `trace_line_count=None` silently disabled layer-two post-checkpoint protection and allowed `can_execute=True` for old removable events.
+
+Info notes:
+- UTC timestamp parsing is duplicated locally instead of shared with fs_memory internals.
+- `CleanPlan.is_dry_run_safe` is a documentation-style constant property.
+- Protected range membership is O(n x m), acceptable for small protected span counts.
+
+Review conclusion:
+- Subtask 3.10 is approved with minor changes. Fix M-1 before Subtask 3.11 physical execution.
+
+## Subtask 3.10 - review fixes
+
+Checklist:
+- [x] Legacy checkpoints missing `trace_line_count` now set `refusal_reason`.
+- [x] `can_execute` and `can_execute_with_force_inactive_only` remain false when legacy checkpoint state requires reconciliation.
+- [x] Added regression coverage for legacy checkpoint refusal.
+- [x] Added regression coverage for malformed lock metadata graceful refusal.
+- [x] Added regression coverage for trace mutation between validated event scan and byte-range scan.
+
+Validation:
+- `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py -q` -> 17 passed.
+- `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py tests/test_trace_session.py tests/test_trace_memory.py -q` -> 83 passed.
+- `uv run --python 3.11 --extra dev pytest tests/test_fs_memory.py tests/test_workspace_lock.py tests/test_identifiers.py -q` -> 181 passed.
+- `uv run --python 3.11 --extra dev pytest -q` -> 396 passed.
+
+Next action:
+- Commit/push Subtask 3.10 review fixes, then request review-fix validation.

@@ -1349,3 +1349,34 @@ Next action: generate patch artifacts, commit/push Subtask 3.10, then request ex
 - dev_memory now records the 3.10 implementation hash and next action.
 
 Next action: push sync commit, then request external review for Subtask 3.10.
+
+## 2026-05-29T09:04:49Z - Phase 03 / Subtask 3.10 external review completed
+
+- Reviewer: Claude.
+- Verdict: Approve with minor changes.
+- Range: `39babee..35690d0`.
+- Implementation: `a2bca43`; sync: `35690d0`.
+- Tests: 393 passed, 0 failed on Linux.
+- Finding:
+  - M-1: legacy checkpoints with `trace_line_count=None` silently disabled layer-two post-checkpoint protection while still allowing execution.
+- Info-only notes:
+  - Timestamp parsing could eventually move to a shared helper.
+  - `is_dry_run_safe` is a documentation-style constant property.
+  - Protected line membership is O(n x m), acceptable for small protected span counts.
+
+Next action: implement the M-1 review fix before Subtask 3.11.
+
+## 2026-05-29T09:04:49Z - Phase 03 / Subtask 3.10 review fixes implemented
+
+- Legacy checkpoints missing `trace_line_count` now set a `refusal_reason`, preventing both normal and force-inactive-only execution until trace checkpoint reconciliation supplies the missing boundary.
+- Added regression tests for:
+  - legacy checkpoint refusal,
+  - malformed lock metadata graceful refusal,
+  - trace mutation between validated event scan and byte-range scan.
+- UT results:
+  - `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py -q` -> 17 passed.
+  - `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py tests/test_trace_session.py tests/test_trace_memory.py -q` -> 83 passed.
+  - `uv run --python 3.11 --extra dev pytest tests/test_fs_memory.py tests/test_workspace_lock.py tests/test_identifiers.py -q` -> 181 passed.
+  - `uv run --python 3.11 --extra dev pytest -q` -> 396 passed.
+
+Next action: generate review-fix patch artifacts, commit/push, then request review-fix validation.

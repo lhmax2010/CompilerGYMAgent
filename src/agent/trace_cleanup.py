@@ -162,6 +162,12 @@ def compute_clean_plan(
     )
 
     refusal_reason = lock_snapshot.refusal_reason
+    if checkpoint is not None and checkpoint.trace_line_count is None:
+        refusal_reason = _combine_refusal(
+            refusal_reason,
+            "checkpoint lacks trace_line_count; reconcile trace checkpoint state "
+            "before clean trace execution",
+        )
     if (
         post_checkpoint_boundary_line is not None
         and post_checkpoint_boundary_line > total_lines

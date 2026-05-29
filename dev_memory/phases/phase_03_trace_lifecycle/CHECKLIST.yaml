@@ -522,6 +522,18 @@ subtasks:
       - "Planner protects checkpoint/active session spans, post-checkpoint lines, held-by-other lock state, and recent events."
       - "Planner exposes normal and force-clean-inactive-only execution predicates for Subtask 3.11."
       - "Tests cover each protection layer, intersections, time cutoff, lock states, empty traces, conservative non-contiguous sessions, and byte-range rewrite round-trip."
+    external_review_verdict: approve_with_minor_changes
+    external_reviewed_at: 2026-05-29T09:04:49Z
+    external_review_tests: "393 passed, 0 failed on Linux"
+    external_review_notes: "Reviewer found M-1: legacy checkpoint trace_line_count=None allowed execution with layer two disabled."
+    review_fix_status: done
+    review_fix_summary:
+      - "Refuse executable clean plans for legacy checkpoints until trace checkpoint reconciliation supplies trace_line_count."
+      - "Added tests for legacy checkpoint refusal, trace/byte-scan TOCTOU detection, and malformed lock metadata graceful refusal."
+    review_fix_patch_file: dev_memory/phases/phase_03_trace_lifecycle/patches/14_trace_clean_plan_review_fixes.patch
+    review_fix_targeted_ut: "17 trace cleanup tests passed, 0 failed"
+    review_fix_trace_regression_ut: "83 trace cleanup/session/memory tests passed, 0 failed"
+    review_fix_full_ut: "396 passed, 0 failed"
     deferred_low_priority_followups:
       - "execute_clean_plan() and agent clean trace CLI belong to Subtask 3.11."
       - "dry_run checkpoint persistence remains future workflow scope."

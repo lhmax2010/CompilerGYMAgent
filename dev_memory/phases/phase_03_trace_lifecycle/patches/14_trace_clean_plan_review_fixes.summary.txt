@@ -1,0 +1,17 @@
+Subtask 3.10 review fixes
+
+Fixed:
+- Legacy checkpoints with `trace_line_count=None` now set `CleanPlan.refusal_reason`.
+- Both `can_execute` and `can_execute_with_force_inactive_only` remain false while layer-two checkpoint boundary data is missing.
+- This keeps cleanup execution blocked until trace/checkpoint reconciliation supplies `trace_line_count`.
+
+Added tests:
+- Legacy checkpoint refusal for missing `trace_line_count`.
+- Malformed workspace lock metadata graceful refusal.
+- Trace changed between validated event scan and byte-range scan raises a retryable planning error.
+
+Validation:
+- `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py -q` -> 17 passed.
+- `uv run --python 3.11 --extra dev pytest tests/test_trace_cleanup.py tests/test_trace_session.py tests/test_trace_memory.py -q` -> 83 passed.
+- `uv run --python 3.11 --extra dev pytest tests/test_fs_memory.py tests/test_workspace_lock.py tests/test_identifiers.py -q` -> 181 passed.
+- `uv run --python 3.11 --extra dev pytest -q` -> 396 passed.
