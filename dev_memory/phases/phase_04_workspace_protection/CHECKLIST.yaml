@@ -4,10 +4,11 @@ status: in_progress
 subtasks:
   - id: "4.1"
     title: "src/agent/errors.py + src/agent/types.py"
-    status: implementation_complete
-    implementation_commit: pending
-    review_status: pending
-    ubuntu_validation_status: pending
+    status: done
+    implementation_commit: 112112f
+    review_status: approve
+    ubuntu_validation_status: passed
+    sync_commit: pending
     checklist:
       - item: "Add AgentError base and exit-code constants"
         status: done
@@ -25,3 +26,26 @@ subtasks:
         status: done
       - item: "Generate patch artifacts"
         status: done
+      - item: "Claude review approve"
+        status: done
+      - item: "Ubuntu/Linux validation"
+        status: done
+  - id: "4.2"
+    title: "WorkspaceLock holder hardening + conservative-path tests"
+    status: pending
+    implementation_commit: pending
+    review_status: pending
+    ubuntu_validation_status: pending
+    checklist:
+      - item: "Keep inode-safe in-place _write_holder behavior unchanged"
+        status: pending
+      - item: "Add run.lock inode/flock survival test"
+        status: pending
+      - item: "Add conservative unreadable holder tests for 0-byte, oversized, YAML syntax, invalid data, and partial-write crash"
+        status: pending
+      - item: "Verify partial stale holder without live flock is overwritten by new acquire and holder pid matches"
+        status: pending
+      - item: "Run targeted and full unit tests"
+        status: pending
+      - item: "Generate patch artifacts"
+        status: pending

@@ -1,7 +1,7 @@
 phase_id: phase_04_workspace_protection
 phase_title: "Workspace Protection Skills + CLI Entrypoint Skeleton"
 started_at: 2026-05-30T00:59:41Z
-last_updated: 2026-05-30T00:59:41Z
+last_updated: 2026-05-30T01:32:59Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 4.7.1
@@ -12,7 +12,7 @@ roadmap_reference: dev_memory/ROADMAP.yaml planned_phases[id=04]
 subtasks:
   - id: "4.1"
     title: "AgentError framework and shared TypeAlias module"
-    status: implementation_complete
+    status: done
     related_requirements:
       - ROADMAP.yaml Phase 04 cross-cutting error framework
       - ROADMAP.yaml Phase 04 shared type alias deliverable
@@ -39,5 +39,17 @@ subtasks:
     patch_file: dev_memory/phases/phase_04_workspace_protection/patches/01_errors_types.patch
     patch_generated: true
     commit_required: true
-    commit_pending: true
-next_action: "Push Subtask 4.1 implementation range for Claude review."
+    commit_pending: false
+    commit_hash: 112112f
+    commit_message: "phase_04_workspace_protection: 4.1 add agent error framework"
+    external_review_verdict: approve
+    external_reviewed_at: 2026-05-30T01:32:59Z
+    external_review_tests: "413 passed, 0 failed on Linux"
+    target_environment_validation:
+      os: Ubuntu/Linux
+      python: ".venv/bin/python"
+      targeted_pytest: "3 passed in 0.20s"
+      full_pytest: "413 passed in 2.37s"
+      linux_fcntl_test: "included in full pytest run"
+      runner: "local .venv + pytest"
+next_action: "Begin Subtask 4.2: WorkspaceLock holder hardening + conservative-path tests."

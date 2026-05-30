@@ -25,3 +25,16 @@ Reviewer focus:
 - Confirm exit-code category assignments are acceptable for existing error classes.
 - Confirm preserving `RuntimeError` compatibility via `AgentError(RuntimeError)` is the right interpretation of "behavior unchanged".
 - Confirm no CLI behavior should be changed before the Phase 04 dispatcher subtask.
+
+## External Review
+
+Claude verdict: Approve.
+
+Findings: no Critical / High / Medium / Low findings. Info-only notes confirmed
+that deferred A.4 writer reset, process event kind whitelist, and LockStatus
+unknown remain out of scope.
+
+Post-review validation:
+
+- `tests/test_errors.py`: 3 passed
+- Full suite: 413 passed

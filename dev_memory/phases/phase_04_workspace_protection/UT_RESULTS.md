@@ -46,3 +46,29 @@ Result:
 ```text
 413 passed in 1.29s
 ```
+
+### Post-review Ubuntu/Linux Validation
+
+Claude review verdict: Approve.
+
+Commands:
+
+```bash
+.venv/bin/python -m pytest tests/test_errors.py -q
+```
+
+Result:
+
+```text
+3 passed in 0.20s
+```
+
+```bash
+.venv/bin/python -m pytest tests/ -q
+```
+
+Result:
+
+```text
+413 passed in 2.37s
+```
