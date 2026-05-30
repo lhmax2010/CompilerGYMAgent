@@ -1,7 +1,7 @@
 phase_id: phase_05_5_integration_feasibility
 phase_title: "Integration Feasibility Mock Spike"
 started_at: 2026-05-30T09:17:16Z
-last_updated: 2026-05-30T09:44:44Z
+last_updated: 2026-05-30T09:59:34Z
 target_milestone: "M1.5 (integration gate)"
 related_requirements:
   - REQUIREMENTS.md section 4.6
@@ -76,7 +76,7 @@ subtasks:
       runner: "local .venv + pytest"
   - id: "05.5.2"
     title: "MockLLM + LLMOnlyStrategy + LocalMutationStrategy baselines"
-    status: implementation_complete
+    status: done
     related_requirements:
       - ROADMAP.yaml Phase 05.5 four-strategy comparison goal
       - ROADMAP.yaml Phase 05.5 MockLLM good/poor goal
@@ -109,5 +109,19 @@ subtasks:
     patch_file: dev_memory/phases/phase_05_5_integration_feasibility/patches/02_llm_local_baselines.patch
     patch_generated: true
     commit_required: true
-    commit_pending: true
-next_action: "Push Subtask 05.5.2 implementation range for Claude review."
+    commit_pending: false
+    commit_hash: 1e1fa12
+    commit_message: "spike_05_5: add llm and local baselines"
+    external_review_verdict: approve
+    external_reviewed_at: 2026-05-30T09:59:34Z
+    external_review_tests: "spike 14 passed; production 451 passed; src/agent zero changes"
+    external_review_findings:
+      low:
+        - "Low-1: good-quality MockLLM proposal pool includes the known optimum. Treat full-agent-vs-LLMOnly comparison as poor-LLM robustness plus good-LLM trial-efficiency, not only best-score delta."
+    target_environment_validation:
+      os: Ubuntu/Linux
+      python: ".venv/bin/python"
+      spike_pytest: "14 passed in 0.02s"
+      production_pytest: "451 passed in 1.62s"
+      runner: "local .venv + pytest"
+next_action: "Begin Subtask 05.5.3 FullAgentStrategy core: constraint layer + memory + schedule, with good/poor LLM baseline reporting split."

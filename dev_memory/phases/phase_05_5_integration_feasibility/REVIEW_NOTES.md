@@ -66,3 +66,23 @@ Reviewer focus:
   artificially prevented from doing normal one-flip hill climbing.
 - Confirm the local-mutation trap is strategy-caused, not noise-caused, because
   these tests use the noiseless objective.
+
+### External Review
+
+Claude verdict: Approve.
+
+Findings: no Critical / High / Medium findings. Low-1 noted that the
+good-quality `MockLLM` proposal pool includes the complete known optimum, so
+good LLM-only can also find the best combo. This is acceptable, but the final
+against-baseline report must split the comparison:
+
+- good LLM: full agent should show better trial efficiency (lower duplicate /
+  failure budget burn), not necessarily higher best score;
+- poor LLM: full agent should show robustness by using fallback exploration to
+  find what LLM-only misses.
+
+Post-review validation:
+
+- Spike tests: 14 passed
+- Production regression suite: 451 passed
+- Production `src/agent` changes: none

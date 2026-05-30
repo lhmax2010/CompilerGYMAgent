@@ -61,3 +61,17 @@ comparisons:
 
 - Spike tests: 14 passed
 - Production regression suite: 451 passed
+
+### External Review
+
+Claude verdict: Approve.
+
+The local-mutation baseline was independently verified to get stuck at
+`{-O3, -funroll-loops}` across repeated seeds, giving the spike a stable
+second-order-interaction contrast. Poor LLM emits realistic bad behavior
+(conflicts, hallucinated flags, and repeats), while good LLM can directly
+propose the known optimum.
+
+Follow-up for 05.5.3: report full-agent comparisons by scenario. In the good
+LLM setting, compare trial efficiency against LLM-only; in the poor LLM setting,
+compare robustness and best-score recovery.
