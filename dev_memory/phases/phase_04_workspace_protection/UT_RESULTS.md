@@ -284,3 +284,43 @@ Result:
 ```text
 438 passed in 1.57s
 ```
+
+## 2026-05-30 - Subtask 4.4b Spec Backup / Inject / Restore Skills
+
+Environment:
+
+- Runner: local `.venv`
+- Python: `.venv/bin/python`
+- OS: Linux workspace
+
+Commands:
+
+```bash
+.venv/bin/python -m pytest tests/test_spec_skills.py -q
+```
+
+Result:
+
+```text
+13 passed in 0.20s
+```
+
+```bash
+.venv/bin/python -m pytest tests/test_workspace_skills.py tests/test_spec_skills.py -q
+```
+
+Result:
+
+```text
+24 passed in 0.30s
+```
+
+```bash
+.venv/bin/python -m pytest tests/ -q
+```
+
+Result:
+
+```text
+451 passed in 1.69s
+```

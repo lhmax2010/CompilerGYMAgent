@@ -186,4 +186,37 @@ subtasks:
       targeted_pytest: "11 passed in 0.24s"
       full_pytest: "438 passed in 1.57s"
       runner: "local .venv + pytest"
-next_action: "Begin Subtask 4.4b: spec_backup / spec_injector / spec_restore skills."
+  - id: "4.4b"
+    title: "spec_backup / spec_injector / spec_restore skills"
+    status: implementation_complete
+    related_requirements:
+      - REQUIREMENTS.md section 4.7.1
+      - REQUIREMENTS.md section 4.7.5
+      - ROADMAP.yaml Phase 04 workspace protection skills
+    files_created:
+      - src/agent/skills/spec_backup.py
+      - src/agent/skills/spec_injector.py
+      - src/agent/skills/spec_restore.py
+      - tests/test_spec_skills.py
+    files_modified:
+      - src/agent/__init__.py
+      - src/agent/skills/__init__.py
+      - tests/fixtures/fake_workspace.py
+    behavior_notes:
+      - "spec_backup writes per-trial backups into namespace spec_backups and refuses to overwrite mismatched existing backups."
+      - "spec_injector replaces explicit Jinja-style spec placeholders with a candidate combo using same-directory atomic byte writes."
+      - "spec_restore resolves only namespace-local backups, rejects symlink/outside paths, restores atomically, and verifies restored bytes against backup/pre-trial hashes."
+      - "The five workspace/spec protection skills have an end-to-end round-trip test: snapshot -> backup -> inject -> restore -> verify."
+    ut_required: true
+    ut_passed: true
+    targeted_ut: "13 spec skill tests passed, 0 failed"
+    regression_ut: "24 workspace/spec skill tests passed, 0 failed"
+    full_ut: "451 passed, 0 failed"
+    self_review_required: true
+    self_reviewed: true
+    patch_required: true
+    patch_file: dev_memory/phases/phase_04_workspace_protection/patches/05_spec_protection_skills.patch
+    patch_generated: true
+    commit_required: true
+    commit_pending: true
+next_action: "Push Subtask 4.4b implementation range for Claude review."

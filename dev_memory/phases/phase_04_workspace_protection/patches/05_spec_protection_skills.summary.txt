@@ -1,0 +1,42 @@
+Subtask 4.4b - Spec Backup / Inject / Restore Skills
+
+Implemented the mutating half of Phase 04 workspace protection:
+
+- Added spec_backup():
+  - validates trial_id through the shared identifier helper
+  - stores per-trial backups in layout.spec_backups_dir
+  - records namespace-relative backup paths for checkpoint/resume use
+  - verifies original and backup hashes
+  - treats an existing matching backup as idempotent
+  - refuses to overwrite an existing mismatched backup
+
+- Added spec_injector():
+  - validates candidate combo strings
+  - requires an explicit supported Jinja-style placeholder
+  - replaces the placeholder with the rendered combo string
+  - writes spec bytes through same-directory temp file, fsync, os.replace, and parent fsync
+
+- Added spec_restore():
+  - accepts absolute, namespace-relative, or spec_backups-relative backup paths
+  - confines restore inputs to layout.spec_backups_dir
+  - rejects symlink backups
+  - checks strict expected-hash mismatches before overwriting the live spec
+  - atomically restores bytes and verifies restored hash matches the backup
+
+- Added tests for:
+  - backup creation and idempotency
+  - mismatched backup overwrite refusal
+  - placeholder injection
+  - missing-placeholder no-op safety
+  - restore from relative path
+  - strict and relaxed expected-hash behavior
+  - outside-path and symlink rejection
+  - unsafe trial_id rejection
+  - top-level exports
+  - five-skill round trip: snapshot -> backup -> inject -> restore -> verify
+
+Validation:
+
+- .venv/bin/python -m pytest tests/test_spec_skills.py -q -> 13 passed
+- .venv/bin/python -m pytest tests/test_workspace_skills.py tests/test_spec_skills.py -q -> 24 passed
+- .venv/bin/python -m pytest tests/ -q -> 451 passed

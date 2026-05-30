@@ -725,3 +725,16 @@ Decision records must include:
   - Implement all five workspace/spec skills in one subtask, which would mix read/compare behavior with destructive spec rewrite behavior and make review too broad.
   - Treat snapshots as in-memory-only results, which would not satisfy the user-readable workspace_snapshots SoT requirement.
   - Omit post-snapshot enrichment from the persisted YAML, which would force doctor/report code to recompute changes later.
+
+## 2026-05-30T03:37:29Z - Spec mutation skills use namespace backups and explicit placeholders
+
+- affected_requirement:
+  - REQUIREMENTS.md section 4.7.1
+  - REQUIREMENTS.md section 4.7.5
+- decision: `spec_backup` writes per-trial backups under `layout.spec_backups_dir`, `spec_injector` only mutates specs that contain an explicit supported placeholder, and `spec_restore` only restores namespace-local non-symlink backups. Restore checks strict expected-hash mismatches before overwriting the live spec, then verifies restored bytes match backup bytes after the atomic write.
+- rationale: The canonical FS-Memory layout already defines `spec_backups/*.bak` inside each namespace, which makes checkpoint-relative paths (`spec_backups/pre_trial_...`) portable across machines and consistent with recovery logic. Explicit placeholders keep the first injector deterministic until the real project template grammar is provided. Pre-checking strict hash mismatches prevents a corrupt or wrong backup from overwriting the live spec; the trial can then fail loudly with the current spec still intact.
+- alternatives_considered:
+  - Use `config.spec.backup_dir` as the concrete backup location. Rejected for Phase 04 because it bypasses the namespace-local FS-Memory layout and makes checkpoint paths less portable.
+  - Overwrite existing backups unconditionally. Rejected because retrying `spec_backup` after a prior inject could replace the original backup with a mutated spec.
+  - Restore first and only compare the expected hash afterward. Rejected because a wrong backup would already have overwritten the live spec before the strict mismatch is detected.
+  - Add a full Jinja2 dependency immediately. Deferred until a concrete project template contract exists; Phase 04 supports explicit Jinja-style placeholders without broadening dependency or template semantics.

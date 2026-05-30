@@ -1544,3 +1544,17 @@ Next action: push validation sync commit, then await next phase/subtask directio
   - `.venv/bin/python -m pytest tests/ -q` -> 438 passed.
 
 Next action: sync validation records, then begin Subtask 4.4b spec backup / inject / restore skills.
+
+## 2026-05-30T03:37:29Z - Phase 04 / Subtask 4.4b implemented
+
+- Implemented `spec_backup`, `spec_injector`, and `spec_restore` skills.
+- `spec_backup` writes namespace-local backups, verifies backup hash, and refuses to overwrite mismatched existing backups.
+- `spec_injector` applies candidate combos through explicit Jinja-style placeholders and atomically rewrites the spec file.
+- `spec_restore` confines backup paths to `layout.spec_backups_dir`, rejects symlinks, pre-checks strict expected hash mismatches before overwriting, atomically restores, and verifies restored bytes.
+- Added a five-skill round-trip test covering `workspace_snapshot` -> `spec_backup` -> `spec_injector` -> `spec_restore` -> `workspace_verify`.
+- UT results:
+  - `.venv/bin/python -m pytest tests/test_spec_skills.py -q` -> 13 passed.
+  - `.venv/bin/python -m pytest tests/test_workspace_skills.py tests/test_spec_skills.py -q` -> 24 passed.
+  - `.venv/bin/python -m pytest tests/ -q` -> 451 passed.
+
+Next action: generate patch artifacts, commit/push Subtask 4.4b, then request external review.

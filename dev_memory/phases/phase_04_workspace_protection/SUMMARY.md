@@ -124,3 +124,41 @@ verification only; spec backup/inject/restore remains 4.4b.
 - `tests/test_workspace_skills.py`: 11 passed
 - Adjacent regression suite: 236 passed
 - Full test suite: 438 passed
+
+## Subtask 4.4b - Spec Backup / Inject / Restore Skills
+
+Implemented the mutating half of the workspace protection skill set from
+§4.7.1 / §4.7.5. This subtask is focused on reversible spec edits and avoids
+workflow orchestration, checkpoint writes, or process cleanup.
+
+### Changes
+
+- Added `spec_backup()`:
+  - writes backups into namespace `spec_backups/`
+  - uses safe per-trial names derived from the validated `trial_id`
+  - hashes original and backup bytes
+  - treats an existing matching backup as idempotent
+  - refuses to overwrite an existing mismatched backup
+- Added `spec_injector()`:
+  - validates non-empty candidate combos
+  - replaces explicit Jinja-style placeholders such as `{{AGENT_COMBO}}`
+  - writes the rendered spec via same-directory temp file, fsync, `os.replace`,
+    and parent fsync
+  - leaves the spec unchanged when no placeholder is found
+- Added `spec_restore()`:
+  - resolves absolute, namespace-relative, and spec_backups-relative backup paths
+  - rejects backups outside `layout.spec_backups_dir`
+  - rejects symlink backups
+  - verifies expected backup hash before overwriting in strict mode
+  - restores atomically and verifies restored bytes match the backup
+- Added an end-to-end five-skill round-trip test:
+  `workspace_snapshot` -> `spec_backup` -> `spec_injector` -> `spec_restore`
+  -> `workspace_verify`.
+- Exported spec skill dataclasses/functions from `agent.skills` and top-level
+  `agent`.
+
+### Validation
+
+- `tests/test_spec_skills.py`: 13 passed
+- `tests/test_workspace_skills.py tests/test_spec_skills.py`: 24 passed
+- Full test suite: 451 passed

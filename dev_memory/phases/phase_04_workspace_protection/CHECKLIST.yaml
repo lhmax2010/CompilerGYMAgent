@@ -30,6 +30,29 @@ subtasks:
         status: done
       - item: "Ubuntu/Linux validation"
         status: done
+  - id: "4.4b"
+    title: "spec_backup / spec_injector / spec_restore skills"
+    status: implementation_complete
+    implementation_commit: pending
+    review_status: pending
+    ubuntu_validation_status: pending
+    checklist:
+      - item: "Read REQUIREMENTS sections 4.7.1 and 4.7.5 spec protection contracts"
+        status: done
+      - item: "Implement spec_backup skill with namespace backup path and hash verification"
+        status: done
+      - item: "Implement spec_injector skill with explicit placeholder replacement and atomic byte write"
+        status: done
+      - item: "Implement spec_restore skill with namespace path confinement, symlink rejection, atomic restore, and hash verification"
+        status: done
+      - item: "Export spec skill dataclasses and functions"
+        status: done
+      - item: "Add unit tests for backup idempotency, overwrite refusal, injection, restore, path safety, symlink safety, and five-skill round trip"
+        status: done
+      - item: "Run targeted and full unit tests"
+        status: done
+      - item: "Generate patch artifacts"
+        status: done
   - id: "4.2"
     title: "WorkspaceLock holder hardening + conservative-path tests"
     status: done

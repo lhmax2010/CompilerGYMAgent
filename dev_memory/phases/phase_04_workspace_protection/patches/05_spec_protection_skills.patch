@@ -1,0 +1,1207 @@
+diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index e4e1061..84dbb32 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -186,4 +186,37 @@ subtasks:
+       targeted_pytest: "11 passed in 0.24s"
+       full_pytest: "438 passed in 1.57s"
+       runner: "local .venv + pytest"
+-next_action: "Begin Subtask 4.4b: spec_backup / spec_injector / spec_restore skills."
++  - id: "4.4b"
++    title: "spec_backup / spec_injector / spec_restore skills"
++    status: implementation_complete
++    related_requirements:
++      - REQUIREMENTS.md section 4.7.1
++      - REQUIREMENTS.md section 4.7.5
++      - ROADMAP.yaml Phase 04 workspace protection skills
++    files_created:
++      - src/agent/skills/spec_backup.py
++      - src/agent/skills/spec_injector.py
++      - src/agent/skills/spec_restore.py
++      - tests/test_spec_skills.py
++    files_modified:
++      - src/agent/__init__.py
++      - src/agent/skills/__init__.py
++      - tests/fixtures/fake_workspace.py
++    behavior_notes:
++      - "spec_backup writes per-trial backups into namespace spec_backups and refuses to overwrite mismatched existing backups."
++      - "spec_injector replaces explicit Jinja-style spec placeholders with a candidate combo using same-directory atomic byte writes."
++      - "spec_restore resolves only namespace-local backups, rejects symlink/outside paths, restores atomically, and verifies restored bytes against backup/pre-trial hashes."
++      - "The five workspace/spec protection skills have an end-to-end round-trip test: snapshot -> backup -> inject -> restore -> verify."
++    ut_required: true
++    ut_passed: true
++    targeted_ut: "13 spec skill tests passed, 0 failed"
++    regression_ut: "24 workspace/spec skill tests passed, 0 failed"
++    full_ut: "451 passed, 0 failed"
++    self_review_required: true
++    self_reviewed: true
++    patch_required: true
++    patch_file: dev_memory/phases/phase_04_workspace_protection/patches/05_spec_protection_skills.patch
++    patch_generated: true
++    commit_required: true
++    commit_pending: true
++next_action: "Push Subtask 4.4b implementation range for Claude review."
+diff --git a/dev_memory/DECISIONS.md b/dev_memory/DECISIONS.md
+index 9319231..e13ccf9 100644
+--- a/dev_memory/DECISIONS.md
++++ b/dev_memory/DECISIONS.md
+@@ -725,3 +725,16 @@ Decision records must include:
+   - Implement all five workspace/spec skills in one subtask, which would mix read/compare behavior with destructive spec rewrite behavior and make review too broad.
+   - Treat snapshots as in-memory-only results, which would not satisfy the user-readable workspace_snapshots SoT requirement.
+   - Omit post-snapshot enrichment from the persisted YAML, which would force doctor/report code to recompute changes later.
++
++## 2026-05-30T03:37:29Z - Spec mutation skills use namespace backups and explicit placeholders
++
++- affected_requirement:
++  - REQUIREMENTS.md section 4.7.1
++  - REQUIREMENTS.md section 4.7.5
++- decision: `spec_backup` writes per-trial backups under `layout.spec_backups_dir`, `spec_injector` only mutates specs that contain an explicit supported placeholder, and `spec_restore` only restores namespace-local non-symlink backups. Restore checks strict expected-hash mismatches before overwriting the live spec, then verifies restored bytes match backup bytes after the atomic write.
++- rationale: The canonical FS-Memory layout already defines `spec_backups/*.bak` inside each namespace, which makes checkpoint-relative paths (`spec_backups/pre_trial_...`) portable across machines and consistent with recovery logic. Explicit placeholders keep the first injector deterministic until the real project template grammar is provided. Pre-checking strict hash mismatches prevents a corrupt or wrong backup from overwriting the live spec; the trial can then fail loudly with the current spec still intact.
++- alternatives_considered:
++  - Use `config.spec.backup_dir` as the concrete backup location. Rejected for Phase 04 because it bypasses the namespace-local FS-Memory layout and makes checkpoint paths less portable.
++  - Overwrite existing backups unconditionally. Rejected because retrying `spec_backup` after a prior inject could replace the original backup with a mutated spec.
++  - Restore first and only compare the expected hash afterward. Rejected because a wrong backup would already have overwritten the live spec before the strict mismatch is detected.
++  - Add a full Jinja2 dependency immediately. Deferred until a concrete project template contract exists; Phase 04 supports explicit Jinja-style placeholders without broadening dependency or template semantics.
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index 88b048c..ef3d6a7 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -1544,3 +1544,17 @@ Next action: push validation sync commit, then await next phase/subtask directio
+   - `.venv/bin/python -m pytest tests/ -q` -> 438 passed.
+ 
+ Next action: sync validation records, then begin Subtask 4.4b spec backup / inject / restore skills.
++
++## 2026-05-30T03:37:29Z - Phase 04 / Subtask 4.4b implemented
++
++- Implemented `spec_backup`, `spec_injector`, and `spec_restore` skills.
++- `spec_backup` writes namespace-local backups, verifies backup hash, and refuses to overwrite mismatched existing backups.
++- `spec_injector` applies candidate combos through explicit Jinja-style placeholders and atomically rewrites the spec file.
++- `spec_restore` confines backup paths to `layout.spec_backups_dir`, rejects symlinks, pre-checks strict expected hash mismatches before overwriting, atomically restores, and verifies restored bytes.
++- Added a five-skill round-trip test covering `workspace_snapshot` -> `spec_backup` -> `spec_injector` -> `spec_restore` -> `workspace_verify`.
++- UT results:
++  - `.venv/bin/python -m pytest tests/test_spec_skills.py -q` -> 13 passed.
++  - `.venv/bin/python -m pytest tests/test_workspace_skills.py tests/test_spec_skills.py -q` -> 24 passed.
++  - `.venv/bin/python -m pytest tests/ -q` -> 451 passed.
++
++Next action: generate patch artifacts, commit/push Subtask 4.4b, then request external review.
+diff --git a/dev_memory/phases/phase_04_workspace_protection/CHECKLIST.yaml b/dev_memory/phases/phase_04_workspace_protection/CHECKLIST.yaml
+index b9dac34..9908862 100644
+--- a/dev_memory/phases/phase_04_workspace_protection/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_04_workspace_protection/CHECKLIST.yaml
+@@ -30,6 +30,29 @@ subtasks:
+         status: done
+       - item: "Ubuntu/Linux validation"
+         status: done
++  - id: "4.4b"
++    title: "spec_backup / spec_injector / spec_restore skills"
++    status: implementation_complete
++    implementation_commit: pending
++    review_status: pending
++    ubuntu_validation_status: pending
++    checklist:
++      - item: "Read REQUIREMENTS sections 4.7.1 and 4.7.5 spec protection contracts"
++        status: done
++      - item: "Implement spec_backup skill with namespace backup path and hash verification"
++        status: done
++      - item: "Implement spec_injector skill with explicit placeholder replacement and atomic byte write"
++        status: done
++      - item: "Implement spec_restore skill with namespace path confinement, symlink rejection, atomic restore, and hash verification"
++        status: done
++      - item: "Export spec skill dataclasses and functions"
++        status: done
++      - item: "Add unit tests for backup idempotency, overwrite refusal, injection, restore, path safety, symlink safety, and five-skill round trip"
++        status: done
++      - item: "Run targeted and full unit tests"
++        status: done
++      - item: "Generate patch artifacts"
++        status: done
+   - id: "4.2"
+     title: "WorkspaceLock holder hardening + conservative-path tests"
+     status: done
+diff --git a/dev_memory/phases/phase_04_workspace_protection/REVIEW_NOTES.md b/dev_memory/phases/phase_04_workspace_protection/REVIEW_NOTES.md
+index 3bbe345..4ffe320 100644
+--- a/dev_memory/phases/phase_04_workspace_protection/REVIEW_NOTES.md
++++ b/dev_memory/phases/phase_04_workspace_protection/REVIEW_NOTES.md
+@@ -150,3 +150,25 @@ Post-review validation:
+ 
+ - `tests/test_workspace_skills.py`: 11 passed
+ - Full suite: 438 passed
++
++## Subtask 4.4b - Spec Backup / Inject / Restore Skills
++
++Self-review checklist:
++
++- [x] `spec_backup` writes backups under namespace `spec_backups/`.
++- [x] `spec_backup` validates `trial_id` with the shared identifier helper.
++- [x] Existing matching backups are idempotent; mismatched existing backups are not overwritten.
++- [x] `spec_injector` only mutates specs containing an explicit supported placeholder.
++- [x] Spec injection writes through same-directory temp + fsync + `os.replace` + parent fsync.
++- [x] `spec_restore` accepts absolute or relative namespace backup paths and rejects paths outside `layout.spec_backups_dir`.
++- [x] `spec_restore` rejects symlink backups.
++- [x] `spec_restore` checks expected pre-trial hash before overwriting the live spec when strict restore verification is enabled.
++- [x] Restore verifies bytes written to spec match backup bytes.
++- [x] Five-skill round trip is covered: `workspace_snapshot` -> `spec_backup` -> `spec_injector` -> `spec_restore` -> `workspace_verify`.
++- [x] Targeted, adjacent, and full tests passed.
++
++Reviewer focus:
++
++- Confirm namespace-local `layout.spec_backups_dir` is the right concrete backup location for Phase 04 despite the legacy `config.spec.backup_dir` field.
++- Confirm explicit Jinja-style placeholder replacement is acceptable for the first spec injector contract until a real project template grammar lands.
++- Confirm restore refusing a mismatched backup before overwriting the live spec is the right failure mode for strict `hash_must_match_after_restore`.
+diff --git a/dev_memory/phases/phase_04_workspace_protection/SUMMARY.md b/dev_memory/phases/phase_04_workspace_protection/SUMMARY.md
+index 0191411..b0828c3 100644
+--- a/dev_memory/phases/phase_04_workspace_protection/SUMMARY.md
++++ b/dev_memory/phases/phase_04_workspace_protection/SUMMARY.md
+@@ -124,3 +124,41 @@ verification only; spec backup/inject/restore remains 4.4b.
+ - `tests/test_workspace_skills.py`: 11 passed
+ - Adjacent regression suite: 236 passed
+ - Full test suite: 438 passed
++
++## Subtask 4.4b - Spec Backup / Inject / Restore Skills
++
++Implemented the mutating half of the workspace protection skill set from
++§4.7.1 / §4.7.5. This subtask is focused on reversible spec edits and avoids
++workflow orchestration, checkpoint writes, or process cleanup.
++
++### Changes
++
++- Added `spec_backup()`:
++  - writes backups into namespace `spec_backups/`
++  - uses safe per-trial names derived from the validated `trial_id`
++  - hashes original and backup bytes
++  - treats an existing matching backup as idempotent
++  - refuses to overwrite an existing mismatched backup
++- Added `spec_injector()`:
++  - validates non-empty candidate combos
++  - replaces explicit Jinja-style placeholders such as `{{AGENT_COMBO}}`
++  - writes the rendered spec via same-directory temp file, fsync, `os.replace`,
++    and parent fsync
++  - leaves the spec unchanged when no placeholder is found
++- Added `spec_restore()`:
++  - resolves absolute, namespace-relative, and spec_backups-relative backup paths
++  - rejects backups outside `layout.spec_backups_dir`
++  - rejects symlink backups
++  - verifies expected backup hash before overwriting in strict mode
++  - restores atomically and verifies restored bytes match the backup
++- Added an end-to-end five-skill round-trip test:
++  `workspace_snapshot` -> `spec_backup` -> `spec_injector` -> `spec_restore`
++  -> `workspace_verify`.
++- Exported spec skill dataclasses/functions from `agent.skills` and top-level
++  `agent`.
++
++### Validation
++
++- `tests/test_spec_skills.py`: 13 passed
++- `tests/test_workspace_skills.py tests/test_spec_skills.py`: 24 passed
++- Full test suite: 451 passed
+diff --git a/dev_memory/phases/phase_04_workspace_protection/UT_RESULTS.md b/dev_memory/phases/phase_04_workspace_protection/UT_RESULTS.md
+index fb79d86..a2ebf2e 100644
+--- a/dev_memory/phases/phase_04_workspace_protection/UT_RESULTS.md
++++ b/dev_memory/phases/phase_04_workspace_protection/UT_RESULTS.md
+@@ -284,3 +284,43 @@ Result:
+ ```text
+ 438 passed in 1.57s
+ ```
++
++## 2026-05-30 - Subtask 4.4b Spec Backup / Inject / Restore Skills
++
++Environment:
++
++- Runner: local `.venv`
++- Python: `.venv/bin/python`
++- OS: Linux workspace
++
++Commands:
++
++```bash
++.venv/bin/python -m pytest tests/test_spec_skills.py -q
++```
++
++Result:
++
++```text
++13 passed in 0.20s
++```
++
++```bash
++.venv/bin/python -m pytest tests/test_workspace_skills.py tests/test_spec_skills.py -q
++```
++
++Result:
++
++```text
++24 passed in 0.30s
++```
++
++```bash
++.venv/bin/python -m pytest tests/ -q
++```
++
++Result:
++
++```text
++451 passed in 1.69s
++```
+diff --git a/dev_memory/phases/phase_04_workspace_protection/patches/05_spec_protection_skills.review.md b/dev_memory/phases/phase_04_workspace_protection/patches/05_spec_protection_skills.review.md
+new file mode 100644
+index 0000000..18e1765
+--- /dev/null
++++ b/dev_memory/phases/phase_04_workspace_protection/patches/05_spec_protection_skills.review.md
+@@ -0,0 +1,54 @@
++# Self Review - Phase 04 / Subtask 4.4b Spec Protection Skills
++
++## Scope
++
++This subtask implements `spec_backup`, `spec_injector`, and `spec_restore`.
++It does not add workflow orchestration, checkpoint writes, process cleanup, or
++CLI commands.
++
++## Checks
++
++- `spec_backup` stores backups in namespace `spec_backups/`, matching the
++  FS-Memory layout and checkpoint examples.
++- `spec_backup` is idempotent when the existing backup matches the current spec.
++- `spec_backup` refuses to overwrite a mismatched existing backup, preventing a
++  retry-after-inject path from replacing the original backup with a mutated spec.
++- `spec_injector` requires explicit placeholders and leaves the spec unchanged
++  when no placeholder is present.
++- Spec mutation uses same-directory temp files, file fsync, `os.replace`, and
++  parent directory fsync.
++- `spec_restore` confines backup inputs to `layout.spec_backups_dir`.
++- `spec_restore` rejects symlink backup paths.
++- Strict restore mode checks the expected pre-trial hash before overwriting the
++  live spec.
++- Restore verifies written spec bytes match the backup after atomic write.
++- The test suite includes a full five-skill protection round trip:
++  `workspace_snapshot` -> `spec_backup` -> `spec_injector` -> `spec_restore`
++  -> `workspace_verify`.
++
++## Reviewer Focus
++
++- Confirm that using `layout.spec_backups_dir` as the concrete backup location is
++  correct for Phase 04, while `config.spec.backup_dir` remains a legacy/config
++  field for future policy work.
++- Confirm explicit Jinja-style placeholders are enough for the first
++  `spec_injector` implementation until a real project template grammar lands.
++- Confirm refusing strict expected-hash mismatches before overwriting the live
++  spec is the preferred failure mode.
++
++## Validation
++
++```bash
++.venv/bin/python -m pytest tests/test_spec_skills.py -q
++# 13 passed in 0.20s
++```
++
++```bash
++.venv/bin/python -m pytest tests/test_workspace_skills.py tests/test_spec_skills.py -q
++# 24 passed in 0.30s
++```
++
++```bash
++.venv/bin/python -m pytest tests/ -q
++# 451 passed in 1.69s
++```
+diff --git a/dev_memory/phases/phase_04_workspace_protection/patches/05_spec_protection_skills.summary.txt b/dev_memory/phases/phase_04_workspace_protection/patches/05_spec_protection_skills.summary.txt
+new file mode 100644
+index 0000000..b1cc6a3
+--- /dev/null
++++ b/dev_memory/phases/phase_04_workspace_protection/patches/05_spec_protection_skills.summary.txt
+@@ -0,0 +1,42 @@
++Subtask 4.4b - Spec Backup / Inject / Restore Skills
++
++Implemented the mutating half of Phase 04 workspace protection:
++
++- Added spec_backup():
++  - validates trial_id through the shared identifier helper
++  - stores per-trial backups in layout.spec_backups_dir
++  - records namespace-relative backup paths for checkpoint/resume use
++  - verifies original and backup hashes
++  - treats an existing matching backup as idempotent
++  - refuses to overwrite an existing mismatched backup
++
++- Added spec_injector():
++  - validates candidate combo strings
++  - requires an explicit supported Jinja-style placeholder
++  - replaces the placeholder with the rendered combo string
++  - writes spec bytes through same-directory temp file, fsync, os.replace, and parent fsync
++
++- Added spec_restore():
++  - accepts absolute, namespace-relative, or spec_backups-relative backup paths
++  - confines restore inputs to layout.spec_backups_dir
++  - rejects symlink backups
++  - checks strict expected-hash mismatches before overwriting the live spec
++  - atomically restores bytes and verifies restored hash matches the backup
++
++- Added tests for:
++  - backup creation and idempotency
++  - mismatched backup overwrite refusal
++  - placeholder injection
++  - missing-placeholder no-op safety
++  - restore from relative path
++  - strict and relaxed expected-hash behavior
++  - outside-path and symlink rejection
++  - unsafe trial_id rejection
++  - top-level exports
++  - five-skill round trip: snapshot -> backup -> inject -> restore -> verify
++
++Validation:
++
++- .venv/bin/python -m pytest tests/test_spec_skills.py -q -> 13 passed
++- .venv/bin/python -m pytest tests/test_workspace_skills.py tests/test_spec_skills.py -q -> 24 passed
++- .venv/bin/python -m pytest tests/ -q -> 451 passed
+diff --git a/src/agent/__init__.py b/src/agent/__init__.py
+index 2f0853f..4521078 100644
+--- a/src/agent/__init__.py
++++ b/src/agent/__init__.py
+@@ -138,12 +138,18 @@ from .registry import (
+     validate_project_against_registry,
+ )
+ from .skills import (
++    SpecBackupResult,
++    SpecInjectResult,
++    SpecRestoreResult,
+     WorkspaceIntegrityError,
+     WorkspaceProtectionError,
+     WorkspaceSnapshotPhase,
+     WorkspaceSnapshotResult,
+     WorkspaceVerifyResult,
+     load_workspace_snapshot,
++    spec_backup,
++    spec_injector,
++    spec_restore,
+     workspace_snapshot,
+     workspace_verify,
+ )
+@@ -249,6 +255,9 @@ __all__ = [
+     "ScheduleSlot",
+     "SessionId",
+     "SourceTreeChange",
++    "SpecBackupResult",
++    "SpecInjectResult",
++    "SpecRestoreResult",
+     "StaleCleanPlanError",
+     "TraceAppendResult",
+     "TraceCheckpointAlignment",
+@@ -336,6 +345,9 @@ __all__ = [
+     "render_init_confirmation",
+     "rebuild_trial_index",
+     "run_init",
++    "spec_backup",
++    "spec_injector",
++    "spec_restore",
+     "trial_index_is_stale",
+     "trial_record_path",
+     "trial_record_payload",
+diff --git a/src/agent/skills/__init__.py b/src/agent/skills/__init__.py
+index b6f58dd..8b73174 100644
+--- a/src/agent/skills/__init__.py
++++ b/src/agent/skills/__init__.py
+@@ -1,5 +1,8 @@
+ """Deterministic skill helpers for the local agent workflow."""
+ 
++from .spec_backup import SpecBackupResult, spec_backup
++from .spec_injector import SpecInjectResult, spec_injector
++from .spec_restore import SpecRestoreResult, spec_restore
+ from .workspace_snapshot import (
+     WorkspaceIntegrityError,
+     WorkspaceProtectionError,
+@@ -11,12 +14,18 @@ from .workspace_snapshot import (
+ from .workspace_verify import WorkspaceVerifyResult, workspace_verify
+ 
+ __all__ = [
++    "SpecBackupResult",
++    "SpecInjectResult",
++    "SpecRestoreResult",
+     "WorkspaceIntegrityError",
+     "WorkspaceProtectionError",
+     "WorkspaceSnapshotPhase",
+     "WorkspaceSnapshotResult",
+     "WorkspaceVerifyResult",
+     "load_workspace_snapshot",
++    "spec_backup",
++    "spec_injector",
++    "spec_restore",
+     "workspace_snapshot",
+     "workspace_verify",
+ ]
+diff --git a/src/agent/skills/spec_backup.py b/src/agent/skills/spec_backup.py
+new file mode 100644
+index 0000000..eeb8881
+--- /dev/null
++++ b/src/agent/skills/spec_backup.py
+@@ -0,0 +1,193 @@
++"""Spec backup skill for reversible spec-file mutation."""
++
++from __future__ import annotations
++
++import os
++import stat
++import tempfile
++from dataclasses import dataclass
++from datetime import UTC, datetime
++from pathlib import Path
++
++from agent.config import AgentConfig
++from agent.fs_memory import NamespaceLayout
++from agent.identifiers import validate_session_id_atom
++
++from .workspace_snapshot import WorkspaceIntegrityError, WorkspaceProtectionError
++
++
++@dataclass(frozen=True)
++class SpecBackupResult:
++    """Result of persisting the pre-trial spec backup."""
++
++    trial_id: str
++    spec_path: Path
++    backup_path: Path
++    relative_backup_path: str
++    original_hash: str
++    backup_hash: str
++    created_at: str
++    created: bool
++
++
++def spec_backup(
++    config: AgentConfig,
++    layout: NamespaceLayout,
++    *,
++    trial_id: str,
++    now: datetime | None = None,
++) -> SpecBackupResult:
++    """Back up the current spec file into the namespace spec_backups directory."""
++
++    _ensure_workspace_protection_enabled(config)
++    safe_trial_id = _validate_trial_id(trial_id)
++    timestamp = _normalize_now(now).isoformat()
++    spec_path = _spec_path(config)
++    source_bytes = _read_file_bytes(spec_path)
++    original_hash = _sha256_bytes(source_bytes)
++    backup_path = _backup_path(layout, safe_trial_id, spec_path)
++    backup_path.parent.mkdir(parents=True, exist_ok=True)
++    created = False
++
++    if backup_path.exists():
++        if backup_path.is_symlink():
++            raise WorkspaceProtectionError(
++                f"spec backup path must not be a symlink: {backup_path}"
++            )
++        if not backup_path.is_file():
++            raise WorkspaceProtectionError(
++                f"spec backup path is not a file: {backup_path}"
++            )
++        backup_hash = _sha256_file(backup_path)
++        if backup_hash != original_hash:
++            raise WorkspaceIntegrityError(
++                "existing spec backup does not match current spec; "
++                f"refusing to overwrite {backup_path}"
++            )
++    else:
++        _atomic_write_bytes(
++            source_bytes,
++            backup_path,
++            file_mode=_file_mode(spec_path, default=0o644),
++        )
++        created = True
++        backup_hash = _sha256_file(backup_path)
++        if backup_hash != original_hash:
++            raise WorkspaceIntegrityError(
++                "spec backup hash mismatch after write "
++                f"(expected={original_hash!r}, actual={backup_hash!r})"
++            )
++
++    return SpecBackupResult(
++        trial_id=safe_trial_id,
++        spec_path=spec_path,
++        backup_path=backup_path,
++        relative_backup_path=_relative_to_namespace(layout, backup_path),
++        original_hash=original_hash,
++        backup_hash=backup_hash,
++        created_at=timestamp,
++        created=created,
++    )
++
++
++def _ensure_workspace_protection_enabled(config: AgentConfig) -> None:
++    if not config.workspace_protection.enabled:
++        raise WorkspaceProtectionError("workspace protection is disabled")
++
++
++def _validate_trial_id(trial_id: str) -> str:
++    return validate_session_id_atom(
++        trial_id,
++        "trial_id",
++        error_type=WorkspaceProtectionError,
++    )
++
++
++def _spec_path(config: AgentConfig) -> Path:
++    path = Path(config.spec.source_path).expanduser()
++    if not path.exists() or not path.is_file():
++        raise WorkspaceProtectionError(f"spec source path is not a file: {path}")
++    return path
++
++
++def _backup_path(layout: NamespaceLayout, trial_id: str, spec_path: Path) -> Path:
++    suffix = spec_path.suffix or ".spec"
++    return layout.spec_backups_dir / f"pre_trial_{trial_id}{suffix}.bak"
++
++
++def _relative_to_namespace(layout: NamespaceLayout, path: Path) -> str:
++    try:
++        return path.relative_to(layout.namespace_dir).as_posix()
++    except ValueError:
++        return path.as_posix()
++
++
++def _normalize_now(now: datetime | None) -> datetime:
++    value = now or datetime.now(UTC)
++    if value.tzinfo is None:
++        raise WorkspaceProtectionError("now must be timezone-aware")
++    return value.astimezone(UTC)
++
++
++def _read_file_bytes(path: Path) -> bytes:
++    try:
++        return path.read_bytes()
++    except OSError as exc:
++        raise WorkspaceProtectionError(f"failed to read spec file {path}: {exc}") from exc
++
++
++def _sha256_file(path: Path) -> str:
++    return _sha256_bytes(_read_file_bytes(path))
++
++
++def _sha256_bytes(data: bytes) -> str:
++    import hashlib
++
++    return "sha256:" + hashlib.sha256(data).hexdigest()
++
++
++def _file_mode(path: Path, *, default: int) -> int:
++    try:
++        return stat.S_IMODE(path.stat().st_mode)
++    except OSError:
++        return default
++
++
++def _atomic_write_bytes(data: bytes, path: Path, *, file_mode: int = 0o644) -> None:
++    target = Path(path)
++    if target.exists() and target.is_dir():
++        raise WorkspaceProtectionError(f"cannot atomically write over directory: {target}")
++    target.parent.mkdir(parents=True, exist_ok=True)
++    fd, temp_name = tempfile.mkstemp(
++        prefix=f".{target.name}.{os.getpid()}.",
++        suffix=".tmp",
++        dir=target.parent,
++    )
++    temp_path = Path(temp_name)
++    try:
++        with os.fdopen(fd, "wb") as handle:
++            fchmod = getattr(os, "fchmod", None)
++            if fchmod is not None:
++                fchmod(handle.fileno(), file_mode)
++            handle.write(data)
++            handle.flush()
++            os.fsync(handle.fileno())
++        os.replace(temp_path, target)
++        _fsync_parent_dir(target.parent)
++    except Exception:
++        try:
++            temp_path.unlink()
++        except OSError:
++            pass
++        raise
++
++
++def _fsync_parent_dir(path: Path) -> None:
++    flags = getattr(os, "O_DIRECTORY", None)
++    if flags is None:
++        return
++    dir_fd = os.open(path, os.O_RDONLY | flags)
++    try:
++        os.fsync(dir_fd)
++    finally:
++        os.close(dir_fd)
+diff --git a/src/agent/skills/spec_injector.py b/src/agent/skills/spec_injector.py
+new file mode 100644
+index 0000000..9fe9a57
+--- /dev/null
++++ b/src/agent/skills/spec_injector.py
+@@ -0,0 +1,138 @@
++"""Spec injection skill for applying one candidate combo to the spec file."""
++
++from __future__ import annotations
++
++from dataclasses import dataclass
++from datetime import UTC, datetime
++from pathlib import Path
++from typing import Sequence
++
++from agent.config import AgentConfig
++from agent.fs_memory import NamespaceLayout
++
++from .spec_backup import (
++    _atomic_write_bytes,
++    _ensure_workspace_protection_enabled,
++    _file_mode,
++    _normalize_now,
++    _sha256_file,
++    _spec_path,
++    _validate_trial_id,
++)
++from .workspace_snapshot import WorkspaceProtectionError
++
++
++DEFAULT_SPEC_PLACEHOLDERS = (
++    "{{AGENT_COMBO}}",
++    "{{ AGENT_COMBO }}",
++    "{{AGENT_OPTIONS}}",
++    "{{ AGENT_OPTIONS }}",
++    "{{combo}}",
++    "{{ combo }}",
++    "{{options}}",
++    "{{ options }}",
++)
++
++
++@dataclass(frozen=True)
++class SpecInjectResult:
++    """Result of rendering and atomically replacing the spec file."""
++
++    trial_id: str
++    spec_path: Path
++    combo: tuple[str, ...]
++    rendered_options: str
++    placeholder: str
++    previous_hash: str
++    injected_hash: str
++    injected_at: str
++
++
++def spec_injector(
++    config: AgentConfig,
++    layout: NamespaceLayout,
++    *,
++    trial_id: str,
++    combo: Sequence[str],
++    placeholder: str | None = None,
++    now: datetime | None = None,
++) -> SpecInjectResult:
++    """Inject a candidate combo into the configured spec template placeholder."""
++
++    _ = layout
++    _ensure_workspace_protection_enabled(config)
++    safe_trial_id = _validate_trial_id(trial_id)
++    safe_combo = _validate_combo(combo)
++    timestamp = _normalize_now(now).isoformat()
++    spec_path = _spec_path(config)
++    previous_hash = _sha256_file(spec_path)
++    try:
++        text = spec_path.read_text(encoding="utf-8")
++    except UnicodeDecodeError as exc:
++        raise WorkspaceProtectionError(
++            f"spec file is not valid UTF-8: {spec_path}"
++        ) from exc
++    except OSError as exc:
++        raise WorkspaceProtectionError(f"failed to read spec file {spec_path}: {exc}") from exc
++
++    rendered_options = " ".join(safe_combo)
++    rendered, matched_placeholder = _render_spec_template(
++        text,
++        placeholder=placeholder,
++        replacement=rendered_options,
++    )
++    _atomic_write_bytes(
++        rendered.encode("utf-8"),
++        spec_path,
++        file_mode=_file_mode(spec_path, default=0o644),
++    )
++    injected_hash = _sha256_file(spec_path)
++    if injected_hash == previous_hash:
++        raise WorkspaceProtectionError(
++            f"spec injection did not change spec hash: {spec_path}"
++        )
++
++    return SpecInjectResult(
++        trial_id=safe_trial_id,
++        spec_path=spec_path,
++        combo=safe_combo,
++        rendered_options=rendered_options,
++        placeholder=matched_placeholder,
++        previous_hash=previous_hash,
++        injected_hash=injected_hash,
++        injected_at=timestamp,
++    )
++
++
++def _validate_combo(combo: Sequence[str]) -> tuple[str, ...]:
++    if isinstance(combo, str):
++        raise WorkspaceProtectionError("combo must be a sequence of option strings")
++    values = tuple(str(option).strip() for option in combo)
++    if not values:
++        raise WorkspaceProtectionError("combo must contain at least one option")
++    for option in values:
++        if not option:
++            raise WorkspaceProtectionError("combo options must be non-empty")
++        if "\x00" in option or "\n" in option or "\r" in option:
++            raise WorkspaceProtectionError(
++                "combo options must not contain NUL or newline characters"
++            )
++    return values
++
++
++def _render_spec_template(
++    text: str,
++    *,
++    placeholder: str | None,
++    replacement: str,
++) -> tuple[str, str]:
++    placeholders = (placeholder,) if placeholder is not None else DEFAULT_SPEC_PLACEHOLDERS
++    for candidate in placeholders:
++        if candidate is None or not candidate:
++            raise WorkspaceProtectionError("spec injection placeholder cannot be empty")
++        if candidate in text:
++            return text.replace(candidate, replacement), candidate
++    expected = ", ".join(repr(value) for value in placeholders)
++    raise WorkspaceProtectionError(
++        f"spec template placeholder not found; expected one of: {expected}"
++    )
+diff --git a/src/agent/skills/spec_restore.py b/src/agent/skills/spec_restore.py
+new file mode 100644
+index 0000000..b3760bb
+--- /dev/null
++++ b/src/agent/skills/spec_restore.py
+@@ -0,0 +1,155 @@
++"""Spec restore skill for defensive cleanup after spec mutation."""
++
++from __future__ import annotations
++
++from dataclasses import dataclass
++from datetime import datetime
++from pathlib import Path
++
++from agent.config import AgentConfig
++from agent.fs_memory import NamespaceLayout
++
++from .spec_backup import (
++    SpecBackupResult,
++    _atomic_write_bytes,
++    _ensure_workspace_protection_enabled,
++    _file_mode,
++    _normalize_now,
++    _read_file_bytes,
++    _sha256_file,
++    _spec_path,
++    _validate_trial_id,
++)
++from .workspace_snapshot import WorkspaceIntegrityError, WorkspaceProtectionError
++
++
++@dataclass(frozen=True)
++class SpecRestoreResult:
++    """Result of restoring the spec file from a backup."""
++
++    trial_id: str | None
++    spec_path: Path
++    backup_path: Path
++    relative_backup_path: str
++    backup_hash: str
++    restored_hash: str
++    expected_hash: str | None
++    matches_expected: bool
++    restored_at: str
++
++
++def spec_restore(
++    config: AgentConfig,
++    layout: NamespaceLayout,
++    *,
++    backup: SpecBackupResult | str | Path,
++    trial_id: str | None = None,
++    expected_hash: str | None = None,
++    now: datetime | None = None,
++) -> SpecRestoreResult:
++    """Restore the configured spec file from a namespace spec backup."""
++
++    _ensure_workspace_protection_enabled(config)
++    safe_trial_id = _coerce_trial_id(trial_id, backup)
++    timestamp = _normalize_now(now).isoformat()
++    spec_path = _spec_path(config)
++    backup_path = _resolve_backup_path(layout, backup)
++    backup_bytes = _read_file_bytes(backup_path)
++    backup_hash = _sha256_file(backup_path)
++    expected = _coerce_expected_hash(expected_hash, backup)
++    matches_expected_before_write = expected is None or backup_hash == expected
++    if config.spec.hash_must_match_after_restore and not matches_expected_before_write:
++        raise WorkspaceIntegrityError(
++            "spec backup hash does not match expected pre-trial hash; "
++            f"refusing to restore (expected={expected!r}, backup={backup_hash!r})"
++        )
++
++    _atomic_write_bytes(
++        backup_bytes,
++        spec_path,
++        file_mode=_file_mode(spec_path, default=0o644),
++    )
++    restored_hash = _sha256_file(spec_path)
++    if restored_hash != backup_hash:
++        raise WorkspaceIntegrityError(
++            "spec restore hash mismatch after write "
++            f"(backup={backup_hash!r}, restored={restored_hash!r})"
++        )
++
++    matches_expected = expected is None or restored_hash == expected
++    if config.spec.hash_must_match_after_restore and not matches_expected:
++        raise WorkspaceIntegrityError(
++            "restored spec hash does not match expected pre-trial hash "
++            f"(expected={expected!r}, actual={restored_hash!r})"
++        )
++
++    return SpecRestoreResult(
++        trial_id=safe_trial_id,
++        spec_path=spec_path,
++        backup_path=backup_path,
++        relative_backup_path=_relative_to_namespace(layout, backup_path),
++        backup_hash=backup_hash,
++        restored_hash=restored_hash,
++        expected_hash=expected,
++        matches_expected=matches_expected,
++        restored_at=timestamp,
++    )
++
++
++def _coerce_trial_id(
++    trial_id: str | None,
++    backup: SpecBackupResult | str | Path,
++) -> str | None:
++    value = trial_id
++    if value is None and isinstance(backup, SpecBackupResult):
++        value = backup.trial_id
++    if value is None:
++        return None
++    return _validate_trial_id(value)
++
++
++def _coerce_expected_hash(
++    expected_hash: str | None,
++    backup: SpecBackupResult | str | Path,
++) -> str | None:
++    if expected_hash is not None:
++        return expected_hash
++    if isinstance(backup, SpecBackupResult):
++        return backup.original_hash
++    return None
++
++
++def _resolve_backup_path(
++    layout: NamespaceLayout,
++    backup: SpecBackupResult | str | Path,
++) -> Path:
++    raw_path = backup.backup_path if isinstance(backup, SpecBackupResult) else Path(backup)
++    if raw_path.is_absolute():
++        candidate = raw_path
++    elif raw_path.parts and raw_path.parts[0] == "spec_backups":
++        candidate = layout.namespace_dir / raw_path
++    else:
++        candidate = layout.spec_backups_dir / raw_path
++
++    if candidate.is_symlink():
++        raise WorkspaceProtectionError(
++            f"spec backup path must not be a symlink: {raw_path}"
++        )
++    base = layout.spec_backups_dir.resolve(strict=False)
++    resolved = candidate.resolve(strict=False)
++    try:
++        resolved.relative_to(base)
++    except ValueError as exc:
++        raise WorkspaceProtectionError(
++            f"spec backup path must stay inside {base}: {raw_path}"
++        ) from exc
++    if not resolved.exists() or not resolved.is_file():
++        raise WorkspaceProtectionError(f"spec backup path is not a file: {resolved}")
++    return resolved
++
++
++def _relative_to_namespace(layout: NamespaceLayout, path: Path) -> str:
++    try:
++        return path.relative_to(layout.namespace_dir).as_posix()
++    except ValueError:
++        return path.as_posix()
+diff --git a/tests/fixtures/fake_workspace.py b/tests/fixtures/fake_workspace.py
+index d516a3f..cbbf180 100644
+--- a/tests/fixtures/fake_workspace.py
++++ b/tests/fixtures/fake_workspace.py
+@@ -35,7 +35,10 @@ def create_fake_workspace(tmp_path: Path, **config_overrides: object) -> FakeWor
+         encoding="utf-8",
+     )
+     spec_path = root / "project.spec"
+-    spec_path.write_text("Name: demo\n%build\n", encoding="utf-8")
++    spec_path.write_text(
++        "Name: demo\n%build\nexport CFLAGS=\"{{AGENT_COMBO}}\"\n",
++        encoding="utf-8",
++    )
+ 
+     data = {
+         "project": {
+diff --git a/tests/test_spec_skills.py b/tests/test_spec_skills.py
+new file mode 100644
+index 0000000..6d389c7
+--- /dev/null
++++ b/tests/test_spec_skills.py
+@@ -0,0 +1,254 @@
++from __future__ import annotations
++
++from datetime import UTC, datetime
++from pathlib import Path
++
++import pytest
++
++from agent.skills import (
++    WorkspaceIntegrityError,
++    WorkspaceProtectionError,
++    spec_backup,
++    spec_injector,
++    spec_restore,
++    workspace_snapshot,
++    workspace_verify,
++)
++from tests.fixtures.fake_workspace import create_fake_workspace
++
++
++def fixed_now() -> datetime:
++    return datetime(2026, 5, 30, 4, 5, 6, tzinfo=UTC)
++
++
++def test_spec_backup_writes_namespace_backup_with_matching_hash(
++    tmp_path: Path,
++) -> None:
++    fake = create_fake_workspace(tmp_path)
++
++    result = spec_backup(fake.config, fake.layout, trial_id="r2_t1", now=fixed_now())
++
++    assert result.backup_path == fake.layout.spec_backups_dir / "pre_trial_r2_t1.spec.bak"
++    assert result.relative_backup_path == "spec_backups/pre_trial_r2_t1.spec.bak"
++    assert result.created is True
++    assert result.original_hash == result.backup_hash
++    assert result.created_at == "2026-05-30T04:05:06+00:00"
++    assert result.backup_path.read_bytes() == fake.spec_path.read_bytes()
++
++
++def test_spec_backup_is_idempotent_when_existing_backup_matches(
++    tmp_path: Path,
++) -> None:
++    fake = create_fake_workspace(tmp_path)
++    first = spec_backup(fake.config, fake.layout, trial_id="r2_t2", now=fixed_now())
++
++    second = spec_backup(fake.config, fake.layout, trial_id="r2_t2", now=fixed_now())
++
++    assert second.created is False
++    assert second.backup_path == first.backup_path
++    assert second.backup_hash == first.backup_hash
++
++
++def test_spec_backup_refuses_to_overwrite_mismatched_backup(
++    tmp_path: Path,
++) -> None:
++    fake = create_fake_workspace(tmp_path)
++    backup_path = fake.layout.spec_backups_dir / "pre_trial_r2_t3.spec.bak"
++    backup_path.write_text("stale backup\n", encoding="utf-8")
++
++    with pytest.raises(WorkspaceIntegrityError, match="refusing to overwrite"):
++        spec_backup(fake.config, fake.layout, trial_id="r2_t3", now=fixed_now())
++
++
++def test_spec_injector_replaces_default_placeholder_atomically(
++    tmp_path: Path,
++) -> None:
++    fake = create_fake_workspace(tmp_path)
++    original = fake.spec_path.read_text(encoding="utf-8")
++
++    result = spec_injector(
++        fake.config,
++        fake.layout,
++        trial_id="r2_t4",
++        combo=("-O3", "-funroll-loops"),
++        now=fixed_now(),
++    )
++
++    injected = fake.spec_path.read_text(encoding="utf-8")
++    assert "{{AGENT_COMBO}}" in original
++    assert "{{AGENT_COMBO}}" not in injected
++    assert 'export CFLAGS="-O3 -funroll-loops"' in injected
++    assert result.combo == ("-O3", "-funroll-loops")
++    assert result.rendered_options == "-O3 -funroll-loops"
++    assert result.placeholder == "{{AGENT_COMBO}}"
++    assert result.previous_hash != result.injected_hash
++
++
++def test_spec_injector_missing_placeholder_leaves_spec_unchanged(
++    tmp_path: Path,
++) -> None:
++    fake = create_fake_workspace(tmp_path)
++    fake.spec_path.write_text("Name: demo\n%build\n", encoding="utf-8")
++    before = fake.spec_path.read_bytes()
++
++    with pytest.raises(WorkspaceProtectionError, match="placeholder not found"):
++        spec_injector(
++            fake.config,
++            fake.layout,
++            trial_id="r2_t5",
++            combo=("-O3",),
++            now=fixed_now(),
++        )
++
++    assert fake.spec_path.read_bytes() == before
++
++
++def test_spec_restore_restores_backup_and_verifies_hash(
++    tmp_path: Path,
++) -> None:
++    fake = create_fake_workspace(tmp_path)
++    original = fake.spec_path.read_bytes()
++    backup = spec_backup(fake.config, fake.layout, trial_id="r2_t6", now=fixed_now())
++    spec_injector(
++        fake.config,
++        fake.layout,
++        trial_id="r2_t6",
++        combo=("-O1",),
++        now=fixed_now(),
++    )
++
++    result = spec_restore(
++        fake.config,
++        fake.layout,
++        backup=backup.relative_backup_path,
++        trial_id="r2_t6",
++        expected_hash=backup.original_hash,
++        now=fixed_now(),
++    )
++
++    assert fake.spec_path.read_bytes() == original
++    assert result.backup_hash == backup.backup_hash
++    assert result.restored_hash == backup.original_hash
++    assert result.matches_expected is True
++    assert result.relative_backup_path == backup.relative_backup_path
++
++
++def test_spec_restore_reports_expected_mismatch_when_config_allows(
++    tmp_path: Path,
++) -> None:
++    fake = create_fake_workspace(
++        tmp_path,
++        spec={"hash_must_match_after_restore": False},
++    )
++    backup = spec_backup(fake.config, fake.layout, trial_id="r2_t7", now=fixed_now())
++    spec_injector(
++        fake.config,
++        fake.layout,
++        trial_id="r2_t7",
++        combo=("-O0",),
++        now=fixed_now(),
++    )
++
++    result = spec_restore(
++        fake.config,
++        fake.layout,
++        backup=backup,
++        expected_hash="sha256:" + ("0" * 64),
++        now=fixed_now(),
++    )
++
++    assert result.restored_hash == backup.original_hash
++    assert result.matches_expected is False
++
++
++def test_spec_restore_refuses_mismatched_backup_before_overwriting_spec(
++    tmp_path: Path,
++) -> None:
++    fake = create_fake_workspace(tmp_path)
++    backup = spec_backup(fake.config, fake.layout, trial_id="r2_t8", now=fixed_now())
++    spec_injector(
++        fake.config,
++        fake.layout,
++        trial_id="r2_t8",
++        combo=("-O2",),
++        now=fixed_now(),
++    )
++    injected_bytes = fake.spec_path.read_bytes()
++    backup.backup_path.write_text("corrupt backup\n", encoding="utf-8")
++
++    with pytest.raises(WorkspaceIntegrityError, match="refusing to restore"):
++        spec_restore(fake.config, fake.layout, backup=backup, now=fixed_now())
++
++    assert fake.spec_path.read_bytes() == injected_bytes
++
++
++def test_spec_restore_rejects_backup_path_outside_layout(
++    tmp_path: Path,
++) -> None:
++    fake = create_fake_workspace(tmp_path)
++    outside = tmp_path / "outside.spec.bak"
++    outside.write_text("not a namespace backup\n", encoding="utf-8")
++
++    with pytest.raises(WorkspaceProtectionError, match="inside"):
++        spec_restore(fake.config, fake.layout, backup=outside, now=fixed_now())
++
++
++def test_spec_restore_rejects_symlink_backup(
++    tmp_path: Path,
++) -> None:
++    fake = create_fake_workspace(tmp_path)
++    target = fake.layout.spec_backups_dir / "real.spec.bak"
++    target.write_text("backup\n", encoding="utf-8")
++    link = fake.layout.spec_backups_dir / "link.spec.bak"
++    link.symlink_to(target)
++
++    with pytest.raises(WorkspaceProtectionError, match="symlink"):
++        spec_restore(fake.config, fake.layout, backup=link, now=fixed_now())
++
++
++def test_five_workspace_spec_skills_round_trip(tmp_path: Path) -> None:
++    fake = create_fake_workspace(tmp_path)
++
++    pre = workspace_snapshot(
++        fake.config,
++        fake.layout,
++        trial_id="r2_t9",
++        phase="pre",
++        now=fixed_now(),
++    )
++    backup = spec_backup(fake.config, fake.layout, trial_id="r2_t9", now=fixed_now())
++    spec_injector(
++        fake.config,
++        fake.layout,
++        trial_id="r2_t9",
++        combo=("-O3",),
++        now=fixed_now(),
++    )
++    spec_restore(fake.config, fake.layout, backup=backup, now=fixed_now())
++
++    result = workspace_verify(
++        fake.config,
++        fake.layout,
++        trial_id="r2_t9",
++        pre_snapshot=pre,
++        now=fixed_now(),
++    )
++
++    assert result.ok is True
++    assert result.spec_matches_pre is True
++    assert result.source_tree_changes == ()
++
++
++def test_spec_skills_reject_unsafe_trial_id(tmp_path: Path) -> None:
++    fake = create_fake_workspace(tmp_path)
++
++    with pytest.raises(WorkspaceProtectionError, match="trial_id"):
++        spec_backup(fake.config, fake.layout, trial_id="../escape", now=fixed_now())
++
++
++def test_spec_skill_exports_from_agent_package() -> None:
++    import agent
++
++    assert agent.spec_backup is spec_backup
++    assert agent.spec_injector is spec_injector
++    assert agent.spec_restore is spec_restore

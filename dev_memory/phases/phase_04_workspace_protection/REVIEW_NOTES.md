@@ -150,3 +150,25 @@ Post-review validation:
 
 - `tests/test_workspace_skills.py`: 11 passed
 - Full suite: 438 passed
+
+## Subtask 4.4b - Spec Backup / Inject / Restore Skills
+
+Self-review checklist:
+
+- [x] `spec_backup` writes backups under namespace `spec_backups/`.
+- [x] `spec_backup` validates `trial_id` with the shared identifier helper.
+- [x] Existing matching backups are idempotent; mismatched existing backups are not overwritten.
+- [x] `spec_injector` only mutates specs containing an explicit supported placeholder.
+- [x] Spec injection writes through same-directory temp + fsync + `os.replace` + parent fsync.
+- [x] `spec_restore` accepts absolute or relative namespace backup paths and rejects paths outside `layout.spec_backups_dir`.
+- [x] `spec_restore` rejects symlink backups.
+- [x] `spec_restore` checks expected pre-trial hash before overwriting the live spec when strict restore verification is enabled.
+- [x] Restore verifies bytes written to spec match backup bytes.
+- [x] Five-skill round trip is covered: `workspace_snapshot` -> `spec_backup` -> `spec_injector` -> `spec_restore` -> `workspace_verify`.
+- [x] Targeted, adjacent, and full tests passed.
+
+Reviewer focus:
+
+- Confirm namespace-local `layout.spec_backups_dir` is the right concrete backup location for Phase 04 despite the legacy `config.spec.backup_dir` field.
+- Confirm explicit Jinja-style placeholder replacement is acceptable for the first spec injector contract until a real project template grammar lands.
+- Confirm restore refusing a mismatched backup before overwriting the live spec is the right failure mode for strict `hash_must_match_after_restore`.

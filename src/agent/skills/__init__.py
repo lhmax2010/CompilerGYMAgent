@@ -1,5 +1,8 @@
 """Deterministic skill helpers for the local agent workflow."""
 
+from .spec_backup import SpecBackupResult, spec_backup
+from .spec_injector import SpecInjectResult, spec_injector
+from .spec_restore import SpecRestoreResult, spec_restore
 from .workspace_snapshot import (
     WorkspaceIntegrityError,
     WorkspaceProtectionError,
@@ -11,12 +14,18 @@ from .workspace_snapshot import (
 from .workspace_verify import WorkspaceVerifyResult, workspace_verify
 
 __all__ = [
+    "SpecBackupResult",
+    "SpecInjectResult",
+    "SpecRestoreResult",
     "WorkspaceIntegrityError",
     "WorkspaceProtectionError",
     "WorkspaceSnapshotPhase",
     "WorkspaceSnapshotResult",
     "WorkspaceVerifyResult",
     "load_workspace_snapshot",
+    "spec_backup",
+    "spec_injector",
+    "spec_restore",
     "workspace_snapshot",
     "workspace_verify",
 ]

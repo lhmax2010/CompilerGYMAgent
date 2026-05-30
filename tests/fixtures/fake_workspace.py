@@ -35,7 +35,10 @@ def create_fake_workspace(tmp_path: Path, **config_overrides: object) -> FakeWor
         encoding="utf-8",
     )
     spec_path = root / "project.spec"
-    spec_path.write_text("Name: demo\n%build\n", encoding="utf-8")
+    spec_path.write_text(
+        "Name: demo\n%build\nexport CFLAGS=\"{{AGENT_COMBO}}\"\n",
+        encoding="utf-8",
+    )
 
     data = {
         "project": {
