@@ -62,3 +62,16 @@ Reviewer focus:
 - Confirm clean trace planner still returning `lock_status="free"` with
   `refusal_reason` for unreadable holder matches the planned Phase 06
   `LockStatus="unknown"` follow-up.
+
+### External Review
+
+Claude verdict: Approve.
+
+Findings: no Critical / High / Medium / Low findings. Info-only observation
+confirmed that this is a pure test-only subtask with zero production source
+changes.
+
+Post-review validation:
+
+- `tests/test_workspace_lock.py`: 35 passed
+- Full suite: 422 passed

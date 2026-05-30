@@ -32,10 +32,11 @@ subtasks:
         status: done
   - id: "4.2"
     title: "WorkspaceLock holder hardening + conservative-path tests"
-    status: implementation_complete
-    implementation_commit: pending
-    review_status: pending
-    ubuntu_validation_status: pending
+    status: done
+    implementation_commit: d6ff3e9
+    review_status: approve
+    ubuntu_validation_status: passed
+    sync_commit: pending
     checklist:
       - item: "Keep inode-safe in-place _write_holder behavior unchanged"
         status: done
@@ -48,4 +49,8 @@ subtasks:
       - item: "Run targeted and full unit tests"
         status: done
       - item: "Generate patch artifacts"
+        status: done
+      - item: "Claude review approve"
+        status: done
+      - item: "Ubuntu/Linux validation"
         status: done

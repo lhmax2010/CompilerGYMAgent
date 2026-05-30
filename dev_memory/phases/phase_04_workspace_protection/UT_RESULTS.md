@@ -112,3 +112,29 @@ Result:
 ```text
 422 passed in 2.14s
 ```
+
+### Post-review Ubuntu/Linux Validation
+
+Claude review verdict: Approve.
+
+Commands:
+
+```bash
+.venv/bin/python -m pytest tests/test_workspace_lock.py -q
+```
+
+Result:
+
+```text
+35 passed in 0.46s
+```
+
+```bash
+.venv/bin/python -m pytest tests/ -q
+```
+
+Result:
+
+```text
+422 passed in 1.50s
+```
