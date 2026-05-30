@@ -36,10 +36,11 @@ subtasks:
         status: done
   - id: "05.5.3"
     title: "FullAgentStrategy core: constraints + memory + schedule"
-    status: implementation_complete
-    implementation_commit: pending
-    review_status: pending
-    ubuntu_validation_status: pending
+    status: done
+    implementation_commit: 0f2f5ea
+    review_status: approve_with_follow_up
+    ubuntu_validation_status: passed
+    sync_commit: pending
     checklist:
       - item: "Implement FullAgentStrategy as a spike-local decision core"
         status: done
@@ -62,6 +63,10 @@ subtasks:
       - item: "Run spike tests and production regression tests"
         status: done
       - item: "Generate patch artifacts"
+        status: done
+      - item: "Claude review approve with Med-1 follow-up"
+        status: done
+      - item: "Ubuntu/Linux validation"
         status: done
   - id: "05.5.2"
     title: "MockLLM + LLMOnlyStrategy + LocalMutationStrategy baselines"

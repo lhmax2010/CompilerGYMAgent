@@ -116,3 +116,32 @@ Reviewer focus:
 - Confirm the suspicion counter is enough foundation for the later false
   positive recovery test, even though this subtask does not yet implement full
   bad-experience canary behavior.
+
+### External Review
+
+Claude verdict: Approve with follow-up.
+
+Findings:
+
+- Med-1: ablation showed the full agent's second-order optimum discovery is
+  mainly driven by `_enumerated_candidates`, not by `_pair_jump_candidates` or
+  learned interaction exploration. Disabling pair-jump still found the optimum
+  in repeated seeds; disabling random/enumerated fallback reduced discovery to
+  zero. This means the current "learns interaction" result does not yet
+  extrapolate to real-scale option spaces.
+- Low-1: pair-jump itself enumerates all missing option pairs. It is better
+  than full size-4 enumeration at this toy scale, but still not the
+  experience-guided interaction search Phase 07 will need.
+
+Post-review decision:
+
+- Take path (a): remove or sharply limit brute enumeration in the next subtask
+  so the spike tests scalable interaction exploration instead of small-space
+  brute force.
+- Record the ablation honestly in findings.
+
+Post-review validation:
+
+- Spike tests: 21 passed
+- Production regression suite: 451 passed
+- Production `src/agent` changes: none

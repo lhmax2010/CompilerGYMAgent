@@ -102,3 +102,14 @@ Implemented the first full-agent decision core for the mock spike:
     duplicate rate 0.0 while LLM-only duplicate rate is at least 0.85.
   - poor LLM: full agent reaches optimum in 10/10 seeds, while LLM-only misses
     the second-order optimum and local mutation remains at score 108.
+
+### External Review
+
+Claude verdict: Approve with follow-up.
+
+The important review finding is Med-1: current second-order discovery is mostly
+caused by deterministic enumeration fallback, not by scalable interaction
+learning. Disabling pair-jump did not prevent success, but disabling
+random/enumerated fallback did. The next subtask will remove or sharply limit
+brute enumeration so the spike can test a mechanism that has a plausible Phase
+07 path.
