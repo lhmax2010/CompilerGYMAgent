@@ -70,10 +70,11 @@ subtasks:
         status: done
   - id: "05.5.4"
     title: "Replace brute enumeration with near-miss guided interaction exploration"
-    status: review_fix_complete
+    status: done
     implementation_commit: d7648d5
     review_status: request_changes
-    ubuntu_validation_status: pending
+    review_fix_commit: 9aa1646
+    ubuntu_validation_status: passed
     checklist:
       - item: "Remove deterministic size-1..4 enumeration fallback from FullAgentStrategy"
         status: done
@@ -102,6 +103,31 @@ subtasks:
       - item: "Run review-fix spike tests and production regression tests"
         status: done
       - item: "Generate review-fix patch artifacts"
+        status: done
+  - id: "05.5.5"
+    title: "Final test matrix closure + findings handoff"
+    status: implementation_complete
+    implementation_commit: pending
+    review_status: pending
+    ubuntu_validation_status: pending
+    checklist:
+      - item: "Complete non-interaction-dependent noisy-objective test matrix items"
+        status: done
+      - item: "Record good/poor LLM scenario split in findings"
+        status: done
+      - item: "Record noiseless vs noisy 2x2 guided/random ablation matrices"
+        status: done
+      - item: "Mark noisy interaction discovery as Phase 7.0 + Phase 08 handoff"
+        status: done
+      - item: "Update ROADMAP Phase 05.5 status to done"
+        status: done
+      - item: "Update ROADMAP Phase 7.0 and Phase 08 handoff notes"
+        status: done
+      - item: "Add DECISIONS entry for spike finding and handoff"
+        status: done
+      - item: "Run final spike tests and production regression tests"
+        status: done
+      - item: "Generate final patch artifacts"
         status: done
   - id: "05.5.2"
     title: "MockLLM + LLMOnlyStrategy + LocalMutationStrategy baselines"

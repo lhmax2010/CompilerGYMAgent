@@ -164,3 +164,36 @@ Validation:
 
 - Spike tests: 25 passed
 - Production regression suite: 451 passed
+
+## Subtask 05.5.5 - Final Matrix / Findings Closure
+
+Closed the spike with the remaining non-interaction-dependent test matrix and
+the findings handoff:
+
+- Added noisy-objective tests for:
+  - conflict/unknown filtering before execution,
+  - failed-experience subset filtering,
+  - poor LLM fallback improvement,
+  - suspicion-counter false-positive recovery,
+  - noisy success and infra failure not becoming hard bad experience,
+  - bad experience injection not permanently blocking,
+  - duplicate LLM pressure not consuming trial budget,
+  - crash/resume reconstruction from history.
+- Updated findings with:
+  - good vs poor LLM scenario split,
+  - noiseless and noisy guided/random 2x2 ablation matrices,
+  - the core handoff: noise-robust interaction discovery needs Phase 7.0 +
+    Phase 08.
+- Updated ROADMAP Phase 05.5 to done and added handoff notes to Phase 7.0 and
+  Phase 08.
+- Added DECISIONS entry for the 05.5 spike finding and handoff.
+
+### Final Validation
+
+- Spike tests: 31 passed
+- Production regression suite: 451 passed
+
+Final interpretation: the integration pipeline is viable, but noisy
+second-order interaction discovery is the head technical risk for the candidate
+engine. The mock spike should not pretend that risk is solved; it is now an
+explicit Phase 7.0 / Phase 08 handoff.

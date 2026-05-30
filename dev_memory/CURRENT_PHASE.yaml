@@ -6,7 +6,7 @@ target_milestone: "M1.5 (integration gate)"
 related_requirements:
   - REQUIREMENTS.md section 4.6
   - REQUIREMENTS.md section 4.10
-status: in_progress
+status: done
 spike: true
 parallel_with: phase_06_process_management
 roadmap_reference: dev_memory/ROADMAP.yaml planned_phases[id=05.5]
@@ -179,7 +179,7 @@ subtasks:
       runner: "local .venv + pytest"
   - id: "05.5.4"
     title: "Replace brute enumeration with near-miss guided interaction exploration"
-    status: review_fix_complete
+    status: done
     related_requirements:
       - ROADMAP.yaml Phase 05.5 second-order interaction exit criterion
       - ROADMAP.yaml Phase 05.5 against-baseline exit criterion
@@ -213,7 +213,9 @@ subtasks:
     review_fix_patch_file: dev_memory/phases/phase_05_5_integration_feasibility/patches/05_guided_interaction_review_fix.patch
     review_fix_patch_generated: true
     commit_required: true
-    commit_pending: true
+    commit_pending: false
+    commit_hash: 9aa1646
+    commit_message: "spike_05_5: fix guided interaction ablation"
     implementation_commit: d7648d5
     external_review_verdict: request_changes
     external_reviewed_at: 2026-05-30T10:31:10Z
@@ -230,4 +232,36 @@ subtasks:
     review_fix_tests:
       spike_pytest: "25 passed in 0.04s"
       production_pytest: "451 passed in 1.61s"
-next_action: "Generate review-fix patch artifacts, commit/push Subtask 05.5.4 review fix, then request re-review."
+  - id: "05.5.5"
+    title: "Final test matrix closure + findings handoff"
+    status: implementation_complete
+    related_requirements:
+      - ROADMAP.yaml Phase 05.5 test matrix
+      - ROADMAP.yaml Phase 7.0 handoff
+      - ROADMAP.yaml Phase 08 handoff
+    files_modified:
+      - spikes/05.5_integration_feasibility/tests/test_full_agent_strategy.py
+      - dev_memory/spikes/05.5_integration_feasibility_findings.md
+      - dev_memory/ROADMAP.yaml
+      - dev_memory/DECISIONS.md
+      - dev_memory/CURRENT_PHASE.yaml
+      - dev_memory/phases/phase_05_5_integration_feasibility/CHECKLIST.yaml
+      - dev_memory/phases/phase_05_5_integration_feasibility/REVIEW_NOTES.md
+      - dev_memory/phases/phase_05_5_integration_feasibility/SUMMARY.md
+      - dev_memory/phases/phase_05_5_integration_feasibility/UT_RESULTS.md
+      - dev_memory/PROGRESS.md
+    behavior_notes:
+      - "Completed remaining non-interaction-dependent test matrix items under default noisy objective."
+      - "Recorded that noiseless guided interaction works, but noisy near-miss discovery is limited by noise_sigma=2.0."
+      - "Updated ROADMAP 05.5 to done and handed noise-robust interaction discovery to Phase 7.0 + Phase 08."
+      - "Added DECISIONS entry for the spike finding and handoff."
+    ut_required: true
+    ut_passed: true
+    targeted_ut: "31 spike tests passed, 0 failed"
+    production_regression_ut: "451 production tests passed, 0 failed"
+    patch_required: true
+    patch_file: dev_memory/phases/phase_05_5_integration_feasibility/patches/06_final_findings_matrix.patch
+    patch_generated: true
+    commit_required: true
+    commit_pending: true
+next_action: "Push final Phase 05.5 closure range for Claude review, then begin Phase 06 Process Management."

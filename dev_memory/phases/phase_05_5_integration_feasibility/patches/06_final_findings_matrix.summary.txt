@@ -1,0 +1,33 @@
+Subtask 05.5.5 - Final Matrix / Findings Closure
+
+Closed the 05.5 mock integration spike.
+
+Implemented:
+
+- Added final noisy-objective tests for the non-interaction-dependent matrix:
+  - conflict/unknown filtering before execution
+  - failed-experience subset filtering
+  - poor LLM fallback improvement over LLM-only
+  - false-positive suspicion counter recovery
+  - noisy success / infra failure not becoming hard bad experience
+  - bad experience injection not permanently blocking
+  - repeated LLM duplicate pressure rejected without trial budget burn
+  - crash/resume reconstruction from history
+- Updated findings with:
+  - good LLM vs poor LLM scenario split
+  - noiseless and noisy guided/random 2x2 ablation matrices
+  - final conclusion that noise-robust interaction discovery is not solved in
+    the spike and is Phase 7.0 + Phase 08 handoff
+- Updated ROADMAP:
+  - Phase 05.5 status = done
+  - Phase 7.0 now includes candidate-search strategy + noise-robust
+    interaction discovery
+  - Phase 08 now explicitly owns statistical machinery for near-miss detection
+- Added DECISIONS entry for the spike finding and handoff.
+
+Validation:
+
+- .venv/bin/python -m pytest spikes/05.5_integration_feasibility/tests -q -> 31 passed
+- .venv/bin/python -m pytest tests/ -q -> 451 passed
+- ROADMAP / CURRENT_PHASE / CHECKLIST YAML parse -> ok
+- src/agent changes -> none

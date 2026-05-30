@@ -1749,3 +1749,32 @@ Next action: generate patch artifacts, commit/push Subtask 05.5.4, then request 
   - `.venv/bin/python -m pytest tests/ -q` -> 451 passed.
 
 Next action: generate review-fix patch artifacts, commit/push, then request re-review.
+
+## 2026-05-30T10:31:10Z - Phase 05.5 final matrix and findings closed
+
+- Completed remaining non-interaction-dependent spike test matrix items under
+  the default noisy objective:
+  - conflict/unknown filtering,
+  - failed-experience filtering,
+  - poor LLM fallback improvement,
+  - false-positive suspicion-counter recovery,
+  - noisy success / infra failure not becoming hard bad experience,
+  - bad experience injection recovery,
+  - duplicate pressure without trial-budget burn,
+  - crash/resume reconstruction from history.
+- Updated findings with:
+  - good vs poor LLM scenario split,
+  - noiseless and noisy guided/random 2x2 ablation matrices,
+  - explicit conclusion that noise-robust interaction discovery is Phase 07's
+    top technical risk and needs Phase 08 statistics.
+- Updated ROADMAP:
+  - Phase 05.5 status -> done,
+  - Phase 7.0 expanded to include candidate-search strategy and
+    noise-robust interaction discovery,
+  - Phase 08 now explicitly owns statistical machinery for near-miss detection.
+- Added DECISIONS entry for the 05.5 spike finding and handoff.
+- Validation:
+  - `.venv/bin/python -m pytest spikes/05.5_integration_feasibility/tests -q` -> 31 passed.
+  - `.venv/bin/python -m pytest tests/ -q` -> 451 passed.
+
+Next action: generate final patch artifacts, commit/push, then request Claude final review.

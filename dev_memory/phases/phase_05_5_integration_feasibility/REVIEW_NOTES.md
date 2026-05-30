@@ -201,3 +201,26 @@ Post-review-fix validation:
 - Spike tests: 25 passed
 - Production regression suite: 451 passed
 - Production `src/agent` changes: none
+
+## Subtask 05.5.5 - Final Matrix / Findings Closure
+
+Self-review checklist:
+
+- [x] Spike code remains isolated under `spikes/05.5_integration_feasibility/`.
+- [x] No production `src/agent/` files changed.
+- [x] Remaining non-interaction-dependent test matrix items are covered.
+- [x] Findings split good LLM efficiency from poor LLM robustness.
+- [x] Findings include noiseless and noisy guided/random 2x2 ablation matrices.
+- [x] Findings state that noisy near-miss interaction discovery is not solved.
+- [x] ROADMAP Phase 05.5 is marked done.
+- [x] ROADMAP Phase 7.0 and Phase 08 contain the handoff.
+- [x] DECISIONS records the spike finding and handoff.
+- [x] Spike tests and production regression tests passed.
+
+Reviewer focus:
+
+- Confirm the findings are honest: no claim that noisy second-order discovery
+  is solved in the mock spike.
+- Confirm the positive validated pieces are still recorded: constraints,
+  dedup, suspicion counter, scenario split, and crash/resume.
+- Confirm the Phase 7.0 / Phase 08 handoff is concrete enough for roadmap use.

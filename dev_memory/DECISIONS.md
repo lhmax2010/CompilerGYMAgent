@@ -762,3 +762,18 @@ Decision records must include:
   - Make every useful option independently positive, which would let greedy/local strategies find the optimum and make the spike unable to distinguish interaction learning.
   - Permit all supersets of the optimum to tie, which would inflate random hit rates and weaken baseline comparisons.
   - Add constraint filtering to the first random baseline immediately, which would blur the later measurement of how much the constraint layer helps.
+
+## 2026-05-30T10:31:10Z - 05.5 spike handoff: noise-robust interaction discovery needs statistics
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 05.5
+  - ROADMAP.yaml Phase 7.0
+  - ROADMAP.yaml Phase 08
+  - REQUIREMENTS.md section 4.6
+  - REQUIREMENTS.md section 4.8
+- decision: Close the 05.5 mock integration spike with a split finding. The decision-loop plumbing, constraints, duplicate filtering, suspicion-counter false-positive recovery, good-LLM trial efficiency, poor-LLM robustness, and crash/resume reconstruction are validated in the mock loop. However, noise-robust second-order interaction discovery is not closed in the spike. It is explicitly transferred to Phase 7.0 (candidate search strategy spike) and Phase 08 (statistical significance / repeated-evaluation machinery).
+- rationale: In the noiseless synthetic objective, near-miss guided interaction is the independent driver of discovering the `-fA`/`-fB` interaction: guided on with random off succeeds, while guided off with random on fails. Under default noise (`noise_sigma=2.0`), the near-miss window `[0.75, 1.25]` is narrower than the benchmark noise, so all guided/random ablation configurations collapse to the same noisy hit rate. Forcing the mock spike to "solve" this by tuning constants would create false confidence; the real solution needs repeated evaluation, aggregation, confidence intervals, or bootstrap tests owned by Phase 08 and consumed by Phase 7.0/07 candidate search.
+- alternatives_considered:
+  - Keep iterating the mock spike until noisy interaction discovery passes by heuristic tuning, which risks overfitting the toy objective and hiding the need for statistical machinery.
+  - Declare the full candidate engine validated because noiseless guided interaction works, which would ignore the most important real-world risk exposed by the spike.
+  - Defer all 05.5 findings to Phase 07 without recording the partial wins, which would lose useful validated design pieces: constraints, dedup, suspicion counter, scenario-split baseline reporting, and resume-from-history behavior.

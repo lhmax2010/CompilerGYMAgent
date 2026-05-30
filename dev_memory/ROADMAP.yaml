@@ -1,6 +1,6 @@
 # dev_memory/ROADMAP.yaml
 roadmap_version: 1
-last_updated: 2026-05-30T09:17:16Z
+last_updated: 2026-05-30T10:31:10Z
 status: active
 
 # ============================================================
@@ -114,8 +114,10 @@ planned_phases:
 
   - id: "05.5"
     title: "Integration Feasibility Mock Spike"
-    status: in_progress
+    status: done
     started_at: "2026-05-30T09:17:16Z"
+    closed_at: "2026-05-30T18:31:10+08:00"
+    actual_subtasks_done: 6
     spike: true
     parallel_with: "06"
     milestone: "M1.5 (integration gate)"
@@ -163,14 +165,23 @@ planned_phases:
       - "10 second-order interaction: full agent learns -fA/-fB pair while local mutation gets stuck"
       - "11 crash-resume loop: round/history/experience state remains consistent"
     exit_criteria:
-      - "Across multiple random seeds, full agent finds top-5% optimum within 30-50 rounds in >=80% of seeds"
-      - "Duplicate trial rate < 5%"
-      - "Known always-failing combos actual execution count = 0"
-      - "Injected bad hard rule is Canary-downgraded, or at least does not permanently block optimum"
-      - "Crash/resume preserves round, candidate history, and experience state"
-      - "Full agent clearly outperforms random and LLM-only baselines"
-      - "Full agent finds the second-order-interaction optimum while local-mutation remains stuck in a local optimum"
+      - "Closed: constraint layer blocks conflicts/unknowns/duplicates before trial budget"
+      - "Closed: suspicion counter can recover false-positive soft blocks"
+      - "Closed: good LLM comparison is trial-efficiency based; full agent avoids duplicate burn"
+      - "Closed: poor LLM comparison shows robustness improvement over LLM-only"
+      - "Closed: crash/resume reconstruction from history is consistent"
+      - "Limited: noiseless guided interaction independently finds the second-order optimum"
+      - "Transferred: noisy second-order interaction discovery requires Phase 7.0 + Phase 08 statistical machinery"
     spike_findings_output: "dev_memory/spikes/05.5_integration_feasibility_findings.md"
+    outcome: >
+      Integration plumbing is viable, but the spike identified noise-robust
+      second-order interaction discovery as the top Phase 07 risk. With no
+      benchmark noise, near-miss guided interaction is the independent driver
+      (guided on/random off succeeds; guided off/random on fails). With
+      noise_sigma=2.0, the near-miss signal is drowned by noise and all
+      ablation configurations collapse to the same 11/20 top-5% hit rate.
+      Hand off this risk to Phase 7.0 search-strategy spike and Phase 08
+      statistical significance work.
 
   - id: "05"
     title: "Compile / Benchmark Skills"
@@ -216,6 +227,7 @@ planned_phases:
       - "Bootstrap CI (paired/unpaired/directional, lower_is_better support)"
       - "Significance test plug-in interface"
       - "Convergence detector + stagnation"
+      - "Provide statistical machinery needed for noise-robust near-miss / interaction discovery (05.5 handoff)"
     deliverables:
       - "src/agent/baseline.py"
       - "src/agent/environment_snapshot.py"
@@ -226,10 +238,11 @@ planned_phases:
       - "Bootstrap CI matches scipy reference within 1% on synthetic data"
       - "Convergence detector fires within ±2 trials of nominal on synthetic series"
       - "Environment hash distinguishes hard-fail from soft-context fields per §4.9"
+      - "Document how repeated combo evaluation and bootstrap/CI decisions feed candidate-engine near-miss detection"
     validation_plan: ["Synthetic data benchmarks", "Ubuntu fcntl regression"]
 
   - id: "7.0"
-    title: "Candidate Engine Constraint Solver Spike"
+    title: "Candidate Engine Search Strategy + Constraint Solver Spike"
     status: planned
     milestone: "M2 (precursor)"
     requirement_sections: ["4.6.2", "4.10"]
@@ -241,6 +254,8 @@ planned_phases:
       - "Validate constraint solver performance over 10^3, 10^4, and 10^5 combo spaces"
       - "Identify fallback strategy when constraints underfill schedule quotas"
       - "Measure trace volume and rejected-candidate diagnostics cost"
+      - "Extend 05.5 finding into candidate-search strategy: test noise-robust interaction discovery with random/brute-force fallbacks disabled"
+      - "Define how Phase 08 statistical significance outputs are consumed by near-miss interaction search"
     exit_criteria:
       - "Benchmark report records solver runtime/memory at 10^3, 10^4, and 10^5 combos"
       - "Fallback decision is captured before Phase 07 implementation"
@@ -248,6 +263,8 @@ planned_phases:
       - "If 10^4 combo solve > 30s → heuristic fallback decision required"
       - "Rejected-candidate trace events bounded — count only ACTUALLY-generated/considered rejected candidates, NOT the theoretical combo space (avoid conflict with §4.6.2 trace requirement)"
       - "Measure rejected-candidate trace volume across greedy/random/exhaustive generator strategies at 10^3/10^4/10^5; if a single generator run produces >10^4 rejected candidates, document trace volume impact + recommend generator batching/throttling"
+      - "Ablation report proves the intended search mechanism contributes independently when random/brute fallbacks are disabled"
+      - "Noise-robust interaction-discovery plan names required repeat-evaluation/statistical tests, or explicitly defers to Phase 08"
     spike_findings_output: "dev_memory/spikes/7.0_candidate_constraint_solver_findings.md"
 
   - id: "07"

@@ -247,3 +247,41 @@ guided=True,  random=False -> 20/20 optimum hits
 guided=False, random=True  -> 0/20 optimum hits
 guided=False, random=False -> 0/20 optimum hits
 ```
+
+## 2026-05-30 - Subtask 05.5.5 Final Matrix / Findings Closure
+
+Environment:
+
+- Runner: local `.venv`
+- Python: `.venv/bin/python`
+- OS: Linux workspace
+
+Commands:
+
+```bash
+.venv/bin/python -m pytest spikes/05.5_integration_feasibility/tests -q
+```
+
+Result:
+
+```text
+31 passed in 0.37s
+```
+
+```bash
+.venv/bin/python -m pytest tests/ -q
+```
+
+Result:
+
+```text
+451 passed in 1.65s
+```
+
+Noisy objective strategy probe:
+
+```text
+good LLM: LLMOnly median best 122.84, dup 0.85; FullAgent median best 121.28, dup 0.00
+poor LLM: LLMOnly median best 104.73, dup 0.88; FullAgent median best 119.47, dup 0.00
+noisy 2x2: all guided/random configurations top-5% 11/20, exact optimum 4/20
+```
