@@ -1531,3 +1531,16 @@ Next action: push sync commit, then request external review for Subtask 3.11.
 - Phase 03 trace lifecycle is now complete: Subtasks 3.1 through 3.11 are implemented, approved, and Ubuntu validated.
 
 Next action: push validation sync commit, then await next phase/subtask direction.
+
+## 2026-05-30T03:27:49Z - Phase 04 / Subtask 4.4a approved and validated
+
+- Reviewer: Claude.
+- Verdict: Approve.
+- Range: `97ad2d1..c65d025`.
+- Implementation commit: `c65d025 phase_04_workspace_protection: 4.4a workspace snapshot verify skills`.
+- Findings: no blocking findings. Info-only notes clarified that `source_dirty_action` is a config field and spec mismatch execution behavior depends on `config.spec.hash_must_match_after_restore`.
+- Ubuntu/Linux validation:
+  - `.venv/bin/python -m pytest tests/test_workspace_skills.py -q` -> 11 passed.
+  - `.venv/bin/python -m pytest tests/ -q` -> 438 passed.
+
+Next action: sync validation records, then begin Subtask 4.4b spec backup / inject / restore skills.

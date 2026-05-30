@@ -86,10 +86,11 @@ subtasks:
         status: done
   - id: "4.4a"
     title: "workspace_snapshot / workspace_verify skills"
-    status: implementation_complete
-    implementation_commit: pending
-    review_status: pending
-    ubuntu_validation_status: pending
+    status: done
+    implementation_commit: c65d025
+    review_status: approve
+    ubuntu_validation_status: passed
+    sync_commit: pending
     checklist:
       - item: "Read REQUIREMENTS sections 4.7.1 and 4.7.4 skill contracts"
         status: done
@@ -106,4 +107,8 @@ subtasks:
       - item: "Run targeted and full unit tests"
         status: done
       - item: "Generate patch artifacts"
+        status: done
+      - item: "Claude review approve"
+        status: done
+      - item: "Ubuntu/Linux validation"
         status: done

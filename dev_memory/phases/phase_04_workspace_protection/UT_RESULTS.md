@@ -258,3 +258,29 @@ Result:
 ```text
 438 passed in 1.56s
 ```
+
+### Post-review Ubuntu/Linux Validation
+
+Claude review verdict: Approve.
+
+Commands:
+
+```bash
+.venv/bin/python -m pytest tests/test_workspace_skills.py -q
+```
+
+Result:
+
+```text
+11 passed in 0.24s
+```
+
+```bash
+.venv/bin/python -m pytest tests/ -q
+```
+
+Result:
+
+```text
+438 passed in 1.57s
+```

@@ -137,3 +137,16 @@ Reviewer focus:
 - Confirm snapshot hash semantics and post-snapshot rewrite are appropriate.
 - Confirm source changes based on configured key-file hashes are sufficient for
   this subtask, with broader doctor/status integration left for later phases.
+
+### External Review
+
+Claude verdict: Approve.
+
+Findings: no Critical / High / Medium / Low findings. Info-only notes confirmed
+that `source_dirty_action` is intentionally config-driven and that spec mismatch
+execution behavior remains governed by `config.spec.hash_must_match_after_restore`.
+
+Post-review validation:
+
+- `tests/test_workspace_skills.py`: 11 passed
+- Full suite: 438 passed
