@@ -75,3 +75,30 @@ propose the known optimum.
 Follow-up for 05.5.3: report full-agent comparisons by scenario. In the good
 LLM setting, compare trial efficiency against LLM-only; in the poor LLM setting,
 compare robustness and best-score recovery.
+
+## Subtask 05.5.3 - FullAgentStrategy Core
+
+Implemented the first full-agent decision core for the mock spike:
+
+- `ExperienceMemory` extracts tried combos, successful combos, and known failed
+  subsets from prior trial history.
+- `ConstraintLayer` rejects candidates before trial execution when they are:
+  empty, duplicate, unknown, conflicting, supersets of known compile failures,
+  or temporarily soft-blocked.
+- `ConstraintLayer` includes a suspicion counter that forces a soft-blocked
+  combo after repeated rejection, modeling false-positive recovery.
+- `FullAgentStrategy` schedules candidates from:
+  warmup, mock LLM, pair-jump exploration, local mutation, random fallback, and
+  deterministic enumeration.
+- The pair-jump fallback is generic over option pairs and is what lets the
+  full agent escape the local-mutation trap.
+
+### Validation
+
+- Spike tests: 21 passed
+- Production regression suite: 451 passed
+- Scenario probe:
+  - good LLM: full agent and LLM-only both reach optimum, but full agent has
+    duplicate rate 0.0 while LLM-only duplicate rate is at least 0.85.
+  - poor LLM: full agent reaches optimum in 10/10 seeds, while LLM-only misses
+    the second-order optimum and local mutation remains at score 108.

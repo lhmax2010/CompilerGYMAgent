@@ -1657,3 +1657,27 @@ Next action: generate patch artifacts, commit/push Subtask 05.5.2, then request 
 - Production `src/agent` remained unchanged.
 
 Next action: sync review records, then begin Subtask 05.5.3 FullAgentStrategy core with scenario-split baseline reporting.
+
+## 2026-05-30T10:03:55Z - Phase 05.5 / Subtask 05.5.3 implemented
+
+- Implemented spike-local `FullAgentStrategy`.
+- Added `ExperienceMemory` derived from prior trial outcomes.
+- Added `ConstraintLayer` for duplicate, unknown option, conflict,
+  known-failed-subset, and soft-blocked candidate rejection before trial budget
+  is spent.
+- Added a suspicion counter that forces a soft-blocked combo after repeated
+  rejection, modeling false-positive recovery.
+- Added a candidate schedule:
+  warmup -> LLM proposal -> generic pair-jump exploration -> local mutation ->
+  random fallback -> deterministic enumeration.
+- Preserved the good/poor LLM comparison split:
+  - good LLM: full agent competes on duplicate-trial efficiency;
+  - poor LLM: full agent competes on fallback robustness / best-score recovery.
+- UT results:
+  - `.venv/bin/python -m pytest spikes/05.5_integration_feasibility/tests -q` -> 21 passed.
+  - `.venv/bin/python -m pytest tests/ -q` -> 451 passed.
+- Probe:
+  - good: full agent 10/10 optimum, duplicate max 0.0; LLM-only duplicate min 0.85.
+  - poor: full agent 10/10 optimum; LLM-only best <= 102.5; local mutation best 108.0.
+
+Next action: generate patch artifacts, commit/push Subtask 05.5.3, then request external review.

@@ -28,6 +28,8 @@ benchmarks, bad experience, duplicate pressure, and crash/resume?
 - `mock_llm.py`: deterministic controllable fake LLM with good/poor quality.
 - `strategies.py`: random, LLM-only, and local-mutation baselines plus trial
   outcome record.
+- `full_agent.py`: spike-local full-agent strategy with lightweight
+  constraints, memory, schedule, and false-positive suspicion counter.
 - `runner.py`: seeded plain Python strategy runner.
 - `tests/`: spike-only pytest coverage.
 

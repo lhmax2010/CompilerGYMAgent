@@ -86,3 +86,33 @@ Post-review validation:
 - Spike tests: 14 passed
 - Production regression suite: 451 passed
 - Production `src/agent` changes: none
+
+## Subtask 05.5.3 - FullAgentStrategy Core
+
+Self-review checklist:
+
+- [x] Spike code remains isolated under `spikes/05.5_integration_feasibility/`.
+- [x] No production `src/agent/` files changed.
+- [x] `FullAgentStrategy` is spike-local and intentionally plain Python.
+- [x] `ConstraintLayer` rejects duplicates, unknown options, conflicts, known failed subsets, and soft-blocked candidates before trial execution.
+- [x] `ExperienceMemory` derives tried combos, successes, and failed subsets from prior `TrialOutcome` history.
+- [x] Candidate schedule includes warmup, LLM proposal, pair-jump exploration, local mutation, random fallback, and deterministic enumeration.
+- [x] Pair-jump exploration is generic over option pairs, not hard-coded to `-fA`/`-fB`.
+- [x] Poor LLM conflicts and unknown options do not reach `SyntheticObjective.evaluate`.
+- [x] Poor LLM scenario reaches the second-order optimum.
+- [x] Good LLM scenario compares trial efficiency rather than pretending LLM-only cannot find the optimum.
+- [x] Suspicion counter can force a soft-blocked combo after repeated rejection.
+- [x] Spike tests and production regression tests passed.
+
+Reviewer focus:
+
+- Confirm full-agent success is not just hard-coding the known optimum; the
+  pair-jump generator should be judged as a generic two-option exploration
+  fallback.
+- Confirm against-baseline reporting stays split by scenario:
+  good LLM = efficiency, poor LLM = robustness / best-score recovery.
+- Confirm rejecting duplicates/conflicts/unknowns before execution is a fair
+  simulation of constraint-layer behavior, not silently hiding failed trials.
+- Confirm the suspicion counter is enough foundation for the later false
+  positive recovery test, even though this subtask does not yet implement full
+  bad-experience canary behavior.

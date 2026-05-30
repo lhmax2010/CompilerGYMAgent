@@ -34,6 +34,35 @@ subtasks:
         status: done
       - item: "Ubuntu/Linux validation"
         status: done
+  - id: "05.5.3"
+    title: "FullAgentStrategy core: constraints + memory + schedule"
+    status: implementation_complete
+    implementation_commit: pending
+    review_status: pending
+    ubuntu_validation_status: pending
+    checklist:
+      - item: "Implement FullAgentStrategy as a spike-local decision core"
+        status: done
+      - item: "Implement ConstraintLayer for duplicate, unknown, conflict, known-failed-subset, and soft-blocked rejection"
+        status: done
+      - item: "Implement ExperienceMemory derived from TrialOutcome history"
+        status: done
+      - item: "Implement suspicion counter forced trial for soft-blocked false positives"
+        status: done
+      - item: "Keep good/poor LLM scenario reporting split: good = efficiency, poor = robustness"
+        status: done
+      - item: "Test poor LLM conflicts and unknown options are rejected before execution"
+        status: done
+      - item: "Test full agent finds the second-order optimum with poor LLM"
+        status: done
+      - item: "Test full agent beats poor LLM-only and local mutation on best score"
+        status: done
+      - item: "Test full agent beats good LLM-only on duplicate trial efficiency"
+        status: done
+      - item: "Run spike tests and production regression tests"
+        status: done
+      - item: "Generate patch artifacts"
+        status: done
   - id: "05.5.2"
     title: "MockLLM + LLMOnlyStrategy + LocalMutationStrategy baselines"
     status: done

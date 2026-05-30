@@ -1,0 +1,48 @@
+Subtask 05.5.3 - FullAgentStrategy Core
+
+Implemented the first full-agent decision core for the 05.5 mock integration
+spike:
+
+- Added ExperienceMemory:
+  - derives tried combos from TrialOutcome history
+  - records successful combos
+  - records compile-failed combos as known failed subsets
+
+- Added ConstraintLayer:
+  - rejects empty combos
+  - rejects duplicate combos before spending trial budget
+  - rejects unknown options
+  - rejects OptionV0 conflicts
+  - rejects supersets of known compile failures
+  - supports soft-blocked combos with a suspicion counter
+  - forces a soft-blocked combo after repeated rejection to model false-positive
+    recovery
+
+- Added FullAgentStrategy:
+  - warmup candidates
+  - MockLLM proposal
+  - generic pair-jump exploration
+  - local mutation fallback
+  - random fallback
+  - deterministic enumeration fallback
+
+- Added tests showing:
+  - poor LLM conflicts and unknown options do not reach execution
+  - full agent finds the second-order optimum with poor LLM
+  - full agent beats poor LLM-only and local mutation on best score
+  - full agent beats good LLM-only on duplicate-trial efficiency
+  - known failed subsets are filtered
+  - suspicion counter forces a soft-blocked combo
+  - duplicate pressure is rejected before trial budget is spent
+
+Validation:
+
+- .venv/bin/python -m pytest spikes/05.5_integration_feasibility/tests -q -> 21 passed
+- .venv/bin/python -m pytest tests/ -q -> 451 passed
+
+Scenario probe:
+
+- good LLM: full agent hits optimum 10/10 and duplicate max is 0.0; LLM-only
+  also hits optimum but duplicate rate is at least 0.85
+- poor LLM: full agent hits optimum 10/10; LLM-only misses the second-order
+  optimum; local mutation remains stuck at score 108
