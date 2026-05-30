@@ -214,3 +214,47 @@ Smoke checks:
 ```
 
 Result: all exited 0 and rendered help text.
+
+## 2026-05-30 - Subtask 4.4a Workspace Snapshot / Verify Skills
+
+Environment:
+
+- Runner: local `.venv`
+- Python: `.venv/bin/python`
+- OS: Linux workspace
+
+Commands:
+
+```bash
+.venv/bin/python -m pytest tests/test_workspace_skills.py -q
+```
+
+Result:
+
+```text
+11 passed in 0.24s
+```
+
+```bash
+.venv/bin/python -m pytest \
+  tests/test_workspace_skills.py \
+  tests/test_config.py \
+  tests/test_fs_memory.py \
+  tests/test_trace_session.py -q
+```
+
+Result:
+
+```text
+236 passed in 0.97s
+```
+
+```bash
+.venv/bin/python -m pytest tests/ -q
+```
+
+Result:
+
+```text
+438 passed in 1.56s
+```

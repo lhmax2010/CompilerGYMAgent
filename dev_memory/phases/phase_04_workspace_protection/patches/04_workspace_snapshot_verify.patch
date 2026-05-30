@@ -1,0 +1,1225 @@
+diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index b40a96d..38f476f 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -1,7 +1,7 @@
+ phase_id: phase_04_workspace_protection
+ phase_title: "Workspace Protection Skills + CLI Entrypoint Skeleton"
+ started_at: 2026-05-30T00:59:41Z
+-last_updated: 2026-05-30T03:07:28Z
++last_updated: 2026-05-30T03:13:55Z
+ target_milestone: M1
+ related_requirements:
+   - REQUIREMENTS.md section 4.7.1
+@@ -142,4 +142,37 @@ subtasks:
+         clean_trace_help: ".venv/bin/agent clean trace --help -> exit 0"
+         doctor_trace_help: ".venv/bin/agent doctor trace --help -> exit 0"
+       runner: "local .venv + pytest"
+-next_action: "Begin Subtask 4.4a: workspace_snapshot/workspace_verify skills."
++  - id: "4.4a"
++    title: "workspace_snapshot / workspace_verify skills"
++    status: implementation_complete
++    related_requirements:
++      - REQUIREMENTS.md section 4.7.1
++      - REQUIREMENTS.md section 4.7.4
++      - ROADMAP.yaml Phase 04 workspace protection skills
++    files_created:
++      - src/agent/skills/__init__.py
++      - src/agent/skills/workspace_snapshot.py
++      - src/agent/skills/workspace_verify.py
++      - tests/fixtures/__init__.py
++      - tests/fixtures/fake_workspace.py
++      - tests/test_workspace_skills.py
++    files_modified:
++      - src/agent/__init__.py
++    behavior_notes:
++      - "workspace_snapshot captures source tree git status/head, configured key-file hashes, spec hash, build_dir, artifact_staging, and disk_free_gb."
++      - "pre snapshots create trial build and artifact staging directories."
++      - "workspace_verify captures a post snapshot, records changes_vs_pre, validates spec hash, and honors source_dirty_action warn/fail/ignore."
++      - "Snapshot YAML is written via atomic_write_yaml and guarded by a hash field excluding itself."
++    ut_required: true
++    ut_passed: true
++    targeted_ut: "11 workspace skill tests passed, 0 failed"
++    regression_ut: "236 workspace/config/fs_memory/trace tests passed, 0 failed"
++    full_ut: "438 passed, 0 failed"
++    self_review_required: true
++    self_reviewed: true
++    patch_required: true
++    patch_file: dev_memory/phases/phase_04_workspace_protection/patches/04_workspace_snapshot_verify.patch
++    patch_generated: true
++    commit_required: true
++    commit_pending: true
++next_action: "Push Subtask 4.4a implementation range for Claude review."
+diff --git a/dev_memory/DECISIONS.md b/dev_memory/DECISIONS.md
+index 1d43392..9319231 100644
+--- a/dev_memory/DECISIONS.md
++++ b/dev_memory/DECISIONS.md
+@@ -712,3 +712,16 @@ Decision records must include:
+   - Keep `agent = agent.cli.clean_trace:main`, which would preserve the Phase 03 placeholder and force future run/status/pause commands to be bolted onto a trace cleanup module.
+   - Put `AgentError` catches in each command module, which would duplicate global behavior and risk inconsistent exit codes.
+   - Remove `clean_trace.main()` immediately, which would break existing tests/imports for little benefit; a compatibility shim keeps the migration gentle.
++
++## 2026-05-30T03:13:55Z - Split workspace protection skills into snapshot/verify and spec mutation
++
++- affected_requirement:
++  - REQUIREMENTS.md section 4.7.1
++  - REQUIREMENTS.md section 4.7.4
++  - REQUIREMENTS.md section 4.7.5
++- decision: Split the Phase 04 workspace/spec skills work into 4.4a (`workspace_snapshot` / `workspace_verify`) and 4.4b (`spec_backup` / `spec_injector` / `spec_restore`). Snapshot YAML uses a top-level `hash` computed from the canonical payload with `hash` excluded, and `workspace_verify` rewrites the post snapshot with `changes_vs_pre` and `spec.matches_pre` before returning or raising.
++- rationale: Workspace state capture and spec file mutation have different safety surfaces. Keeping snapshot/verify separate lets the project lock down key-file hashing, source dirty policy, snapshot persistence, and post-trial comparison before adding physical spec edits. Rewriting the post snapshot after comparison keeps a single self-contained SoT artifact for doctor/report tooling.
++- alternatives_considered:
++  - Implement all five workspace/spec skills in one subtask, which would mix read/compare behavior with destructive spec rewrite behavior and make review too broad.
++  - Treat snapshots as in-memory-only results, which would not satisfy the user-readable workspace_snapshots SoT requirement.
++  - Omit post-snapshot enrichment from the persisted YAML, which would force doctor/report code to recompute changes later.
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index 2f86681..4f2179c 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -72,6 +72,20 @@ Next action: generate Subtask 4.3 patch artifacts, commit, push, and send the ra
+ 
+ Next action: commit the 4.3 validation sync, then begin Subtask 4.4a workspace_snapshot/workspace_verify skills.
+ 
++## 2026-05-30T03:13:55Z - Phase 04 / Subtask 4.4a implementation completed
++
++- Split workspace/spec skills into 4.4a (workspace snapshot/verify) and 4.4b (spec backup/inject/restore).
++- Added `agent.skills` package with `workspace_snapshot`, `load_workspace_snapshot`, and `workspace_verify`.
++- Implemented snapshot capture for source tree git status/head, configured key-file hashes, missing key files, spec hash, build dir, artifact staging, and disk free state.
++- Implemented snapshot YAML self-hash validation, excluding the `hash` field itself.
++- Implemented verify flow that captures a post snapshot, records `changes_vs_pre`, checks spec hash restoration, and honors `source_dirty_action` warn/fail/ignore.
++- Added `tests/fixtures/fake_workspace.py` for Phase 04 skill tests.
++- Targeted UT passed: `.venv/bin/python -m pytest tests/test_workspace_skills.py -q` -> 11 passed.
++- Adjacent regression UT passed: workspace/config/fs_memory/trace selection -> 236 passed.
++- Full UT passed: `.venv/bin/python -m pytest tests/ -q` -> 438 passed.
++
++Next action: generate Subtask 4.4a patch artifacts, commit, push, and send the range for Claude review.
++
+ ## 2026-05-06T08:42:41Z - Project kickoff
+ 
+ - Read `doc/USER_REQUIREMENTS.md` in full.
+diff --git a/dev_memory/phases/phase_04_workspace_protection/CHECKLIST.yaml b/dev_memory/phases/phase_04_workspace_protection/CHECKLIST.yaml
+index b445752..df3ade5 100644
+--- a/dev_memory/phases/phase_04_workspace_protection/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_04_workspace_protection/CHECKLIST.yaml
+@@ -86,24 +86,24 @@ subtasks:
+         status: done
+   - id: "4.4a"
+     title: "workspace_snapshot / workspace_verify skills"
+-    status: pending
++    status: implementation_complete
+     implementation_commit: pending
+     review_status: pending
+     ubuntu_validation_status: pending
+     checklist:
+       - item: "Read REQUIREMENTS sections 4.7.1 and 4.7.4 skill contracts"
+-        status: pending
++        status: done
+       - item: "Design fake-workspace fixture scope"
+-        status: pending
++        status: done
+       - item: "Implement workspace_snapshot skill"
+-        status: pending
++        status: done
+       - item: "Implement workspace_verify skill"
+-        status: pending
++        status: done
+       - item: "Export skills"
+-        status: pending
++        status: done
+       - item: "Add unit tests for clean/dirty/missing/changed workspace files"
+-        status: pending
++        status: done
+       - item: "Run targeted and full unit tests"
+-        status: pending
++        status: done
+       - item: "Generate patch artifacts"
+-        status: pending
++        status: done
+diff --git a/dev_memory/phases/phase_04_workspace_protection/REVIEW_NOTES.md b/dev_memory/phases/phase_04_workspace_protection/REVIEW_NOTES.md
+index b9c1658..72f9f80 100644
+--- a/dev_memory/phases/phase_04_workspace_protection/REVIEW_NOTES.md
++++ b/dev_memory/phases/phase_04_workspace_protection/REVIEW_NOTES.md
+@@ -113,3 +113,27 @@ Post-review validation:
+ - `tests/test_cli_clean_trace.py`: 10 passed
+ - Full suite: 427 passed
+ - Root / clean trace / doctor trace help smoke: all exited 0
++
++## Subtask 4.4a - Workspace Snapshot / Verify Skills
++
++Self-review checklist:
++
++- [x] Scope limited to workspace snapshot/verify; spec backup/inject/restore left for 4.4b.
++- [x] Snapshot writes through `atomic_write_yaml`.
++- [x] Snapshot hash excludes the `hash` field itself.
++- [x] Snapshot loader uses safe YAML and validates the self-excluding hash.
++- [x] Key file paths are constrained to relative paths inside the source tree.
++- [x] Glob key files are supported.
++- [x] Missing key files are reported instead of silently disappearing.
++- [x] Pre snapshot creates per-trial build and artifact staging dirs.
++- [x] Verify writes a post snapshot with `changes_vs_pre` and `spec.matches_pre`.
++- [x] `source_dirty_action` warn/fail/ignore behavior is covered.
++- [x] Spec mismatch raises `WorkspaceIntegrityError`.
++- [x] Targeted, adjacent, and full tests passed.
++
++Reviewer focus:
++
++- Confirm the 4.4a / 4.4b split is acceptable.
++- Confirm snapshot hash semantics and post-snapshot rewrite are appropriate.
++- Confirm source changes based on configured key-file hashes are sufficient for
++  this subtask, with broader doctor/status integration left for later phases.
+diff --git a/dev_memory/phases/phase_04_workspace_protection/SUMMARY.md b/dev_memory/phases/phase_04_workspace_protection/SUMMARY.md
+index 4868d7d..0191411 100644
+--- a/dev_memory/phases/phase_04_workspace_protection/SUMMARY.md
++++ b/dev_memory/phases/phase_04_workspace_protection/SUMMARY.md
+@@ -90,3 +90,37 @@ a unified dispatcher while preserving the existing trace clean/doctor commands.
+   - `.venv/bin/python -m agent.cli --help`
+   - `.venv/bin/agent clean trace --help`
+   - `.venv/bin/agent doctor trace --help`
++
++## Subtask 4.4a - Workspace Snapshot / Verify Skills
++
++Implemented the first functional workspace protection skills from §4.7.4.
++This subtask intentionally covers source/spec/build state capture and
++verification only; spec backup/inject/restore remains 4.4b.
++
++### Changes
++
++- Added `agent.skills` package.
++- Added `workspace_snapshot()`:
++  - validates workspace protection is enabled
++  - captures git status/head when available
++  - hashes configured key files, including glob patterns
++  - records missing key files
++  - hashes the spec file
++  - creates per-trial build and artifact staging directories for pre snapshots
++  - records build dir, artifact staging, and disk free state
++  - writes snapshot YAML atomically with a self-excluding hash
++- Added `load_workspace_snapshot()` with safe YAML loading and hash validation.
++- Added `workspace_verify()`:
++  - captures a post snapshot
++  - records key-file changes vs pre
++  - verifies spec hash matches pre state
++  - honors `source_dirty_action`: `warn`, `fail`, and `ignore`
++- Added `tests/fixtures/fake_workspace.py` for Phase 04+ skill testing.
++- Exported workspace skills and errors from `agent.skills` and top-level
++  `agent`.
++
++### Validation
++
++- `tests/test_workspace_skills.py`: 11 passed
++- Adjacent regression suite: 236 passed
++- Full test suite: 438 passed
+diff --git a/dev_memory/phases/phase_04_workspace_protection/UT_RESULTS.md b/dev_memory/phases/phase_04_workspace_protection/UT_RESULTS.md
+index 320b882..0bec719 100644
+--- a/dev_memory/phases/phase_04_workspace_protection/UT_RESULTS.md
++++ b/dev_memory/phases/phase_04_workspace_protection/UT_RESULTS.md
+@@ -214,3 +214,47 @@ Smoke checks:
+ ```
+ 
+ Result: all exited 0 and rendered help text.
++
++## 2026-05-30 - Subtask 4.4a Workspace Snapshot / Verify Skills
++
++Environment:
++
++- Runner: local `.venv`
++- Python: `.venv/bin/python`
++- OS: Linux workspace
++
++Commands:
++
++```bash
++.venv/bin/python -m pytest tests/test_workspace_skills.py -q
++```
++
++Result:
++
++```text
++11 passed in 0.24s
++```
++
++```bash
++.venv/bin/python -m pytest \
++  tests/test_workspace_skills.py \
++  tests/test_config.py \
++  tests/test_fs_memory.py \
++  tests/test_trace_session.py -q
++```
++
++Result:
++
++```text
++236 passed in 0.97s
++```
++
++```bash
++.venv/bin/python -m pytest tests/ -q
++```
++
++Result:
++
++```text
++438 passed in 1.56s
++```
+diff --git a/dev_memory/phases/phase_04_workspace_protection/patches/04_workspace_snapshot_verify.review.md b/dev_memory/phases/phase_04_workspace_protection/patches/04_workspace_snapshot_verify.review.md
+new file mode 100644
+index 0000000..ebd3ef4
+--- /dev/null
++++ b/dev_memory/phases/phase_04_workspace_protection/patches/04_workspace_snapshot_verify.review.md
+@@ -0,0 +1,34 @@
++# Self Review - Subtask 4.4a Workspace Snapshot / Verify
++
++## Scope
++
++This patch implements only the §4.7.4 workspace state capture and verification
++skills. It intentionally does not modify the spec file; `spec_backup`,
++`spec_injector`, and `spec_restore` remain 4.4b.
++
++## Checks
++
++- Snapshot persistence uses `atomic_write_yaml`.
++- Snapshot hash excludes the top-level `hash` field and is validated on load.
++- Snapshot safe loader rejects YAML aliases.
++- Trial IDs are path-safe via `validate_session_id_atom`.
++- Key-file patterns must be relative and cannot contain `..`.
++- Glob key-file patterns are supported.
++- Symlink/path escape is rejected by resolved-path containment checks.
++- Missing configured key files are recorded explicitly.
++- Pre snapshots create the per-trial build dir and artifact staging dir.
++- Verify captures and persists a post snapshot with:
++  - `source_tree.changes_vs_pre`
++  - `spec.matches_pre`
++- `source_dirty_action=warn` records changes and returns.
++- `source_dirty_action=fail` raises `WorkspaceIntegrityError`.
++- `source_dirty_action=ignore` suppresses source changes.
++- Spec mismatch raises `WorkspaceIntegrityError` when configured.
++- Top-level exports are available.
++
++## Residual Risk
++
++`source_tree_changes` is based on configured key-file hash deltas, with a
++coarse `git_status_changed` fallback. That matches this subtask's goal of
++locking down the §4.7.4 starter key-file contract. Richer file-level git status
++classification can be added later if doctor/report output needs more detail.
+diff --git a/dev_memory/phases/phase_04_workspace_protection/patches/04_workspace_snapshot_verify.summary.txt b/dev_memory/phases/phase_04_workspace_protection/patches/04_workspace_snapshot_verify.summary.txt
+new file mode 100644
+index 0000000..4cfd410
+--- /dev/null
++++ b/dev_memory/phases/phase_04_workspace_protection/patches/04_workspace_snapshot_verify.summary.txt
+@@ -0,0 +1,26 @@
++Subtask 4.4a - workspace_snapshot / workspace_verify skills
++
++Implemented:
++- Added src/agent/skills package.
++- Added workspace_snapshot skill:
++  - captures source tree git status/head when available
++  - hashes configured key files, including glob patterns
++  - records missing key files
++  - hashes spec file
++  - creates per-trial build_dir and artifact_staging dirs for pre snapshots
++  - records build_dir/artifact_staging/disk_free state
++  - writes snapshot YAML atomically with self-excluding hash
++- Added load_workspace_snapshot with safe YAML and hash validation.
++- Added workspace_verify skill:
++  - captures post snapshot
++  - records source_tree.changes_vs_pre
++  - records spec.matches_pre
++  - honors source_dirty_action warn/fail/ignore
++  - raises WorkspaceIntegrityError on configured spec/source failures.
++- Added tests/fixtures/fake_workspace.py for skill tests.
++- Exported workspace skills/errors from agent.skills and top-level agent.
++
++Validation:
++- .venv/bin/python -m pytest tests/test_workspace_skills.py -q -> 11 passed
++- .venv/bin/python -m pytest tests/test_workspace_skills.py tests/test_config.py tests/test_fs_memory.py tests/test_trace_session.py -q -> 236 passed
++- .venv/bin/python -m pytest tests/ -q -> 438 passed
+diff --git a/src/agent/__init__.py b/src/agent/__init__.py
+index 722ed9e..2f0853f 100644
+--- a/src/agent/__init__.py
++++ b/src/agent/__init__.py
+@@ -137,6 +137,16 @@ from .registry import (
+     registry_path_for_workspace,
+     validate_project_against_registry,
+ )
++from .skills import (
++    WorkspaceIntegrityError,
++    WorkspaceProtectionError,
++    WorkspaceSnapshotPhase,
++    WorkspaceSnapshotResult,
++    WorkspaceVerifyResult,
++    load_workspace_snapshot,
++    workspace_snapshot,
++    workspace_verify,
++)
+ from .trace import (
+     TraceCheckpointAlignment,
+     TraceCheckpointResult,
+@@ -265,12 +275,17 @@ __all__ = [
+     "TrialRecordError",
+     "TrialScore",
+     "TrialStartupValidationInputs",
+-    "WorkspaceState",
+     "WorkspaceBusyError",
++    "WorkspaceIntegrityError",
+     "WorkspaceLock",
+     "WorkspaceLockError",
+     "WorkspaceLockHolder",
+     "WorkspaceLockPlatformError",
++    "WorkspaceProtectionError",
++    "WorkspaceSnapshotPhase",
++    "WorkspaceSnapshotResult",
++    "WorkspaceState",
++    "WorkspaceVerifyResult",
+     "assert_initialized_matches",
+     "atomic_write_yaml",
+     "append_trace_event",
+@@ -311,6 +326,7 @@ __all__ = [
+     "load_trial_record",
+     "load_trial_record_for_layout",
+     "load_trace_events",
++    "load_workspace_snapshot",
+     "lock_path_for_workspace",
+     "namespace_layout_for_config",
+     "normalize_init_choice",
+@@ -332,6 +348,8 @@ __all__ = [
+     "with_experience_local_integrity",
+     "with_learned_rule_integrity",
+     "with_trial_integrity",
++    "workspace_snapshot",
++    "workspace_verify",
+     "write_checkpoint_state",
+     "write_experience",
+     "write_initialized_state",
+diff --git a/src/agent/skills/__init__.py b/src/agent/skills/__init__.py
+new file mode 100644
+index 0000000..b6f58dd
+--- /dev/null
++++ b/src/agent/skills/__init__.py
+@@ -0,0 +1,22 @@
++"""Deterministic skill helpers for the local agent workflow."""
++
++from .workspace_snapshot import (
++    WorkspaceIntegrityError,
++    WorkspaceProtectionError,
++    WorkspaceSnapshotPhase,
++    WorkspaceSnapshotResult,
++    load_workspace_snapshot,
++    workspace_snapshot,
++)
++from .workspace_verify import WorkspaceVerifyResult, workspace_verify
++
++__all__ = [
++    "WorkspaceIntegrityError",
++    "WorkspaceProtectionError",
++    "WorkspaceSnapshotPhase",
++    "WorkspaceSnapshotResult",
++    "WorkspaceVerifyResult",
++    "load_workspace_snapshot",
++    "workspace_snapshot",
++    "workspace_verify",
++]
+diff --git a/src/agent/skills/workspace_snapshot.py b/src/agent/skills/workspace_snapshot.py
+new file mode 100644
+index 0000000..fc36347
+--- /dev/null
++++ b/src/agent/skills/workspace_snapshot.py
+@@ -0,0 +1,278 @@
++"""Workspace snapshot skill for source/spec/build state capture."""
++
++from __future__ import annotations
++
++import os
++import shutil
++import subprocess
++from dataclasses import dataclass
++from datetime import UTC, datetime
++from pathlib import Path
++from typing import Any, Literal, Mapping
++
++import yaml
++
++from agent.config import AgentConfig
++from agent.errors import AgentError, EXIT_INTEGRITY, EXIT_VALIDATION
++from agent.fs_memory import (
++    NamespaceLayout,
++    atomic_write_yaml,
++    compute_payload_hash,
++)
++from agent.identifiers import validate_session_id_atom
++
++
++WorkspaceSnapshotPhase = Literal["pre", "post"]
++
++
++class WorkspaceProtectionError(AgentError):
++    """Raised when workspace protection state cannot be captured safely."""
++
++    exit_code = EXIT_VALIDATION
++
++
++class WorkspaceIntegrityError(WorkspaceProtectionError):
++    """Raised when workspace verification detects protected-state corruption."""
++
++    exit_code = EXIT_INTEGRITY
++
++
++@dataclass(frozen=True)
++class WorkspaceSnapshotResult:
++    """Result of one persisted workspace snapshot."""
++
++    snapshot_path: Path
++    snapshot_hash: str
++    payload: Mapping[str, Any]
++
++
++class WorkspaceSnapshotYamlLoader(yaml.SafeLoader):
++    """Safe loader for generated workspace snapshot YAML."""
++
++    def compose_node(self, parent: Any, index: Any) -> yaml.Node:
++        if self.check_event(yaml.AliasEvent):
++            raise yaml.YAMLError("YAML aliases are not allowed in workspace snapshots")
++        return super().compose_node(parent, index)
++
++
++def workspace_snapshot(
++    config: AgentConfig,
++    layout: NamespaceLayout,
++    *,
++    trial_id: str,
++    phase: WorkspaceSnapshotPhase = "pre",
++    now: datetime | None = None,
++) -> WorkspaceSnapshotResult:
++    """Capture and persist a workspace snapshot for one trial phase."""
++
++    if not config.workspace_protection.enabled:
++        raise WorkspaceProtectionError("workspace protection is disabled")
++    if phase not in {"pre", "post"}:
++        raise WorkspaceProtectionError("workspace snapshot phase must be 'pre' or 'post'")
++    safe_trial_id = validate_session_id_atom(
++        trial_id,
++        "trial_id",
++        error_type=WorkspaceProtectionError,
++    )
++    timestamp = _normalize_now(now).isoformat()
++
++    source_tree = _source_tree_payload(config)
++    spec_payload = _spec_payload(config)
++    build_dir = Path(config.workspace_protection.build_dir_root) / safe_trial_id
++    artifact_staging = (
++        Path(config.workspace_protection.artifact_staging_dir) / safe_trial_id
++    )
++    if phase == "pre":
++        build_dir.mkdir(parents=True, exist_ok=True)
++        artifact_staging.mkdir(parents=True, exist_ok=True)
++
++    payload: dict[str, Any] = {
++        "trial_id": safe_trial_id,
++        "captured_at": timestamp,
++        "phase": phase,
++        "source_tree": source_tree,
++        "spec": spec_payload,
++        "build_dir": {
++            "path": str(build_dir),
++            "exists": build_dir.exists(),
++            "size_bytes": _directory_size_bytes(build_dir),
++        },
++        "artifact_staging": {
++            "path": str(artifact_staging),
++            "exists": artifact_staging.exists(),
++        },
++        "disk_free_gb": _disk_free_gb(Path(config.memory.workspace)),
++    }
++    payload["hash"] = compute_payload_hash(payload, excluded_fields=("hash",))
++
++    target = layout.workspace_snapshots_dir / f"ws_{phase}_{safe_trial_id}.yaml"
++    atomic_write_yaml(payload, target)
++    return WorkspaceSnapshotResult(
++        snapshot_path=target,
++        snapshot_hash=str(payload["hash"]),
++        payload=payload,
++    )
++
++
++def load_workspace_snapshot(path: str | Path) -> dict[str, Any]:
++    """Load a generated workspace snapshot YAML file."""
++
++    snapshot_path = Path(path)
++    try:
++        raw_text = snapshot_path.read_text(encoding="utf-8")
++    except OSError as exc:
++        raise WorkspaceProtectionError(
++            f"failed to read workspace snapshot {snapshot_path}: {exc}"
++        ) from exc
++    try:
++        data = yaml.load(raw_text, Loader=WorkspaceSnapshotYamlLoader)
++    except yaml.YAMLError as exc:
++        raise WorkspaceProtectionError(
++            f"failed to parse workspace snapshot {snapshot_path}: {exc}"
++        ) from exc
++    if not isinstance(data, dict):
++        raise WorkspaceProtectionError(
++            f"workspace snapshot must contain a YAML mapping: {snapshot_path}"
++        )
++    expected_hash = compute_payload_hash(data, excluded_fields=("hash",))
++    if data.get("hash") != expected_hash:
++        raise WorkspaceIntegrityError(
++            "workspace snapshot hash mismatch "
++            f"(path={snapshot_path}, expected={expected_hash!r}, "
++            f"actual={data.get('hash')!r})"
++        )
++    return data
++
++
++def _source_tree_payload(config: AgentConfig) -> dict[str, Any]:
++    source_tree_path = config.workspace_protection.source_tree_path
++    if source_tree_path is None:
++        raise WorkspaceProtectionError(
++            "workspace_protection.source_tree_path is required"
++        )
++    root = Path(source_tree_path).expanduser().resolve()
++    if not root.exists() or not root.is_dir():
++        raise WorkspaceProtectionError(f"source tree path is not a directory: {root}")
++
++    key_hashes, missing = _key_file_hashes(
++        root,
++        config.workspace_protection.key_files_to_hash,
++    )
++    return {
++        "path": str(root),
++        "git_status": _git_output(root, "status", "--short", "--untracked-files=all"),
++        "git_head": _git_output(root, "rev-parse", "HEAD") or None,
++        "key_file_hashes": key_hashes,
++        "missing_key_files": missing,
++    }
++
++
++def _spec_payload(config: AgentConfig) -> dict[str, Any]:
++    spec_path = Path(config.spec.source_path).expanduser()
++    if not spec_path.exists() or not spec_path.is_file():
++        raise WorkspaceProtectionError(f"spec source path is not a file: {spec_path}")
++    return {"path": str(spec_path), "hash": _sha256_file(spec_path)}
++
++
++def _key_file_hashes(
++    root: Path,
++    patterns: list[str],
++) -> tuple[dict[str, str], list[str]]:
++    hashes: dict[str, str] = {}
++    missing: list[str] = []
++    for pattern in patterns:
++        _validate_relative_pattern(pattern)
++        matches = _pattern_matches(root, pattern)
++        if not matches:
++            missing.append(pattern)
++            continue
++        for path in matches:
++            if path.is_file():
++                relative = path.relative_to(root).as_posix()
++                hashes[relative] = _sha256_file(path)
++    return dict(sorted(hashes.items())), sorted(missing)
++
++
++def _pattern_matches(root: Path, pattern: str) -> list[Path]:
++    if _has_glob_meta(pattern):
++        candidates = list(root.glob(pattern))
++    else:
++        candidates = [root / pattern]
++    matches: list[Path] = []
++    for candidate in candidates:
++        try:
++            resolved = candidate.resolve(strict=False)
++            resolved.relative_to(root.resolve())
++        except ValueError as exc:
++            raise WorkspaceProtectionError(
++                f"key file pattern resolves outside source tree: {pattern!r}"
++            ) from exc
++        if candidate.exists() and candidate.is_file():
++            matches.append(candidate)
++    return sorted(set(matches), key=lambda path: path.relative_to(root).as_posix())
++
++
++def _validate_relative_pattern(pattern: str) -> None:
++    value = Path(pattern)
++    if value.is_absolute() or ".." in value.parts:
++        raise WorkspaceProtectionError(
++            f"key file pattern must stay inside source tree: {pattern!r}"
++        )
++
++
++def _has_glob_meta(pattern: str) -> bool:
++    return any(char in pattern for char in "*?[")
++
++
++def _sha256_file(path: Path) -> str:
++    import hashlib
++
++    digest = hashlib.sha256()
++    with path.open("rb") as handle:
++        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
++            digest.update(chunk)
++    return "sha256:" + digest.hexdigest()
++
++
++def _directory_size_bytes(path: Path) -> int:
++    if not path.exists():
++        return 0
++    total = 0
++    for root, dirs, files in os.walk(path):
++        dirs[:] = [name for name in dirs if not (Path(root) / name).is_symlink()]
++        for name in files:
++            file_path = Path(root) / name
++            try:
++                total += file_path.stat().st_size
++            except OSError:
++                continue
++    return total
++
++
++def _disk_free_gb(path: Path) -> float:
++    target = path if path.exists() else path.parent
++    usage = shutil.disk_usage(target)
++    return round(usage.free / (1024**3), 3)
++
++
++def _git_output(root: Path, *args: str) -> str:
++    try:
++        completed = subprocess.run(
++            ["git", "-C", str(root), *args],
++            check=False,
++            text=True,
++            capture_output=True,
++            timeout=5,
++        )
++    except (OSError, subprocess.SubprocessError):
++        return ""
++    if completed.returncode != 0:
++        return ""
++    return completed.stdout.strip()
++
++
++def _normalize_now(now: datetime | None) -> datetime:
++    value = datetime.now(UTC) if now is None else now
++    if value.tzinfo is None or value.utcoffset() is None:
++        raise WorkspaceProtectionError("snapshot time must be timezone-aware")
++    return value.astimezone(UTC)
+diff --git a/src/agent/skills/workspace_verify.py b/src/agent/skills/workspace_verify.py
+new file mode 100644
+index 0000000..89a20e7
+--- /dev/null
++++ b/src/agent/skills/workspace_verify.py
+@@ -0,0 +1,142 @@
++"""Workspace verification skill for post-trial protection checks."""
++
++from __future__ import annotations
++
++from dataclasses import dataclass
++from datetime import datetime
++from pathlib import Path
++from typing import Any, Mapping
++
++from agent.config import AgentConfig
++from agent.fs_memory import NamespaceLayout, atomic_write_yaml, compute_payload_hash
++from agent.skills.workspace_snapshot import (
++    WorkspaceIntegrityError,
++    WorkspaceSnapshotResult,
++    load_workspace_snapshot,
++    workspace_snapshot,
++)
++
++
++@dataclass(frozen=True)
++class WorkspaceVerifyResult:
++    """Result of comparing a post-trial workspace snapshot against pre state."""
++
++    pre_snapshot_path: Path
++    post_snapshot_path: Path
++    pre_snapshot_hash: str
++    post_snapshot_hash: str
++    spec_matches_pre: bool
++    source_tree_changes: tuple[dict[str, str], ...]
++
++    @property
++    def ok(self) -> bool:
++        return self.spec_matches_pre and not self.source_tree_changes
++
++
++def workspace_verify(
++    config: AgentConfig,
++    layout: NamespaceLayout,
++    *,
++    trial_id: str,
++    pre_snapshot: str | Path | WorkspaceSnapshotResult | Mapping[str, Any],
++    now: datetime | None = None,
++) -> WorkspaceVerifyResult:
++    """Capture a post snapshot and compare it with a pre-trial snapshot."""
++
++    pre_path, pre_payload = _coerce_pre_snapshot(pre_snapshot)
++    post_result = workspace_snapshot(
++        config,
++        layout,
++        trial_id=trial_id,
++        phase="post",
++        now=now,
++    )
++    post_payload = dict(post_result.payload)
++    source_tree_changes = _source_tree_changes(pre_payload, post_payload)
++    if config.workspace_protection.source_dirty_action == "ignore":
++        source_tree_changes = ()
++
++    spec_matches_pre = (
++        pre_payload.get("spec", {}).get("hash")
++        == post_payload.get("spec", {}).get("hash")
++    )
++    post_payload["source_tree"] = dict(post_payload["source_tree"])
++    post_payload["source_tree"]["changes_vs_pre"] = list(source_tree_changes)
++    post_payload["spec"] = dict(post_payload["spec"])
++    post_payload["spec"]["matches_pre"] = spec_matches_pre
++    post_payload["hash"] = compute_payload_hash(
++        post_payload,
++        excluded_fields=("hash",),
++    )
++    atomic_write_yaml(post_payload, post_result.snapshot_path)
++
++    result = WorkspaceVerifyResult(
++        pre_snapshot_path=pre_path,
++        post_snapshot_path=post_result.snapshot_path,
++        pre_snapshot_hash=str(pre_payload["hash"]),
++        post_snapshot_hash=str(post_payload["hash"]),
++        spec_matches_pre=spec_matches_pre,
++        source_tree_changes=source_tree_changes,
++    )
++    _raise_if_configured_failure(config, result)
++    return result
++
++
++def _coerce_pre_snapshot(
++    value: str | Path | WorkspaceSnapshotResult | Mapping[str, Any],
++) -> tuple[Path, dict[str, Any]]:
++    if isinstance(value, WorkspaceSnapshotResult):
++        return value.snapshot_path, dict(value.payload)
++    if isinstance(value, (str, Path)):
++        path = Path(value)
++        return path, load_workspace_snapshot(path)
++    return Path("-"), dict(value)
++
++
++def _source_tree_changes(
++    pre_payload: Mapping[str, Any],
++    post_payload: Mapping[str, Any],
++) -> tuple[dict[str, str], ...]:
++    pre_hashes = dict(pre_payload.get("source_tree", {}).get("key_file_hashes") or {})
++    post_hashes = dict(post_payload.get("source_tree", {}).get("key_file_hashes") or {})
++    changes: list[dict[str, str]] = []
++    for file_name in sorted(set(pre_hashes) | set(post_hashes)):
++        before = pre_hashes.get(file_name)
++        after = post_hashes.get(file_name)
++        if before == after:
++            continue
++        if before is None:
++            action = "created"
++        elif after is None:
++            action = "deleted"
++        else:
++            action = "modified"
++        changes.append({"file": file_name, "action": action})
++
++    pre_status = pre_payload.get("source_tree", {}).get("git_status")
++    post_status = post_payload.get("source_tree", {}).get("git_status")
++    if pre_status != post_status and not changes:
++        changes.append({"file": ".", "action": "git_status_changed"})
++    return tuple(changes)
++
++
++def _raise_if_configured_failure(
++    config: AgentConfig,
++    result: WorkspaceVerifyResult,
++) -> None:
++    if config.spec.hash_must_match_after_restore and not result.spec_matches_pre:
++        raise WorkspaceIntegrityError(
++            "spec hash does not match pre-trial snapshot after restore "
++            f"(pre={result.pre_snapshot_hash}, post={result.post_snapshot_hash})"
++        )
++    if (
++        config.workspace_protection.source_dirty_action == "fail"
++        and result.source_tree_changes
++    ):
++        changed = ", ".join(
++            f"{item['file']}:{item['action']}" for item in result.source_tree_changes
++        )
++        raise WorkspaceIntegrityError(
++            "source tree changed during trial and source_dirty_action=fail "
++            f"({changed})"
++        )
+diff --git a/tests/fixtures/__init__.py b/tests/fixtures/__init__.py
+new file mode 100644
+index 0000000..f666004
+--- /dev/null
++++ b/tests/fixtures/__init__.py
+@@ -0,0 +1 @@
++"""Shared pytest fixtures and builders."""
+diff --git a/tests/fixtures/fake_workspace.py b/tests/fixtures/fake_workspace.py
+new file mode 100644
+index 0000000..d516a3f
+--- /dev/null
++++ b/tests/fixtures/fake_workspace.py
+@@ -0,0 +1,86 @@
++from __future__ import annotations
++
++from dataclasses import dataclass
++from pathlib import Path
++
++import yaml
++
++from agent.config import AgentConfig, load_config
++from agent.fs_memory import NamespaceLayout, namespace_layout_for_config
++
++
++@dataclass(frozen=True)
++class FakeWorkspace:
++    root: Path
++    workspace: Path
++    source_tree: Path
++    spec_path: Path
++    config_path: Path
++    config: AgentConfig
++    layout: NamespaceLayout
++
++
++def create_fake_workspace(tmp_path: Path, **config_overrides: object) -> FakeWorkspace:
++    root = tmp_path
++    workspace = root / "memory"
++    source_tree = root / "source"
++    source_tree.mkdir(parents=True)
++    (source_tree / "configure").write_text("#!/bin/sh\n", encoding="utf-8")
++    (source_tree / "Makefile").write_text("all:\n\ttrue\n", encoding="utf-8")
++    (source_tree / "Makefile.am").write_text("bin_PROGRAMS = demo\n", encoding="utf-8")
++    (source_tree / "configure.ac").write_text("AC_INIT([demo])\n", encoding="utf-8")
++    (source_tree / "src").mkdir()
++    (source_tree / "src" / "schema.proto").write_text(
++        'syntax = "proto3";\n',
++        encoding="utf-8",
++    )
++    spec_path = root / "project.spec"
++    spec_path.write_text("Name: demo\n%build\n", encoding="utf-8")
++
++    data = {
++        "project": {
++            "module": "multimedia",
++            "framework": "ffmpeg",
++            "compiler": {"type": "gcc", "version": "13.2.0"},
++            "code_commit": "a1b2c3d",
++            "kg_version": "v3",
++        },
++        "memory": {"workspace": str(workspace)},
++        "spec": {"source_path": str(spec_path)},
++        "workspace_protection": {
++            "source_tree_path": str(source_tree),
++            "build_dir_root": str(workspace / "build_dirs"),
++            "artifact_staging_dir": str(workspace / "artifacts" / "staging"),
++            "artifact_final_dir": str(workspace / "artifacts" / "final"),
++            "key_files_to_hash": [
++                "configure",
++                "Makefile",
++                "Makefile.am",
++                "configure.ac",
++                "src/**/*.proto",
++            ],
++        },
++    }
++    _deep_update(data, config_overrides)
++    config_path = root / "agent.config.yaml"
++    config_path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
++    config = load_config(config_path)
++    layout = namespace_layout_for_config(config)
++    layout.ensure_directories()
++    return FakeWorkspace(
++        root=root,
++        workspace=workspace,
++        source_tree=source_tree,
++        spec_path=spec_path,
++        config_path=config_path,
++        config=config,
++        layout=layout,
++    )
++
++
++def _deep_update(target: dict, updates: dict[str, object]) -> None:
++    for key, value in updates.items():
++        if isinstance(value, dict) and isinstance(target.get(key), dict):
++            _deep_update(target[key], value)  # type: ignore[index,arg-type]
++        else:
++            target[key] = value
+diff --git a/tests/test_workspace_skills.py b/tests/test_workspace_skills.py
+new file mode 100644
+index 0000000..026e7c4
+--- /dev/null
++++ b/tests/test_workspace_skills.py
+@@ -0,0 +1,269 @@
++from __future__ import annotations
++
++from datetime import UTC, datetime
++from pathlib import Path
++
++import pytest
++import yaml
++
++from agent.skills import (
++    WorkspaceIntegrityError,
++    WorkspaceProtectionError,
++    load_workspace_snapshot,
++    workspace_snapshot,
++    workspace_verify,
++)
++from tests.fixtures.fake_workspace import create_fake_workspace
++
++
++def fixed_now() -> datetime:
++    return datetime(2026, 5, 30, 1, 2, 3, tzinfo=UTC)
++
++
++def test_workspace_snapshot_pre_writes_snapshot_and_creates_trial_dirs(
++    tmp_path: Path,
++) -> None:
++    fake = create_fake_workspace(tmp_path)
++
++    result = workspace_snapshot(
++        fake.config,
++        fake.layout,
++        trial_id="r1_t1",
++        phase="pre",
++        now=fixed_now(),
++    )
++
++    assert result.snapshot_path == fake.layout.workspace_snapshots_dir / "ws_pre_r1_t1.yaml"
++    assert result.snapshot_hash.startswith("sha256:")
++    assert (fake.workspace / "build_dirs" / "r1_t1").is_dir()
++    assert (fake.workspace / "artifacts" / "staging" / "r1_t1").is_dir()
++    loaded = load_workspace_snapshot(result.snapshot_path)
++    assert loaded["hash"] == result.snapshot_hash
++    assert loaded["trial_id"] == "r1_t1"
++    assert loaded["captured_at"] == "2026-05-30T01:02:03+00:00"
++    assert loaded["phase"] == "pre"
++    assert loaded["spec"]["path"] == str(fake.spec_path)
++    assert loaded["spec"]["hash"].startswith("sha256:")
++    assert loaded["source_tree"]["path"] == str(fake.source_tree.resolve())
++    assert set(loaded["source_tree"]["key_file_hashes"]) == {
++        "Makefile",
++        "Makefile.am",
++        "configure",
++        "configure.ac",
++        "src/schema.proto",
++    }
++    assert loaded["source_tree"]["missing_key_files"] == []
++    assert loaded["build_dir"]["exists"] is True
++    assert loaded["artifact_staging"]["exists"] is True
++
++
++def test_workspace_verify_warn_records_key_file_change(
++    tmp_path: Path,
++) -> None:
++    fake = create_fake_workspace(tmp_path)
++    pre = workspace_snapshot(
++        fake.config,
++        fake.layout,
++        trial_id="r1_t2",
++        phase="pre",
++        now=fixed_now(),
++    )
++    (fake.source_tree / "configure").write_text("# changed\n", encoding="utf-8")
++
++    result = workspace_verify(
++        fake.config,
++        fake.layout,
++        trial_id="r1_t2",
++        pre_snapshot=pre,
++        now=fixed_now(),
++    )
++
++    assert result.spec_matches_pre is True
++    assert result.source_tree_changes == ({"file": "configure", "action": "modified"},)
++    post = load_workspace_snapshot(result.post_snapshot_path)
++    assert post["phase"] == "post"
++    assert post["spec"]["matches_pre"] is True
++    assert post["source_tree"]["changes_vs_pre"] == [
++        {"file": "configure", "action": "modified"}
++    ]
++    assert post["hash"] == result.post_snapshot_hash
++
++
++def test_workspace_verify_ignore_suppresses_source_change(
++    tmp_path: Path,
++) -> None:
++    fake = create_fake_workspace(
++        tmp_path,
++        workspace_protection={"source_dirty_action": "ignore"},
++    )
++    pre = workspace_snapshot(
++        fake.config,
++        fake.layout,
++        trial_id="r1_t3",
++        phase="pre",
++        now=fixed_now(),
++    )
++    (fake.source_tree / "Makefile").write_text("all:\n\tfalse\n", encoding="utf-8")
++
++    result = workspace_verify(
++        fake.config,
++        fake.layout,
++        trial_id="r1_t3",
++        pre_snapshot=pre,
++        now=fixed_now(),
++    )
++
++    assert result.source_tree_changes == ()
++    assert result.ok is True
++
++
++def test_workspace_verify_fail_raises_on_source_change(
++    tmp_path: Path,
++) -> None:
++    fake = create_fake_workspace(
++        tmp_path,
++        workspace_protection={"source_dirty_action": "fail"},
++    )
++    pre = workspace_snapshot(
++        fake.config,
++        fake.layout,
++        trial_id="r1_t4",
++        phase="pre",
++        now=fixed_now(),
++    )
++    (fake.source_tree / "Makefile.am").write_text("changed = yes\n", encoding="utf-8")
++
++    with pytest.raises(WorkspaceIntegrityError, match="source tree changed"):
++        workspace_verify(
++            fake.config,
++            fake.layout,
++            trial_id="r1_t4",
++            pre_snapshot=pre,
++            now=fixed_now(),
++        )
++
++
++def test_workspace_verify_raises_on_spec_mismatch(
++    tmp_path: Path,
++) -> None:
++    fake = create_fake_workspace(tmp_path)
++    pre = workspace_snapshot(
++        fake.config,
++        fake.layout,
++        trial_id="r1_t5",
++        phase="pre",
++        now=fixed_now(),
++    )
++    fake.spec_path.write_text("Name: changed\n%build\n", encoding="utf-8")
++
++    with pytest.raises(WorkspaceIntegrityError, match="spec hash does not match"):
++        workspace_verify(
++            fake.config,
++            fake.layout,
++            trial_id="r1_t5",
++            pre_snapshot=pre.snapshot_path,
++            now=fixed_now(),
++        )
++
++
++def test_workspace_snapshot_records_missing_key_files(tmp_path: Path) -> None:
++    fake = create_fake_workspace(tmp_path)
++    (fake.source_tree / "configure.ac").unlink()
++
++    result = workspace_snapshot(
++        fake.config,
++        fake.layout,
++        trial_id="r1_t6",
++        phase="pre",
++        now=fixed_now(),
++    )
++
++    assert result.payload["source_tree"]["missing_key_files"] == ["configure.ac"]
++    assert "configure.ac" not in result.payload["source_tree"]["key_file_hashes"]
++
++
++def test_workspace_snapshot_rejects_key_pattern_outside_source_tree(
++    tmp_path: Path,
++) -> None:
++    fake = create_fake_workspace(tmp_path)
++    bad_config = fake.config.model_copy(
++        update={
++            "workspace_protection": fake.config.workspace_protection.model_copy(
++                update={"key_files_to_hash": ["../secret"]}
++            )
++        }
++    )
++
++    with pytest.raises(WorkspaceProtectionError, match="inside source tree"):
++        workspace_snapshot(
++            bad_config,
++            fake.layout,
++            trial_id="r1_t7",
++            phase="pre",
++            now=fixed_now(),
++        )
++
++
++def test_workspace_snapshot_rejects_symlinked_key_file_outside_source_tree(
++    tmp_path: Path,
++) -> None:
++    fake = create_fake_workspace(
++        tmp_path,
++        workspace_protection={"key_files_to_hash": ["leak"]},
++    )
++    secret = tmp_path / "secret.txt"
++    secret.write_text("secret\n", encoding="utf-8")
++    (fake.source_tree / "leak").symlink_to(secret)
++
++    with pytest.raises(WorkspaceProtectionError, match="outside source tree"):
++        workspace_snapshot(
++            fake.config,
++            fake.layout,
++            trial_id="r1_t7b",
++            phase="pre",
++            now=fixed_now(),
++        )
++
++
++def test_workspace_snapshot_hash_detects_manual_edit(tmp_path: Path) -> None:
++    fake = create_fake_workspace(tmp_path)
++    result = workspace_snapshot(
++        fake.config,
++        fake.layout,
++        trial_id="r1_t8",
++        phase="pre",
++        now=fixed_now(),
++    )
++    payload = yaml.safe_load(result.snapshot_path.read_text(encoding="utf-8"))
++    payload["spec"]["hash"] = "sha256:" + ("0" * 64)
++    result.snapshot_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
++
++    with pytest.raises(WorkspaceIntegrityError, match="hash mismatch"):
++        load_workspace_snapshot(result.snapshot_path)
++
++
++def test_workspace_snapshot_rejects_disabled_workspace_protection(
++    tmp_path: Path,
++) -> None:
++    fake = create_fake_workspace(
++        tmp_path,
++        workspace_protection={"enabled": False},
++    )
++
++    with pytest.raises(WorkspaceProtectionError, match="disabled"):
++        workspace_snapshot(
++            fake.config,
++            fake.layout,
++            trial_id="r1_t9",
++            phase="pre",
++            now=fixed_now(),
++        )
++
++
++def test_workspace_skill_exports_from_agent_package() -> None:
++    import agent
++
++    assert agent.workspace_snapshot is workspace_snapshot
++    assert agent.workspace_verify is workspace_verify
++    assert issubclass(agent.WorkspaceProtectionError, agent.AgentError)
++    assert issubclass(agent.WorkspaceIntegrityError, agent.AgentError)

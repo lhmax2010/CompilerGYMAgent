@@ -86,24 +86,24 @@ subtasks:
         status: done
   - id: "4.4a"
     title: "workspace_snapshot / workspace_verify skills"
-    status: pending
+    status: implementation_complete
     implementation_commit: pending
     review_status: pending
     ubuntu_validation_status: pending
     checklist:
       - item: "Read REQUIREMENTS sections 4.7.1 and 4.7.4 skill contracts"
-        status: pending
+        status: done
       - item: "Design fake-workspace fixture scope"
-        status: pending
+        status: done
       - item: "Implement workspace_snapshot skill"
-        status: pending
+        status: done
       - item: "Implement workspace_verify skill"
-        status: pending
+        status: done
       - item: "Export skills"
-        status: pending
+        status: done
       - item: "Add unit tests for clean/dirty/missing/changed workspace files"
-        status: pending
+        status: done
       - item: "Run targeted and full unit tests"
-        status: pending
+        status: done
       - item: "Generate patch artifacts"
-        status: pending
+        status: done

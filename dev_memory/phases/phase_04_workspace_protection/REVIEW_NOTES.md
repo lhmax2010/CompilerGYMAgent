@@ -113,3 +113,27 @@ Post-review validation:
 - `tests/test_cli_clean_trace.py`: 10 passed
 - Full suite: 427 passed
 - Root / clean trace / doctor trace help smoke: all exited 0
+
+## Subtask 4.4a - Workspace Snapshot / Verify Skills
+
+Self-review checklist:
+
+- [x] Scope limited to workspace snapshot/verify; spec backup/inject/restore left for 4.4b.
+- [x] Snapshot writes through `atomic_write_yaml`.
+- [x] Snapshot hash excludes the `hash` field itself.
+- [x] Snapshot loader uses safe YAML and validates the self-excluding hash.
+- [x] Key file paths are constrained to relative paths inside the source tree.
+- [x] Glob key files are supported.
+- [x] Missing key files are reported instead of silently disappearing.
+- [x] Pre snapshot creates per-trial build and artifact staging dirs.
+- [x] Verify writes a post snapshot with `changes_vs_pre` and `spec.matches_pre`.
+- [x] `source_dirty_action` warn/fail/ignore behavior is covered.
+- [x] Spec mismatch raises `WorkspaceIntegrityError`.
+- [x] Targeted, adjacent, and full tests passed.
+
+Reviewer focus:
+
+- Confirm the 4.4a / 4.4b split is acceptable.
+- Confirm snapshot hash semantics and post-snapshot rewrite are appropriate.
+- Confirm source changes based on configured key-file hashes are sufficient for
+  this subtask, with broader doctor/status integration left for later phases.

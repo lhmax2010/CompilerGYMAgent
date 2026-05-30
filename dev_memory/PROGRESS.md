@@ -72,6 +72,20 @@ Next action: generate Subtask 4.3 patch artifacts, commit, push, and send the ra
 
 Next action: commit the 4.3 validation sync, then begin Subtask 4.4a workspace_snapshot/workspace_verify skills.
 
+## 2026-05-30T03:13:55Z - Phase 04 / Subtask 4.4a implementation completed
+
+- Split workspace/spec skills into 4.4a (workspace snapshot/verify) and 4.4b (spec backup/inject/restore).
+- Added `agent.skills` package with `workspace_snapshot`, `load_workspace_snapshot`, and `workspace_verify`.
+- Implemented snapshot capture for source tree git status/head, configured key-file hashes, missing key files, spec hash, build dir, artifact staging, and disk free state.
+- Implemented snapshot YAML self-hash validation, excluding the `hash` field itself.
+- Implemented verify flow that captures a post snapshot, records `changes_vs_pre`, checks spec hash restoration, and honors `source_dirty_action` warn/fail/ignore.
+- Added `tests/fixtures/fake_workspace.py` for Phase 04 skill tests.
+- Targeted UT passed: `.venv/bin/python -m pytest tests/test_workspace_skills.py -q` -> 11 passed.
+- Adjacent regression UT passed: workspace/config/fs_memory/trace selection -> 236 passed.
+- Full UT passed: `.venv/bin/python -m pytest tests/ -q` -> 438 passed.
+
+Next action: generate Subtask 4.4a patch artifacts, commit, push, and send the range for Claude review.
+
 ## 2026-05-06T08:42:41Z - Project kickoff
 
 - Read `doc/USER_REQUIREMENTS.md` in full.

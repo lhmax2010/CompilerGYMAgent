@@ -712,3 +712,16 @@ Decision records must include:
   - Keep `agent = agent.cli.clean_trace:main`, which would preserve the Phase 03 placeholder and force future run/status/pause commands to be bolted onto a trace cleanup module.
   - Put `AgentError` catches in each command module, which would duplicate global behavior and risk inconsistent exit codes.
   - Remove `clean_trace.main()` immediately, which would break existing tests/imports for little benefit; a compatibility shim keeps the migration gentle.
+
+## 2026-05-30T03:13:55Z - Split workspace protection skills into snapshot/verify and spec mutation
+
+- affected_requirement:
+  - REQUIREMENTS.md section 4.7.1
+  - REQUIREMENTS.md section 4.7.4
+  - REQUIREMENTS.md section 4.7.5
+- decision: Split the Phase 04 workspace/spec skills work into 4.4a (`workspace_snapshot` / `workspace_verify`) and 4.4b (`spec_backup` / `spec_injector` / `spec_restore`). Snapshot YAML uses a top-level `hash` computed from the canonical payload with `hash` excluded, and `workspace_verify` rewrites the post snapshot with `changes_vs_pre` and `spec.matches_pre` before returning or raising.
+- rationale: Workspace state capture and spec file mutation have different safety surfaces. Keeping snapshot/verify separate lets the project lock down key-file hashing, source dirty policy, snapshot persistence, and post-trial comparison before adding physical spec edits. Rewriting the post snapshot after comparison keeps a single self-contained SoT artifact for doctor/report tooling.
+- alternatives_considered:
+  - Implement all five workspace/spec skills in one subtask, which would mix read/compare behavior with destructive spec rewrite behavior and make review too broad.
+  - Treat snapshots as in-memory-only results, which would not satisfy the user-readable workspace_snapshots SoT requirement.
+  - Omit post-snapshot enrichment from the persisted YAML, which would force doctor/report code to recompute changes later.

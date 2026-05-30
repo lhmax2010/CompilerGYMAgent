@@ -90,3 +90,37 @@ a unified dispatcher while preserving the existing trace clean/doctor commands.
   - `.venv/bin/python -m agent.cli --help`
   - `.venv/bin/agent clean trace --help`
   - `.venv/bin/agent doctor trace --help`
+
+## Subtask 4.4a - Workspace Snapshot / Verify Skills
+
+Implemented the first functional workspace protection skills from §4.7.4.
+This subtask intentionally covers source/spec/build state capture and
+verification only; spec backup/inject/restore remains 4.4b.
+
+### Changes
+
+- Added `agent.skills` package.
+- Added `workspace_snapshot()`:
+  - validates workspace protection is enabled
+  - captures git status/head when available
+  - hashes configured key files, including glob patterns
+  - records missing key files
+  - hashes the spec file
+  - creates per-trial build and artifact staging directories for pre snapshots
+  - records build dir, artifact staging, and disk free state
+  - writes snapshot YAML atomically with a self-excluding hash
+- Added `load_workspace_snapshot()` with safe YAML loading and hash validation.
+- Added `workspace_verify()`:
+  - captures a post snapshot
+  - records key-file changes vs pre
+  - verifies spec hash matches pre state
+  - honors `source_dirty_action`: `warn`, `fail`, and `ignore`
+- Added `tests/fixtures/fake_workspace.py` for Phase 04+ skill testing.
+- Exported workspace skills and errors from `agent.skills` and top-level
+  `agent`.
+
+### Validation
+
+- `tests/test_workspace_skills.py`: 11 passed
+- Adjacent regression suite: 236 passed
+- Full test suite: 438 passed

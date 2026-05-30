@@ -1,0 +1,26 @@
+Subtask 4.4a - workspace_snapshot / workspace_verify skills
+
+Implemented:
+- Added src/agent/skills package.
+- Added workspace_snapshot skill:
+  - captures source tree git status/head when available
+  - hashes configured key files, including glob patterns
+  - records missing key files
+  - hashes spec file
+  - creates per-trial build_dir and artifact_staging dirs for pre snapshots
+  - records build_dir/artifact_staging/disk_free state
+  - writes snapshot YAML atomically with self-excluding hash
+- Added load_workspace_snapshot with safe YAML and hash validation.
+- Added workspace_verify skill:
+  - captures post snapshot
+  - records source_tree.changes_vs_pre
+  - records spec.matches_pre
+  - honors source_dirty_action warn/fail/ignore
+  - raises WorkspaceIntegrityError on configured spec/source failures.
+- Added tests/fixtures/fake_workspace.py for skill tests.
+- Exported workspace skills/errors from agent.skills and top-level agent.
+
+Validation:
+- .venv/bin/python -m pytest tests/test_workspace_skills.py -q -> 11 passed
+- .venv/bin/python -m pytest tests/test_workspace_skills.py tests/test_config.py tests/test_fs_memory.py tests/test_trace_session.py -q -> 236 passed
+- .venv/bin/python -m pytest tests/ -q -> 438 passed
