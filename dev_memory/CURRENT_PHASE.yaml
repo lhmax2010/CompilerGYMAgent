@@ -1,242 +1,63 @@
-phase_id: phase_04_workspace_protection
-phase_title: "Workspace Protection Skills + CLI Entrypoint Skeleton"
-started_at: 2026-05-30T00:59:41Z
-last_updated: 2026-05-30T05:15:18Z
-closed_at: 2026-05-30T13:15:18+08:00
-target_milestone: M1
+phase_id: phase_05_5_integration_feasibility
+phase_title: "Integration Feasibility Mock Spike"
+started_at: 2026-05-30T09:17:16Z
+last_updated: 2026-05-30T09:17:16Z
+target_milestone: "M1.5 (integration gate)"
 related_requirements:
-  - REQUIREMENTS.md section 4.7.1
-  - REQUIREMENTS.md section 4.7.4
-  - REQUIREMENTS.md section 4.7.5
-status: done
-roadmap_reference: dev_memory/ROADMAP.yaml completed_phases[id=04]
+  - REQUIREMENTS.md section 4.6
+  - REQUIREMENTS.md section 4.10
+status: in_progress
+spike: true
+parallel_with: phase_06_process_management
+roadmap_reference: dev_memory/ROADMAP.yaml planned_phases[id=05.5]
+scope_guardrails:
+  - "No production src/agent changes"
+  - "No real gbs"
+  - "No subprocess/process management"
+  - "No workspace protection/spec mutation"
+  - "No LangGraph"
+  - "No real LLM API"
 subtasks:
-  - id: "4.1"
-    title: "AgentError framework and shared TypeAlias module"
-    status: done
+  - id: "05.5.1"
+    title: "Synthetic objective + OptionV0 IR + random runner baseline"
+    status: implementation_complete
     related_requirements:
-      - ROADMAP.yaml Phase 04 cross-cutting error framework
-      - ROADMAP.yaml Phase 04 shared type alias deliverable
+      - ROADMAP.yaml Phase 05.5 synthetic objective goal
+      - ROADMAP.yaml Phase 05.5 OptionV0 IR goal
+      - ROADMAP.yaml Phase 05.5 baseline strategy goal
     files_created:
-      - src/agent/errors.py
-      - src/agent/types.py
-      - tests/test_errors.py
+      - spikes/05.5_integration_feasibility/option_ir.py
+      - spikes/05.5_integration_feasibility/objective.py
+      - spikes/05.5_integration_feasibility/strategies.py
+      - spikes/05.5_integration_feasibility/runner.py
+      - spikes/05.5_integration_feasibility/tests/conftest.py
+      - spikes/05.5_integration_feasibility/tests/test_objective_ir_runner.py
+      - dev_memory/phases/phase_05_5_integration_feasibility/CHECKLIST.yaml
+      - dev_memory/phases/phase_05_5_integration_feasibility/REVIEW_NOTES.md
+      - dev_memory/phases/phase_05_5_integration_feasibility/SUMMARY.md
+      - dev_memory/phases/phase_05_5_integration_feasibility/UT_RESULTS.md
     files_modified:
-      - src/agent/__init__.py
-      - src/agent/config.py
-      - src/agent/fs_memory.py
-      - src/agent/init.py
-      - src/agent/registry.py
-      - src/agent/trace_cleanup.py
-      - src/agent/workspace_lock.py
-    ut_required: true
-    ut_passed: true
-    targeted_ut: "3 error/type tests passed, 0 failed"
-    regression_ut: "283 adjacent config/fs_memory/workspace_lock/trace tests passed, 0 failed"
-    full_ut: "413 passed, 0 failed"
-    self_review_required: true
-    self_reviewed: true
-    patch_required: true
-    patch_file: dev_memory/phases/phase_04_workspace_protection/patches/01_errors_types.patch
-    patch_generated: true
-    commit_required: true
-    commit_pending: false
-    commit_hash: 112112f
-    commit_message: "phase_04_workspace_protection: 4.1 add agent error framework"
-    external_review_verdict: approve
-    external_reviewed_at: 2026-05-30T01:32:59Z
-    external_review_tests: "413 passed, 0 failed on Linux"
-    target_environment_validation:
-      os: Ubuntu/Linux
-      python: ".venv/bin/python"
-      targeted_pytest: "3 passed in 0.20s"
-      full_pytest: "413 passed in 2.37s"
-      linux_fcntl_test: "included in full pytest run"
-      runner: "local .venv + pytest"
-  - id: "4.2"
-    title: "WorkspaceLock holder hardening + conservative-path tests"
-    status: done
-    related_requirements:
-      - REQUIREMENTS.md section 4.15
-      - REQUIREMENTS.md section 4.14.7a
-      - ROADMAP.yaml Phase 04 holder hardening deliverable
-    files_modified:
-      - tests/test_workspace_lock.py
-      - tests/test_trace_cleanup.py
+      - dev_memory/ROADMAP.yaml
+      - dev_memory/ROADMAP.md
+      - dev_memory/DECISIONS.md
+      - dev_memory/PROGRESS.md
+      - dev_memory/spikes/05.5_integration_feasibility_findings.md
+      - spikes/05.5_integration_feasibility/README.md
     behavior_notes:
-      - "No production lock code changed; _write_holder still uses inode-safe in-place fd write."
-      - "Added Linux fcntl probe that rewrites holder metadata and verifies run.lock inode stays stable while a second process remains blocked."
-      - "Added unreadable-holder conservative-path coverage for empty, malformed YAML, oversized, and partial-write holder metadata."
-      - "Added partial-write stale holder overwrite coverage for no-live-flock recovery."
-      - "Extended clean trace planner lock-metadata refusal tests for the same unreadable holder variants."
+      - "SyntheticObjective has exact known optimum {-O3, -funroll-loops, -fA, -fB}."
+      - "-fA and -fB are individually harmful but jointly worth +12, creating a real second-order interaction trap."
+      - "The objective penalizes extra options so random supersets cannot tie the known optimum."
+      - "RandomStrategy is intentionally naive and may propose conflicting options; this preserves a baseline for later constraint-layer comparisons."
+      - "run_strategy records deterministic TrialOutcome history for seeded runs."
     ut_required: true
     ut_passed: true
-    targeted_ut:
-      workspace_lock: "35 passed, 0 failed"
-      trace_cleanup: "20 passed, 0 failed"
-    full_ut: "422 passed, 0 failed"
+    targeted_ut: "7 spike tests passed, 0 failed"
+    production_regression_ut: "451 production tests passed, 0 failed"
     self_review_required: true
     self_reviewed: true
     patch_required: true
-    patch_file: dev_memory/phases/phase_04_workspace_protection/patches/02_workspace_lock_holder_tests.patch
+    patch_file: dev_memory/phases/phase_05_5_integration_feasibility/patches/01_objective_ir_runner.patch
     patch_generated: true
     commit_required: true
-    commit_pending: false
-    commit_hash: d6ff3e9
-    commit_message: "phase_04_workspace_protection: 4.2 harden lock holder tests"
-    external_review_verdict: approve
-    external_reviewed_at: 2026-05-30T02:20:06Z
-    external_review_tests: "422 passed, 0 failed on Linux"
-    target_environment_validation:
-      os: Ubuntu/Linux
-      python: ".venv/bin/python"
-      targeted_pytest:
-        workspace_lock: "35 passed in 0.46s"
-      full_pytest: "422 passed in 1.50s"
-      linux_fcntl_test: "included in full pytest run and test_workspace_lock.py"
-      runner: "local .venv + pytest"
-  - id: "4.3"
-    title: "Unified CLI dispatcher for clean/doctor trace commands"
-    status: done
-    related_requirements:
-      - ROADMAP.yaml Phase 04 CLI Entrypoint Skeleton deliverable
-      - ROADMAP.yaml Phase 04 AgentError exit-code CLI contract
-      - REQUIREMENTS.md section 4.14
-    files_created:
-      - src/agent/cli/__main__.py
-    files_modified:
-      - pyproject.toml
-      - src/agent/cli/clean_trace.py
-      - tests/test_cli_clean_trace.py
-    behavior_notes:
-      - "Console script now points to agent.cli.__main__:main."
-      - "Unified dispatcher owns root parser and catches AgentError using class exit_code."
-      - "clean_trace.py now registers clean trace / doctor trace subcommands and keeps a compatibility main() shim."
-      - "Existing clean trace dry-run/execute and doctor trace behavior is preserved."
-    ut_required: true
-    ut_passed: true
-    targeted_ut: "10 CLI tests passed, 0 failed"
-    full_ut: "427 passed, 0 failed"
-    smoke_tests:
-      module_help: ".venv/bin/python -m agent.cli --help -> exit 0"
-      clean_trace_help: ".venv/bin/agent clean trace --help -> exit 0"
-      doctor_trace_help: ".venv/bin/agent doctor trace --help -> exit 0"
-    self_review_required: true
-    self_reviewed: true
-    patch_required: true
-    patch_file: dev_memory/phases/phase_04_workspace_protection/patches/03_cli_dispatcher.patch
-    patch_generated: true
-    commit_required: true
-    commit_pending: false
-    commit_hash: 17aee0a
-    commit_message: "phase_04_workspace_protection: 4.3 add cli dispatcher"
-    external_review_verdict: approve
-    external_reviewed_at: 2026-05-30T03:07:28Z
-    external_review_tests: "427 passed, 0 failed on Linux"
-    target_environment_validation:
-      os: Ubuntu/Linux
-      python: ".venv/bin/python"
-      targeted_pytest: "10 passed in 0.64s"
-      full_pytest: "427 passed in 2.69s"
-      help_smoke:
-        module_help: ".venv/bin/python -m agent.cli --help -> exit 0"
-        clean_trace_help: ".venv/bin/agent clean trace --help -> exit 0"
-        doctor_trace_help: ".venv/bin/agent doctor trace --help -> exit 0"
-      runner: "local .venv + pytest"
-  - id: "4.4a"
-    title: "workspace_snapshot / workspace_verify skills"
-    status: done
-    related_requirements:
-      - REQUIREMENTS.md section 4.7.1
-      - REQUIREMENTS.md section 4.7.4
-      - ROADMAP.yaml Phase 04 workspace protection skills
-    files_created:
-      - src/agent/skills/__init__.py
-      - src/agent/skills/workspace_snapshot.py
-      - src/agent/skills/workspace_verify.py
-      - tests/fixtures/__init__.py
-      - tests/fixtures/fake_workspace.py
-      - tests/test_workspace_skills.py
-    files_modified:
-      - src/agent/__init__.py
-    behavior_notes:
-      - "workspace_snapshot captures source tree git status/head, configured key-file hashes, spec hash, build_dir, artifact_staging, and disk_free_gb."
-      - "pre snapshots create trial build and artifact staging directories."
-      - "workspace_verify captures a post snapshot, records changes_vs_pre, validates spec hash, and honors source_dirty_action warn/fail/ignore."
-      - "Snapshot YAML is written via atomic_write_yaml and guarded by a hash field excluding itself."
-    ut_required: true
-    ut_passed: true
-    targeted_ut: "11 workspace skill tests passed, 0 failed"
-    regression_ut: "236 workspace/config/fs_memory/trace tests passed, 0 failed"
-    full_ut: "438 passed, 0 failed"
-    self_review_required: true
-    self_reviewed: true
-    patch_required: true
-    patch_file: dev_memory/phases/phase_04_workspace_protection/patches/04_workspace_snapshot_verify.patch
-    patch_generated: true
-    commit_required: true
-    commit_pending: false
-    commit_hash: c65d025
-    commit_message: "phase_04_workspace_protection: 4.4a workspace snapshot verify skills"
-    external_review_verdict: approve
-    external_reviewed_at: 2026-05-30T03:27:49Z
-    external_review_tests: "438 passed, 0 failed on Linux"
-    target_environment_validation:
-      os: Ubuntu/Linux
-      python: ".venv/bin/python"
-      targeted_pytest: "11 passed in 0.24s"
-      full_pytest: "438 passed in 1.57s"
-      runner: "local .venv + pytest"
-  - id: "4.4b"
-    title: "spec_backup / spec_injector / spec_restore skills"
-    status: done
-    related_requirements:
-      - REQUIREMENTS.md section 4.7.1
-      - REQUIREMENTS.md section 4.7.5
-      - ROADMAP.yaml Phase 04 workspace protection skills
-    files_created:
-      - src/agent/skills/spec_backup.py
-      - src/agent/skills/spec_injector.py
-      - src/agent/skills/spec_restore.py
-      - tests/test_spec_skills.py
-    files_modified:
-      - src/agent/__init__.py
-      - src/agent/skills/__init__.py
-      - tests/fixtures/fake_workspace.py
-    behavior_notes:
-      - "spec_backup writes per-trial backups into namespace spec_backups and refuses to overwrite mismatched existing backups."
-      - "spec_injector replaces explicit Jinja-style spec placeholders with a candidate combo using same-directory atomic byte writes."
-      - "spec_restore resolves only namespace-local backups, rejects symlink/outside paths, restores atomically, and verifies restored bytes against backup/pre-trial hashes."
-      - "The five workspace/spec protection skills have an end-to-end round-trip test: snapshot -> backup -> inject -> restore -> verify."
-    ut_required: true
-    ut_passed: true
-    targeted_ut: "13 spec skill tests passed, 0 failed"
-    regression_ut: "24 workspace/spec skill tests passed, 0 failed"
-    full_ut: "451 passed, 0 failed"
-    self_review_required: true
-    self_reviewed: true
-    patch_required: true
-    patch_file: dev_memory/phases/phase_04_workspace_protection/patches/05_spec_protection_skills.patch
-    patch_generated: true
-    commit_required: true
-    commit_pending: false
-    commit_hash: 6522418
-    commit_message: "phase_04_workspace_protection: 4.4b spec protection skills"
-    external_review_verdict: approve
-    external_reviewed_at: 2026-05-30T05:15:18Z
-    external_review_tests: "451 passed, 0 failed on Linux"
-    external_review_findings:
-      low:
-        - "Low-1: spec_injector currently stringifies non-string combo elements; defer stricter runtime type check to Phase 07 candidate engine integration."
-    target_environment_validation:
-      os: Ubuntu/Linux
-      python: ".venv/bin/python"
-      targeted_pytest: "13 passed in 0.34s"
-      full_pytest: "451 passed in 2.80s"
-      runner: "local .venv + pytest"
-phase_validation:
-  os: Ubuntu/Linux
-  python: ".venv/bin/python"
-  full_pytest: "451 passed in 2.80s"
-  linux_fcntl_test: "included in full pytest run"
-next_action: "Phase 04 closed; next: begin Phase 06 (Process Management) and run Phase 05.5 Integration Feasibility Mock Spike in parallel per ROADMAP.yaml."
+    commit_pending: true
+next_action: "Push Subtask 05.5.1 implementation range for Claude review."

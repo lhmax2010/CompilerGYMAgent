@@ -17,14 +17,14 @@ Current handoff:
 
 | State | Next phase | Why next |
 |---|---|---|
-| Phase 04 closed | Phase 06 + Phase 05.5 in parallel | Phase 06 builds process safety for real compile/benchmark work. Phase 05.5 independently validates the automated decision loop with mocks before the full candidate engine is built. |
+| Phase 05.5 started | Phase 06 + Phase 05.5 in parallel | Phase 06 builds process safety for real compile/benchmark work. Phase 05.5 independently validates the automated decision loop with mocks before the full candidate engine is built. |
 
 Next three implementation phases:
 
 | Order | Phase | Estimate | Main risk |
 |---:|---|---:|---|
 | 1 | 06 - Process Management | 6-9 subtasks | Linux process-group, env-marker, and psutil behavior needs real integration coverage. |
-| 1b | 05.5 - Integration Feasibility Mock Spike | 4-6 subtasks | The automated decision core must beat naive baselines and learn second-order interactions before Phase 07 hardens it. |
+| 1b | 05.5 - Integration Feasibility Mock Spike | 4-6 subtasks | In progress. The automated decision core must beat naive baselines and learn second-order interactions before Phase 07 hardens it. |
 | 2 | 05 - Compile / Benchmark Skills | 8-12 subtasks | Compile/benchmark skills depend on stable process management and fake-gbs harness quality. |
 | 3 | 08 - Baseline + Statistical Significance | 7-10 subtasks | Statistical contracts need synthetic reference checks before candidate engine convergence. |
 

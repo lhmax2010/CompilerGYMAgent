@@ -20,3 +20,17 @@ Can the automated decision loop (candidate engine + constraint layer +
 experience memory + exploration schedule) beat naive baselines, learn
 second-order option interactions, and recover from poor LLM proposals, noisy
 benchmarks, bad experience, duplicate pressure, and crash/resume?
+
+## Current Contents
+
+- `option_ir.py`: minimal `OptionV0` IR and default option catalog.
+- `objective.py`: synthetic objective with a known second-order optimum.
+- `strategies.py`: initial `RandomStrategy` baseline and trial outcome record.
+- `runner.py`: seeded plain Python strategy runner.
+- `tests/`: spike-only pytest coverage.
+
+## Test Command
+
+```bash
+.venv/bin/python -m pytest spikes/05.5_integration_feasibility/tests -q
+```

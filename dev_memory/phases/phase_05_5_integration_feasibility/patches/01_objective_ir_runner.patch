@@ -1,0 +1,1127 @@
+diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index b9c873a..2d7a4b7 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -1,242 +1,63 @@
+-phase_id: phase_04_workspace_protection
+-phase_title: "Workspace Protection Skills + CLI Entrypoint Skeleton"
+-started_at: 2026-05-30T00:59:41Z
+-last_updated: 2026-05-30T05:15:18Z
+-closed_at: 2026-05-30T13:15:18+08:00
+-target_milestone: M1
++phase_id: phase_05_5_integration_feasibility
++phase_title: "Integration Feasibility Mock Spike"
++started_at: 2026-05-30T09:17:16Z
++last_updated: 2026-05-30T09:17:16Z
++target_milestone: "M1.5 (integration gate)"
+ related_requirements:
+-  - REQUIREMENTS.md section 4.7.1
+-  - REQUIREMENTS.md section 4.7.4
+-  - REQUIREMENTS.md section 4.7.5
+-status: done
+-roadmap_reference: dev_memory/ROADMAP.yaml completed_phases[id=04]
++  - REQUIREMENTS.md section 4.6
++  - REQUIREMENTS.md section 4.10
++status: in_progress
++spike: true
++parallel_with: phase_06_process_management
++roadmap_reference: dev_memory/ROADMAP.yaml planned_phases[id=05.5]
++scope_guardrails:
++  - "No production src/agent changes"
++  - "No real gbs"
++  - "No subprocess/process management"
++  - "No workspace protection/spec mutation"
++  - "No LangGraph"
++  - "No real LLM API"
+ subtasks:
+-  - id: "4.1"
+-    title: "AgentError framework and shared TypeAlias module"
+-    status: done
++  - id: "05.5.1"
++    title: "Synthetic objective + OptionV0 IR + random runner baseline"
++    status: implementation_complete
+     related_requirements:
+-      - ROADMAP.yaml Phase 04 cross-cutting error framework
+-      - ROADMAP.yaml Phase 04 shared type alias deliverable
++      - ROADMAP.yaml Phase 05.5 synthetic objective goal
++      - ROADMAP.yaml Phase 05.5 OptionV0 IR goal
++      - ROADMAP.yaml Phase 05.5 baseline strategy goal
+     files_created:
+-      - src/agent/errors.py
+-      - src/agent/types.py
+-      - tests/test_errors.py
++      - spikes/05.5_integration_feasibility/option_ir.py
++      - spikes/05.5_integration_feasibility/objective.py
++      - spikes/05.5_integration_feasibility/strategies.py
++      - spikes/05.5_integration_feasibility/runner.py
++      - spikes/05.5_integration_feasibility/tests/conftest.py
++      - spikes/05.5_integration_feasibility/tests/test_objective_ir_runner.py
++      - dev_memory/phases/phase_05_5_integration_feasibility/CHECKLIST.yaml
++      - dev_memory/phases/phase_05_5_integration_feasibility/REVIEW_NOTES.md
++      - dev_memory/phases/phase_05_5_integration_feasibility/SUMMARY.md
++      - dev_memory/phases/phase_05_5_integration_feasibility/UT_RESULTS.md
+     files_modified:
+-      - src/agent/__init__.py
+-      - src/agent/config.py
+-      - src/agent/fs_memory.py
+-      - src/agent/init.py
+-      - src/agent/registry.py
+-      - src/agent/trace_cleanup.py
+-      - src/agent/workspace_lock.py
+-    ut_required: true
+-    ut_passed: true
+-    targeted_ut: "3 error/type tests passed, 0 failed"
+-    regression_ut: "283 adjacent config/fs_memory/workspace_lock/trace tests passed, 0 failed"
+-    full_ut: "413 passed, 0 failed"
+-    self_review_required: true
+-    self_reviewed: true
+-    patch_required: true
+-    patch_file: dev_memory/phases/phase_04_workspace_protection/patches/01_errors_types.patch
+-    patch_generated: true
+-    commit_required: true
+-    commit_pending: false
+-    commit_hash: 112112f
+-    commit_message: "phase_04_workspace_protection: 4.1 add agent error framework"
+-    external_review_verdict: approve
+-    external_reviewed_at: 2026-05-30T01:32:59Z
+-    external_review_tests: "413 passed, 0 failed on Linux"
+-    target_environment_validation:
+-      os: Ubuntu/Linux
+-      python: ".venv/bin/python"
+-      targeted_pytest: "3 passed in 0.20s"
+-      full_pytest: "413 passed in 2.37s"
+-      linux_fcntl_test: "included in full pytest run"
+-      runner: "local .venv + pytest"
+-  - id: "4.2"
+-    title: "WorkspaceLock holder hardening + conservative-path tests"
+-    status: done
+-    related_requirements:
+-      - REQUIREMENTS.md section 4.15
+-      - REQUIREMENTS.md section 4.14.7a
+-      - ROADMAP.yaml Phase 04 holder hardening deliverable
+-    files_modified:
+-      - tests/test_workspace_lock.py
+-      - tests/test_trace_cleanup.py
+-    behavior_notes:
+-      - "No production lock code changed; _write_holder still uses inode-safe in-place fd write."
+-      - "Added Linux fcntl probe that rewrites holder metadata and verifies run.lock inode stays stable while a second process remains blocked."
+-      - "Added unreadable-holder conservative-path coverage for empty, malformed YAML, oversized, and partial-write holder metadata."
+-      - "Added partial-write stale holder overwrite coverage for no-live-flock recovery."
+-      - "Extended clean trace planner lock-metadata refusal tests for the same unreadable holder variants."
+-    ut_required: true
+-    ut_passed: true
+-    targeted_ut:
+-      workspace_lock: "35 passed, 0 failed"
+-      trace_cleanup: "20 passed, 0 failed"
+-    full_ut: "422 passed, 0 failed"
+-    self_review_required: true
+-    self_reviewed: true
+-    patch_required: true
+-    patch_file: dev_memory/phases/phase_04_workspace_protection/patches/02_workspace_lock_holder_tests.patch
+-    patch_generated: true
+-    commit_required: true
+-    commit_pending: false
+-    commit_hash: d6ff3e9
+-    commit_message: "phase_04_workspace_protection: 4.2 harden lock holder tests"
+-    external_review_verdict: approve
+-    external_reviewed_at: 2026-05-30T02:20:06Z
+-    external_review_tests: "422 passed, 0 failed on Linux"
+-    target_environment_validation:
+-      os: Ubuntu/Linux
+-      python: ".venv/bin/python"
+-      targeted_pytest:
+-        workspace_lock: "35 passed in 0.46s"
+-      full_pytest: "422 passed in 1.50s"
+-      linux_fcntl_test: "included in full pytest run and test_workspace_lock.py"
+-      runner: "local .venv + pytest"
+-  - id: "4.3"
+-    title: "Unified CLI dispatcher for clean/doctor trace commands"
+-    status: done
+-    related_requirements:
+-      - ROADMAP.yaml Phase 04 CLI Entrypoint Skeleton deliverable
+-      - ROADMAP.yaml Phase 04 AgentError exit-code CLI contract
+-      - REQUIREMENTS.md section 4.14
+-    files_created:
+-      - src/agent/cli/__main__.py
+-    files_modified:
+-      - pyproject.toml
+-      - src/agent/cli/clean_trace.py
+-      - tests/test_cli_clean_trace.py
+-    behavior_notes:
+-      - "Console script now points to agent.cli.__main__:main."
+-      - "Unified dispatcher owns root parser and catches AgentError using class exit_code."
+-      - "clean_trace.py now registers clean trace / doctor trace subcommands and keeps a compatibility main() shim."
+-      - "Existing clean trace dry-run/execute and doctor trace behavior is preserved."
+-    ut_required: true
+-    ut_passed: true
+-    targeted_ut: "10 CLI tests passed, 0 failed"
+-    full_ut: "427 passed, 0 failed"
+-    smoke_tests:
+-      module_help: ".venv/bin/python -m agent.cli --help -> exit 0"
+-      clean_trace_help: ".venv/bin/agent clean trace --help -> exit 0"
+-      doctor_trace_help: ".venv/bin/agent doctor trace --help -> exit 0"
+-    self_review_required: true
+-    self_reviewed: true
+-    patch_required: true
+-    patch_file: dev_memory/phases/phase_04_workspace_protection/patches/03_cli_dispatcher.patch
+-    patch_generated: true
+-    commit_required: true
+-    commit_pending: false
+-    commit_hash: 17aee0a
+-    commit_message: "phase_04_workspace_protection: 4.3 add cli dispatcher"
+-    external_review_verdict: approve
+-    external_reviewed_at: 2026-05-30T03:07:28Z
+-    external_review_tests: "427 passed, 0 failed on Linux"
+-    target_environment_validation:
+-      os: Ubuntu/Linux
+-      python: ".venv/bin/python"
+-      targeted_pytest: "10 passed in 0.64s"
+-      full_pytest: "427 passed in 2.69s"
+-      help_smoke:
+-        module_help: ".venv/bin/python -m agent.cli --help -> exit 0"
+-        clean_trace_help: ".venv/bin/agent clean trace --help -> exit 0"
+-        doctor_trace_help: ".venv/bin/agent doctor trace --help -> exit 0"
+-      runner: "local .venv + pytest"
+-  - id: "4.4a"
+-    title: "workspace_snapshot / workspace_verify skills"
+-    status: done
+-    related_requirements:
+-      - REQUIREMENTS.md section 4.7.1
+-      - REQUIREMENTS.md section 4.7.4
+-      - ROADMAP.yaml Phase 04 workspace protection skills
+-    files_created:
+-      - src/agent/skills/__init__.py
+-      - src/agent/skills/workspace_snapshot.py
+-      - src/agent/skills/workspace_verify.py
+-      - tests/fixtures/__init__.py
+-      - tests/fixtures/fake_workspace.py
+-      - tests/test_workspace_skills.py
+-    files_modified:
+-      - src/agent/__init__.py
+-    behavior_notes:
+-      - "workspace_snapshot captures source tree git status/head, configured key-file hashes, spec hash, build_dir, artifact_staging, and disk_free_gb."
+-      - "pre snapshots create trial build and artifact staging directories."
+-      - "workspace_verify captures a post snapshot, records changes_vs_pre, validates spec hash, and honors source_dirty_action warn/fail/ignore."
+-      - "Snapshot YAML is written via atomic_write_yaml and guarded by a hash field excluding itself."
+-    ut_required: true
+-    ut_passed: true
+-    targeted_ut: "11 workspace skill tests passed, 0 failed"
+-    regression_ut: "236 workspace/config/fs_memory/trace tests passed, 0 failed"
+-    full_ut: "438 passed, 0 failed"
+-    self_review_required: true
+-    self_reviewed: true
+-    patch_required: true
+-    patch_file: dev_memory/phases/phase_04_workspace_protection/patches/04_workspace_snapshot_verify.patch
+-    patch_generated: true
+-    commit_required: true
+-    commit_pending: false
+-    commit_hash: c65d025
+-    commit_message: "phase_04_workspace_protection: 4.4a workspace snapshot verify skills"
+-    external_review_verdict: approve
+-    external_reviewed_at: 2026-05-30T03:27:49Z
+-    external_review_tests: "438 passed, 0 failed on Linux"
+-    target_environment_validation:
+-      os: Ubuntu/Linux
+-      python: ".venv/bin/python"
+-      targeted_pytest: "11 passed in 0.24s"
+-      full_pytest: "438 passed in 1.57s"
+-      runner: "local .venv + pytest"
+-  - id: "4.4b"
+-    title: "spec_backup / spec_injector / spec_restore skills"
+-    status: done
+-    related_requirements:
+-      - REQUIREMENTS.md section 4.7.1
+-      - REQUIREMENTS.md section 4.7.5
+-      - ROADMAP.yaml Phase 04 workspace protection skills
+-    files_created:
+-      - src/agent/skills/spec_backup.py
+-      - src/agent/skills/spec_injector.py
+-      - src/agent/skills/spec_restore.py
+-      - tests/test_spec_skills.py
+-    files_modified:
+-      - src/agent/__init__.py
+-      - src/agent/skills/__init__.py
+-      - tests/fixtures/fake_workspace.py
++      - dev_memory/ROADMAP.yaml
++      - dev_memory/ROADMAP.md
++      - dev_memory/DECISIONS.md
++      - dev_memory/PROGRESS.md
++      - dev_memory/spikes/05.5_integration_feasibility_findings.md
++      - spikes/05.5_integration_feasibility/README.md
+     behavior_notes:
+-      - "spec_backup writes per-trial backups into namespace spec_backups and refuses to overwrite mismatched existing backups."
+-      - "spec_injector replaces explicit Jinja-style spec placeholders with a candidate combo using same-directory atomic byte writes."
+-      - "spec_restore resolves only namespace-local backups, rejects symlink/outside paths, restores atomically, and verifies restored bytes against backup/pre-trial hashes."
+-      - "The five workspace/spec protection skills have an end-to-end round-trip test: snapshot -> backup -> inject -> restore -> verify."
++      - "SyntheticObjective has exact known optimum {-O3, -funroll-loops, -fA, -fB}."
++      - "-fA and -fB are individually harmful but jointly worth +12, creating a real second-order interaction trap."
++      - "The objective penalizes extra options so random supersets cannot tie the known optimum."
++      - "RandomStrategy is intentionally naive and may propose conflicting options; this preserves a baseline for later constraint-layer comparisons."
++      - "run_strategy records deterministic TrialOutcome history for seeded runs."
+     ut_required: true
+     ut_passed: true
+-    targeted_ut: "13 spec skill tests passed, 0 failed"
+-    regression_ut: "24 workspace/spec skill tests passed, 0 failed"
+-    full_ut: "451 passed, 0 failed"
++    targeted_ut: "7 spike tests passed, 0 failed"
++    production_regression_ut: "451 production tests passed, 0 failed"
+     self_review_required: true
+     self_reviewed: true
+     patch_required: true
+-    patch_file: dev_memory/phases/phase_04_workspace_protection/patches/05_spec_protection_skills.patch
++    patch_file: dev_memory/phases/phase_05_5_integration_feasibility/patches/01_objective_ir_runner.patch
+     patch_generated: true
+     commit_required: true
+-    commit_pending: false
+-    commit_hash: 6522418
+-    commit_message: "phase_04_workspace_protection: 4.4b spec protection skills"
+-    external_review_verdict: approve
+-    external_reviewed_at: 2026-05-30T05:15:18Z
+-    external_review_tests: "451 passed, 0 failed on Linux"
+-    external_review_findings:
+-      low:
+-        - "Low-1: spec_injector currently stringifies non-string combo elements; defer stricter runtime type check to Phase 07 candidate engine integration."
+-    target_environment_validation:
+-      os: Ubuntu/Linux
+-      python: ".venv/bin/python"
+-      targeted_pytest: "13 passed in 0.34s"
+-      full_pytest: "451 passed in 2.80s"
+-      runner: "local .venv + pytest"
+-phase_validation:
+-  os: Ubuntu/Linux
+-  python: ".venv/bin/python"
+-  full_pytest: "451 passed in 2.80s"
+-  linux_fcntl_test: "included in full pytest run"
+-next_action: "Phase 04 closed; next: begin Phase 06 (Process Management) and run Phase 05.5 Integration Feasibility Mock Spike in parallel per ROADMAP.yaml."
++    commit_pending: true
++next_action: "Push Subtask 05.5.1 implementation range for Claude review."
+diff --git a/dev_memory/DECISIONS.md b/dev_memory/DECISIONS.md
+index e296916..befb03b 100644
+--- a/dev_memory/DECISIONS.md
++++ b/dev_memory/DECISIONS.md
+@@ -751,3 +751,14 @@ Decision records must include:
+   - Wait until Phase 07 to test the integrated decision loop, which delays the highest product-risk discovery until after process, compile, benchmark, and statistics work.
+   - Use real gbs or real LLM APIs in the spike, which would couple feasibility learning to unavailable external services and make results noisy.
+   - Keep only the existing Phase 7.0 constraint solver spike, which tests constraint performance but not end-to-end convergence against baselines or second-order interactions.
++
++## 2026-05-30T09:17:16Z - Synthetic objective pins a non-greedy exact optimum
++
++- affected_requirement:
++  - ROADMAP.yaml Phase 05.5
++- decision: The 05.5 synthetic objective starts with an exact known optimum `{-O3, -funroll-loops, -fA, -fB}`. The pair `-fA`/`-fB` is intentionally harmful when tried one at a time but valuable when tried together, and extra options receive a small penalty so random supersets cannot tie the optimum. The first baseline is a deliberately naive `RandomStrategy` that may propose conflicting options.
++- rationale: The spike must answer whether structured automation learns interactions better than naive strategies, not whether it can solve a greedy single-option toy. Penalizing extra options keeps the optimum auditable. Allowing the random baseline to propose conflicts preserves a clean before/after comparison once the constraint layer is introduced.
++- alternatives_considered:
++  - Make every useful option independently positive, which would let greedy/local strategies find the optimum and make the spike unable to distinguish interaction learning.
++  - Permit all supersets of the optimum to tie, which would inflate random hit rates and weaken baseline comparisons.
++  - Add constraint filtering to the first random baseline immediately, which would blur the later measurement of how much the constraint layer helps.
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index 9320ec7..dc8cc0a 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -1597,3 +1597,18 @@ Next action: push Phase 04 closure sync, then begin Phase 06 Process Management.
+ - Updated ROADMAP sizing to include the 4-6 subtask spike.
+ 
+ Next action: push roadmap sync, then plan Phase 06 and Phase 05.5 as parallel workstreams.
++
++## 2026-05-30T09:17:16Z - Phase 05.5 / Subtask 05.5.1 implemented
++
++- Started Phase 05.5 Integration Feasibility Mock Spike.
++- Implemented the first spike foundation under `spikes/05.5_integration_feasibility/`.
++- Added minimal `OptionV0` IR and validated default option catalog.
++- Added `SyntheticObjective` with exact known optimum `{-O3, -funroll-loops, -fA, -fB}`.
++- Added the non-greedy second-order trap: `-fA` and `-fB` are individually harmful but jointly valuable.
++- Added a small extra-option penalty so random supersets cannot tie the known optimum.
++- Added `ScoreResult`, `TrialOutcome`, `RunResult`, `RandomStrategy`, and seeded `run_strategy()`.
++- UT results:
++  - `.venv/bin/python -m pytest spikes/05.5_integration_feasibility/tests -q` -> 7 passed.
++  - `.venv/bin/python -m pytest tests/ -q` -> 451 passed.
++
++Next action: generate patch artifacts, commit/push Subtask 05.5.1, then request external review.
+diff --git a/dev_memory/ROADMAP.md b/dev_memory/ROADMAP.md
+index ba4fe33..6d96a0d 100644
+--- a/dev_memory/ROADMAP.md
++++ b/dev_memory/ROADMAP.md
+@@ -17,14 +17,14 @@ Current handoff:
+ 
+ | State | Next phase | Why next |
+ |---|---|---|
+-| Phase 04 closed | Phase 06 + Phase 05.5 in parallel | Phase 06 builds process safety for real compile/benchmark work. Phase 05.5 independently validates the automated decision loop with mocks before the full candidate engine is built. |
++| Phase 05.5 started | Phase 06 + Phase 05.5 in parallel | Phase 06 builds process safety for real compile/benchmark work. Phase 05.5 independently validates the automated decision loop with mocks before the full candidate engine is built. |
+ 
+ Next three implementation phases:
+ 
+ | Order | Phase | Estimate | Main risk |
+ |---:|---|---:|---|
+ | 1 | 06 - Process Management | 6-9 subtasks | Linux process-group, env-marker, and psutil behavior needs real integration coverage. |
+-| 1b | 05.5 - Integration Feasibility Mock Spike | 4-6 subtasks | The automated decision core must beat naive baselines and learn second-order interactions before Phase 07 hardens it. |
++| 1b | 05.5 - Integration Feasibility Mock Spike | 4-6 subtasks | In progress. The automated decision core must beat naive baselines and learn second-order interactions before Phase 07 hardens it. |
+ | 2 | 05 - Compile / Benchmark Skills | 8-12 subtasks | Compile/benchmark skills depend on stable process management and fake-gbs harness quality. |
+ | 3 | 08 - Baseline + Statistical Significance | 7-10 subtasks | Statistical contracts need synthetic reference checks before candidate engine convergence. |
+ 
+diff --git a/dev_memory/ROADMAP.yaml b/dev_memory/ROADMAP.yaml
+index bf0cf8e..1ebcb06 100644
+--- a/dev_memory/ROADMAP.yaml
++++ b/dev_memory/ROADMAP.yaml
+@@ -1,6 +1,6 @@
+ # dev_memory/ROADMAP.yaml
+ roadmap_version: 1
+-last_updated: 2026-05-30T07:44:26Z
++last_updated: 2026-05-30T09:17:16Z
+ status: active
+ 
+ # ============================================================
+@@ -114,7 +114,8 @@ planned_phases:
+ 
+   - id: "05.5"
+     title: "Integration Feasibility Mock Spike"
+-    status: planned
++    status: in_progress
++    started_at: "2026-05-30T09:17:16Z"
+     spike: true
+     parallel_with: "06"
+     milestone: "M1.5 (integration gate)"
+diff --git a/dev_memory/phases/phase_05_5_integration_feasibility/CHECKLIST.yaml b/dev_memory/phases/phase_05_5_integration_feasibility/CHECKLIST.yaml
+new file mode 100644
+index 0000000..fcf0808
+--- /dev/null
++++ b/dev_memory/phases/phase_05_5_integration_feasibility/CHECKLIST.yaml
+@@ -0,0 +1,31 @@
++phase_id: phase_05_5_integration_feasibility
++phase_title: "Integration Feasibility Mock Spike"
++status: in_progress
++spike: true
++started_at: 2026-05-30T09:17:16Z
++subtasks:
++  - id: "05.5.1"
++    title: "Synthetic objective + OptionV0 IR + random runner baseline"
++    status: implementation_complete
++    implementation_commit: pending
++    review_status: pending
++    ubuntu_validation_status: pending
++    checklist:
++      - item: "Keep all spike code outside production src/agent"
++        status: done
++      - item: "Implement OptionV0 IR and validated option catalog"
++        status: done
++      - item: "Implement SyntheticObjective with known non-greedy second-order optimum"
++        status: done
++      - item: "Implement ScoreResult and TrialOutcome records"
++        status: done
++      - item: "Implement naive RandomStrategy baseline"
++        status: done
++      - item: "Implement seeded run_strategy loop and RunResult summary"
++        status: done
++      - item: "Add tests for catalog validation, conflicts, second-order trap, exact optimum, fp_sensitive penalty, deterministic runner, and baseline failure/success recording"
++        status: done
++      - item: "Run spike tests and production regression tests"
++        status: done
++      - item: "Generate patch artifacts"
++        status: done
+diff --git a/dev_memory/phases/phase_05_5_integration_feasibility/REVIEW_NOTES.md b/dev_memory/phases/phase_05_5_integration_feasibility/REVIEW_NOTES.md
+new file mode 100644
+index 0000000..d1defb4
+--- /dev/null
++++ b/dev_memory/phases/phase_05_5_integration_feasibility/REVIEW_NOTES.md
+@@ -0,0 +1,28 @@
++# Phase 05.5 - Review Notes
++
++## Subtask 05.5.1 - Synthetic Objective / OptionV0 IR / Random Runner
++
++Self-review checklist:
++
++- [x] Spike code lives under `spikes/05.5_integration_feasibility/`.
++- [x] No production `src/agent/` files changed.
++- [x] `OptionV0` is minimal: `option_id`, `raw`, `conflicts`, `requires`.
++- [x] Catalog validation checks unique IDs/raw strings and known conflict/requirement references.
++- [x] `SyntheticObjective` has a known exact optimum.
++- [x] `-fA` and `-fB` are individually harmful but jointly valuable.
++- [x] Extra options are penalized so random supersets do not tie the known optimum.
++- [x] `-O3 + -Os` compiles to a mock `compile_failed` outcome.
++- [x] `fp_sensitive` module penalizes `-ffast-math`.
++- [x] `RandomStrategy` is intentionally naive and may propose conflicts.
++- [x] Runner produces deterministic histories for fixed seeds.
++- [x] Spike tests and production regression tests passed.
++
++Reviewer focus:
++
++- Confirm the synthetic objective is not accidentally too easy for greedy/local
++  strategies.
++- Confirm the known optimum is exact rather than tied by random supersets.
++- Confirm allowing RandomStrategy to propose conflicts is acceptable for the
++  baseline before the constraint layer lands.
++- Confirm the first subtask's narrow scope is enough foundation for later
++  LLM-only/local-mutation/full-agent strategy comparisons.
+diff --git a/dev_memory/phases/phase_05_5_integration_feasibility/SUMMARY.md b/dev_memory/phases/phase_05_5_integration_feasibility/SUMMARY.md
+new file mode 100644
+index 0000000..34658ba
+--- /dev/null
++++ b/dev_memory/phases/phase_05_5_integration_feasibility/SUMMARY.md
+@@ -0,0 +1,28 @@
++# Phase 05.5 - Integration Feasibility Mock Spike
++
++This phase is a mock-only spike. It is intentionally isolated from production
++`src/agent/` code and can run in parallel with Phase 06.
++
++## Subtask 05.5.1 - Synthetic Objective / OptionV0 IR / Random Runner
++
++Implemented the foundation for the integration feasibility spike:
++
++- `OptionV0` minimal IR and default option catalog.
++- `SyntheticObjective` with:
++  - known optimum `{-O3, -funroll-loops, -fA, -fB}`,
++  - conflict failure for `-O3 + -Os`,
++  - second-order interaction where `-fA`/`-fB` are bad alone and strong together,
++  - `fp_sensitive` penalty for `-ffast-math`,
++  - benchmark noise and transient infra failure knobs.
++- `ScoreResult`, `TrialOutcome`, `RunResult`.
++- `RandomStrategy` baseline.
++- Seeded `run_strategy()` loop.
++
++The subtask does not attempt to prove the full agent beats baselines yet. It
++only establishes a fair, inspectable mock world and one naive baseline that
++later subtasks can compare against.
++
++### Validation
++
++- Spike tests: 7 passed
++- Production regression suite: 451 passed
+diff --git a/dev_memory/phases/phase_05_5_integration_feasibility/UT_RESULTS.md b/dev_memory/phases/phase_05_5_integration_feasibility/UT_RESULTS.md
+new file mode 100644
+index 0000000..0b7691d
+--- /dev/null
++++ b/dev_memory/phases/phase_05_5_integration_feasibility/UT_RESULTS.md
+@@ -0,0 +1,31 @@
++# Phase 05.5 - UT Results
++
++## 2026-05-30 - Subtask 05.5.1 Objective / IR / Runner Baseline
++
++Environment:
++
++- Runner: local `.venv`
++- Python: `.venv/bin/python`
++- OS: Linux workspace
++
++Commands:
++
++```bash
++.venv/bin/python -m pytest spikes/05.5_integration_feasibility/tests -q
++```
++
++Result:
++
++```text
++7 passed in 0.01s
++```
++
++```bash
++.venv/bin/python -m pytest tests/ -q
++```
++
++Result:
++
++```text
++451 passed in 1.63s
++```
+diff --git a/dev_memory/phases/phase_05_5_integration_feasibility/patches/01_objective_ir_runner.review.md b/dev_memory/phases/phase_05_5_integration_feasibility/patches/01_objective_ir_runner.review.md
+new file mode 100644
+index 0000000..f89e973
+--- /dev/null
++++ b/dev_memory/phases/phase_05_5_integration_feasibility/patches/01_objective_ir_runner.review.md
+@@ -0,0 +1,42 @@
++# Self Review - Phase 05.5 / Subtask 05.5.1 Objective IR Runner
++
++## Scope
++
++This is spike code only. It does not touch production `src/agent/`, real gbs,
++process management, workspace protection, LangGraph, or real LLM APIs.
++
++## Checks
++
++- `OptionV0` is intentionally minimal and serializable.
++- The default option catalog validates unique ids/raw strings and known
++  conflict/requirement references.
++- `SyntheticObjective` has an exact known optimum:
++  `{-O3, -funroll-loops, -fA, -fB}`.
++- `-fA` and `-fB` are each harmful alone but jointly strong.
++- Extra options are penalized so random supersets cannot tie the optimum.
++- `-O3 + -Os` returns `compile_failed`.
++- `-ffast-math` is module-sensitive and bad for `fp_sensitive`.
++- `RandomStrategy` is intentionally naive and can propose invalid/conflicting
++  combos; later constraint-layer subtasks should improve on this.
++- `run_strategy()` produces deterministic histories for fixed seeds.
++- Spike tests and production regression tests passed.
++
++## Reviewer Focus
++
++- Confirm the objective is not too easy for greedy/local strategies.
++- Confirm the optimum is exact, not tied by supersets.
++- Confirm RandomStrategy should stay naive before the constraint-layer subtask.
++- Confirm this is the right first slice before adding LLM-only/local-mutation
++  and full-agent strategies.
++
++## Validation
++
++```bash
++.venv/bin/python -m pytest spikes/05.5_integration_feasibility/tests -q
++# 7 passed in 0.01s
++```
++
++```bash
++.venv/bin/python -m pytest tests/ -q
++# 451 passed in 1.63s
++```
+diff --git a/dev_memory/phases/phase_05_5_integration_feasibility/patches/01_objective_ir_runner.summary.txt b/dev_memory/phases/phase_05_5_integration_feasibility/patches/01_objective_ir_runner.summary.txt
+new file mode 100644
+index 0000000..8c5ceca
+--- /dev/null
++++ b/dev_memory/phases/phase_05_5_integration_feasibility/patches/01_objective_ir_runner.summary.txt
+@@ -0,0 +1,36 @@
++Subtask 05.5.1 - Synthetic Objective / OptionV0 IR / Random Runner
++
++Implemented the first mock-only foundation for the Integration Feasibility
++Spike:
++
++- Added OptionV0 minimal IR:
++  - option_id
++  - raw
++  - conflicts
++  - requires
++- Added a validated default option catalog with:
++  - opt_O3 / -O3
++  - opt_Os / -Os
++  - opt_unroll / -funroll-loops
++  - opt_A / -fA
++  - opt_B / -fB
++  - opt_fast_math / -ffast-math
++  - opt_no_plt / -fno-plt
++  - opt_lto / -flto
++- Added SyntheticObjective:
++  - known exact optimum {-O3, -funroll-loops, -fA, -fB}
++  - -O3 + -Os returns compile_failed
++  - -fA/-fB are harmful alone and valuable together
++  - fp_sensitive module penalizes -ffast-math
++  - benchmark noise and transient infra failure knobs
++  - extra-option penalty so supersets do not tie the optimum
++- Added RandomStrategy baseline.
++- Added seeded run_strategy() and RunResult summary.
++- Added spike tests for catalog validation, conflict handling, second-order
++  objective shape, exact optimum, module-specific penalty, deterministic runner,
++  and random baseline failure/success recording.
++
++Validation:
++
++- .venv/bin/python -m pytest spikes/05.5_integration_feasibility/tests -q -> 7 passed
++- .venv/bin/python -m pytest tests/ -q -> 451 passed
+diff --git a/dev_memory/spikes/05.5_integration_feasibility_findings.md b/dev_memory/spikes/05.5_integration_feasibility_findings.md
+index 4e7ed45..6de5516 100644
+--- a/dev_memory/spikes/05.5_integration_feasibility_findings.md
++++ b/dev_memory/spikes/05.5_integration_feasibility_findings.md
+@@ -1,6 +1,6 @@
+ # Spike 05.5 - Integration Feasibility Mock Spike Findings
+ 
+-Status: planned
++Status: in_progress
+ 
+ This document is the findings output for ROADMAP phase `05.5`. The spike is
+ mock-only and must stay isolated from production `src/agent/` code.
+@@ -42,7 +42,8 @@ Excluded:
+ 
+ ## Strategy Comparison
+ 
+-Fill after spike execution.
++Initial baseline scaffold only. Full comparisons land after LLM-only,
++local-mutation, and full-agent strategies are implemented.
+ 
+ | Strategy | Seeds | Top-5% hit rate | Median best score | Duplicate trial rate | Notes |
+ |---|---:|---:|---:|---:|---|
+@@ -67,6 +68,24 @@ Fill after spike execution.
+ | 10 | Full agent learns second-order `-fA`/`-fB`; local mutation gets stuck | TBD | |
+ | 11 | Crash/resume preserves round/history/experience state | TBD | |
+ 
++## Implementation Log
++
++### 2026-05-30 - Subtask 05.5.1 Objective / IR / Random Runner
++
++Implemented:
++
++- `OptionV0` and default option catalog.
++- `SyntheticObjective` with exact known optimum
++  `{-O3, -funroll-loops, -fA, -fB}`.
++- Second-order trap: `-fA` or `-fB` alone is harmful; together they add +12.
++- Extra-option penalty so random supersets cannot tie the known optimum.
++- `RandomStrategy` and seeded `run_strategy()` baseline runner.
++
++Validation:
++
++- `spikes/05.5_integration_feasibility/tests`: 7 passed.
++- Production `tests/`: 451 passed.
++
+ ## Exit Criteria
+ 
+ - Full agent finds top-5% optimum within 30-50 rounds in at least 80% of seeds.
+diff --git a/spikes/05.5_integration_feasibility/README.md b/spikes/05.5_integration_feasibility/README.md
+index c6fc21b..213fcdf 100644
+--- a/spikes/05.5_integration_feasibility/README.md
++++ b/spikes/05.5_integration_feasibility/README.md
+@@ -20,3 +20,17 @@ Can the automated decision loop (candidate engine + constraint layer +
+ experience memory + exploration schedule) beat naive baselines, learn
+ second-order option interactions, and recover from poor LLM proposals, noisy
+ benchmarks, bad experience, duplicate pressure, and crash/resume?
++
++## Current Contents
++
++- `option_ir.py`: minimal `OptionV0` IR and default option catalog.
++- `objective.py`: synthetic objective with a known second-order optimum.
++- `strategies.py`: initial `RandomStrategy` baseline and trial outcome record.
++- `runner.py`: seeded plain Python strategy runner.
++- `tests/`: spike-only pytest coverage.
++
++## Test Command
++
++```bash
++.venv/bin/python -m pytest spikes/05.5_integration_feasibility/tests -q
++```
+diff --git a/spikes/05.5_integration_feasibility/objective.py b/spikes/05.5_integration_feasibility/objective.py
+new file mode 100644
+index 0000000..e482b05
+--- /dev/null
++++ b/spikes/05.5_integration_feasibility/objective.py
+@@ -0,0 +1,86 @@
++"""Synthetic objective for the 05.5 integration feasibility spike."""
++
++from __future__ import annotations
++
++import random
++from dataclasses import dataclass
++from typing import Literal
++
++
++ScoreOutcome = Literal["success", "compile_failed", "infra_failure"]
++
++
++@dataclass(frozen=True)
++class ScoreResult:
++    """Mock compile+benchmark outcome."""
++
++    outcome: ScoreOutcome
++    score: float | None = None
++    reason: str | None = None
++
++    @property
++    def succeeded(self) -> bool:
++        return self.outcome == "success"
++
++
++@dataclass(frozen=True)
++class SyntheticObjective:
++    """Mock compile+benchmark with a non-greedy second-order optimum.
++
++    The optimum intentionally requires the pair `-fA` + `-fB`. Each option is
++    mildly bad alone, so a single-option greedy strategy should avoid them.
++    """
++
++    known_optimum: frozenset[str] = frozenset(
++        {"-O3", "-funroll-loops", "-fA", "-fB"}
++    )
++    noise_sigma: float = 2.0
++    infra_fail_rate: float = 0.05
++
++    def evaluate(
++        self,
++        combo: frozenset[str],
++        *,
++        module: str,
++        rng: random.Random,
++    ) -> ScoreResult:
++        """Evaluate one mock candidate combo."""
++
++        if "-O3" in combo and "-Os" in combo:
++            return ScoreResult(
++                outcome="compile_failed",
++                reason="conflicting opt levels",
++            )
++        if rng.random() < self.infra_fail_rate:
++            return ScoreResult(outcome="infra_failure", reason="transient infra")
++
++        score = self.deterministic_score(combo, module=module)
++        if self.noise_sigma:
++            score += rng.gauss(0.0, self.noise_sigma)
++        return ScoreResult(outcome="success", score=score)
++
++    def deterministic_score(self, combo: frozenset[str], *, module: str) -> float:
++        """Return score without infra failure or benchmark noise."""
++
++        score = 100.0
++        if "-O3" in combo:
++            score += 5.0
++        if "-Os" in combo:
++            score += 2.0
++        if "-funroll-loops" in combo:
++            score += 3.0
++        if "-fA" in combo and "-fB" in combo:
++            score += 12.0
++        elif "-fA" in combo or "-fB" in combo:
++            score -= 1.0
++        if "-ffast-math" in combo and module == "fp_sensitive":
++            score -= 10.0
++
++        extra_options = combo - self.known_optimum
++        score -= 0.5 * len(extra_options)
++        return score
++
++    def optimum_score(self, *, module: str = "core") -> float:
++        """Deterministic score of the known optimum."""
++
++        return self.deterministic_score(self.known_optimum, module=module)
+diff --git a/spikes/05.5_integration_feasibility/option_ir.py b/spikes/05.5_integration_feasibility/option_ir.py
+new file mode 100644
+index 0000000..8491f33
+--- /dev/null
++++ b/spikes/05.5_integration_feasibility/option_ir.py
+@@ -0,0 +1,69 @@
++"""Minimal option IR for the 05.5 integration feasibility spike."""
++
++from __future__ import annotations
++
++from dataclasses import dataclass
++from typing import Iterable
++
++
++@dataclass(frozen=True)
++class OptionV0:
++    """Smallest useful option model for the mock decision loop."""
++
++    option_id: str
++    raw: str
++    conflicts: tuple[str, ...] = ()
++    requires: tuple[str, ...] = ()
++
++
++DEFAULT_OPTIONS: tuple[OptionV0, ...] = (
++    OptionV0("opt_O3", "-O3", conflicts=("opt_Os",)),
++    OptionV0("opt_Os", "-Os", conflicts=("opt_O3",)),
++    OptionV0("opt_unroll", "-funroll-loops"),
++    OptionV0("opt_A", "-fA"),
++    OptionV0("opt_B", "-fB"),
++    OptionV0("opt_fast_math", "-ffast-math"),
++    OptionV0("opt_no_plt", "-fno-plt"),
++    OptionV0("opt_lto", "-flto"),
++)
++
++
++def validate_option_catalog(options: Iterable[OptionV0]) -> tuple[OptionV0, ...]:
++    """Validate basic OptionV0 catalog consistency."""
++
++    catalog = tuple(options)
++    ids = [option.option_id for option in catalog]
++    raws = [option.raw for option in catalog]
++    if len(ids) != len(set(ids)):
++        raise ValueError("OptionV0 option_id values must be unique")
++    if len(raws) != len(set(raws)):
++        raise ValueError("OptionV0 raw values must be unique")
++    known_ids = set(ids)
++    for option in catalog:
++        if not option.option_id.strip():
++            raise ValueError("OptionV0 option_id cannot be empty")
++        if not option.raw.strip():
++            raise ValueError("OptionV0 raw cannot be empty")
++        for conflict_id in option.conflicts:
++            if conflict_id not in known_ids:
++                raise ValueError(
++                    f"unknown conflict {conflict_id!r} for {option.option_id!r}"
++                )
++        for required_id in option.requires:
++            if required_id not in known_ids:
++                raise ValueError(
++                    f"unknown requirement {required_id!r} for {option.option_id!r}"
++                )
++    return catalog
++
++
++def raw_options(options: Iterable[OptionV0]) -> tuple[str, ...]:
++    """Return stable raw option strings for strategy code."""
++
++    return tuple(option.raw for option in validate_option_catalog(options))
++
++
++def option_by_raw(options: Iterable[OptionV0]) -> dict[str, OptionV0]:
++    """Map raw option strings to validated OptionV0 records."""
++
++    return {option.raw: option for option in validate_option_catalog(options)}
+diff --git a/spikes/05.5_integration_feasibility/runner.py b/spikes/05.5_integration_feasibility/runner.py
+new file mode 100644
+index 0000000..a042cb2
+--- /dev/null
++++ b/spikes/05.5_integration_feasibility/runner.py
+@@ -0,0 +1,70 @@
++"""Plain Python runner for the 05.5 mock decision loop."""
++
++from __future__ import annotations
++
++import random
++from dataclasses import dataclass
++
++from objective import SyntheticObjective
++from strategies import SearchStrategy, TrialOutcome
++
++
++@dataclass(frozen=True)
++class RunResult:
++    """Summary of one mock strategy run."""
++
++    seed: int
++    module: str
++    trials: tuple[TrialOutcome, ...]
++
++    @property
++    def successful_trials(self) -> tuple[TrialOutcome, ...]:
++        return tuple(trial for trial in self.trials if trial.result.succeeded)
++
++    @property
++    def best_trial(self) -> TrialOutcome | None:
++        successes = self.successful_trials
++        if not successes:
++            return None
++        return max(successes, key=lambda trial: trial.result.score or float("-inf"))
++
++    @property
++    def best_score(self) -> float | None:
++        best = self.best_trial
++        return None if best is None else best.result.score
++
++    @property
++    def compile_failed_count(self) -> int:
++        return sum(1 for trial in self.trials if trial.result.outcome == "compile_failed")
++
++    @property
++    def infra_failure_count(self) -> int:
++        return sum(1 for trial in self.trials if trial.result.outcome == "infra_failure")
++
++
++def run_strategy(
++    strategy: SearchStrategy,
++    objective: SyntheticObjective,
++    *,
++    rounds: int,
++    seed: int,
++    module: str = "core",
++) -> RunResult:
++    """Run one strategy against the synthetic objective."""
++
++    if rounds <= 0:
++        raise ValueError("rounds must be positive")
++    rng = random.Random(seed)
++    history: list[TrialOutcome] = []
++    for round_index in range(rounds):
++        combo = strategy.propose(history, rng)
++        result = objective.evaluate(combo, module=module, rng=rng)
++        history.append(
++            TrialOutcome(
++                round_index=round_index,
++                combo=combo,
++                module=module,
++                result=result,
++            )
++        )
++    return RunResult(seed=seed, module=module, trials=tuple(history))
+diff --git a/spikes/05.5_integration_feasibility/strategies.py b/spikes/05.5_integration_feasibility/strategies.py
+new file mode 100644
+index 0000000..929110b
+--- /dev/null
++++ b/spikes/05.5_integration_feasibility/strategies.py
+@@ -0,0 +1,55 @@
++"""Search strategies for the 05.5 spike."""
++
++from __future__ import annotations
++
++import random
++from dataclasses import dataclass
++from typing import Protocol
++
++from objective import ScoreResult
++from option_ir import OptionV0, raw_options
++
++
++@dataclass(frozen=True)
++class TrialOutcome:
++    """One proposed combo and its mock evaluation result."""
++
++    round_index: int
++    combo: frozenset[str]
++    module: str
++    result: ScoreResult
++
++
++class SearchStrategy(Protocol):
++    """Strategy protocol used by the plain Python spike runner."""
++
++    def propose(
++        self,
++        history: list[TrialOutcome],
++        rng: random.Random,
++    ) -> frozenset[str]:
++        """Propose one combo."""
++
++
++@dataclass(frozen=True)
++class RandomStrategy:
++    """Naive baseline that samples options independently."""
++
++    options: tuple[OptionV0, ...]
++    include_probability: float = 0.35
++    allow_empty: bool = False
++
++    def propose(
++        self,
++        history: list[TrialOutcome],
++        rng: random.Random,
++    ) -> frozenset[str]:
++        del history
++        selected = tuple(
++            option for option in raw_options(self.options)
++            if rng.random() < self.include_probability
++        )
++        if selected or self.allow_empty:
++            return frozenset(selected)
++        fallback = rng.choice(raw_options(self.options))
++        return frozenset({fallback})
+diff --git a/spikes/05.5_integration_feasibility/tests/conftest.py b/spikes/05.5_integration_feasibility/tests/conftest.py
+new file mode 100644
+index 0000000..a400563
+--- /dev/null
++++ b/spikes/05.5_integration_feasibility/tests/conftest.py
+@@ -0,0 +1,9 @@
++from __future__ import annotations
++
++import sys
++from pathlib import Path
++
++
++SPIKE_DIR = Path(__file__).resolve().parents[1]
++if str(SPIKE_DIR) not in sys.path:
++    sys.path.insert(0, str(SPIKE_DIR))
+diff --git a/spikes/05.5_integration_feasibility/tests/test_objective_ir_runner.py b/spikes/05.5_integration_feasibility/tests/test_objective_ir_runner.py
+new file mode 100644
+index 0000000..422903e
+--- /dev/null
++++ b/spikes/05.5_integration_feasibility/tests/test_objective_ir_runner.py
+@@ -0,0 +1,119 @@
++from __future__ import annotations
++
++import random
++
++import pytest
++
++from objective import SyntheticObjective
++from option_ir import DEFAULT_OPTIONS, OptionV0, option_by_raw, validate_option_catalog
++from runner import run_strategy
++from strategies import RandomStrategy
++
++
++def objective_without_noise() -> SyntheticObjective:
++    return SyntheticObjective(noise_sigma=0.0, infra_fail_rate=0.0)
++
++
++def test_option_catalog_validates_unique_ids_and_known_conflicts() -> None:
++    catalog = validate_option_catalog(DEFAULT_OPTIONS)
++
++    assert option_by_raw(catalog)["-O3"].conflicts == ("opt_Os",)
++    with pytest.raises(ValueError, match="unique"):
++        validate_option_catalog(
++            (
++                OptionV0("dup", "-O3"),
++                OptionV0("dup", "-Os"),
++            )
++        )
++    with pytest.raises(ValueError, match="unknown conflict"):
++        validate_option_catalog((OptionV0("opt_x", "-fx", conflicts=("missing",)),))
++
++
++def test_synthetic_objective_rejects_conflicting_optimization_levels() -> None:
++    objective = objective_without_noise()
++
++    result = objective.evaluate(
++        frozenset({"-O3", "-Os"}),
++        module="core",
++        rng=random.Random(1),
++    )
++
++    assert result.outcome == "compile_failed"
++    assert result.reason == "conflicting opt levels"
++
++
++def test_second_order_interaction_is_not_single_option_greedy() -> None:
++    objective = objective_without_noise()
++
++    baseline = objective.deterministic_score(
++        frozenset({"-O3", "-funroll-loops"}),
++        module="core",
++    )
++    with_a = objective.deterministic_score(
++        frozenset({"-O3", "-funroll-loops", "-fA"}),
++        module="core",
++    )
++    with_b = objective.deterministic_score(
++        frozenset({"-O3", "-funroll-loops", "-fB"}),
++        module="core",
++    )
++    with_pair = objective.deterministic_score(
++        frozenset({"-O3", "-funroll-loops", "-fA", "-fB"}),
++        module="core",
++    )
++
++    assert with_a < baseline
++    assert with_b < baseline
++    assert with_pair == objective.optimum_score(module="core")
++    assert with_pair - baseline == 12.0
++
++
++def test_known_optimum_beats_superset_with_extra_flags() -> None:
++    objective = objective_without_noise()
++
++    optimum = objective.optimum_score(module="core")
++    superset = objective.deterministic_score(
++        objective.known_optimum | frozenset({"-flto", "-fno-plt"}),
++        module="core",
++    )
++
++    assert optimum > superset
++
++
++def test_fp_sensitive_module_penalizes_fast_math() -> None:
++    objective = objective_without_noise()
++
++    neutral = objective.deterministic_score(
++        frozenset({"-O3", "-ffast-math"}),
++        module="core",
++    )
++    fp_sensitive = objective.deterministic_score(
++        frozenset({"-O3", "-ffast-math"}),
++        module="fp_sensitive",
++    )
++
++    assert neutral - fp_sensitive == 10.0
++
++
++def test_random_strategy_runner_is_seed_deterministic() -> None:
++    objective = SyntheticObjective(noise_sigma=0.0, infra_fail_rate=0.0)
++    strategy = RandomStrategy(DEFAULT_OPTIONS, include_probability=0.4)
++
++    first = run_strategy(strategy, objective, rounds=12, seed=42)
++    second = run_strategy(strategy, objective, rounds=12, seed=42)
++
++    assert first.trials == second.trials
++    assert len(first.trials) == 12
++    assert first.best_trial is not None
++
++
++def test_random_strategy_runner_records_failures_and_successes() -> None:
++    objective = SyntheticObjective(noise_sigma=0.0, infra_fail_rate=0.0)
++    strategy = RandomStrategy(DEFAULT_OPTIONS, include_probability=0.6)
++
++    result = run_strategy(strategy, objective, rounds=20, seed=7)
++
++    assert result.successful_trials
++    assert result.compile_failed_count > 0
++    assert result.infra_failure_count == 0
++    assert all(trial.round_index == index for index, trial in enumerate(result.trials))

@@ -1,0 +1,31 @@
+phase_id: phase_05_5_integration_feasibility
+phase_title: "Integration Feasibility Mock Spike"
+status: in_progress
+spike: true
+started_at: 2026-05-30T09:17:16Z
+subtasks:
+  - id: "05.5.1"
+    title: "Synthetic objective + OptionV0 IR + random runner baseline"
+    status: implementation_complete
+    implementation_commit: pending
+    review_status: pending
+    ubuntu_validation_status: pending
+    checklist:
+      - item: "Keep all spike code outside production src/agent"
+        status: done
+      - item: "Implement OptionV0 IR and validated option catalog"
+        status: done
+      - item: "Implement SyntheticObjective with known non-greedy second-order optimum"
+        status: done
+      - item: "Implement ScoreResult and TrialOutcome records"
+        status: done
+      - item: "Implement naive RandomStrategy baseline"
+        status: done
+      - item: "Implement seeded run_strategy loop and RunResult summary"
+        status: done
+      - item: "Add tests for catalog validation, conflicts, second-order trap, exact optimum, fp_sensitive penalty, deterministic runner, and baseline failure/success recording"
+        status: done
+      - item: "Run spike tests and production regression tests"
+        status: done
+      - item: "Generate patch artifacts"
+        status: done

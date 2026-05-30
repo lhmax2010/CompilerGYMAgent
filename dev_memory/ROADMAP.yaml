@@ -1,6 +1,6 @@
 # dev_memory/ROADMAP.yaml
 roadmap_version: 1
-last_updated: 2026-05-30T07:44:26Z
+last_updated: 2026-05-30T09:17:16Z
 status: active
 
 # ============================================================
@@ -114,7 +114,8 @@ planned_phases:
 
   - id: "05.5"
     title: "Integration Feasibility Mock Spike"
-    status: planned
+    status: in_progress
+    started_at: "2026-05-30T09:17:16Z"
     spike: true
     parallel_with: "06"
     milestone: "M1.5 (integration gate)"

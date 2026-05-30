@@ -751,3 +751,14 @@ Decision records must include:
   - Wait until Phase 07 to test the integrated decision loop, which delays the highest product-risk discovery until after process, compile, benchmark, and statistics work.
   - Use real gbs or real LLM APIs in the spike, which would couple feasibility learning to unavailable external services and make results noisy.
   - Keep only the existing Phase 7.0 constraint solver spike, which tests constraint performance but not end-to-end convergence against baselines or second-order interactions.
+
+## 2026-05-30T09:17:16Z - Synthetic objective pins a non-greedy exact optimum
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 05.5
+- decision: The 05.5 synthetic objective starts with an exact known optimum `{-O3, -funroll-loops, -fA, -fB}`. The pair `-fA`/`-fB` is intentionally harmful when tried one at a time but valuable when tried together, and extra options receive a small penalty so random supersets cannot tie the optimum. The first baseline is a deliberately naive `RandomStrategy` that may propose conflicting options.
+- rationale: The spike must answer whether structured automation learns interactions better than naive strategies, not whether it can solve a greedy single-option toy. Penalizing extra options keeps the optimum auditable. Allowing the random baseline to propose conflicts preserves a clean before/after comparison once the constraint layer is introduced.
+- alternatives_considered:
+  - Make every useful option independently positive, which would let greedy/local strategies find the optimum and make the spike unable to distinguish interaction learning.
+  - Permit all supersets of the optimum to tie, which would inflate random hit rates and weaken baseline comparisons.
+  - Add constraint filtering to the first random baseline immediately, which would blur the later measurement of how much the constraint layer helps.

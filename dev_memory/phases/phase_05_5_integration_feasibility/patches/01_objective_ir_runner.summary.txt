@@ -1,0 +1,36 @@
+Subtask 05.5.1 - Synthetic Objective / OptionV0 IR / Random Runner
+
+Implemented the first mock-only foundation for the Integration Feasibility
+Spike:
+
+- Added OptionV0 minimal IR:
+  - option_id
+  - raw
+  - conflicts
+  - requires
+- Added a validated default option catalog with:
+  - opt_O3 / -O3
+  - opt_Os / -Os
+  - opt_unroll / -funroll-loops
+  - opt_A / -fA
+  - opt_B / -fB
+  - opt_fast_math / -ffast-math
+  - opt_no_plt / -fno-plt
+  - opt_lto / -flto
+- Added SyntheticObjective:
+  - known exact optimum {-O3, -funroll-loops, -fA, -fB}
+  - -O3 + -Os returns compile_failed
+  - -fA/-fB are harmful alone and valuable together
+  - fp_sensitive module penalizes -ffast-math
+  - benchmark noise and transient infra failure knobs
+  - extra-option penalty so supersets do not tie the optimum
+- Added RandomStrategy baseline.
+- Added seeded run_strategy() and RunResult summary.
+- Added spike tests for catalog validation, conflict handling, second-order
+  objective shape, exact optimum, module-specific penalty, deterministic runner,
+  and random baseline failure/success recording.
+
+Validation:
+
+- .venv/bin/python -m pytest spikes/05.5_integration_feasibility/tests -q -> 7 passed
+- .venv/bin/python -m pytest tests/ -q -> 451 passed
