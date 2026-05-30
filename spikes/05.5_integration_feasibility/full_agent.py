@@ -35,7 +35,7 @@ class ExperienceMemory:
     """Small memory extracted from prior trial outcomes."""
 
     tried_combos: frozenset[frozenset[str]]
-    successful_combos: tuple[frozenset[str], ...]
+    successful_trials: tuple[TrialOutcome, ...]
     known_failed_subsets: frozenset[frozenset[str]]
 
     @classmethod
@@ -45,16 +45,45 @@ class ExperienceMemory:
             for trial in history
             if trial.result.outcome == "compile_failed"
         )
-        successes = tuple(
-            trial.combo
-            for trial in history
-            if trial.result.succeeded
-        )
+        successes = tuple(trial for trial in history if trial.result.succeeded)
         return cls(
             tried_combos=frozenset(trial.combo for trial in history),
-            successful_combos=successes,
+            successful_trials=successes,
             known_failed_subsets=failed,
         )
+
+    def near_miss_additions(
+        self,
+        *,
+        center: frozenset[str],
+        max_score_drop: float,
+        limit: int,
+    ) -> tuple[str, ...]:
+        """Return single additions that were only mildly worse than center."""
+
+        center_score = self._score_for(center)
+        if center_score is None:
+            return ()
+        near_misses: list[tuple[float, str]] = []
+        for trial in self.successful_trials:
+            combo = trial.combo
+            added = combo - center
+            if len(added) != 1 or not center < combo:
+                continue
+            score = trial.result.score
+            if score is None:
+                continue
+            drop = center_score - score
+            if 0.0 <= drop <= max_score_drop:
+                near_misses.append((drop, next(iter(added))))
+        near_misses.sort(key=lambda item: (item[0], item[1]))
+        return tuple(raw for _drop, raw in near_misses[:limit])
+
+    def _score_for(self, combo: frozenset[str]) -> float | None:
+        for trial in reversed(self.successful_trials):
+            if trial.combo == combo:
+                return trial.result.score
+        return None
 
 
 @dataclass
@@ -120,6 +149,8 @@ class FullAgentStrategy:
     llm: MockLLM = field(default_factory=lambda: MockLLM(quality="poor"))
     constraint_layer: ConstraintLayer | None = None
     max_random_fallbacks: int = 24
+    interaction_max_score_drop: float = 1.25
+    interaction_suspect_limit: int = 6
     rejections: list[RejectedCandidate] = field(default_factory=list)
 
     def __post_init__(self) -> None:
@@ -148,20 +179,23 @@ class FullAgentStrategy:
         del memory
         yield from self._warmup_candidates()
         yield self.llm.propose(history, rng)
-        yield from self._pair_jump_candidates(history)
         yield from self._local_mutation_candidates(history)
+        yield from self._guided_interaction_candidates(history)
         yield from self._random_candidates(rng)
-        yield from self._enumerated_candidates()
 
     def _warmup_candidates(self):
         yield frozenset({"-O3"})
         yield frozenset({"-O3", "-funroll-loops"})
 
-    def _pair_jump_candidates(self, history: list[TrialOutcome]):
+    def _guided_interaction_candidates(self, history: list[TrialOutcome]):
         center = self._best_successful_combo(history)
-        raws = tuple(sorted(raw_options(self.options)))
-        missing = tuple(raw for raw in raws if raw not in center)
-        for first, second in itertools.combinations(missing, 2):
+        memory = ExperienceMemory.from_history(history)
+        suspects = memory.near_miss_additions(
+            center=center,
+            max_score_drop=self.interaction_max_score_drop,
+            limit=self.interaction_suspect_limit,
+        )
+        for first, second in itertools.combinations(suspects, 2):
             yield frozenset((*center, first, second))
 
     def _local_mutation_candidates(self, history: list[TrialOutcome]):
@@ -178,12 +212,6 @@ class FullAgentStrategy:
             combo = frozenset(raw for raw in raws if rng.random() < 0.35)
             if combo:
                 yield combo
-
-    def _enumerated_candidates(self):
-        raws = tuple(sorted(raw_options(self.options)))
-        for size in range(1, min(4, len(raws)) + 1):
-            for combo in itertools.combinations(raws, size):
-                yield frozenset(combo)
 
     def _best_successful_combo(
         self,

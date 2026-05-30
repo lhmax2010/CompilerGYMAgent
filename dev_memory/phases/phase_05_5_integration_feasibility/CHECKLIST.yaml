@@ -68,6 +68,27 @@ subtasks:
         status: done
       - item: "Ubuntu/Linux validation"
         status: done
+  - id: "05.5.4"
+    title: "Replace brute enumeration with near-miss guided interaction exploration"
+    status: implementation_complete
+    implementation_commit: pending
+    review_status: pending
+    ubuntu_validation_status: pending
+    checklist:
+      - item: "Remove deterministic size-1..4 enumeration fallback from FullAgentStrategy"
+        status: done
+      - item: "Add near-miss single-addition memory for interaction suspects"
+        status: done
+      - item: "Generate guided interaction candidates from bounded suspect pairs"
+        status: done
+      - item: "Verify full agent finds the second-order optimum with random fallback disabled"
+        status: done
+      - item: "Verify disabling guided interaction prevents second-order discovery when random fallback is disabled"
+        status: done
+      - item: "Run spike tests and production regression tests"
+        status: done
+      - item: "Generate patch artifacts"
+        status: done
   - id: "05.5.2"
     title: "MockLLM + LLMOnlyStrategy + LocalMutationStrategy baselines"
     status: done

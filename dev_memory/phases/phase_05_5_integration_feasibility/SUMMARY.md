@@ -113,3 +113,29 @@ learning. Disabling pair-jump did not prevent success, but disabling
 random/enumerated fallback did. The next subtask will remove or sharply limit
 brute enumeration so the spike can test a mechanism that has a plausible Phase
 07 path.
+
+## Subtask 05.5.4 - Guided Interaction Follow-up
+
+Addressed 05.5.3 Med-1:
+
+- Removed deterministic size-1..4 enumeration fallback from
+  `FullAgentStrategy`.
+- Replaced the old pair-jump path with near-miss guided interaction:
+  first observe single-option additions around the current best combo, then
+  combine bounded pairs of mildly-worse additions.
+- Added `ExperienceMemory.near_miss_additions()` to derive interaction suspects
+  from observed scores.
+- Kept `max_random_fallbacks` configurable, and verified the key mechanism with
+  random fallback disabled.
+
+### Validation
+
+- Spike tests: 23 passed
+- Production regression suite: 451 passed
+- Ablation:
+  - full agent, poor LLM, random fallback disabled: 20/20 optimum hits.
+  - guided interaction disabled, poor LLM, random fallback disabled: 0/20
+    optimum hits and candidate stream exhausts.
+
+This makes the second-order result depend on guided interaction exploration,
+not deterministic enumeration over the toy option space.

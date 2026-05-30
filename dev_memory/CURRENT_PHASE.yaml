@@ -1,7 +1,7 @@
 phase_id: phase_05_5_integration_feasibility
 phase_title: "Integration Feasibility Mock Spike"
 started_at: 2026-05-30T09:17:16Z
-last_updated: 2026-05-30T10:14:24Z
+last_updated: 2026-05-30T10:19:09Z
 target_milestone: "M1.5 (integration gate)"
 related_requirements:
   - REQUIREMENTS.md section 4.6
@@ -177,4 +177,38 @@ subtasks:
       spike_pytest: "21 passed in 0.04s"
       production_pytest: "451 passed in 1.60s"
       runner: "local .venv + pytest"
-next_action: "Begin Subtask 05.5.4: remove/shrink brute enumeration fallback and make second-order discovery depend on scalable interaction exploration."
+  - id: "05.5.4"
+    title: "Replace brute enumeration with near-miss guided interaction exploration"
+    status: implementation_complete
+    related_requirements:
+      - ROADMAP.yaml Phase 05.5 second-order interaction exit criterion
+      - ROADMAP.yaml Phase 05.5 against-baseline exit criterion
+      - "05.5.3 Med-1 follow-up"
+    files_modified:
+      - spikes/05.5_integration_feasibility/full_agent.py
+      - spikes/05.5_integration_feasibility/tests/test_full_agent_strategy.py
+      - spikes/05.5_integration_feasibility/README.md
+      - dev_memory/phases/phase_05_5_integration_feasibility/CHECKLIST.yaml
+      - dev_memory/phases/phase_05_5_integration_feasibility/REVIEW_NOTES.md
+      - dev_memory/phases/phase_05_5_integration_feasibility/SUMMARY.md
+      - dev_memory/phases/phase_05_5_integration_feasibility/UT_RESULTS.md
+      - dev_memory/spikes/05.5_integration_feasibility_findings.md
+      - dev_memory/PROGRESS.md
+    behavior_notes:
+      - "Removed deterministic size-1..4 enumeration fallback from FullAgentStrategy."
+      - "Interaction exploration now uses observed near-miss single-option additions around the current best combo."
+      - "With random fallback disabled, full agent finds the second-order optimum in 20/20 poor-LLM seeds."
+      - "With guided interaction disabled and random fallback disabled, full agent finds the second-order optimum in 0/20 seeds and exhausts candidates."
+      - "The result now depends on guided interaction exploration rather than brute enumeration."
+    ut_required: true
+    ut_passed: true
+    targeted_ut: "23 spike tests passed, 0 failed"
+    production_regression_ut: "451 production tests passed, 0 failed"
+    self_review_required: true
+    self_reviewed: true
+    patch_required: true
+    patch_file: dev_memory/phases/phase_05_5_integration_feasibility/patches/04_guided_interaction.patch
+    patch_generated: true
+    commit_required: true
+    commit_pending: true
+next_action: "Generate patch artifacts, commit/push Subtask 05.5.4, then request external review."

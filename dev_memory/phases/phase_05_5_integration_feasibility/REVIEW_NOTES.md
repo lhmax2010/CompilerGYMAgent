@@ -145,3 +145,27 @@ Post-review validation:
 - Spike tests: 21 passed
 - Production regression suite: 451 passed
 - Production `src/agent` changes: none
+
+## Subtask 05.5.4 - Guided Interaction Follow-up
+
+Self-review checklist:
+
+- [x] Spike code remains isolated under `spikes/05.5_integration_feasibility/`.
+- [x] No production `src/agent/` files changed.
+- [x] Deterministic size-1..4 enumeration fallback is removed.
+- [x] Interaction exploration now depends on observed near-miss single additions.
+- [x] Near-miss suspect count is bounded by `interaction_suspect_limit`.
+- [x] With random fallback disabled, full agent still finds the second-order optimum.
+- [x] With guided interaction disabled and random fallback disabled, full agent no longer finds the second-order optimum.
+- [x] Existing constraint, duplicate, and good/poor LLM efficiency tests still pass.
+- [x] Spike tests and production regression tests passed.
+
+Reviewer focus:
+
+- Confirm the 05.5.3 Med-1 mechanism attribution is fixed: success should no
+  longer be driven by deterministic enumeration.
+- Confirm the guided interaction heuristic is still generic enough for a Phase
+  07 path: it uses observed near-miss single additions rather than hard-coding
+  `-fA` / `-fB`.
+- Confirm the bounded suspect pair generation is a plausible spike proxy, not a
+  hidden exhaustive search over the entire option catalog.

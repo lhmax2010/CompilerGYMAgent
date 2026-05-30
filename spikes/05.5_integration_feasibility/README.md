@@ -29,7 +29,8 @@ benchmarks, bad experience, duplicate pressure, and crash/resume?
 - `strategies.py`: random, LLM-only, and local-mutation baselines plus trial
   outcome record.
 - `full_agent.py`: spike-local full-agent strategy with lightweight
-  constraints, memory, schedule, and false-positive suspicion counter.
+  constraints, memory, near-miss guided interaction exploration, and
+  false-positive suspicion counter.
 - `runner.py`: seeded plain Python strategy runner.
 - `tests/`: spike-only pytest coverage.
 

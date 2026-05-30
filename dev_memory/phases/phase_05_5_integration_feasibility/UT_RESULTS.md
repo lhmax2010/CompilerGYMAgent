@@ -175,3 +175,40 @@ Result:
 ```text
 451 passed in 1.60s
 ```
+
+## 2026-05-30 - Subtask 05.5.4 Guided Interaction Follow-up
+
+Environment:
+
+- Runner: local `.venv`
+- Python: `.venv/bin/python`
+- OS: Linux workspace
+
+Commands:
+
+```bash
+.venv/bin/python -m pytest spikes/05.5_integration_feasibility/tests -q
+```
+
+Result:
+
+```text
+23 passed in 0.04s
+```
+
+```bash
+.venv/bin/python -m pytest tests/ -q
+```
+
+Result:
+
+```text
+451 passed in 1.66s
+```
+
+Probe:
+
+```text
+FullAgentStrategy, poor LLM, random fallback disabled: 20/20 optimum hits.
+Guided interaction disabled, poor LLM, random fallback disabled: 0/20 optimum hits; candidate stream exhausts.
+```
