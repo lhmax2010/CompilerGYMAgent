@@ -1558,3 +1558,24 @@ Next action: sync validation records, then begin Subtask 4.4b spec backup / inje
   - `.venv/bin/python -m pytest tests/ -q` -> 451 passed.
 
 Next action: generate patch artifacts, commit/push Subtask 4.4b, then request external review.
+
+## 2026-05-30T05:15:18Z - Phase 04 / Subtask 4.4b approved and Phase 04 closed
+
+- Reviewer: Claude.
+- Verdict: Approve.
+- Range: `43571de..6522418`.
+- Implementation commit: `6522418 phase_04_workspace_protection: 4.4b spec protection skills`.
+- Findings:
+  - Low-1: `spec_injector._validate_combo` currently stringifies non-string combo elements. Non-blocking; defer stricter runtime type validation to Phase 07 candidate engine integration.
+- Ubuntu/Linux validation:
+  - `.venv/bin/python -m pytest tests/test_spec_skills.py -q` -> 13 passed.
+  - `.venv/bin/python -m pytest tests/ -q` -> 451 passed.
+- Phase 04 deliverables are complete:
+  - AgentError/types framework.
+  - WorkspaceLock holder hardening tests.
+  - Unified CLI dispatcher.
+  - workspace_snapshot/workspace_verify skills.
+  - spec_backup/spec_injector/spec_restore skills.
+  - fake workspace fixture.
+
+Next action: push Phase 04 closure sync, then begin Phase 06 Process Management.

@@ -162,3 +162,28 @@ workflow orchestration, checkpoint writes, or process cleanup.
 - `tests/test_spec_skills.py`: 13 passed
 - `tests/test_workspace_skills.py tests/test_spec_skills.py`: 24 passed
 - Full test suite: 451 passed
+
+## Phase 04 Closure
+
+Phase 04 is complete as of 2026-05-30T13:15:18+08:00.
+
+Delivered:
+
+- Unified `AgentError` / `exit_code` framework and shared TypeAlias module.
+- Inode-safe WorkspaceLock holder behavior pinned by conservative-path tests.
+- Unified CLI dispatcher replacing the temporary trace-clean entrypoint.
+- Workspace snapshot / verify skills.
+- Spec backup / inject / restore skills.
+- Fake workspace fixture for later skill phases.
+
+Final validation:
+
+- `tests/test_spec_skills.py`: 13 passed
+- Full suite: 451 passed
+
+Deferred:
+
+- Tighten non-string combo runtime validation when Phase 07 candidate engine owns
+  concrete combo contracts.
+- Process event kind whitelist, ProcessIdentity, LockStatus unknown, and state
+  consistency validator remain scheduled for Phase 06.

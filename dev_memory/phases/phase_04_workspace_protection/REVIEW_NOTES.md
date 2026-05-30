@@ -172,3 +172,17 @@ Reviewer focus:
 - Confirm namespace-local `layout.spec_backups_dir` is the right concrete backup location for Phase 04 despite the legacy `config.spec.backup_dir` field.
 - Confirm explicit Jinja-style placeholder replacement is acceptable for the first spec injector contract until a real project template grammar lands.
 - Confirm restore refusing a mismatched backup before overwriting the live spec is the right failure mode for strict `hash_must_match_after_restore`.
+
+### External Review
+
+Claude verdict: Approve.
+
+Findings: no Critical / High / Medium findings. Low-1 noted that
+`spec_injector._validate_combo` currently stringifies non-string combo elements;
+this is safe enough for Phase 04 and should be tightened when Phase 07 candidate
+engine owns runtime combo contracts.
+
+Post-review validation:
+
+- `tests/test_spec_skills.py`: 13 passed
+- Full suite: 451 passed

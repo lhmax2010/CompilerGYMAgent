@@ -1,6 +1,6 @@
 # dev_memory/ROADMAP.yaml
 roadmap_version: 1
-last_updated: 2026-05-30T00:59:41Z
+last_updated: 2026-05-30T05:15:18Z
 status: active
 
 # ============================================================
@@ -65,55 +65,18 @@ completed_phases:
     requirement_sections: ["3.3.4", "4.13", "4.14.7a"]
     actual_subtasks_done: 15
     closed_at: "2026-05-29T18:09:00+08:00"
+  - id: "04"
+    title: "Workspace Protection Skills + CLI Entrypoint Skeleton"
+    milestone: M1
+    requirement_sections: ["4.7.1", "4.7.4", "4.7.5"]
+    actual_subtasks_done: 5
+    started_at: "2026-05-30T00:59:41Z"
+    closed_at: "2026-05-30T13:15:18+08:00"
 
 # ============================================================
 # Planned phases (Codex-recommended order)
 # ============================================================
 planned_phases:
-
-  - id: "04"
-    title: "Workspace Protection Skills + CLI Entrypoint Skeleton"
-    status: in_progress
-    started_at: "2026-05-30T00:59:41Z"
-    milestone: M1
-    requirement_sections: ["4.7.1", "4.7.4", "4.7.5"]
-    dependencies: ["02", "03"]
-    can_parallel_with: []
-    estimate_subtasks: { low: 8, high: 12 }
-    risk: medium
-    goals:
-      - "workspace_snapshot/verify, spec_backup/injector/restore skills"
-      - "Replace 3.11's placeholder `agent = clean_trace:main` with proper subcommand dispatcher"
-      - "Introduce unified AgentError + exit_code framework"
-      - "WorkspaceLock holder write hardening: preserve current inode-safe in-place fd write; never atomic-replace run.lock"
-      - "Holder change scope LIMITED to atomicity/inode-safety + conservative-path tests; field structure unchanged (ProcessIdentity unification deferred to Phase 06 to avoid cross-phase rework)"
-      - "Establish test infrastructure: fake-workspace fixture"
-    deliverables:
-      - "src/agent/errors.py (AgentError base + per-error-class exit_code attribute; NOT CLI formatting; suggested exit codes: 1 generic, 2 validation, 3 integrity, 4 stale, 5 lock_busy, 6 execution_refused)"
-      - "src/agent/types.py (TypeAlias for SessionId, Combo, Option, Mode, TrustLevel, ScheduleSlot; use TypeAlias not NewType to avoid serialization friction)"
-      - "src/agent/skills/workspace_snapshot.py"
-      - "src/agent/skills/workspace_verify.py"
-      - "src/agent/skills/spec_backup.py"
-      - "src/agent/skills/spec_injector.py"
-      - "src/agent/skills/spec_restore.py"
-      - "src/agent/cli/__main__.py (unified dispatcher)"
-      - "WorkspaceLock holder write hardening: keep ftruncate+write+fsync through the already-flocked fd (inode-safe); NEVER atomic-replace run.lock (os.replace breaks flock inode binding); add conservative-path tests for crash/malformed/partial-write holder"
-      - "tests/fixtures/fake_workspace.py"
-    exit_criteria:
-      - "5 skills round-trip in unit tests"
-      - "`agent clean trace` / `agent doctor trace` still work after CLI reorganization"
-      - "spec hash verify catches one-byte mutation"
-      - "CLI catches AgentError uniformly and returns each error's exit_code"
-      - "run.lock inode stable across holder rewrites (flock survives concurrent second-acquire probe)"
-      - "crash-truncated / 0-byte / partial-YAML holder → read_holder reports unreadable → acquire raises WorkspaceBusyError + clean trace planner sets refusal_reason (conservative path tested)"
-      - "partial-write stale holder with no live flock (for example only 'pid: 1234\\npgid: 0\\ncreate_time: 1') is overwritten by a new successful acquire, and the new holder pid matches the acquiring process"
-    validation_plan: ["full pytest on Linux", "Ubuntu fcntl regression"]
-    note: "Default: keep single-file in-place holder write (inode-safe, verified). Do NOT split into a separate .holder.yaml preemptively — it adds two-file sync complexity + a new holder-deleted-but-lock-held inconsistency, for a low-probability crash already covered by the conservative busy path. Split only if a concrete scenario in this subtask requires it."
-    subtask_order:
-      - "4.1 errors.py + types.py"
-      - "4.2 WorkspaceLock holder hardening + conservative-path tests (lock-core semantics settled early)"
-      - "4.3 CLI dispatcher (depends on settled lock behavior)"
-      - "4.4 workspace / spec skills"
 
   - id: "06"
     title: "Process Management (runner + cleaner + monitor)"
@@ -506,8 +469,11 @@ cross_cutting:
       status: deferred
       resolves_in: "06"
     - id: "agent_cli_dispatcher_reorganization"
-      status: planned
-      resolves_in: "04"
+      status: resolved
+      resolved_in: "4.3"
+    - id: "spec_injector_non_string_combo_validation"
+      status: deferred
+      resolves_in: "07"
 
 # ============================================================
 # Phase quality gates
