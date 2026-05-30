@@ -38,3 +38,26 @@ chance to find the optimum, and no production `src/agent` files changed.
 Follow-up for 05.5.2: when adding `LocalMutationStrategy`, confirm it remains
 stuck in the local optimum for strategy reasons rather than escaping only due to
 noise luck.
+
+## Subtask 05.5.2 - MockLLM / LLMOnly / LocalMutation Baselines
+
+Added two more baselines and the controllable fake LLM needed for later
+comparisons:
+
+- `MockLLM`:
+  - `quality="good"` emits deterministic catalog-bounded plausible proposals
+    and can propose the known optimum.
+  - `quality="poor"` emits conflicts, unknown options, and repeats.
+- `LLMOnlyStrategy`:
+  - trusts mock LLM output without constraints, dedup, or memory.
+- `LocalMutationStrategy`:
+  - one-flip hill climber around the best successful combo.
+  - reaches `{-O3, -funroll-loops}` on the noiseless objective.
+  - evaluates `-fA` and `-fB` as individually worse.
+  - never proposes the `-fA`/`-fB` pair.
+- `RunResult` now reports unique combo count and duplicate trial rate.
+
+### Validation
+
+- Spike tests: 14 passed
+- Production regression suite: 451 passed

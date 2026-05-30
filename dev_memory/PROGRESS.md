@@ -1627,3 +1627,16 @@ Next action: generate patch artifacts, commit/push Subtask 05.5.1, then request 
 - Production `src/agent` remained unchanged.
 
 Next action: sync review records, then begin Subtask 05.5.2 MockLLM + LLMOnlyStrategy + LocalMutationStrategy baselines.
+
+## 2026-05-30T09:44:44Z - Phase 05.5 / Subtask 05.5.2 implemented
+
+- Implemented `MockLLM` with `quality="good"` and `quality="poor"`.
+- Added `LLMOnlyStrategy`, intentionally without memory, constraints, or dedup.
+- Added `LocalMutationStrategy`, a one-flip hill climber around the best successful combo.
+- Added duplicate-rate helpers to `RunResult`.
+- Verified local mutation gets stuck at `{-O3, -funroll-loops}` on the noiseless objective and never proposes the `-fA`/`-fB` pair.
+- UT results:
+  - `.venv/bin/python -m pytest spikes/05.5_integration_feasibility/tests -q` -> 14 passed.
+  - `.venv/bin/python -m pytest tests/ -q` -> 451 passed.
+
+Next action: generate patch artifacts, commit/push Subtask 05.5.2, then request external review.

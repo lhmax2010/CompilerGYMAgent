@@ -41,6 +41,17 @@ class RunResult:
     def infra_failure_count(self) -> int:
         return sum(1 for trial in self.trials if trial.result.outcome == "infra_failure")
 
+    @property
+    def unique_combo_count(self) -> int:
+        return len({trial.combo for trial in self.trials})
+
+    @property
+    def duplicate_trial_rate(self) -> float:
+        if not self.trials:
+            return 0.0
+        duplicates = len(self.trials) - self.unique_combo_count
+        return duplicates / len(self.trials)
+
 
 def run_strategy(
     strategy: SearchStrategy,

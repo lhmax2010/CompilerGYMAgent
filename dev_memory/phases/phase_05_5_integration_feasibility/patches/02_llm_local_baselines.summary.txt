@@ -1,0 +1,36 @@
+Subtask 05.5.2 - MockLLM / LLMOnly / LocalMutation Baselines
+
+Implemented the next two baselines for the 05.5 mock integration spike:
+
+- Added MockLLM:
+  - quality=good emits deterministic catalog-bounded plausible proposals
+  - quality=poor emits conflicts, unknown options, and repeated shallow guesses
+
+- Added LLMOnlyStrategy:
+  - delegates directly to MockLLM
+  - does not filter, dedup, constrain, or learn from history
+  - intentionally remains a weak baseline for later full-agent comparison
+
+- Added LocalMutationStrategy:
+  - one-flip hill climber around best successful combo
+  - starts from the empty combo
+  - explores one add/remove neighbor at a time
+  - cannot propose a two-option jump
+
+- Added RunResult helpers:
+  - unique_combo_count
+  - duplicate_trial_rate
+
+- Added tests showing:
+  - good MockLLM is deterministic and catalog-bounded
+  - poor MockLLM emits conflicts and unknown flags
+  - LLM-only trusts poor output and records failures/repeats
+  - good LLM-only can find the optimum but does not dedup or learn
+  - local mutation gets stuck at {-O3, -funroll-loops}
+  - local mutation evaluates -fA/-fB single additions as worse
+  - local mutation never proposes the -fA/-fB pair
+
+Validation:
+
+- .venv/bin/python -m pytest spikes/05.5_integration_feasibility/tests -q -> 14 passed
+- .venv/bin/python -m pytest tests/ -q -> 451 passed

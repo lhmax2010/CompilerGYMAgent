@@ -34,3 +34,28 @@ subtasks:
         status: done
       - item: "Ubuntu/Linux validation"
         status: done
+  - id: "05.5.2"
+    title: "MockLLM + LLMOnlyStrategy + LocalMutationStrategy baselines"
+    status: implementation_complete
+    implementation_commit: pending
+    review_status: pending
+    ubuntu_validation_status: pending
+    checklist:
+      - item: "Implement deterministic MockLLM with quality=good and quality=poor"
+        status: done
+      - item: "Implement LLMOnlyStrategy with no memory, constraints, or dedup"
+        status: done
+      - item: "Implement LocalMutationStrategy as a one-flip hill climber around best successful combo"
+        status: done
+      - item: "Add runner duplicate-rate summary helpers"
+        status: done
+      - item: "Test good MockLLM determinism and catalog-bounded proposals"
+        status: done
+      - item: "Test poor MockLLM conflicts, unknown options, and repeats"
+        status: done
+      - item: "Test LocalMutationStrategy gets stuck at the local optimum and never proposes the -fA/-fB pair"
+        status: done
+      - item: "Run spike tests and production regression tests"
+        status: done
+      - item: "Generate patch artifacts"
+        status: done

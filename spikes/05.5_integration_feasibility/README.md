@@ -25,7 +25,9 @@ benchmarks, bad experience, duplicate pressure, and crash/resume?
 
 - `option_ir.py`: minimal `OptionV0` IR and default option catalog.
 - `objective.py`: synthetic objective with a known second-order optimum.
-- `strategies.py`: initial `RandomStrategy` baseline and trial outcome record.
+- `mock_llm.py`: deterministic controllable fake LLM with good/poor quality.
+- `strategies.py`: random, LLM-only, and local-mutation baselines plus trial
+  outcome record.
 - `runner.py`: seeded plain Python strategy runner.
 - `tests/`: spike-only pytest coverage.
 

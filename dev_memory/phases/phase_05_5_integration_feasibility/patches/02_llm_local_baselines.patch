@@ -1,0 +1,611 @@
+diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index 91aabb4..07f950b 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -1,7 +1,7 @@
+ phase_id: phase_05_5_integration_feasibility
+ phase_title: "Integration Feasibility Mock Spike"
+ started_at: 2026-05-30T09:17:16Z
+-last_updated: 2026-05-30T09:41:38Z
++last_updated: 2026-05-30T09:44:44Z
+ target_milestone: "M1.5 (integration gate)"
+ related_requirements:
+   - REQUIREMENTS.md section 4.6
+@@ -74,4 +74,40 @@ subtasks:
+       spike_pytest: "7 passed in 0.01s"
+       production_pytest: "451 passed in 1.63s"
+       runner: "local .venv + pytest"
+-next_action: "Begin Subtask 05.5.2: MockLLM + LLMOnlyStrategy + LocalMutationStrategy baselines."
++  - id: "05.5.2"
++    title: "MockLLM + LLMOnlyStrategy + LocalMutationStrategy baselines"
++    status: implementation_complete
++    related_requirements:
++      - ROADMAP.yaml Phase 05.5 four-strategy comparison goal
++      - ROADMAP.yaml Phase 05.5 MockLLM good/poor goal
++      - ROADMAP.yaml Phase 05.5 second-order interaction exit criterion
++    files_created:
++      - spikes/05.5_integration_feasibility/mock_llm.py
++      - spikes/05.5_integration_feasibility/tests/test_llm_local_baselines.py
++    files_modified:
++      - spikes/05.5_integration_feasibility/strategies.py
++      - spikes/05.5_integration_feasibility/runner.py
++      - dev_memory/phases/phase_05_5_integration_feasibility/CHECKLIST.yaml
++      - dev_memory/phases/phase_05_5_integration_feasibility/REVIEW_NOTES.md
++      - dev_memory/phases/phase_05_5_integration_feasibility/SUMMARY.md
++      - dev_memory/phases/phase_05_5_integration_feasibility/UT_RESULTS.md
++      - dev_memory/spikes/05.5_integration_feasibility_findings.md
++      - dev_memory/PROGRESS.md
++    behavior_notes:
++      - "MockLLM quality=good emits catalog-bounded plausible proposals and can propose the known optimum."
++      - "MockLLM quality=poor emits conflicts, unknown options, and repeats."
++      - "LLMOnlyStrategy deliberately trusts MockLLM output without memory, constraints, or dedup."
++      - "LocalMutationStrategy is a one-flip hill climber around the best successful combo."
++      - "On the noiseless synthetic objective, LocalMutationStrategy gets stuck at {-O3, -funroll-loops} and never proposes the -fA/-fB pair."
++    ut_required: true
++    ut_passed: true
++    targeted_ut: "14 spike tests passed, 0 failed"
++    production_regression_ut: "451 production tests passed, 0 failed"
++    self_review_required: true
++    self_reviewed: true
++    patch_required: true
++    patch_file: dev_memory/phases/phase_05_5_integration_feasibility/patches/02_llm_local_baselines.patch
++    patch_generated: true
++    commit_required: true
++    commit_pending: true
++next_action: "Push Subtask 05.5.2 implementation range for Claude review."
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index 84cc917..ce7b9d4 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -1627,3 +1627,16 @@ Next action: generate patch artifacts, commit/push Subtask 05.5.1, then request
+ - Production `src/agent` remained unchanged.
+ 
+ Next action: sync review records, then begin Subtask 05.5.2 MockLLM + LLMOnlyStrategy + LocalMutationStrategy baselines.
++
++## 2026-05-30T09:44:44Z - Phase 05.5 / Subtask 05.5.2 implemented
++
++- Implemented `MockLLM` with `quality="good"` and `quality="poor"`.
++- Added `LLMOnlyStrategy`, intentionally without memory, constraints, or dedup.
++- Added `LocalMutationStrategy`, a one-flip hill climber around the best successful combo.
++- Added duplicate-rate helpers to `RunResult`.
++- Verified local mutation gets stuck at `{-O3, -funroll-loops}` on the noiseless objective and never proposes the `-fA`/`-fB` pair.
++- UT results:
++  - `.venv/bin/python -m pytest spikes/05.5_integration_feasibility/tests -q` -> 14 passed.
++  - `.venv/bin/python -m pytest tests/ -q` -> 451 passed.
++
++Next action: generate patch artifacts, commit/push Subtask 05.5.2, then request external review.
+diff --git a/dev_memory/phases/phase_05_5_integration_feasibility/CHECKLIST.yaml b/dev_memory/phases/phase_05_5_integration_feasibility/CHECKLIST.yaml
+index 3db003e..d426264 100644
+--- a/dev_memory/phases/phase_05_5_integration_feasibility/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_05_5_integration_feasibility/CHECKLIST.yaml
+@@ -34,3 +34,28 @@ subtasks:
+         status: done
+       - item: "Ubuntu/Linux validation"
+         status: done
++  - id: "05.5.2"
++    title: "MockLLM + LLMOnlyStrategy + LocalMutationStrategy baselines"
++    status: implementation_complete
++    implementation_commit: pending
++    review_status: pending
++    ubuntu_validation_status: pending
++    checklist:
++      - item: "Implement deterministic MockLLM with quality=good and quality=poor"
++        status: done
++      - item: "Implement LLMOnlyStrategy with no memory, constraints, or dedup"
++        status: done
++      - item: "Implement LocalMutationStrategy as a one-flip hill climber around best successful combo"
++        status: done
++      - item: "Add runner duplicate-rate summary helpers"
++        status: done
++      - item: "Test good MockLLM determinism and catalog-bounded proposals"
++        status: done
++      - item: "Test poor MockLLM conflicts, unknown options, and repeats"
++        status: done
++      - item: "Test LocalMutationStrategy gets stuck at the local optimum and never proposes the -fA/-fB pair"
++        status: done
++      - item: "Run spike tests and production regression tests"
++        status: done
++      - item: "Generate patch artifacts"
++        status: done
+diff --git a/dev_memory/phases/phase_05_5_integration_feasibility/REVIEW_NOTES.md b/dev_memory/phases/phase_05_5_integration_feasibility/REVIEW_NOTES.md
+index 03c9fae..39f4bda 100644
+--- a/dev_memory/phases/phase_05_5_integration_feasibility/REVIEW_NOTES.md
++++ b/dev_memory/phases/phase_05_5_integration_feasibility/REVIEW_NOTES.md
+@@ -42,3 +42,27 @@ Post-review validation:
+ - Spike tests: 7 passed
+ - Production regression suite: 451 passed
+ - Production `src/agent` changes: none
++
++## Subtask 05.5.2 - MockLLM / LLMOnly / LocalMutation Baselines
++
++Self-review checklist:
++
++- [x] Spike code remains isolated under `spikes/05.5_integration_feasibility/`.
++- [x] No production `src/agent/` files changed.
++- [x] `MockLLM(quality="good")` is deterministic and only emits catalog options.
++- [x] `MockLLM(quality="poor")` emits conflicts, unknown options, and repeated shallow guesses.
++- [x] `LLMOnlyStrategy` does not filter, dedup, or learn from history.
++- [x] `LocalMutationStrategy` mutates exactly one option around the best successful combo.
++- [x] Local mutation gets stuck at `{-O3, -funroll-loops}` on the noiseless objective.
++- [x] Local mutation tries `-fA` and `-fB` individually and observes they are worse.
++- [x] Local mutation never proposes the `-fA`/`-fB` pair in this baseline.
++- [x] Spike tests and production regression tests passed.
++
++Reviewer focus:
++
++- Confirm `LLMOnlyStrategy` is intentionally weak enough to be a meaningful
++  baseline, not a hidden full-agent implementation.
++- Confirm `LocalMutationStrategy` is a fair local-search baseline and not
++  artificially prevented from doing normal one-flip hill climbing.
++- Confirm the local-mutation trap is strategy-caused, not noise-caused, because
++  these tests use the noiseless objective.
+diff --git a/dev_memory/phases/phase_05_5_integration_feasibility/SUMMARY.md b/dev_memory/phases/phase_05_5_integration_feasibility/SUMMARY.md
+index 239c5e6..b9746bb 100644
+--- a/dev_memory/phases/phase_05_5_integration_feasibility/SUMMARY.md
++++ b/dev_memory/phases/phase_05_5_integration_feasibility/SUMMARY.md
+@@ -38,3 +38,26 @@ chance to find the optimum, and no production `src/agent` files changed.
+ Follow-up for 05.5.2: when adding `LocalMutationStrategy`, confirm it remains
+ stuck in the local optimum for strategy reasons rather than escaping only due to
+ noise luck.
++
++## Subtask 05.5.2 - MockLLM / LLMOnly / LocalMutation Baselines
++
++Added two more baselines and the controllable fake LLM needed for later
++comparisons:
++
++- `MockLLM`:
++  - `quality="good"` emits deterministic catalog-bounded plausible proposals
++    and can propose the known optimum.
++  - `quality="poor"` emits conflicts, unknown options, and repeats.
++- `LLMOnlyStrategy`:
++  - trusts mock LLM output without constraints, dedup, or memory.
++- `LocalMutationStrategy`:
++  - one-flip hill climber around the best successful combo.
++  - reaches `{-O3, -funroll-loops}` on the noiseless objective.
++  - evaluates `-fA` and `-fB` as individually worse.
++  - never proposes the `-fA`/`-fB` pair.
++- `RunResult` now reports unique combo count and duplicate trial rate.
++
++### Validation
++
++- Spike tests: 14 passed
++- Production regression suite: 451 passed
+diff --git a/dev_memory/phases/phase_05_5_integration_feasibility/UT_RESULTS.md b/dev_memory/phases/phase_05_5_integration_feasibility/UT_RESULTS.md
+index 2c57b4a..390b3e5 100644
+--- a/dev_memory/phases/phase_05_5_integration_feasibility/UT_RESULTS.md
++++ b/dev_memory/phases/phase_05_5_integration_feasibility/UT_RESULTS.md
+@@ -30,6 +30,36 @@ Result:
+ 451 passed in 1.63s
+ ```
+ 
++## 2026-05-30 - Subtask 05.5.2 MockLLM / LLMOnly / LocalMutation Baselines
++
++Environment:
++
++- Runner: local `.venv`
++- Python: `.venv/bin/python`
++- OS: Linux workspace
++
++Commands:
++
++```bash
++.venv/bin/python -m pytest spikes/05.5_integration_feasibility/tests -q
++```
++
++Result:
++
++```text
++14 passed in 0.02s
++```
++
++```bash
++.venv/bin/python -m pytest tests/ -q
++```
++
++Result:
++
++```text
++451 passed in 1.64s
++```
++
+ ### Post-review Ubuntu/Linux Validation
+ 
+ Claude review verdict: Approve.
+diff --git a/dev_memory/phases/phase_05_5_integration_feasibility/patches/02_llm_local_baselines.review.md b/dev_memory/phases/phase_05_5_integration_feasibility/patches/02_llm_local_baselines.review.md
+new file mode 100644
+index 0000000..ff9697a
+--- /dev/null
++++ b/dev_memory/phases/phase_05_5_integration_feasibility/patches/02_llm_local_baselines.review.md
+@@ -0,0 +1,43 @@
++# Self Review - Phase 05.5 / Subtask 05.5.2 LLM And Local Baselines
++
++## Scope
++
++This subtask adds two baseline strategy families for the 05.5 mock-only spike:
++`LLMOnlyStrategy` and `LocalMutationStrategy`. It does not implement the full
++agent, constraint layer, experience memory, or schedule logic.
++
++## Checks
++
++- Spike code remains isolated under `spikes/05.5_integration_feasibility/`.
++- No production `src/agent/` files changed.
++- `MockLLM(quality="good")` is deterministic and emits only known catalog
++  options.
++- `MockLLM(quality="poor")` emits conflicts, unknown flags, and repeats.
++- `LLMOnlyStrategy` does not filter or learn; it is intentionally weak.
++- `LocalMutationStrategy` performs normal one-flip local search around the best
++  successful combo.
++- On the noiseless objective, local mutation reaches `{-O3, -funroll-loops}`
++  and gets stuck there.
++- Local mutation evaluates single `-fA` and `-fB` additions as worse neighbors.
++- Local mutation never proposes the `-fA`/`-fB` pair, giving later full-agent
++  strategy a meaningful second-order comparison target.
++
++## Reviewer Focus
++
++- Confirm LLM-only is not secretly doing dedup/constraints/memory.
++- Confirm local mutation is a fair local-search baseline rather than
++  artificially crippled.
++- Confirm the local-mutation trap is strategy-caused on the noiseless objective,
++  not noise luck.
++
++## Validation
++
++```bash
++.venv/bin/python -m pytest spikes/05.5_integration_feasibility/tests -q
++# 14 passed in 0.02s
++```
++
++```bash
++.venv/bin/python -m pytest tests/ -q
++# 451 passed in 1.64s
++```
+diff --git a/dev_memory/phases/phase_05_5_integration_feasibility/patches/02_llm_local_baselines.summary.txt b/dev_memory/phases/phase_05_5_integration_feasibility/patches/02_llm_local_baselines.summary.txt
+new file mode 100644
+index 0000000..e792ccf
+--- /dev/null
++++ b/dev_memory/phases/phase_05_5_integration_feasibility/patches/02_llm_local_baselines.summary.txt
+@@ -0,0 +1,36 @@
++Subtask 05.5.2 - MockLLM / LLMOnly / LocalMutation Baselines
++
++Implemented the next two baselines for the 05.5 mock integration spike:
++
++- Added MockLLM:
++  - quality=good emits deterministic catalog-bounded plausible proposals
++  - quality=poor emits conflicts, unknown options, and repeated shallow guesses
++
++- Added LLMOnlyStrategy:
++  - delegates directly to MockLLM
++  - does not filter, dedup, constrain, or learn from history
++  - intentionally remains a weak baseline for later full-agent comparison
++
++- Added LocalMutationStrategy:
++  - one-flip hill climber around best successful combo
++  - starts from the empty combo
++  - explores one add/remove neighbor at a time
++  - cannot propose a two-option jump
++
++- Added RunResult helpers:
++  - unique_combo_count
++  - duplicate_trial_rate
++
++- Added tests showing:
++  - good MockLLM is deterministic and catalog-bounded
++  - poor MockLLM emits conflicts and unknown flags
++  - LLM-only trusts poor output and records failures/repeats
++  - good LLM-only can find the optimum but does not dedup or learn
++  - local mutation gets stuck at {-O3, -funroll-loops}
++  - local mutation evaluates -fA/-fB single additions as worse
++  - local mutation never proposes the -fA/-fB pair
++
++Validation:
++
++- .venv/bin/python -m pytest spikes/05.5_integration_feasibility/tests -q -> 14 passed
++- .venv/bin/python -m pytest tests/ -q -> 451 passed
+diff --git a/dev_memory/spikes/05.5_integration_feasibility_findings.md b/dev_memory/spikes/05.5_integration_feasibility_findings.md
+index 40915c2..7363c30 100644
+--- a/dev_memory/spikes/05.5_integration_feasibility_findings.md
++++ b/dev_memory/spikes/05.5_integration_feasibility_findings.md
+@@ -95,6 +95,27 @@ Review:
+ - Follow-up: re-check the `-fA`/`-fB` single-option penalty when
+   `LocalMutationStrategy` lands.
+ 
++### 2026-05-30 - Subtask 05.5.2 MockLLM / LLMOnly / LocalMutation
++
++Implemented:
++
++- `MockLLM` with `quality="good"` and `quality="poor"`.
++- `LLMOnlyStrategy`, which trusts mock LLM output without constraints or memory.
++- `LocalMutationStrategy`, a one-flip hill climber around the best successful
++  combo.
++- Duplicate-rate helpers on `RunResult`.
++
++Validation:
++
++- `LocalMutationStrategy` reaches the local optimum `{-O3, -funroll-loops}` on
++  the noiseless objective.
++- It evaluates `{-O3, -funroll-loops, -fA}` and
++  `{-O3, -funroll-loops, -fB}` as worse neighbors.
++- It never proposes the `-fA`/`-fB` pair, so the second-order-interaction
++  baseline is now meaningful for later full-agent comparison.
++- `spikes/05.5_integration_feasibility/tests`: 14 passed.
++- Production `tests/`: 451 passed.
++
+ ## Exit Criteria
+ 
+ - Full agent finds top-5% optimum within 30-50 rounds in at least 80% of seeds.
+diff --git a/spikes/05.5_integration_feasibility/README.md b/spikes/05.5_integration_feasibility/README.md
+index 213fcdf..943d41d 100644
+--- a/spikes/05.5_integration_feasibility/README.md
++++ b/spikes/05.5_integration_feasibility/README.md
+@@ -25,7 +25,9 @@ benchmarks, bad experience, duplicate pressure, and crash/resume?
+ 
+ - `option_ir.py`: minimal `OptionV0` IR and default option catalog.
+ - `objective.py`: synthetic objective with a known second-order optimum.
+-- `strategies.py`: initial `RandomStrategy` baseline and trial outcome record.
++- `mock_llm.py`: deterministic controllable fake LLM with good/poor quality.
++- `strategies.py`: random, LLM-only, and local-mutation baselines plus trial
++  outcome record.
+ - `runner.py`: seeded plain Python strategy runner.
+ - `tests/`: spike-only pytest coverage.
+ 
+diff --git a/spikes/05.5_integration_feasibility/mock_llm.py b/spikes/05.5_integration_feasibility/mock_llm.py
+new file mode 100644
+index 0000000..fa99723
+--- /dev/null
++++ b/spikes/05.5_integration_feasibility/mock_llm.py
+@@ -0,0 +1,58 @@
++"""Deterministic mock LLM for the 05.5 integration feasibility spike."""
++
++from __future__ import annotations
++
++import random
++from dataclasses import dataclass
++from typing import Literal
++
++from strategies import TrialOutcome
++
++
++MockLLMQuality = Literal["good", "poor"]
++
++
++@dataclass(frozen=True)
++class MockLLM:
++    """Controllable fake proposer.
++
++    `good` produces mostly plausible catalog options and sometimes the known
++    optimum. `poor` intentionally emits conflicts, unknown flags, and repeated
++    shallow guesses so downstream fallback behavior can be tested.
++    """
++
++    quality: MockLLMQuality = "good"
++
++    def propose(
++        self,
++        history: list[TrialOutcome],
++        rng: random.Random,
++    ) -> frozenset[str]:
++        if self.quality == "good":
++            return frozenset(rng.choice(_good_proposals()))
++        if self.quality == "poor":
++            return frozenset(rng.choice(_poor_proposals(history)))
++        raise ValueError(f"unknown MockLLM quality: {self.quality!r}")
++
++
++def _good_proposals() -> tuple[tuple[str, ...], ...]:
++    return (
++        ("-O3",),
++        ("-O3", "-funroll-loops"),
++        ("-O3", "-fA", "-fB"),
++        ("-O3", "-funroll-loops", "-fA", "-fB"),
++        ("-O3", "-funroll-loops", "-flto"),
++        ("-O3", "-fno-plt"),
++    )
++
++
++def _poor_proposals(history: list[TrialOutcome]) -> tuple[tuple[str, ...], ...]:
++    repeated = tuple(sorted(history[-1].combo)) if history else ("-O3", "-Os")
++    return (
++        ("-O3", "-Os"),
++        ("-fimaginary",),
++        ("-funroll-loops", "-fmade-up"),
++        ("-ffast-math",),
++        ("-O3", "-Os", "-fimaginary"),
++        repeated,
++    )
+diff --git a/spikes/05.5_integration_feasibility/runner.py b/spikes/05.5_integration_feasibility/runner.py
+index a042cb2..ac2b45f 100644
+--- a/spikes/05.5_integration_feasibility/runner.py
++++ b/spikes/05.5_integration_feasibility/runner.py
+@@ -41,6 +41,17 @@ class RunResult:
+     def infra_failure_count(self) -> int:
+         return sum(1 for trial in self.trials if trial.result.outcome == "infra_failure")
+ 
++    @property
++    def unique_combo_count(self) -> int:
++        return len({trial.combo for trial in self.trials})
++
++    @property
++    def duplicate_trial_rate(self) -> float:
++        if not self.trials:
++            return 0.0
++        duplicates = len(self.trials) - self.unique_combo_count
++        return duplicates / len(self.trials)
++
+ 
+ def run_strategy(
+     strategy: SearchStrategy,
+diff --git a/spikes/05.5_integration_feasibility/strategies.py b/spikes/05.5_integration_feasibility/strategies.py
+index 929110b..80a5558 100644
+--- a/spikes/05.5_integration_feasibility/strategies.py
++++ b/spikes/05.5_integration_feasibility/strategies.py
+@@ -53,3 +53,62 @@ class RandomStrategy:
+             return frozenset(selected)
+         fallback = rng.choice(raw_options(self.options))
+         return frozenset({fallback})
++
++
++@dataclass(frozen=True)
++class LLMOnlyStrategy:
++    """Baseline that trusts MockLLM output without memory or constraints."""
++
++    llm: object
++
++    def propose(
++        self,
++        history: list[TrialOutcome],
++        rng: random.Random,
++    ) -> frozenset[str]:
++        propose = getattr(self.llm, "propose")
++        return frozenset(propose(history, rng))
++
++
++@dataclass(frozen=True)
++class LocalMutationStrategy:
++    """One-flip hill climber around the best successful combo.
++
++    This baseline intentionally cannot propose two simultaneous additions, so it
++    should get stuck before discovering the `-fA` + `-fB` interaction.
++    """
++
++    options: tuple[OptionV0, ...]
++    start_combo: frozenset[str] = frozenset()
++
++    def propose(
++        self,
++        history: list[TrialOutcome],
++        rng: random.Random,
++    ) -> frozenset[str]:
++        del rng
++        tried = {trial.combo for trial in history}
++        center = self._best_successful_combo(history)
++        for neighbor in self._one_flip_neighbors(center):
++            if neighbor not in tried:
++                return neighbor
++        return center
++
++    def _best_successful_combo(
++        self,
++        history: list[TrialOutcome],
++    ) -> frozenset[str]:
++        successes = [trial for trial in history if trial.result.succeeded]
++        if not successes:
++            return self.start_combo
++        best = max(successes, key=lambda trial: trial.result.score or float("-inf"))
++        return best.combo
++
++    def _one_flip_neighbors(self, combo: frozenset[str]) -> tuple[frozenset[str], ...]:
++        neighbors: list[frozenset[str]] = []
++        for option in raw_options(self.options):
++            if option in combo:
++                neighbors.append(frozenset(value for value in combo if value != option))
++            else:
++                neighbors.append(frozenset((*combo, option)))
++        return tuple(sorted(neighbors, key=lambda item: tuple(sorted(item))))
+diff --git a/spikes/05.5_integration_feasibility/tests/test_llm_local_baselines.py b/spikes/05.5_integration_feasibility/tests/test_llm_local_baselines.py
+new file mode 100644
+index 0000000..d337bda
+--- /dev/null
++++ b/spikes/05.5_integration_feasibility/tests/test_llm_local_baselines.py
+@@ -0,0 +1,101 @@
++from __future__ import annotations
++
++import random
++
++from mock_llm import MockLLM
++from objective import SyntheticObjective
++from option_ir import DEFAULT_OPTIONS, raw_options
++from runner import run_strategy
++from strategies import LLMOnlyStrategy, LocalMutationStrategy
++
++
++def objective_without_noise() -> SyntheticObjective:
++    return SyntheticObjective(noise_sigma=0.0, infra_fail_rate=0.0)
++
++
++def test_mock_llm_good_is_seed_deterministic_and_catalog_bounded() -> None:
++    llm = MockLLM(quality="good")
++
++    first = [llm.propose([], random.Random(seed)) for seed in range(12)]
++    second = [llm.propose([], random.Random(seed)) for seed in range(12)]
++    known = set(raw_options(DEFAULT_OPTIONS))
++
++    assert first == second
++    assert all(combo <= known for combo in first)
++    assert objective_without_noise().known_optimum in first
++
++
++def test_mock_llm_poor_emits_conflicts_and_unknown_options() -> None:
++    llm = MockLLM(quality="poor")
++    proposals = [llm.propose([], random.Random(seed)) for seed in range(20)]
++    known = set(raw_options(DEFAULT_OPTIONS))
++
++    assert any({"-O3", "-Os"} <= combo for combo in proposals)
++    assert any(combo - known for combo in proposals)
++
++
++def test_llm_only_strategy_trusts_poor_llm_without_filtering() -> None:
++    objective = objective_without_noise()
++    strategy = LLMOnlyStrategy(MockLLM(quality="poor"))
++
++    result = run_strategy(strategy, objective, rounds=18, seed=5)
++
++    assert result.compile_failed_count > 0
++    assert any("-fimaginary" in trial.combo for trial in result.trials)
++    assert result.duplicate_trial_rate > 0.0
++
++
++def test_llm_only_good_can_find_optimum_but_is_not_memory_driven() -> None:
++    objective = objective_without_noise()
++    strategy = LLMOnlyStrategy(MockLLM(quality="good"))
++
++    result = run_strategy(strategy, objective, rounds=24, seed=9)
++
++    assert any(trial.combo == objective.known_optimum for trial in result.trials)
++    assert result.best_trial is not None
++    assert result.best_trial.combo == objective.known_optimum
++    assert result.duplicate_trial_rate > 0.0
++
++
++def test_local_mutation_gets_stuck_at_single_flip_local_optimum() -> None:
++    objective = objective_without_noise()
++    strategy = LocalMutationStrategy(DEFAULT_OPTIONS)
++
++    result = run_strategy(strategy, objective, rounds=40, seed=1)
++
++    assert result.best_trial is not None
++    assert result.best_trial.combo == frozenset({"-O3", "-funroll-loops"})
++    assert result.best_score == 108.0
++    assert result.best_score < objective.optimum_score(module="core")
++    assert objective.known_optimum not in {trial.combo for trial in result.trials}
++
++
++def test_local_mutation_evaluates_single_ab_neighbors_as_worse() -> None:
++    objective = objective_without_noise()
++    strategy = LocalMutationStrategy(DEFAULT_OPTIONS)
++
++    result = run_strategy(strategy, objective, rounds=40, seed=1)
++    scores_by_combo = {
++        trial.combo: trial.result.score
++        for trial in result.successful_trials
++    }
++    local_optimum = frozenset({"-O3", "-funroll-loops"})
++    with_a = frozenset({"-O3", "-funroll-loops", "-fA"})
++    with_b = frozenset({"-O3", "-funroll-loops", "-fB"})
++
++    assert scores_by_combo[with_a] < scores_by_combo[local_optimum]
++    assert scores_by_combo[with_b] < scores_by_combo[local_optimum]
++    assert all(
++        not {"-fA", "-fB"} <= trial.combo
++        for trial in result.trials
++    )
++
++
++def test_local_mutation_history_is_seed_stable() -> None:
++    objective = objective_without_noise()
++    strategy = LocalMutationStrategy(DEFAULT_OPTIONS)
++
++    first = run_strategy(strategy, objective, rounds=20, seed=11)
++    second = run_strategy(strategy, objective, rounds=20, seed=99)
++
++    assert first.trials == second.trials

@@ -42,3 +42,27 @@ Post-review validation:
 - Spike tests: 7 passed
 - Production regression suite: 451 passed
 - Production `src/agent` changes: none
+
+## Subtask 05.5.2 - MockLLM / LLMOnly / LocalMutation Baselines
+
+Self-review checklist:
+
+- [x] Spike code remains isolated under `spikes/05.5_integration_feasibility/`.
+- [x] No production `src/agent/` files changed.
+- [x] `MockLLM(quality="good")` is deterministic and only emits catalog options.
+- [x] `MockLLM(quality="poor")` emits conflicts, unknown options, and repeated shallow guesses.
+- [x] `LLMOnlyStrategy` does not filter, dedup, or learn from history.
+- [x] `LocalMutationStrategy` mutates exactly one option around the best successful combo.
+- [x] Local mutation gets stuck at `{-O3, -funroll-loops}` on the noiseless objective.
+- [x] Local mutation tries `-fA` and `-fB` individually and observes they are worse.
+- [x] Local mutation never proposes the `-fA`/`-fB` pair in this baseline.
+- [x] Spike tests and production regression tests passed.
+
+Reviewer focus:
+
+- Confirm `LLMOnlyStrategy` is intentionally weak enough to be a meaningful
+  baseline, not a hidden full-agent implementation.
+- Confirm `LocalMutationStrategy` is a fair local-search baseline and not
+  artificially prevented from doing normal one-flip hill climbing.
+- Confirm the local-mutation trap is strategy-caused, not noise-caused, because
+  these tests use the noiseless objective.
