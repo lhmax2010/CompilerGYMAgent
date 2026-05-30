@@ -6,10 +6,11 @@ started_at: 2026-05-30T09:17:16Z
 subtasks:
   - id: "05.5.1"
     title: "Synthetic objective + OptionV0 IR + random runner baseline"
-    status: implementation_complete
-    implementation_commit: pending
-    review_status: pending
-    ubuntu_validation_status: pending
+    status: done
+    implementation_commit: c75b150
+    review_status: approve
+    ubuntu_validation_status: passed
+    sync_commit: pending
     checklist:
       - item: "Keep all spike code outside production src/agent"
         status: done
@@ -28,4 +29,8 @@ subtasks:
       - item: "Run spike tests and production regression tests"
         status: done
       - item: "Generate patch artifacts"
+        status: done
+      - item: "Claude review approve"
+        status: done
+      - item: "Ubuntu/Linux validation"
         status: done

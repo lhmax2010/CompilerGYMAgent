@@ -26,3 +26,19 @@ Reviewer focus:
   baseline before the constraint layer lands.
 - Confirm the first subtask's narrow scope is enough foundation for later
   LLM-only/local-mutation/full-agent strategy comparisons.
+
+### External Review
+
+Claude verdict: Approve.
+
+Findings: no Critical / High / Medium findings. Low-1 noted that `-fA`/`-fB`
+single-option penalty (-1) is inside the default benchmark noise
+(`noise_sigma=2.0`). This is acceptable for now and should be re-checked when
+the local-mutation baseline lands, because local mutation must not escape the
+local optimum only by noise luck.
+
+Post-review validation:
+
+- Spike tests: 7 passed
+- Production regression suite: 451 passed
+- Production `src/agent` changes: none

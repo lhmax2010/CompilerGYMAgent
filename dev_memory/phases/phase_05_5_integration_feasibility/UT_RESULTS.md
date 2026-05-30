@@ -29,3 +29,29 @@ Result:
 ```text
 451 passed in 1.63s
 ```
+
+### Post-review Ubuntu/Linux Validation
+
+Claude review verdict: Approve.
+
+Commands:
+
+```bash
+.venv/bin/python -m pytest spikes/05.5_integration_feasibility/tests -q
+```
+
+Result:
+
+```text
+7 passed in 0.01s
+```
+
+```bash
+.venv/bin/python -m pytest tests/ -q
+```
+
+Result:
+
+```text
+451 passed in 1.63s
+```
