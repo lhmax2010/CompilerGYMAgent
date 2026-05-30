@@ -3,45 +3,42 @@
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
-from typing import Sequence, TextIO
+from typing import Any, Sequence, TextIO
 
-from agent.config import ConfigLoadError, load_config
+from agent.config import load_config
 from agent.fs_memory import namespace_layout_for_config
 from agent.trace_cleanup import (
-    CleanExecutionRefusedError,
     CleanPlan,
-    StaleCleanPlanError,
     compute_clean_plan,
     execute_clean_plan,
 )
-from agent.workspace_lock import WorkspaceLockError
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    parser = build_parser()
-    args = parser.parse_args(argv)
-    try:
-        return args.func(args, stdout=sys.stdout, stderr=sys.stderr)
-    except (ConfigLoadError, CleanExecutionRefusedError, StaleCleanPlanError) as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 2
-    except WorkspaceLockError as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 3
+    from agent.cli.__main__ import main as dispatch_main
+
+    return dispatch_main(argv)
 
 
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="agent")
-    subcommands = parser.add_subparsers(dest="command", required=True)
-
+def register_subcommands(subcommands: Any) -> None:
     clean_parser = subcommands.add_parser("clean")
     clean_subcommands = clean_parser.add_subparsers(
         dest="clean_command",
         required=True,
     )
-    clean_trace = clean_subcommands.add_parser("trace")
+    register_clean_subcommands(clean_subcommands)
+
+    doctor_parser = subcommands.add_parser("doctor")
+    doctor_subcommands = doctor_parser.add_subparsers(
+        dest="doctor_command",
+        required=True,
+    )
+    register_doctor_subcommands(doctor_subcommands)
+
+
+def register_clean_subcommands(subcommands: Any) -> None:
+    clean_trace = subcommands.add_parser("trace")
     _add_trace_plan_args(clean_trace)
     clean_trace.add_argument(
         "--force-clean-inactive-only",
@@ -60,14 +57,17 @@ def build_parser() -> argparse.ArgumentParser:
     )
     clean_trace.set_defaults(func=_cmd_clean_trace)
 
-    doctor_parser = subcommands.add_parser("doctor")
-    doctor_subcommands = doctor_parser.add_subparsers(
-        dest="doctor_command",
-        required=True,
-    )
-    doctor_trace = doctor_subcommands.add_parser("trace")
+
+def register_doctor_subcommands(subcommands: Any) -> None:
+    doctor_trace = subcommands.add_parser("trace")
     _add_trace_plan_args(doctor_trace)
     doctor_trace.set_defaults(func=_cmd_doctor_trace)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="agent")
+    subcommands = parser.add_subparsers(dest="command", required=True)
+    register_subcommands(subcommands)
     return parser
 
 

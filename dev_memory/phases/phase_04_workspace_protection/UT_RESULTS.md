@@ -138,3 +138,43 @@ Result:
 ```text
 422 passed in 1.50s
 ```
+
+## 2026-05-30 - Subtask 4.3 CLI Dispatcher
+
+Environment:
+
+- Runner: local `.venv`
+- Python: `.venv/bin/python`
+- OS: Linux workspace
+
+Commands:
+
+```bash
+.venv/bin/python -m pytest tests/test_cli_clean_trace.py -q
+```
+
+Result:
+
+```text
+10 passed in 0.54s
+```
+
+```bash
+.venv/bin/python -m pytest tests/ -q
+```
+
+Result:
+
+```text
+427 passed in 2.39s
+```
+
+Smoke checks:
+
+```bash
+.venv/bin/python -m agent.cli --help
+.venv/bin/agent clean trace --help
+.venv/bin/agent doctor trace --help
+```
+
+Result: all exited 0 and rendered help text.

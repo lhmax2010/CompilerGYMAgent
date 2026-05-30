@@ -1,0 +1,561 @@
+diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index 65b2fa0..f00e561 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -1,7 +1,7 @@
+ phase_id: phase_04_workspace_protection
+ phase_title: "Workspace Protection Skills + CLI Entrypoint Skeleton"
+ started_at: 2026-05-30T00:59:41Z
+-last_updated: 2026-05-30T02:20:06Z
++last_updated: 2026-05-30T02:23:04Z
+ target_milestone: M1
+ related_requirements:
+   - REQUIREMENTS.md section 4.7.1
+@@ -94,4 +94,37 @@ subtasks:
+       full_pytest: "422 passed in 1.50s"
+       linux_fcntl_test: "included in full pytest run and test_workspace_lock.py"
+       runner: "local .venv + pytest"
+-next_action: "Begin Subtask 4.3: CLI dispatcher with clean/doctor trace registration."
++  - id: "4.3"
++    title: "Unified CLI dispatcher for clean/doctor trace commands"
++    status: implementation_complete
++    related_requirements:
++      - ROADMAP.yaml Phase 04 CLI Entrypoint Skeleton deliverable
++      - ROADMAP.yaml Phase 04 AgentError exit-code CLI contract
++      - REQUIREMENTS.md section 4.14
++    files_created:
++      - src/agent/cli/__main__.py
++    files_modified:
++      - pyproject.toml
++      - src/agent/cli/clean_trace.py
++      - tests/test_cli_clean_trace.py
++    behavior_notes:
++      - "Console script now points to agent.cli.__main__:main."
++      - "Unified dispatcher owns root parser and catches AgentError using class exit_code."
++      - "clean_trace.py now registers clean trace / doctor trace subcommands and keeps a compatibility main() shim."
++      - "Existing clean trace dry-run/execute and doctor trace behavior is preserved."
++    ut_required: true
++    ut_passed: true
++    targeted_ut: "10 CLI tests passed, 0 failed"
++    full_ut: "427 passed, 0 failed"
++    smoke_tests:
++      module_help: ".venv/bin/python -m agent.cli --help -> exit 0"
++      clean_trace_help: ".venv/bin/agent clean trace --help -> exit 0"
++      doctor_trace_help: ".venv/bin/agent doctor trace --help -> exit 0"
++    self_review_required: true
++    self_reviewed: true
++    patch_required: true
++    patch_file: dev_memory/phases/phase_04_workspace_protection/patches/03_cli_dispatcher.patch
++    patch_generated: true
++    commit_required: true
++    commit_pending: true
++next_action: "Push Subtask 4.3 implementation range for Claude review."
+diff --git a/dev_memory/DECISIONS.md b/dev_memory/DECISIONS.md
+index bb9a10a..1d43392 100644
+--- a/dev_memory/DECISIONS.md
++++ b/dev_memory/DECISIONS.md
+@@ -700,3 +700,15 @@ Decision records must include:
+   - Make `AgentError` inherit directly from `Exception`, which would satisfy the minimal shape but break existing `RuntimeError` catches.
+   - Delay the shared base until Phase 10 CLI formatting, which would require later migrations across more modules.
+   - Use `NewType` for `SessionId`/`Combo`/mode aliases, which adds runtime wrapping friction without enough benefit for the current serialization-heavy code.
++
++## 2026-05-30T02:23:04Z - CLI dispatcher owns root parser and AgentError handling
++
++- affected_requirement:
++  - ROADMAP.yaml Phase 04 CLI Entrypoint Skeleton
++  - REQUIREMENTS.md section 4.14
++- decision: Move the `agent` console script to `agent.cli.__main__:main`. The dispatcher owns the root parser, registers feature subcommands, catches `AgentError` once, and returns each error's `exit_code`. Feature modules such as `clean_trace.py` register their subcommands and implement command handlers, but do not own global error handling.
++- rationale: A single dispatcher prevents every command family from growing its own parser root and exception ladder. It also lets Phase 04 use the new `AgentError.exit_code` contract immediately while keeping Phase 10's richer CLI formatting separate.
++- alternatives_considered:
++  - Keep `agent = agent.cli.clean_trace:main`, which would preserve the Phase 03 placeholder and force future run/status/pause commands to be bolted onto a trace cleanup module.
++  - Put `AgentError` catches in each command module, which would duplicate global behavior and risk inconsistent exit codes.
++  - Remove `clean_trace.main()` immediately, which would break existing tests/imports for little benefit; a compatibility shim keeps the migration gentle.
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index cba1fee..f6efe3c 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -47,6 +47,20 @@ Next action: generate Subtask 4.2 patch artifacts, commit, push, and send the ra
+ 
+ Next action: commit the 4.2 validation sync, then begin Subtask 4.3 CLI dispatcher.
+ 
++## 2026-05-30T02:23:04Z - Phase 04 / Subtask 4.3 implementation completed
++
++- Added `src/agent/cli/__main__.py` as the unified CLI dispatcher.
++- Updated `pyproject.toml` so the `agent` console script points to `agent.cli.__main__:main`.
++- Refactored `clean_trace.py` to register clean/doctor trace subcommands while keeping command behavior unchanged.
++- Kept `agent.cli.clean_trace.main()` as a compatibility shim that delegates to the dispatcher.
++- Centralized `AgentError` handling in the dispatcher and return `exc.exit_code`.
++- Added CLI tests for dispatcher behavior, legacy shim, help smoke, script target, and AgentError exit-code mapping.
++- Targeted UT passed: `.venv/bin/python -m pytest tests/test_cli_clean_trace.py -q` -> 10 passed.
++- Full UT passed: `.venv/bin/python -m pytest tests/ -q` -> 427 passed.
++- Help smoke passed for `python -m agent.cli --help`, `agent clean trace --help`, and `agent doctor trace --help`.
++
++Next action: generate Subtask 4.3 patch artifacts, commit, push, and send the range for Claude review.
++
+ ## 2026-05-06T08:42:41Z - Project kickoff
+ 
+ - Read `doc/USER_REQUIREMENTS.md` in full.
+diff --git a/dev_memory/phases/phase_04_workspace_protection/CHECKLIST.yaml b/dev_memory/phases/phase_04_workspace_protection/CHECKLIST.yaml
+index 6e42847..4e9712c 100644
+--- a/dev_memory/phases/phase_04_workspace_protection/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_04_workspace_protection/CHECKLIST.yaml
+@@ -54,3 +54,28 @@ subtasks:
+         status: done
+       - item: "Ubuntu/Linux validation"
+         status: done
++  - id: "4.3"
++    title: "CLI dispatcher with clean/doctor trace registration"
++    status: implementation_complete
++    implementation_commit: pending
++    review_status: pending
++    ubuntu_validation_status: pending
++    checklist:
++      - item: "Add src/agent/cli/__main__.py unified dispatcher"
++        status: done
++      - item: "Move root parser ownership out of clean_trace.py while preserving clean trace and doctor trace commands"
++        status: done
++      - item: "Catch AgentError once and return exc.exit_code"
++        status: done
++      - item: "Update pyproject.toml project script to agent.cli.__main__:main"
++        status: done
++      - item: "Keep clean_trace.main compatibility shim"
++        status: done
++      - item: "Add CLI regression tests for dispatcher, help, script target, and AgentError exit codes"
++        status: done
++      - item: "Run targeted and full unit tests"
++        status: done
++      - item: "Run clean/doctor trace help smoke checks"
++        status: done
++      - item: "Generate patch artifacts"
++        status: done
+diff --git a/dev_memory/phases/phase_04_workspace_protection/REVIEW_NOTES.md b/dev_memory/phases/phase_04_workspace_protection/REVIEW_NOTES.md
+index 3908dde..f38c4cb 100644
+--- a/dev_memory/phases/phase_04_workspace_protection/REVIEW_NOTES.md
++++ b/dev_memory/phases/phase_04_workspace_protection/REVIEW_NOTES.md
+@@ -75,3 +75,27 @@ Post-review validation:
+ 
+ - `tests/test_workspace_lock.py`: 35 passed
+ - Full suite: 422 passed
++
++## Subtask 4.3 - CLI Dispatcher
++
++Self-review checklist:
++
++- [x] `pyproject.toml` script target points to `agent.cli.__main__:main`.
++- [x] Root parser and global error handling live in `agent.cli.__main__`.
++- [x] Dispatcher catches `AgentError` once and returns `exc.exit_code`.
++- [x] `clean_trace.py` remains responsible for clean/doctor trace command
++  registration and command implementations.
++- [x] `clean_trace.main()` remains a compatibility shim.
++- [x] Existing dry-run default for `agent clean trace` is preserved.
++- [x] Existing `agent doctor trace` behavior is preserved.
++- [x] Help smoke passes for root, clean trace, and doctor trace.
++- [x] Targeted CLI tests passed.
++- [x] Full unit suite passed.
++
++Reviewer focus:
++
++- Confirm keeping `clean_trace.main()` as a compatibility shim is desirable for
++  old imports while the console script moves to the dispatcher.
++- Confirm `AgentError` catch belongs only in the dispatcher, not in individual
++  command modules.
++- Confirm no Phase 10-style CLI formatting crept into this subtask.
+diff --git a/dev_memory/phases/phase_04_workspace_protection/SUMMARY.md b/dev_memory/phases/phase_04_workspace_protection/SUMMARY.md
+index 28117fa..4868d7d 100644
+--- a/dev_memory/phases/phase_04_workspace_protection/SUMMARY.md
++++ b/dev_memory/phases/phase_04_workspace_protection/SUMMARY.md
+@@ -58,3 +58,35 @@ Locked down the three-way A.1 decision without changing production lock code.
+ - `tests/test_workspace_lock.py`: 35 passed
+ - `tests/test_trace_cleanup.py`: 20 passed
+ - Full test suite: 422 passed
++
++## Subtask 4.3 - CLI Dispatcher
++
++Replaced the temporary `agent = agent.cli.clean_trace:main` script target with
++a unified dispatcher while preserving the existing trace clean/doctor commands.
++
++### Changes
++
++- Added `src/agent/cli/__main__.py` as the root CLI dispatcher.
++- Updated `pyproject.toml` so `agent` points to `agent.cli.__main__:main`.
++- Refactored `clean_trace.py` into subcommand registration helpers plus the
++  existing clean/doctor trace command implementations.
++- Kept `agent.cli.clean_trace.main()` as a compatibility shim that delegates to
++  the new dispatcher.
++- Centralized `AgentError` handling in the dispatcher:
++  `except AgentError as exc: return exc.exit_code`.
++- Added CLI tests for:
++  - existing dry-run / execute / doctor behavior
++  - legacy `clean_trace.main` compatibility
++  - dispatcher `AgentError.exit_code` behavior
++  - help smoke
++  - pyproject script target
++  - `python -m agent.cli --help`
++
++### Validation
++
++- `tests/test_cli_clean_trace.py`: 10 passed
++- Full test suite: 427 passed
++- Help smoke:
++  - `.venv/bin/python -m agent.cli --help`
++  - `.venv/bin/agent clean trace --help`
++  - `.venv/bin/agent doctor trace --help`
+diff --git a/dev_memory/phases/phase_04_workspace_protection/UT_RESULTS.md b/dev_memory/phases/phase_04_workspace_protection/UT_RESULTS.md
+index 62f47f2..c7b6024 100644
+--- a/dev_memory/phases/phase_04_workspace_protection/UT_RESULTS.md
++++ b/dev_memory/phases/phase_04_workspace_protection/UT_RESULTS.md
+@@ -138,3 +138,43 @@ Result:
+ ```text
+ 422 passed in 1.50s
+ ```
++
++## 2026-05-30 - Subtask 4.3 CLI Dispatcher
++
++Environment:
++
++- Runner: local `.venv`
++- Python: `.venv/bin/python`
++- OS: Linux workspace
++
++Commands:
++
++```bash
++.venv/bin/python -m pytest tests/test_cli_clean_trace.py -q
++```
++
++Result:
++
++```text
++10 passed in 0.54s
++```
++
++```bash
++.venv/bin/python -m pytest tests/ -q
++```
++
++Result:
++
++```text
++427 passed in 2.39s
++```
++
++Smoke checks:
++
++```bash
++.venv/bin/python -m agent.cli --help
++.venv/bin/agent clean trace --help
++.venv/bin/agent doctor trace --help
++```
++
++Result: all exited 0 and rendered help text.
+diff --git a/dev_memory/phases/phase_04_workspace_protection/patches/03_cli_dispatcher.review.md b/dev_memory/phases/phase_04_workspace_protection/patches/03_cli_dispatcher.review.md
+new file mode 100644
+index 0000000..ed1fc04
+--- /dev/null
++++ b/dev_memory/phases/phase_04_workspace_protection/patches/03_cli_dispatcher.review.md
+@@ -0,0 +1,30 @@
++# Self Review - Subtask 4.3 CLI Dispatcher
++
++## Scope
++
++This patch replaces the Phase 03 placeholder console-script target with a
++unified CLI dispatcher. It does not add new user commands beyond preserving the
++existing `clean trace` and `doctor trace` surfaces.
++
++## Checks
++
++- `pyproject.toml` now points `agent` to `agent.cli.__main__:main`.
++- `agent.cli.__main__` owns:
++  - root `argparse.ArgumentParser`
++  - subcommand registration orchestration
++  - single `AgentError` catch returning `exc.exit_code`
++- `agent.cli.clean_trace` owns:
++  - clean trace / doctor trace subcommand registration
++  - existing command handlers
++  - rendering helpers
++- `agent.cli.clean_trace.main()` remains as a compatibility shim.
++- `agent clean trace` still defaults to dry-run.
++- `agent clean trace --yes` still executes.
++- `agent doctor trace` still renders a read-only plan.
++- Help smoke passes for root, clean trace, and doctor trace.
++
++## Residual Risk
++
++The dispatcher still uses argparse's default help/error formatting. Richer
++formatting, central CLI error messages, and user-facing suggestions remain
++Phase 10 work per ROADMAP.
+diff --git a/dev_memory/phases/phase_04_workspace_protection/patches/03_cli_dispatcher.summary.txt b/dev_memory/phases/phase_04_workspace_protection/patches/03_cli_dispatcher.summary.txt
+new file mode 100644
+index 0000000..5df70d7
+--- /dev/null
++++ b/dev_memory/phases/phase_04_workspace_protection/patches/03_cli_dispatcher.summary.txt
+@@ -0,0 +1,16 @@
++Subtask 4.3 - CLI dispatcher
++
++Implemented:
++- Added src/agent/cli/__main__.py as the unified CLI dispatcher.
++- Updated pyproject.toml so the agent console script points to agent.cli.__main__:main.
++- Refactored clean_trace.py into clean/doctor trace subcommand registration helpers plus existing command handlers.
++- Kept agent.cli.clean_trace.main() as a compatibility shim.
++- Centralized AgentError handling in the dispatcher and return exc.exit_code.
++- Added CLI tests for dispatcher behavior, legacy shim, help smoke, pyproject script target, module execution, and AgentError exit-code mapping.
++
++Validation:
++- .venv/bin/python -m pytest tests/test_cli_clean_trace.py -q -> 10 passed
++- .venv/bin/python -m pytest tests/ -q -> 427 passed
++- .venv/bin/python -m agent.cli --help -> exit 0
++- .venv/bin/agent clean trace --help -> exit 0
++- .venv/bin/agent doctor trace --help -> exit 0
+diff --git a/pyproject.toml b/pyproject.toml
+index be6f33a..cb7139e 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -15,7 +15,7 @@ dependencies = [
+ ]
+ 
+ [project.scripts]
+-agent = "agent.cli.clean_trace:main"
++agent = "agent.cli.__main__:main"
+ 
+ [project.optional-dependencies]
+ dev = [
+diff --git a/src/agent/cli/__main__.py b/src/agent/cli/__main__.py
+new file mode 100644
+index 0000000..d3db91b
+--- /dev/null
++++ b/src/agent/cli/__main__.py
+@@ -0,0 +1,31 @@
++"""Unified command-line dispatcher for the local agent."""
++
++from __future__ import annotations
++
++import argparse
++import sys
++from typing import Sequence
++
++from agent.cli import clean_trace
++from agent.errors import AgentError
++
++
++def main(argv: Sequence[str] | None = None) -> int:
++    parser = build_parser()
++    args = parser.parse_args(argv)
++    try:
++        return args.func(args, stdout=sys.stdout, stderr=sys.stderr)
++    except AgentError as exc:
++        print(f"error: {exc}", file=sys.stderr)
++        return exc.exit_code
++
++
++def build_parser() -> argparse.ArgumentParser:
++    parser = argparse.ArgumentParser(prog="agent")
++    subcommands = parser.add_subparsers(dest="command", required=True)
++    clean_trace.register_subcommands(subcommands)
++    return parser
++
++
++if __name__ == "__main__":  # pragma: no cover
++    raise SystemExit(main())
+diff --git a/src/agent/cli/clean_trace.py b/src/agent/cli/clean_trace.py
+index 357652e..19a9fea 100644
+--- a/src/agent/cli/clean_trace.py
++++ b/src/agent/cli/clean_trace.py
+@@ -3,45 +3,42 @@
+ from __future__ import annotations
+ 
+ import argparse
+-import sys
+ from pathlib import Path
+-from typing import Sequence, TextIO
++from typing import Any, Sequence, TextIO
+ 
+-from agent.config import ConfigLoadError, load_config
++from agent.config import load_config
+ from agent.fs_memory import namespace_layout_for_config
+ from agent.trace_cleanup import (
+-    CleanExecutionRefusedError,
+     CleanPlan,
+-    StaleCleanPlanError,
+     compute_clean_plan,
+     execute_clean_plan,
+ )
+-from agent.workspace_lock import WorkspaceLockError
+ 
+ 
+ def main(argv: Sequence[str] | None = None) -> int:
+-    parser = build_parser()
+-    args = parser.parse_args(argv)
+-    try:
+-        return args.func(args, stdout=sys.stdout, stderr=sys.stderr)
+-    except (ConfigLoadError, CleanExecutionRefusedError, StaleCleanPlanError) as exc:
+-        print(f"error: {exc}", file=sys.stderr)
+-        return 2
+-    except WorkspaceLockError as exc:
+-        print(f"error: {exc}", file=sys.stderr)
+-        return 3
++    from agent.cli.__main__ import main as dispatch_main
+ 
++    return dispatch_main(argv)
+ 
+-def build_parser() -> argparse.ArgumentParser:
+-    parser = argparse.ArgumentParser(prog="agent")
+-    subcommands = parser.add_subparsers(dest="command", required=True)
+ 
++def register_subcommands(subcommands: Any) -> None:
+     clean_parser = subcommands.add_parser("clean")
+     clean_subcommands = clean_parser.add_subparsers(
+         dest="clean_command",
+         required=True,
+     )
+-    clean_trace = clean_subcommands.add_parser("trace")
++    register_clean_subcommands(clean_subcommands)
++
++    doctor_parser = subcommands.add_parser("doctor")
++    doctor_subcommands = doctor_parser.add_subparsers(
++        dest="doctor_command",
++        required=True,
++    )
++    register_doctor_subcommands(doctor_subcommands)
++
++
++def register_clean_subcommands(subcommands: Any) -> None:
++    clean_trace = subcommands.add_parser("trace")
+     _add_trace_plan_args(clean_trace)
+     clean_trace.add_argument(
+         "--force-clean-inactive-only",
+@@ -60,14 +57,17 @@ def build_parser() -> argparse.ArgumentParser:
+     )
+     clean_trace.set_defaults(func=_cmd_clean_trace)
+ 
+-    doctor_parser = subcommands.add_parser("doctor")
+-    doctor_subcommands = doctor_parser.add_subparsers(
+-        dest="doctor_command",
+-        required=True,
+-    )
+-    doctor_trace = doctor_subcommands.add_parser("trace")
++
++def register_doctor_subcommands(subcommands: Any) -> None:
++    doctor_trace = subcommands.add_parser("trace")
+     _add_trace_plan_args(doctor_trace)
+     doctor_trace.set_defaults(func=_cmd_doctor_trace)
++
++
++def build_parser() -> argparse.ArgumentParser:
++    parser = argparse.ArgumentParser(prog="agent")
++    subcommands = parser.add_subparsers(dest="command", required=True)
++    register_subcommands(subcommands)
+     return parser
+ 
+ 
+diff --git a/tests/test_cli_clean_trace.py b/tests/test_cli_clean_trace.py
+index 8254535..82f35bd 100644
+--- a/tests/test_cli_clean_trace.py
++++ b/tests/test_cli_clean_trace.py
+@@ -1,17 +1,24 @@
+ from __future__ import annotations
+ 
++import subprocess
++import sys
++import tomllib
+ from pathlib import Path
+ 
++import pytest
+ import yaml
+ 
+-from agent.cli.clean_trace import main
++from agent.cli import clean_trace
++from agent.cli.__main__ import main
+ from agent.config import load_config
++from agent.errors import EXIT_EXECUTION_REFUSED
+ from agent.fs_memory import (
+     NamespaceLayout,
+     append_trace_event,
+     load_trace_events,
+     namespace_layout_for_config,
+ )
++from agent.trace_cleanup import CleanExecutionRefusedError
+ from agent.workspace_lock import WorkspaceLock
+ 
+ 
+@@ -79,6 +86,24 @@ def test_clean_trace_cli_defaults_to_dry_run(
+     assert current_layout.trace_path.read_bytes() == before
+ 
+ 
++def test_clean_trace_legacy_main_delegates_to_dispatcher(
++    tmp_path: Path,
++    capsys,
++) -> None:
++    config_path = write_config(tmp_path)
++    current_layout = layout_for_config(config_path)
++    old_recent_trace(current_layout)
++
++    exit_code = clean_trace.main(
++        ["clean", "trace", "--config", str(config_path), "--keep-days", "7"]
++    )
++
++    captured = capsys.readouterr()
++    assert exit_code == 0
++    assert "DRY RUN: WOULD REMOVE" in captured.out
++    assert "removable_event_count: 1" in captured.out
++
++
+ def test_clean_trace_cli_yes_executes(
+     tmp_path: Path,
+     capsys,
+@@ -175,3 +200,56 @@ def test_doctor_trace_cli_renders_plan_without_writing(
+     assert "TRACE DOCTOR" in captured.out
+     assert "removable_event_count: 1" in captured.out
+     assert current_layout.trace_path.read_bytes() == before
++
++
++def test_cli_dispatcher_returns_agent_error_exit_code(
++    tmp_path: Path,
++    monkeypatch: pytest.MonkeyPatch,
++    capsys,
++) -> None:
++    config_path = write_config(tmp_path)
++
++    def refuse_plan(*args: object, **kwargs: object) -> None:
++        raise CleanExecutionRefusedError("blocked by test")
++
++    monkeypatch.setattr(clean_trace, "compute_clean_plan", refuse_plan)
++
++    exit_code = main(["doctor", "trace", "--config", str(config_path)])
++
++    captured = capsys.readouterr()
++    assert exit_code == EXIT_EXECUTION_REFUSED
++    assert "error: blocked by test" in captured.err
++
++
++def test_cli_help_smoke(capsys) -> None:
++    with pytest.raises(SystemExit) as exc_info:
++        main(["clean", "trace", "--help"])
++
++    captured = capsys.readouterr()
++    assert exc_info.value.code == 0
++    assert "--force-clean-inactive-only" in captured.out
++    assert "--yes" in captured.out
++
++
++def test_project_script_points_to_unified_dispatcher() -> None:
++    data = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
++
++    assert data["project"]["scripts"]["agent"] == "agent.cli.__main__:main"
++
++
++def test_module_execution_help_smoke() -> None:
++    completed = subprocess_run_module_help()
++
++    assert completed.returncode == 0
++    assert "usage: agent" in completed.stdout
++    assert "clean" in completed.stdout
++    assert "doctor" in completed.stdout
++
++
++def subprocess_run_module_help() -> subprocess.CompletedProcess[str]:
++    return subprocess.run(
++        [sys.executable, "-m", "agent.cli", "--help"],
++        check=False,
++        text=True,
++        capture_output=True,
++    )

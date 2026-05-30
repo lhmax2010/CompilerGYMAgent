@@ -47,6 +47,20 @@ Next action: generate Subtask 4.2 patch artifacts, commit, push, and send the ra
 
 Next action: commit the 4.2 validation sync, then begin Subtask 4.3 CLI dispatcher.
 
+## 2026-05-30T02:23:04Z - Phase 04 / Subtask 4.3 implementation completed
+
+- Added `src/agent/cli/__main__.py` as the unified CLI dispatcher.
+- Updated `pyproject.toml` so the `agent` console script points to `agent.cli.__main__:main`.
+- Refactored `clean_trace.py` to register clean/doctor trace subcommands while keeping command behavior unchanged.
+- Kept `agent.cli.clean_trace.main()` as a compatibility shim that delegates to the dispatcher.
+- Centralized `AgentError` handling in the dispatcher and return `exc.exit_code`.
+- Added CLI tests for dispatcher behavior, legacy shim, help smoke, script target, and AgentError exit-code mapping.
+- Targeted UT passed: `.venv/bin/python -m pytest tests/test_cli_clean_trace.py -q` -> 10 passed.
+- Full UT passed: `.venv/bin/python -m pytest tests/ -q` -> 427 passed.
+- Help smoke passed for `python -m agent.cli --help`, `agent clean trace --help`, and `agent doctor trace --help`.
+
+Next action: generate Subtask 4.3 patch artifacts, commit, push, and send the range for Claude review.
+
 ## 2026-05-06T08:42:41Z - Project kickoff
 
 - Read `doc/USER_REQUIREMENTS.md` in full.

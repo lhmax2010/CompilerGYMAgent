@@ -700,3 +700,15 @@ Decision records must include:
   - Make `AgentError` inherit directly from `Exception`, which would satisfy the minimal shape but break existing `RuntimeError` catches.
   - Delay the shared base until Phase 10 CLI formatting, which would require later migrations across more modules.
   - Use `NewType` for `SessionId`/`Combo`/mode aliases, which adds runtime wrapping friction without enough benefit for the current serialization-heavy code.
+
+## 2026-05-30T02:23:04Z - CLI dispatcher owns root parser and AgentError handling
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 04 CLI Entrypoint Skeleton
+  - REQUIREMENTS.md section 4.14
+- decision: Move the `agent` console script to `agent.cli.__main__:main`. The dispatcher owns the root parser, registers feature subcommands, catches `AgentError` once, and returns each error's `exit_code`. Feature modules such as `clean_trace.py` register their subcommands and implement command handlers, but do not own global error handling.
+- rationale: A single dispatcher prevents every command family from growing its own parser root and exception ladder. It also lets Phase 04 use the new `AgentError.exit_code` contract immediately while keeping Phase 10's richer CLI formatting separate.
+- alternatives_considered:
+  - Keep `agent = agent.cli.clean_trace:main`, which would preserve the Phase 03 placeholder and force future run/status/pause commands to be bolted onto a trace cleanup module.
+  - Put `AgentError` catches in each command module, which would duplicate global behavior and risk inconsistent exit codes.
+  - Remove `clean_trace.main()` immediately, which would break existing tests/imports for little benefit; a compatibility shim keeps the migration gentle.

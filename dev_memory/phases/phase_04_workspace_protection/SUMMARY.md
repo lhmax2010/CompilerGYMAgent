@@ -58,3 +58,35 @@ Locked down the three-way A.1 decision without changing production lock code.
 - `tests/test_workspace_lock.py`: 35 passed
 - `tests/test_trace_cleanup.py`: 20 passed
 - Full test suite: 422 passed
+
+## Subtask 4.3 - CLI Dispatcher
+
+Replaced the temporary `agent = agent.cli.clean_trace:main` script target with
+a unified dispatcher while preserving the existing trace clean/doctor commands.
+
+### Changes
+
+- Added `src/agent/cli/__main__.py` as the root CLI dispatcher.
+- Updated `pyproject.toml` so `agent` points to `agent.cli.__main__:main`.
+- Refactored `clean_trace.py` into subcommand registration helpers plus the
+  existing clean/doctor trace command implementations.
+- Kept `agent.cli.clean_trace.main()` as a compatibility shim that delegates to
+  the new dispatcher.
+- Centralized `AgentError` handling in the dispatcher:
+  `except AgentError as exc: return exc.exit_code`.
+- Added CLI tests for:
+  - existing dry-run / execute / doctor behavior
+  - legacy `clean_trace.main` compatibility
+  - dispatcher `AgentError.exit_code` behavior
+  - help smoke
+  - pyproject script target
+  - `python -m agent.cli --help`
+
+### Validation
+
+- `tests/test_cli_clean_trace.py`: 10 passed
+- Full test suite: 427 passed
+- Help smoke:
+  - `.venv/bin/python -m agent.cli --help`
+  - `.venv/bin/agent clean trace --help`
+  - `.venv/bin/agent doctor trace --help`

@@ -75,3 +75,27 @@ Post-review validation:
 
 - `tests/test_workspace_lock.py`: 35 passed
 - Full suite: 422 passed
+
+## Subtask 4.3 - CLI Dispatcher
+
+Self-review checklist:
+
+- [x] `pyproject.toml` script target points to `agent.cli.__main__:main`.
+- [x] Root parser and global error handling live in `agent.cli.__main__`.
+- [x] Dispatcher catches `AgentError` once and returns `exc.exit_code`.
+- [x] `clean_trace.py` remains responsible for clean/doctor trace command
+  registration and command implementations.
+- [x] `clean_trace.main()` remains a compatibility shim.
+- [x] Existing dry-run default for `agent clean trace` is preserved.
+- [x] Existing `agent doctor trace` behavior is preserved.
+- [x] Help smoke passes for root, clean trace, and doctor trace.
+- [x] Targeted CLI tests passed.
+- [x] Full unit suite passed.
+
+Reviewer focus:
+
+- Confirm keeping `clean_trace.main()` as a compatibility shim is desirable for
+  old imports while the console script moves to the dispatcher.
+- Confirm `AgentError` catch belongs only in the dispatcher, not in individual
+  command modules.
+- Confirm no Phase 10-style CLI formatting crept into this subtask.

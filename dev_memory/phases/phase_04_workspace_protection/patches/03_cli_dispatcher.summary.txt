@@ -1,0 +1,16 @@
+Subtask 4.3 - CLI dispatcher
+
+Implemented:
+- Added src/agent/cli/__main__.py as the unified CLI dispatcher.
+- Updated pyproject.toml so the agent console script points to agent.cli.__main__:main.
+- Refactored clean_trace.py into clean/doctor trace subcommand registration helpers plus existing command handlers.
+- Kept agent.cli.clean_trace.main() as a compatibility shim.
+- Centralized AgentError handling in the dispatcher and return exc.exit_code.
+- Added CLI tests for dispatcher behavior, legacy shim, help smoke, pyproject script target, module execution, and AgentError exit-code mapping.
+
+Validation:
+- .venv/bin/python -m pytest tests/test_cli_clean_trace.py -q -> 10 passed
+- .venv/bin/python -m pytest tests/ -q -> 427 passed
+- .venv/bin/python -m agent.cli --help -> exit 0
+- .venv/bin/agent clean trace --help -> exit 0
+- .venv/bin/agent doctor trace --help -> exit 0

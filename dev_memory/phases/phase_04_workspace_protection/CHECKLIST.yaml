@@ -54,3 +54,28 @@ subtasks:
         status: done
       - item: "Ubuntu/Linux validation"
         status: done
+  - id: "4.3"
+    title: "CLI dispatcher with clean/doctor trace registration"
+    status: implementation_complete
+    implementation_commit: pending
+    review_status: pending
+    ubuntu_validation_status: pending
+    checklist:
+      - item: "Add src/agent/cli/__main__.py unified dispatcher"
+        status: done
+      - item: "Move root parser ownership out of clean_trace.py while preserving clean trace and doctor trace commands"
+        status: done
+      - item: "Catch AgentError once and return exc.exit_code"
+        status: done
+      - item: "Update pyproject.toml project script to agent.cli.__main__:main"
+        status: done
+      - item: "Keep clean_trace.main compatibility shim"
+        status: done
+      - item: "Add CLI regression tests for dispatcher, help, script target, and AgentError exit codes"
+        status: done
+      - item: "Run targeted and full unit tests"
+        status: done
+      - item: "Run clean/doctor trace help smoke checks"
+        status: done
+      - item: "Generate patch artifacts"
+        status: done

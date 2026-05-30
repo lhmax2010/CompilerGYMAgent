@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [project.scripts]
-agent = "agent.cli.clean_trace:main"
+agent = "agent.cli.__main__:main"
 
 [project.optional-dependencies]
 dev = [
