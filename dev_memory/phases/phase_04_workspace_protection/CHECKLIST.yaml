@@ -56,10 +56,11 @@ subtasks:
         status: done
   - id: "4.3"
     title: "CLI dispatcher with clean/doctor trace registration"
-    status: implementation_complete
-    implementation_commit: pending
-    review_status: pending
-    ubuntu_validation_status: pending
+    status: done
+    implementation_commit: 17aee0a
+    review_status: approve
+    ubuntu_validation_status: passed
+    sync_commit: pending
     checklist:
       - item: "Add src/agent/cli/__main__.py unified dispatcher"
         status: done
@@ -79,3 +80,30 @@ subtasks:
         status: done
       - item: "Generate patch artifacts"
         status: done
+      - item: "Claude review approve"
+        status: done
+      - item: "Ubuntu/Linux validation"
+        status: done
+  - id: "4.4a"
+    title: "workspace_snapshot / workspace_verify skills"
+    status: pending
+    implementation_commit: pending
+    review_status: pending
+    ubuntu_validation_status: pending
+    checklist:
+      - item: "Read REQUIREMENTS sections 4.7.1 and 4.7.4 skill contracts"
+        status: pending
+      - item: "Design fake-workspace fixture scope"
+        status: pending
+      - item: "Implement workspace_snapshot skill"
+        status: pending
+      - item: "Implement workspace_verify skill"
+        status: pending
+      - item: "Export skills"
+        status: pending
+      - item: "Add unit tests for clean/dirty/missing/changed workspace files"
+        status: pending
+      - item: "Run targeted and full unit tests"
+        status: pending
+      - item: "Generate patch artifacts"
+        status: pending

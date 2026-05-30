@@ -178,3 +178,39 @@ Smoke checks:
 ```
 
 Result: all exited 0 and rendered help text.
+
+### Post-review Ubuntu/Linux Validation
+
+Claude review verdict: Approve.
+
+Commands:
+
+```bash
+.venv/bin/python -m pytest tests/test_cli_clean_trace.py -q
+```
+
+Result:
+
+```text
+10 passed in 0.64s
+```
+
+```bash
+.venv/bin/python -m pytest tests/ -q
+```
+
+Result:
+
+```text
+427 passed in 2.69s
+```
+
+Smoke checks:
+
+```bash
+.venv/bin/python -m agent.cli --help
+.venv/bin/agent clean trace --help
+.venv/bin/agent doctor trace --help
+```
+
+Result: all exited 0 and rendered help text.
