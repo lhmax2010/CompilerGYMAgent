@@ -1579,3 +1579,21 @@ Next action: generate patch artifacts, commit/push Subtask 4.4b, then request ex
   - fake workspace fixture.
 
 Next action: push Phase 04 closure sync, then begin Phase 06 Process Management.
+
+## 2026-05-30T07:44:26Z - Roadmap updated with Phase 05.5 Integration Feasibility Mock Spike
+
+- Added ROADMAP Phase `05.5` as a mock-only spike that can run in parallel with Phase 06.
+- The spike validates the automated decision core before Phase 07:
+  - candidate engine,
+  - constraint layer,
+  - experience memory,
+  - exploration schedule,
+  - convergence against random / LLM-only / local-mutation baselines,
+  - second-order interaction learning,
+  - poor LLM fallback,
+  - bad experience and crash/resume robustness.
+- Added `dev_memory/spikes/05.5_integration_feasibility_findings.md` as the findings output skeleton.
+- Added `spikes/05.5_integration_feasibility/README.md` to reserve the isolated spike code location.
+- Updated ROADMAP sizing to include the 4-6 subtask spike.
+
+Next action: push roadmap sync, then plan Phase 06 and Phase 05.5 as parallel workstreams.

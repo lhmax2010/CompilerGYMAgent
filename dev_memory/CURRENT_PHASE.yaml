@@ -239,4 +239,4 @@ phase_validation:
   python: ".venv/bin/python"
   full_pytest: "451 passed in 2.80s"
   linux_fcntl_test: "included in full pytest run"
-next_action: "Phase 04 closed; next: begin Phase 06 (Process Management)."
+next_action: "Phase 04 closed; next: begin Phase 06 (Process Management) and run Phase 05.5 Integration Feasibility Mock Spike in parallel per ROADMAP.yaml."

@@ -738,3 +738,16 @@ Decision records must include:
   - Overwrite existing backups unconditionally. Rejected because retrying `spec_backup` after a prior inject could replace the original backup with a mutated spec.
   - Restore first and only compare the expected hash afterward. Rejected because a wrong backup would already have overwritten the live spec before the strict mismatch is detected.
   - Add a full Jinja2 dependency immediately. Deferred until a concrete project template contract exists; Phase 04 supports explicit Jinja-style placeholders without broadening dependency or template semantics.
+
+## 2026-05-30T07:44:26Z - Add mock integration feasibility spike before full candidate engine
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 05.5
+  - REQUIREMENTS.md section 4.6
+  - REQUIREMENTS.md section 4.10
+- decision: Add Phase `05.5` as a mock-only Integration Feasibility Spike that can run in parallel with Phase 06. The spike must stay outside production `src/agent/`, use deterministic synthetic objectives and mock LLMs, compare full-agent behavior against random / LLM-only / local-mutation baselines, and write findings to `dev_memory/spikes/05.5_integration_feasibility_findings.md`.
+- rationale: Phase 01-04 built a strong infrastructure layer, but the decision core has not yet been integrated or tested. The user's semi-automatic LLM tuning workflow has already proven the value proposition; the remaining risk is whether a low-human-intervention automated loop with structured memory, constraints, and schedule can reproduce or exceed that behavior. A mock spike tests this cheaply before Phase 07 hardens APIs and before more infrastructure work hides decision-loop risks.
+- alternatives_considered:
+  - Wait until Phase 07 to test the integrated decision loop, which delays the highest product-risk discovery until after process, compile, benchmark, and statistics work.
+  - Use real gbs or real LLM APIs in the spike, which would couple feasibility learning to unavailable external services and make results noisy.
+  - Keep only the existing Phase 7.0 constraint solver spike, which tests constraint performance but not end-to-end convergence against baselines or second-order interactions.

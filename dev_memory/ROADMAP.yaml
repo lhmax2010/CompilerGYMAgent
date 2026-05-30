@@ -1,6 +1,6 @@
 # dev_memory/ROADMAP.yaml
 roadmap_version: 1
-last_updated: 2026-05-30T05:15:18Z
+last_updated: 2026-05-30T07:44:26Z
 status: active
 
 # ============================================================
@@ -23,15 +23,15 @@ cadence_assumption:
 # Overall sizing (calibrated)
 # ============================================================
 sizing:
-  v1_minimal_phases: ["04","05","06","08","7.0","07","09","10","11","12","13"]
-  v1_minimal_estimate_subtasks: { low: 85, high: 130 }
-  v1_minimal_estimate_workdays_at_current_pace: { low: 65, high: 100 }
-  v1_minimal_estimate_weeks: { low: 13, high: 20 }
+  v1_minimal_phases: ["04","06","05.5","05","08","7.0","07","09","10","11","12","13"]
+  v1_minimal_estimate_subtasks: { low: 89, high: 136 }
+  v1_minimal_estimate_workdays_at_current_pace: { low: 68, high: 105 }
+  v1_minimal_estimate_weeks: { low: 14, high: 21 }
 
-  v1_full_phases: ["04","05","06","08","7.0","07","9.0","9.1","09","10","11","12","13","14","15a","15b","16"]
-  v1_full_estimate_subtasks: { low: 110, high: 170 }
-  v1_full_estimate_workdays_at_current_pace: { low: 85, high: 130 }
-  v1_full_estimate_weeks: { low: 17, high: 26 }
+  v1_full_phases: ["04","06","05.5","05","08","7.0","07","9.0","9.1","09","10","11","12","13","14","15a","15b","16"]
+  v1_full_estimate_subtasks: { low: 114, high: 176 }
+  v1_full_estimate_workdays_at_current_pace: { low: 88, high: 135 }
+  v1_full_estimate_weeks: { low: 18, high: 27 }
 
   comparison_to_requirements_section_9:
     nominal_v1_minimal_weeks: "6-8 weeks"
@@ -84,7 +84,7 @@ planned_phases:
     milestone: "M3 (advanced)"
     requirement_sections: ["3.3.5", "4.7.1 (process_cleaner)", "4.11.x"]
     dependencies: ["01", "03"]
-    can_parallel_with: ["04 (after CLI dispatcher done)"]
+    can_parallel_with: ["05.5"]
     estimate_subtasks: { low: 6, high: 9 }
     risk: high
     goals:
@@ -111,6 +111,65 @@ planned_phases:
       - "psutil cross-platform quirks (macOS/WSL may behave differently than Linux)"
       - "process_lab design influences all subsequent compile/benchmark testing"
     note: "LockStatus: add 'unknown' state for unreadable holder (currently _read_workspace_lock returns 'free' when holder unreadable, which is semantically misleading though refusal_reason already guards execution). can_execute / can_execute_with_force_inactive_only must reject 'unknown'. Priority: low (clarity improvement, not a safety fix — refusal_reason already protects). Do alongside doctor/state_consistency.py since lock-status semantics get reviewed there anyway."
+
+  - id: "05.5"
+    title: "Integration Feasibility Mock Spike"
+    status: planned
+    spike: true
+    parallel_with: "06"
+    milestone: "M1.5 (integration gate)"
+    dependencies: ["04"]
+    estimate_subtasks: { low: 4, high: 6 }
+    risk: high
+    rationale: >
+      Validates that the decision core (candidate engine + constraint layer +
+      experience memory + exploration schedule) integrates into a working loop
+      that converges AND is demonstrably better than naive baselines. Human
+      semi-auto LLM tuning is already proven effective in production; this spike
+      verifies the AUTOMATED system can reproduce/exceed that with low human
+      intervention. All mock — no real gbs / process mgmt / workspace protection /
+      LangGraph / real LLM API.
+    scope_exclusions:
+      - "No real gbs (mock compile)"
+      - "No process management (no subprocess)"
+      - "No workspace protection (no spec/snapshot)"
+      - "No LangGraph (plain Python loop)"
+      - "Mock LLM is a deterministic controllable fake, not a real API call"
+    goals:
+      - "SyntheticObjective with known optimum requiring second-order interaction (-fA + -fB), not greedy-reachable by single-option scoring"
+      - "OptionV0 minimal IR with option_id/raw/conflicts/requires"
+      - "Four strategies: RandomStrategy, LLMOnlyStrategy, LocalMutationStrategy, FullAgentStrategy"
+      - "Deterministic controllable MockLLM with quality=good and quality=poor"
+      - "Minimal candidate engine: warmup random, LLM proposals, local mutation around best, exploration schedule switching"
+      - "Minimal constraint layer: dedup, conflicts, known-failed subset filter, suspicion counter forced trial for suspected false positives"
+      - "Minimal experience memory: success/failure records, trust update, Canary downgrade path"
+      - "Crash/resume simulation for plain Python loop state"
+    deliverables:
+      - "spikes/05.5_integration_feasibility/README.md"
+      - "spikes/05.5_integration_feasibility/*.py (mock-only spike code, isolated from production src/agent)"
+      - "spikes/05.5_integration_feasibility/tests/ (spike tests)"
+      - "dev_memory/spikes/05.5_integration_feasibility_findings.md"
+    test_matrix:
+      - "1 constraint blocks impossible combos: -O3 + -Os actual execution count = 0"
+      - "2 experience reduces repeat attempts: failed combo is not retried"
+      - "3 30-50 round convergence: full agent finds top-5% solution"
+      - "4 poor LLM fallback: quality=poor still improves through random/local mutation fallback"
+      - "5 false positive recovery: suspicion counter eventually forces one trial"
+      - "6 against baselines: full agent beats random / LLM-only / local-mutation"
+      - "7 noisy benchmark: noise + infra failures do not become hard bad experience"
+      - "8 bad experience injection: bad hard rule is Canary-downgraded or does not permanently block optimum"
+      - "9 duplicate pressure: repeated LLM proposals are rejected without consuming trial budget"
+      - "10 second-order interaction: full agent learns -fA/-fB pair while local mutation gets stuck"
+      - "11 crash-resume loop: round/history/experience state remains consistent"
+    exit_criteria:
+      - "Across multiple random seeds, full agent finds top-5% optimum within 30-50 rounds in >=80% of seeds"
+      - "Duplicate trial rate < 5%"
+      - "Known always-failing combos actual execution count = 0"
+      - "Injected bad hard rule is Canary-downgraded, or at least does not permanently block optimum"
+      - "Crash/resume preserves round, candidate history, and experience state"
+      - "Full agent clearly outperforms random and LLM-only baselines"
+      - "Full agent finds the second-order-interaction optimum while local-mutation remains stuck in a local optimum"
+    spike_findings_output: "dev_memory/spikes/05.5_integration_feasibility_findings.md"
 
   - id: "05"
     title: "Compile / Benchmark Skills"
@@ -195,7 +254,7 @@ planned_phases:
     status: planned
     milestone: M2
     requirement_sections: ["4.6.1", "4.6.2 (existing trace contract from 3.5)", "4.6.3", "4.10"]
-    dependencies: ["02", "03", "08", "7.0"]
+    dependencies: ["02", "03", "05.5", "08", "7.0"]
     can_parallel_with: []
     estimate_subtasks: { low: 10, high: 16 }
     risk: high

@@ -17,17 +17,24 @@ Current handoff:
 
 | State | Next phase | Why next |
 |---|---|---|
-| Phase 04 closed | Phase 06 - Process Management | Process runner/cleaner semantics are needed before compile and benchmark skills can safely launch real subprocesses. |
+| Phase 04 closed | Phase 06 + Phase 05.5 in parallel | Phase 06 builds process safety for real compile/benchmark work. Phase 05.5 independently validates the automated decision loop with mocks before the full candidate engine is built. |
 
 Next three implementation phases:
 
 | Order | Phase | Estimate | Main risk |
 |---:|---|---:|---|
 | 1 | 06 - Process Management | 6-9 subtasks | Linux process-group, env-marker, and psutil behavior needs real integration coverage. |
+| 1b | 05.5 - Integration Feasibility Mock Spike | 4-6 subtasks | The automated decision core must beat naive baselines and learn second-order interactions before Phase 07 hardens it. |
 | 2 | 05 - Compile / Benchmark Skills | 8-12 subtasks | Compile/benchmark skills depend on stable process management and fake-gbs harness quality. |
 | 3 | 08 - Baseline + Statistical Significance | 7-10 subtasks | Statistical contracts need synthetic reference checks before candidate engine convergence. |
 
 The planned order intentionally runs Phase 06 before Phase 05, even though the numbering is not sequential. Compile and benchmark skills should sit on top of the process runner/cleaner instead of inventing their own subprocess rules.
+
+Phase 05.5 is intentionally parallel with Phase 06. It is a mock-only spike that
+tests whether the automated decision core can beat naive baselines and learn
+second-order interactions before Phase 07 turns that learning into production
+candidate-engine APIs. Findings land in
+`dev_memory/spikes/05.5_integration_feasibility_findings.md`.
 
 ## Cadence And Remaining Size
 
@@ -48,8 +55,8 @@ Remaining estimate:
 
 | Scope | Phases | Subtasks | Workdays | Weeks |
 |---|---|---:|---:|---:|
-| v1-minimal remaining | 05/06/08/7.0/07/09/10/11/12/13 | 77-118 | 59-91 | 12-19 |
-| v1-full remaining | 05/06/08/7.0/07/9.0/9.1/09/10/11/12/13/14/15a/15b/16 | 102-158 | 78-122 | 16-25 |
+| v1-minimal remaining | 06/05.5/05/08/7.0/07/09/10/11/12/13 | 81-124 | 62-95 | 13-19 |
+| v1-full remaining | 06/05.5/05/08/7.0/07/9.0/9.1/09/10/11/12/13/14/15a/15b/16 | 106-164 | 82-126 | 17-26 |
 
 The roadmap is deliberately slower than `doc/REQUIREMENTS.md` section 9's nominal schedule because this project is using a high-assurance loop: Codex implementation, Claude review, review fixes, Linux validation, and explicit dev_memory provenance.
 
