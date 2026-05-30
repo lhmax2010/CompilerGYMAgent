@@ -72,3 +72,43 @@ Result:
 ```text
 413 passed in 2.37s
 ```
+
+## 2026-05-30 - Subtask 4.2 WorkspaceLock Holder Hardening Tests
+
+Environment:
+
+- Runner: local `.venv`
+- Python: `.venv/bin/python`
+- OS: Linux workspace
+
+Commands:
+
+```bash
+.venv/bin/python -m pytest tests/test_workspace_lock.py -q
+```
+
+Result:
+
+```text
+35 passed in 0.56s
+```
+
+```bash
+.venv/bin/python -m pytest tests/test_trace_cleanup.py -q
+```
+
+Result:
+
+```text
+20 passed in 0.32s
+```
+
+```bash
+.venv/bin/python -m pytest tests/ -q
+```
+
+Result:
+
+```text
+422 passed in 2.14s
+```

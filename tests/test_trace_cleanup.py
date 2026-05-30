@@ -230,20 +230,32 @@ def test_compute_clean_plan_reports_held_by_other_without_hiding_removable_lines
     assert plan.can_execute_with_force_inactive_only is False
 
 
+@pytest.mark.parametrize(
+    ("raw_holder", "expected_error"),
+    [
+        ("", "lock file is empty"),
+        ("not: [valid\n", "failed to parse YAML"),
+        ("x" * 65_537, "too large"),
+        ("pid: 1234\npgid: 0\ncreate_time: 1", "invalid lock holder"),
+    ],
+)
 def test_compute_clean_plan_bad_lock_metadata_returns_graceful_refusal(
     tmp_path: Path,
+    raw_holder: str,
+    expected_error: str,
 ) -> None:
     current_layout = layout(tmp_path)
     append_event(current_layout, 1, ts="2026-04-01T00:00:00Z", session_id="sess_old")
     lock_path = tmp_path / "state" / "run.lock"
     lock_path.parent.mkdir(parents=True, exist_ok=True)
-    lock_path.write_text("not: [valid\n", encoding="utf-8")
+    lock_path.write_text(raw_holder, encoding="utf-8")
 
     plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
 
     assert plan.lock_status == "free"
     assert plan.blocking_lock_holder is None
     assert "workspace lock metadata could not be read" in str(plan.refusal_reason)
+    assert expected_error in str(plan.refusal_reason)
     assert plan.removable_line_ranges == (LineRange(1, 1),)
     assert plan.can_execute is False
 

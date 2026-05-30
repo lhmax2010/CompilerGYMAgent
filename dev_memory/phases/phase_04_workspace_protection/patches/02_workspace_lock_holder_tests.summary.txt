@@ -1,0 +1,13 @@
+Subtask 4.2 - WorkspaceLock holder hardening + conservative-path tests
+
+Implemented:
+- Kept production WorkspaceLock code unchanged; _write_holder still uses inode-safe in-place fd write.
+- Added Linux fcntl test proving holder rewrite preserves run.lock inode and a second process remains blocked.
+- Expanded active-busy unreadable holder tests for 0-byte, unsafe YAML, malformed YAML, oversized file, and partial-write holder.
+- Added partial-write holder recovery test for no-live-flock acquire overwrite and pid/session correctness.
+- Expanded compute_clean_plan lock-metadata refusal tests for empty, malformed, oversized, and partial holder metadata.
+
+Validation:
+- .venv/bin/python -m pytest tests/test_workspace_lock.py -q -> 35 passed
+- .venv/bin/python -m pytest tests/test_trace_cleanup.py -q -> 20 passed
+- .venv/bin/python -m pytest tests/ -q -> 422 passed

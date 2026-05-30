@@ -1,7 +1,7 @@
 phase_id: phase_04_workspace_protection
 phase_title: "Workspace Protection Skills + CLI Entrypoint Skeleton"
 started_at: 2026-05-30T00:59:41Z
-last_updated: 2026-05-30T01:32:59Z
+last_updated: 2026-05-30T01:35:45Z
 target_milestone: M1
 related_requirements:
   - REQUIREMENTS.md section 4.7.1
@@ -52,4 +52,33 @@ subtasks:
       full_pytest: "413 passed in 2.37s"
       linux_fcntl_test: "included in full pytest run"
       runner: "local .venv + pytest"
-next_action: "Begin Subtask 4.2: WorkspaceLock holder hardening + conservative-path tests."
+  - id: "4.2"
+    title: "WorkspaceLock holder hardening + conservative-path tests"
+    status: implementation_complete
+    related_requirements:
+      - REQUIREMENTS.md section 4.15
+      - REQUIREMENTS.md section 4.14.7a
+      - ROADMAP.yaml Phase 04 holder hardening deliverable
+    files_modified:
+      - tests/test_workspace_lock.py
+      - tests/test_trace_cleanup.py
+    behavior_notes:
+      - "No production lock code changed; _write_holder still uses inode-safe in-place fd write."
+      - "Added Linux fcntl probe that rewrites holder metadata and verifies run.lock inode stays stable while a second process remains blocked."
+      - "Added unreadable-holder conservative-path coverage for empty, malformed YAML, oversized, and partial-write holder metadata."
+      - "Added partial-write stale holder overwrite coverage for no-live-flock recovery."
+      - "Extended clean trace planner lock-metadata refusal tests for the same unreadable holder variants."
+    ut_required: true
+    ut_passed: true
+    targeted_ut:
+      workspace_lock: "35 passed, 0 failed"
+      trace_cleanup: "20 passed, 0 failed"
+    full_ut: "422 passed, 0 failed"
+    self_review_required: true
+    self_reviewed: true
+    patch_required: true
+    patch_file: dev_memory/phases/phase_04_workspace_protection/patches/02_workspace_lock_holder_tests.patch
+    patch_generated: true
+    commit_required: true
+    commit_pending: true
+next_action: "Push Subtask 4.2 implementation range for Claude review."

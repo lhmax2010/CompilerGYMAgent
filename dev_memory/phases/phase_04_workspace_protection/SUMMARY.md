@@ -31,3 +31,30 @@ logic or exception messages.
 - `tests/test_errors.py`: 3 passed
 - Adjacent regression suite: 283 passed
 - Full test suite: 413 passed
+
+## Subtask 4.2 - WorkspaceLock Holder Hardening Tests
+
+Locked down the three-way A.1 decision without changing production lock code.
+`WorkspaceLock._write_holder()` still uses the existing in-place
+`ftruncate + write + fsync` path through the already-flocked fd.
+
+### Changes
+
+- Added a Linux `fcntl` regression test that rewrites holder metadata while
+  holding `run.lock`, verifies the inode is stable, and verifies a second
+  process remains blocked.
+- Expanded busy-lock unreadable-holder tests to cover:
+  - empty / 0-byte holder
+  - unsafe or malformed YAML
+  - oversized holder
+  - partial-write YAML that validates as an incomplete mapping
+- Added a no-live-flock partial-write recovery test: a new acquire overwrites
+  the partial holder and records its own pid/session.
+- Expanded clean trace planner lock-metadata refusal coverage for empty,
+  malformed, oversized, and partial holders.
+
+### Validation
+
+- `tests/test_workspace_lock.py`: 35 passed
+- `tests/test_trace_cleanup.py`: 20 passed
+- Full test suite: 422 passed

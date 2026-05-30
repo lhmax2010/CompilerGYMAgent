@@ -1,0 +1,452 @@
+diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index 9e48ebd..9f7f07e 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -1,7 +1,7 @@
+ phase_id: phase_04_workspace_protection
+ phase_title: "Workspace Protection Skills + CLI Entrypoint Skeleton"
+ started_at: 2026-05-30T00:59:41Z
+-last_updated: 2026-05-30T01:32:59Z
++last_updated: 2026-05-30T01:35:45Z
+ target_milestone: M1
+ related_requirements:
+   - REQUIREMENTS.md section 4.7.1
+@@ -52,4 +52,33 @@ subtasks:
+       full_pytest: "413 passed in 2.37s"
+       linux_fcntl_test: "included in full pytest run"
+       runner: "local .venv + pytest"
+-next_action: "Begin Subtask 4.2: WorkspaceLock holder hardening + conservative-path tests."
++  - id: "4.2"
++    title: "WorkspaceLock holder hardening + conservative-path tests"
++    status: implementation_complete
++    related_requirements:
++      - REQUIREMENTS.md section 4.15
++      - REQUIREMENTS.md section 4.14.7a
++      - ROADMAP.yaml Phase 04 holder hardening deliverable
++    files_modified:
++      - tests/test_workspace_lock.py
++      - tests/test_trace_cleanup.py
++    behavior_notes:
++      - "No production lock code changed; _write_holder still uses inode-safe in-place fd write."
++      - "Added Linux fcntl probe that rewrites holder metadata and verifies run.lock inode stays stable while a second process remains blocked."
++      - "Added unreadable-holder conservative-path coverage for empty, malformed YAML, oversized, and partial-write holder metadata."
++      - "Added partial-write stale holder overwrite coverage for no-live-flock recovery."
++      - "Extended clean trace planner lock-metadata refusal tests for the same unreadable holder variants."
++    ut_required: true
++    ut_passed: true
++    targeted_ut:
++      workspace_lock: "35 passed, 0 failed"
++      trace_cleanup: "20 passed, 0 failed"
++    full_ut: "422 passed, 0 failed"
++    self_review_required: true
++    self_reviewed: true
++    patch_required: true
++    patch_file: dev_memory/phases/phase_04_workspace_protection/patches/02_workspace_lock_holder_tests.patch
++    patch_generated: true
++    commit_required: true
++    commit_pending: true
++next_action: "Push Subtask 4.2 implementation range for Claude review."
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index 309441a..4745f48 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -24,6 +24,19 @@ Next action: generate Subtask 4.1 patch artifacts, commit, push, and send the ra
+ 
+ Next action: commit the 4.1 validation sync, then begin Subtask 4.2 WorkspaceLock holder hardening + conservative-path tests.
+ 
++## 2026-05-30T01:35:45Z - Phase 04 / Subtask 4.2 implementation completed
++
++- Implemented 4.2 as a test-only holder hardening subtask; production `WorkspaceLock` code is unchanged.
++- Added Linux fcntl regression coverage for holder rewrite preserving the `run.lock` inode and keeping a second process blocked.
++- Expanded busy-lock unreadable holder coverage for empty, malformed/unsafe YAML, oversized files, and partial-write holder metadata.
++- Added no-live-flock partial holder recovery: new acquire overwrites the partial metadata and records its own pid/session.
++- Expanded clean trace planner refusal tests for unreadable holder variants.
++- Targeted UT passed: `tests/test_workspace_lock.py` -> 35 passed.
++- Targeted UT passed: `tests/test_trace_cleanup.py` -> 20 passed.
++- Full UT passed: `.venv/bin/python -m pytest tests/ -q` -> 422 passed.
++
++Next action: generate Subtask 4.2 patch artifacts, commit, push, and send the range for Claude review.
++
+ ## 2026-05-06T08:42:41Z - Project kickoff
+ 
+ - Read `doc/USER_REQUIREMENTS.md` in full.
+diff --git a/dev_memory/phases/phase_04_workspace_protection/CHECKLIST.yaml b/dev_memory/phases/phase_04_workspace_protection/CHECKLIST.yaml
+index 477b332..89c6ed3 100644
+--- a/dev_memory/phases/phase_04_workspace_protection/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_04_workspace_protection/CHECKLIST.yaml
+@@ -32,20 +32,20 @@ subtasks:
+         status: done
+   - id: "4.2"
+     title: "WorkspaceLock holder hardening + conservative-path tests"
+-    status: pending
++    status: implementation_complete
+     implementation_commit: pending
+     review_status: pending
+     ubuntu_validation_status: pending
+     checklist:
+       - item: "Keep inode-safe in-place _write_holder behavior unchanged"
+-        status: pending
++        status: done
+       - item: "Add run.lock inode/flock survival test"
+-        status: pending
++        status: done
+       - item: "Add conservative unreadable holder tests for 0-byte, oversized, YAML syntax, invalid data, and partial-write crash"
+-        status: pending
++        status: done
+       - item: "Verify partial stale holder without live flock is overwritten by new acquire and holder pid matches"
+-        status: pending
++        status: done
+       - item: "Run targeted and full unit tests"
+-        status: pending
++        status: done
+       - item: "Generate patch artifacts"
+-        status: pending
++        status: done
+diff --git a/dev_memory/phases/phase_04_workspace_protection/REVIEW_NOTES.md b/dev_memory/phases/phase_04_workspace_protection/REVIEW_NOTES.md
+index e277cfa..4da8b75 100644
+--- a/dev_memory/phases/phase_04_workspace_protection/REVIEW_NOTES.md
++++ b/dev_memory/phases/phase_04_workspace_protection/REVIEW_NOTES.md
+@@ -38,3 +38,27 @@ Post-review validation:
+ 
+ - `tests/test_errors.py`: 3 passed
+ - Full suite: 413 passed
++
++## Subtask 4.2 - WorkspaceLock Holder Hardening Tests
++
++Self-review checklist:
++
++- [x] No production lock code changed.
++- [x] `_write_holder` remains an in-place fd write through the already-flocked descriptor.
++- [x] Added a Linux fcntl regression that holder rewrites preserve `run.lock` inode.
++- [x] Added a second-process probe to prove the active lock remains held after holder rewrite.
++- [x] Expanded unreadable holder busy-lock cases: 0-byte, unsafe YAML, malformed YAML, oversized, and partial holder.
++- [x] Added no-live-flock partial-holder overwrite recovery with pid/session assertions.
++- [x] Expanded clean trace planner refusal coverage for unreadable holder variants.
++- [x] Targeted `workspace_lock` and `trace_cleanup` tests passed.
++- [x] Full unit suite passed.
++
++Reviewer focus:
++
++- Confirm it is acceptable that this subtask is test-only and does not change
++  `_write_holder`.
++- Confirm the private `_build_holder`/`_write_holder` calls in the Linux fcntl
++  regression are acceptable for pinning the inode-safety contract.
++- Confirm clean trace planner still returning `lock_status="free"` with
++  `refusal_reason` for unreadable holder matches the planned Phase 06
++  `LockStatus="unknown"` follow-up.
+diff --git a/dev_memory/phases/phase_04_workspace_protection/SUMMARY.md b/dev_memory/phases/phase_04_workspace_protection/SUMMARY.md
+index 1ce6856..28117fa 100644
+--- a/dev_memory/phases/phase_04_workspace_protection/SUMMARY.md
++++ b/dev_memory/phases/phase_04_workspace_protection/SUMMARY.md
+@@ -31,3 +31,30 @@ logic or exception messages.
+ - `tests/test_errors.py`: 3 passed
+ - Adjacent regression suite: 283 passed
+ - Full test suite: 413 passed
++
++## Subtask 4.2 - WorkspaceLock Holder Hardening Tests
++
++Locked down the three-way A.1 decision without changing production lock code.
++`WorkspaceLock._write_holder()` still uses the existing in-place
++`ftruncate + write + fsync` path through the already-flocked fd.
++
++### Changes
++
++- Added a Linux `fcntl` regression test that rewrites holder metadata while
++  holding `run.lock`, verifies the inode is stable, and verifies a second
++  process remains blocked.
++- Expanded busy-lock unreadable-holder tests to cover:
++  - empty / 0-byte holder
++  - unsafe or malformed YAML
++  - oversized holder
++  - partial-write YAML that validates as an incomplete mapping
++- Added a no-live-flock partial-write recovery test: a new acquire overwrites
++  the partial holder and records its own pid/session.
++- Expanded clean trace planner lock-metadata refusal coverage for empty,
++  malformed, oversized, and partial holders.
++
++### Validation
++
++- `tests/test_workspace_lock.py`: 35 passed
++- `tests/test_trace_cleanup.py`: 20 passed
++- Full test suite: 422 passed
+diff --git a/dev_memory/phases/phase_04_workspace_protection/UT_RESULTS.md b/dev_memory/phases/phase_04_workspace_protection/UT_RESULTS.md
+index e7454b3..2cf7dfd 100644
+--- a/dev_memory/phases/phase_04_workspace_protection/UT_RESULTS.md
++++ b/dev_memory/phases/phase_04_workspace_protection/UT_RESULTS.md
+@@ -72,3 +72,43 @@ Result:
+ ```text
+ 413 passed in 2.37s
+ ```
++
++## 2026-05-30 - Subtask 4.2 WorkspaceLock Holder Hardening Tests
++
++Environment:
++
++- Runner: local `.venv`
++- Python: `.venv/bin/python`
++- OS: Linux workspace
++
++Commands:
++
++```bash
++.venv/bin/python -m pytest tests/test_workspace_lock.py -q
++```
++
++Result:
++
++```text
++35 passed in 0.56s
++```
++
++```bash
++.venv/bin/python -m pytest tests/test_trace_cleanup.py -q
++```
++
++Result:
++
++```text
++20 passed in 0.32s
++```
++
++```bash
++.venv/bin/python -m pytest tests/ -q
++```
++
++Result:
++
++```text
++422 passed in 2.14s
++```
+diff --git a/dev_memory/phases/phase_04_workspace_protection/patches/02_workspace_lock_holder_tests.review.md b/dev_memory/phases/phase_04_workspace_protection/patches/02_workspace_lock_holder_tests.review.md
+new file mode 100644
+index 0000000..77ba4d4
+--- /dev/null
++++ b/dev_memory/phases/phase_04_workspace_protection/patches/02_workspace_lock_holder_tests.review.md
+@@ -0,0 +1,32 @@
++# Self Review - Subtask 4.2 WorkspaceLock Holder Hardening Tests
++
++## Scope
++
++This patch intentionally keeps `src/agent/workspace_lock.py` unchanged. The
++three-way review decision was to preserve the current in-place holder write and
++add regression coverage around its safety properties.
++
++## Checks
++
++- `run.lock` is never atomically replaced in production code.
++- The Linux fcntl regression calls `_write_holder()` while holding the lock,
++  verifies `(st_dev, st_ino)` is unchanged, and verifies a second process cannot
++  acquire the lock.
++- Active-lock unreadable holder metadata fails conservatively via
++  `WorkspaceBusyError` for:
++  - 0-byte holder
++  - unsafe YAML tag
++  - malformed YAML
++  - oversized holder
++  - partial-write holder mapping
++- No-live-flock partial holder metadata is recoverable: a new acquire overwrites
++  the file and records the acquiring pid/session.
++- `compute_clean_plan()` records `refusal_reason` for the same unreadable
++  holder variants, preserving 3.10/3.11 clean trace safety.
++
++## Residual Risk
++
++`trace_cleanup` still reports unreadable holder metadata as
++`lock_status="free"` plus a `refusal_reason`. That is the current safe behavior
++because execution is blocked; ROADMAP Phase 06 tracks the clarity improvement to
++add `LockStatus="unknown"`.
+diff --git a/dev_memory/phases/phase_04_workspace_protection/patches/02_workspace_lock_holder_tests.summary.txt b/dev_memory/phases/phase_04_workspace_protection/patches/02_workspace_lock_holder_tests.summary.txt
+new file mode 100644
+index 0000000..3af5150
+--- /dev/null
++++ b/dev_memory/phases/phase_04_workspace_protection/patches/02_workspace_lock_holder_tests.summary.txt
+@@ -0,0 +1,13 @@
++Subtask 4.2 - WorkspaceLock holder hardening + conservative-path tests
++
++Implemented:
++- Kept production WorkspaceLock code unchanged; _write_holder still uses inode-safe in-place fd write.
++- Added Linux fcntl test proving holder rewrite preserves run.lock inode and a second process remains blocked.
++- Expanded active-busy unreadable holder tests for 0-byte, unsafe YAML, malformed YAML, oversized file, and partial-write holder.
++- Added partial-write holder recovery test for no-live-flock acquire overwrite and pid/session correctness.
++- Expanded compute_clean_plan lock-metadata refusal tests for empty, malformed, oversized, and partial holder metadata.
++
++Validation:
++- .venv/bin/python -m pytest tests/test_workspace_lock.py -q -> 35 passed
++- .venv/bin/python -m pytest tests/test_trace_cleanup.py -q -> 20 passed
++- .venv/bin/python -m pytest tests/ -q -> 422 passed
+diff --git a/tests/test_trace_cleanup.py b/tests/test_trace_cleanup.py
+index 5415960..f65f438 100644
+--- a/tests/test_trace_cleanup.py
++++ b/tests/test_trace_cleanup.py
+@@ -230,20 +230,32 @@ def test_compute_clean_plan_reports_held_by_other_without_hiding_removable_lines
+     assert plan.can_execute_with_force_inactive_only is False
+ 
+ 
++@pytest.mark.parametrize(
++    ("raw_holder", "expected_error"),
++    [
++        ("", "lock file is empty"),
++        ("not: [valid\n", "failed to parse YAML"),
++        ("x" * 65_537, "too large"),
++        ("pid: 1234\npgid: 0\ncreate_time: 1", "invalid lock holder"),
++    ],
++)
+ def test_compute_clean_plan_bad_lock_metadata_returns_graceful_refusal(
+     tmp_path: Path,
++    raw_holder: str,
++    expected_error: str,
+ ) -> None:
+     current_layout = layout(tmp_path)
+     append_event(current_layout, 1, ts="2026-04-01T00:00:00Z", session_id="sess_old")
+     lock_path = tmp_path / "state" / "run.lock"
+     lock_path.parent.mkdir(parents=True, exist_ok=True)
+-    lock_path.write_text("not: [valid\n", encoding="utf-8")
++    lock_path.write_text(raw_holder, encoding="utf-8")
+ 
+     plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
+ 
+     assert plan.lock_status == "free"
+     assert plan.blocking_lock_holder is None
+     assert "workspace lock metadata could not be read" in str(plan.refusal_reason)
++    assert expected_error in str(plan.refusal_reason)
+     assert plan.removable_line_ranges == (LineRange(1, 1),)
+     assert plan.can_execute is False
+ 
+diff --git a/tests/test_workspace_lock.py b/tests/test_workspace_lock.py
+index 57e6626..1167285 100644
+--- a/tests/test_workspace_lock.py
++++ b/tests/test_workspace_lock.py
+@@ -80,6 +80,18 @@ def hold_preopened_flock(
+         os.close(fd)
+ 
+ 
++def attempt_workspace_lock_acquire(workspace: str, result_queue: mp.Queue) -> None:
++    try:
++        lock = WorkspaceLock(Path(workspace)).acquire("agent run", "sess_contender")
++    except WorkspaceBusyError:
++        result_queue.put("busy")
++    except Exception as exc:  # pragma: no cover - surfaced in parent assertion.
++        result_queue.put(f"error:{type(exc).__name__}:{exc}")
++    else:
++        lock.release()
++        result_queue.put("acquired")
++
++
+ def make_lock(
+     workspace: Path,
+     *,
+@@ -218,11 +230,25 @@ def test_busy_lock_raises_with_holder_info(tmp_path: Path) -> None:
+     first.release()
+ 
+ 
+-def test_busy_lock_with_unreadable_holder_fails_conservatively(tmp_path: Path) -> None:
++@pytest.mark.parametrize(
++    ("raw_holder", "expected_error"),
++    [
++        ("", "lock file is empty"),
++        ("!!python/object/apply:os.system ['echo unsafe']\n", "failed to parse YAML"),
++        ("not: [valid\n", "failed to parse YAML"),
++        ("x" * 65_537, "too large"),
++        ("pid: 1234\npgid: 0\ncreate_time: 1", "invalid lock holder"),
++    ],
++)
++def test_busy_lock_with_unreadable_holder_fails_conservatively(
++    tmp_path: Path,
++    raw_holder: str,
++    expected_error: str,
++) -> None:
+     fake_fcntl = FakeFcntl()
+     lock_path = tmp_path / "state" / "run.lock"
+     lock_path.parent.mkdir(parents=True)
+-    lock_path.write_text("!!python/object/apply:os.system ['echo unsafe']\n", encoding="utf-8")
++    lock_path.write_text(raw_holder, encoding="utf-8")
+     fake_fcntl.held = True
+     lock = make_lock(tmp_path, fcntl=fake_fcntl)
+ 
+@@ -230,7 +256,7 @@ def test_busy_lock_with_unreadable_holder_fails_conservatively(tmp_path: Path) -
+         lock.acquire("agent run", "sess_new")
+ 
+     assert exc_info.value.holder is None
+-    assert "failed to parse YAML" in (exc_info.value.holder_error or "")
++    assert expected_error in (exc_info.value.holder_error or "")
+     assert lock_path.exists()
+ 
+ 
+@@ -288,6 +314,47 @@ def test_real_fcntl_release_keeps_path_locked_for_preopened_waiter(
+     assert process.exitcode == 0
+ 
+ 
++@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="requires Linux fcntl")
++def test_real_fcntl_holder_rewrite_preserves_inode_and_active_lock(
++    tmp_path: Path,
++) -> None:
++    lock_path = tmp_path / "state" / "run.lock"
++    lock = WorkspaceLock(tmp_path).acquire("agent run", "sess_parent")
++    result_queue = mp.Queue()
++    process: mp.Process | None = None
++    try:
++        original_stat = lock_path.stat()
++        holder = lock._build_holder(
++            command="agent clean trace --dry-run",
++            session_id="sess_rewrite",
++        )
++        lock._write_holder(holder)
++        rewritten_stat = lock_path.stat()
++
++        assert (rewritten_stat.st_dev, rewritten_stat.st_ino) == (
++            original_stat.st_dev,
++            original_stat.st_ino,
++        )
++
++        process = mp.Process(
++            target=attempt_workspace_lock_acquire,
++            args=(str(tmp_path), result_queue),
++        )
++        process.start()
++        process.join(5)
++        if process.is_alive():
++            process.terminate()
++            process.join(5)
++
++        assert process.exitcode == 0
++        assert result_queue.get(timeout=1) == "busy"
++    finally:
++        lock.release()
++        if process is not None and process.is_alive():
++            process.terminate()
++            process.join(5)
++
++
+ def test_existing_stale_lock_file_is_overwritten_after_successful_flock(
+     tmp_path: Path,
+ ) -> None:
+@@ -305,6 +372,29 @@ def test_existing_stale_lock_file_is_overwritten_after_successful_flock(
+     lock.release()
+ 
+ 
++def test_partial_write_holder_is_overwritten_after_successful_flock(
++    tmp_path: Path,
++) -> None:
++    lock_path = tmp_path / "state" / "run.lock"
++    lock_path.parent.mkdir(parents=True)
++    lock_path.write_text("pid: 1234\npgid: 0\ncreate_time: 1", encoding="utf-8")
++    lock = make_lock(tmp_path, pid=54321, pgid=54321, create_time=200.0)
++
++    unreadable = lock.read_holder()
++    assert unreadable.holder is None
++    assert unreadable.error is not None
++    assert "invalid lock holder" in unreadable.error
++
++    lock.acquire("agent run", "sess_new")
++
++    written = yaml.safe_load(lock_path.read_text(encoding="utf-8"))
++    assert written["pid"] == 54321
++    assert written["session_id"] == "sess_new"
++    assert lock.holder is not None
++    assert lock.holder.pid == 54321
++    lock.release()
++
++
+ def test_pid_reuse_create_time_mismatch_is_stale(tmp_path: Path) -> None:
+     lock_path = tmp_path / "state" / "run.lock"
+     write_holder(lock_path, lock_holder_data(pid=12345, create_time=100.0))

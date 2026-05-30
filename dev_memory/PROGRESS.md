@@ -24,6 +24,19 @@ Next action: generate Subtask 4.1 patch artifacts, commit, push, and send the ra
 
 Next action: commit the 4.1 validation sync, then begin Subtask 4.2 WorkspaceLock holder hardening + conservative-path tests.
 
+## 2026-05-30T01:35:45Z - Phase 04 / Subtask 4.2 implementation completed
+
+- Implemented 4.2 as a test-only holder hardening subtask; production `WorkspaceLock` code is unchanged.
+- Added Linux fcntl regression coverage for holder rewrite preserving the `run.lock` inode and keeping a second process blocked.
+- Expanded busy-lock unreadable holder coverage for empty, malformed/unsafe YAML, oversized files, and partial-write holder metadata.
+- Added no-live-flock partial holder recovery: new acquire overwrites the partial metadata and records its own pid/session.
+- Expanded clean trace planner refusal tests for unreadable holder variants.
+- Targeted UT passed: `tests/test_workspace_lock.py` -> 35 passed.
+- Targeted UT passed: `tests/test_trace_cleanup.py` -> 20 passed.
+- Full UT passed: `.venv/bin/python -m pytest tests/ -q` -> 422 passed.
+
+Next action: generate Subtask 4.2 patch artifacts, commit, push, and send the range for Claude review.
+
 ## 2026-05-06T08:42:41Z - Project kickoff
 
 - Read `doc/USER_REQUIREMENTS.md` in full.

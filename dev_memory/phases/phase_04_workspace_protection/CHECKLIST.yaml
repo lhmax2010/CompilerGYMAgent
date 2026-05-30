@@ -32,20 +32,20 @@ subtasks:
         status: done
   - id: "4.2"
     title: "WorkspaceLock holder hardening + conservative-path tests"
-    status: pending
+    status: implementation_complete
     implementation_commit: pending
     review_status: pending
     ubuntu_validation_status: pending
     checklist:
       - item: "Keep inode-safe in-place _write_holder behavior unchanged"
-        status: pending
+        status: done
       - item: "Add run.lock inode/flock survival test"
-        status: pending
+        status: done
       - item: "Add conservative unreadable holder tests for 0-byte, oversized, YAML syntax, invalid data, and partial-write crash"
-        status: pending
+        status: done
       - item: "Verify partial stale holder without live flock is overwritten by new acquire and holder pid matches"
-        status: pending
+        status: done
       - item: "Run targeted and full unit tests"
-        status: pending
+        status: done
       - item: "Generate patch artifacts"
-        status: pending
+        status: done

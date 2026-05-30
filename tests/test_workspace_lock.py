@@ -80,6 +80,18 @@ def hold_preopened_flock(
         os.close(fd)
 
 
+def attempt_workspace_lock_acquire(workspace: str, result_queue: mp.Queue) -> None:
+    try:
+        lock = WorkspaceLock(Path(workspace)).acquire("agent run", "sess_contender")
+    except WorkspaceBusyError:
+        result_queue.put("busy")
+    except Exception as exc:  # pragma: no cover - surfaced in parent assertion.
+        result_queue.put(f"error:{type(exc).__name__}:{exc}")
+    else:
+        lock.release()
+        result_queue.put("acquired")
+
+
 def make_lock(
     workspace: Path,
     *,
@@ -218,11 +230,25 @@ def test_busy_lock_raises_with_holder_info(tmp_path: Path) -> None:
     first.release()
 
 
-def test_busy_lock_with_unreadable_holder_fails_conservatively(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("raw_holder", "expected_error"),
+    [
+        ("", "lock file is empty"),
+        ("!!python/object/apply:os.system ['echo unsafe']\n", "failed to parse YAML"),
+        ("not: [valid\n", "failed to parse YAML"),
+        ("x" * 65_537, "too large"),
+        ("pid: 1234\npgid: 0\ncreate_time: 1", "invalid lock holder"),
+    ],
+)
+def test_busy_lock_with_unreadable_holder_fails_conservatively(
+    tmp_path: Path,
+    raw_holder: str,
+    expected_error: str,
+) -> None:
     fake_fcntl = FakeFcntl()
     lock_path = tmp_path / "state" / "run.lock"
     lock_path.parent.mkdir(parents=True)
-    lock_path.write_text("!!python/object/apply:os.system ['echo unsafe']\n", encoding="utf-8")
+    lock_path.write_text(raw_holder, encoding="utf-8")
     fake_fcntl.held = True
     lock = make_lock(tmp_path, fcntl=fake_fcntl)
 
@@ -230,7 +256,7 @@ def test_busy_lock_with_unreadable_holder_fails_conservatively(tmp_path: Path) -
         lock.acquire("agent run", "sess_new")
 
     assert exc_info.value.holder is None
-    assert "failed to parse YAML" in (exc_info.value.holder_error or "")
+    assert expected_error in (exc_info.value.holder_error or "")
     assert lock_path.exists()
 
 
@@ -288,6 +314,47 @@ def test_real_fcntl_release_keeps_path_locked_for_preopened_waiter(
     assert process.exitcode == 0
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="requires Linux fcntl")
+def test_real_fcntl_holder_rewrite_preserves_inode_and_active_lock(
+    tmp_path: Path,
+) -> None:
+    lock_path = tmp_path / "state" / "run.lock"
+    lock = WorkspaceLock(tmp_path).acquire("agent run", "sess_parent")
+    result_queue = mp.Queue()
+    process: mp.Process | None = None
+    try:
+        original_stat = lock_path.stat()
+        holder = lock._build_holder(
+            command="agent clean trace --dry-run",
+            session_id="sess_rewrite",
+        )
+        lock._write_holder(holder)
+        rewritten_stat = lock_path.stat()
+
+        assert (rewritten_stat.st_dev, rewritten_stat.st_ino) == (
+            original_stat.st_dev,
+            original_stat.st_ino,
+        )
+
+        process = mp.Process(
+            target=attempt_workspace_lock_acquire,
+            args=(str(tmp_path), result_queue),
+        )
+        process.start()
+        process.join(5)
+        if process.is_alive():
+            process.terminate()
+            process.join(5)
+
+        assert process.exitcode == 0
+        assert result_queue.get(timeout=1) == "busy"
+    finally:
+        lock.release()
+        if process is not None and process.is_alive():
+            process.terminate()
+            process.join(5)
+
+
 def test_existing_stale_lock_file_is_overwritten_after_successful_flock(
     tmp_path: Path,
 ) -> None:
@@ -302,6 +369,29 @@ def test_existing_stale_lock_file_is_overwritten_after_successful_flock(
     written = yaml.safe_load(lock_path.read_text(encoding="utf-8"))
     assert written["pid"] == 12345
     assert written["session_id"] == "sess_new"
+    lock.release()
+
+
+def test_partial_write_holder_is_overwritten_after_successful_flock(
+    tmp_path: Path,
+) -> None:
+    lock_path = tmp_path / "state" / "run.lock"
+    lock_path.parent.mkdir(parents=True)
+    lock_path.write_text("pid: 1234\npgid: 0\ncreate_time: 1", encoding="utf-8")
+    lock = make_lock(tmp_path, pid=54321, pgid=54321, create_time=200.0)
+
+    unreadable = lock.read_holder()
+    assert unreadable.holder is None
+    assert unreadable.error is not None
+    assert "invalid lock holder" in unreadable.error
+
+    lock.acquire("agent run", "sess_new")
+
+    written = yaml.safe_load(lock_path.read_text(encoding="utf-8"))
+    assert written["pid"] == 54321
+    assert written["session_id"] == "sess_new"
+    assert lock.holder is not None
+    assert lock.holder.pid == 54321
     lock.release()
 
 
