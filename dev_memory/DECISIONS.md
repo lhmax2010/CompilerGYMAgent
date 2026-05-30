@@ -687,3 +687,16 @@ Decision records must include:
   - Migrate `_write_holder` to `atomic_write_yaml` (REJECTED: `os.replace` breaks flock inode binding — verified double-acquire race)
   - Split holder into a separate `.holder.yaml` written atomically (REJECTED for v1: requires `read_holder` rewrite, `trace_cleanup` exists-check rewrite, release lifecycle change, explicit `file_mode=0o600`, parent fsync, ~12-18 test changes, AND introduces a new holder-deleted-but-lock-held inconsistency; net negative for a low-probability crash already covered conservatively)
   - Single-file + `.bak` backup (REJECTED: ambiguous whether `.bak` represents the current holder)
+
+## 2026-05-30T00:59:41Z - Shared AgentError base keeps RuntimeError compatibility
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 04 error framework
+  - REQUIREMENTS.md section 4.11
+  - REQUIREMENTS.md section 4.14
+- decision: Add a shared `AgentError` base class with class-level `exit_code` values, but make it inherit `RuntimeError` so all existing project error classes preserve their previous broad exception behavior. Add lightweight `TypeAlias` definitions for shared domain terms without `NewType` wrappers.
+- rationale: Phase 04 needs a common error surface before CLI dispatch and workspace skills grow more command paths. Existing callers and tests already treat project failures as `RuntimeError`, so changing the broad base would be a behavioral break unrelated to this subtask. `TypeAlias` gives static/documentation value while keeping YAML/JSON/Pydantic serialization unchanged.
+- alternatives_considered:
+  - Make `AgentError` inherit directly from `Exception`, which would satisfy the minimal shape but break existing `RuntimeError` catches.
+  - Delay the shared base until Phase 10 CLI formatting, which would require later migrations across more modules.
+  - Use `NewType` for `SessionId`/`Combo`/mode aliases, which adds runtime wrapping friction without enough benefit for the current serialization-heavy code.

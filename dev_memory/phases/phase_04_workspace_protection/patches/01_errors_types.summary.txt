@@ -1,0 +1,14 @@
+Subtask 4.1 - AgentError + shared TypeAlias module
+
+Implemented:
+- Added src/agent/errors.py with AgentError and exit-code constants.
+- Added src/agent/types.py with TypeAlias aliases for SessionId, Combo, Option, Mode, TrustLevel, and ScheduleSlot.
+- Migrated existing project error classes to inherit AgentError and expose class-level exit_code values.
+- Preserved previous RuntimeError compatibility by making AgentError inherit RuntimeError.
+- Exported AgentError, exit-code constants, and new type aliases from agent.__init__.
+- Added tests/test_errors.py for inheritance, exit-code, and alias-shape contracts.
+
+Validation:
+- .venv/bin/python -m pytest tests/test_errors.py -q -> 3 passed
+- .venv/bin/python -m pytest tests/test_config.py tests/test_fs_memory.py tests/test_workspace_lock.py tests/test_trace_session.py tests/test_trace_cleanup.py tests/test_trace_cleanup_execute.py tests/test_errors.py -q -> 283 passed
+- .venv/bin/python -m pytest tests/ -q -> 413 passed

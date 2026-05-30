@@ -21,6 +21,8 @@ from pydantic import (
     model_validator,
 )
 
+from .errors import AgentError, EXIT_VALIDATION
+
 
 MAX_CONFIG_BYTES = 1_048_576
 
@@ -38,8 +40,10 @@ OptionStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1
 ExpandedPath = Annotated[Path, BeforeValidator(_expand_path)]
 
 
-class ConfigLoadError(RuntimeError):
+class ConfigLoadError(AgentError):
     """Raised when `agent.config.yaml` cannot be parsed or validated."""
+
+    exit_code = EXIT_VALIDATION
 
 
 class ConfigYamlLoader(yaml.SafeLoader):

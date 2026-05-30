@@ -1,5 +1,19 @@
 # Development Progress
 
+## 2026-05-30T00:59:41Z - Phase 04 / Subtask 4.1 implementation completed
+
+- Started Phase 04 per `dev_memory/ROADMAP.yaml` and marked Phase 04 `in_progress`.
+- Implemented `src/agent/errors.py` with `AgentError` and shared exit-code constants.
+- Migrated existing project error classes to inherit from `AgentError` and added class-level `exit_code` values.
+- Preserved existing `RuntimeError` compatibility by making `AgentError` inherit `RuntimeError`.
+- Implemented `src/agent/types.py` with serialization-neutral `TypeAlias` definitions.
+- Added `tests/test_errors.py` for base-class, exit-code, and type-alias contracts.
+- Targeted UT passed: `.venv/bin/python -m pytest tests/test_errors.py -q` -> 3 passed.
+- Adjacent regression UT passed: config/fs_memory/workspace_lock/trace cleanup selection -> 283 passed.
+- Full UT passed: `.venv/bin/python -m pytest tests/ -q` -> 413 passed.
+
+Next action: generate Subtask 4.1 patch artifacts, commit, push, and send the range for Claude review.
+
 ## 2026-05-06T08:42:41Z - Project kickoff
 
 - Read `doc/USER_REQUIREMENTS.md` in full.

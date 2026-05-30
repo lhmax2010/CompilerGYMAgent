@@ -23,6 +23,7 @@ from pydantic import (
 )
 
 from .config import AgentConfig, NonEmptyStr, ProjectConfig, load_config
+from .errors import AgentError, EXIT_EXECUTION_REFUSED, EXIT_VALIDATION
 from .fs_memory import atomic_write_yaml
 from .registry import (
     ModulesRegistry,
@@ -41,24 +42,32 @@ InitChoice = Literal["yes", "no", "edit"]
 InitStatus = Literal["initialized", "already_initialized"]
 
 
-class InitError(RuntimeError):
+class InitError(AgentError):
     """Base error for init flow failures."""
 
 
 class InitAborted(InitError):
     """Raised when the user rejects the init confirmation."""
 
+    exit_code = EXIT_EXECUTION_REFUSED
+
 
 class InitEditRequested(InitError):
     """Raised when the user chooses to edit config before initializing."""
+
+    exit_code = EXIT_EXECUTION_REFUSED
 
 
 class InitializedLoadError(InitError):
     """Raised when `.initialized` cannot be parsed or validated."""
 
+    exit_code = EXIT_VALIDATION
+
 
 class NamespaceMismatchError(InitError):
     """Raised when `.initialized` records a different namespace."""
+
+    exit_code = EXIT_VALIDATION
 
 
 class InitYamlLoader(yaml.SafeLoader):

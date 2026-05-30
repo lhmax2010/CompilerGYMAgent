@@ -22,6 +22,7 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from .config import AgentConfig, NonEmptyStr, WorkspaceLockConfig
+from .errors import AgentError, EXIT_GENERIC, EXIT_LOCK_BUSY
 from .identifiers import validate_session_id_atom
 
 try:  # pragma: no cover - Linux path is covered on the target Ubuntu host.
@@ -46,8 +47,10 @@ class ProcessLike(Protocol):
     def create_time(self) -> float: ...
 
 
-class WorkspaceLockError(RuntimeError):
+class WorkspaceLockError(AgentError):
     """Base error for workspace lock failures."""
+
+    exit_code = EXIT_GENERIC
 
 
 class WorkspaceLockPlatformError(WorkspaceLockError):
@@ -56,6 +59,8 @@ class WorkspaceLockPlatformError(WorkspaceLockError):
 
 class WorkspaceBusyError(WorkspaceLockError):
     """Raised when another process currently holds the workspace lock."""
+
+    exit_code = EXIT_LOCK_BUSY
 
     def __init__(
         self,

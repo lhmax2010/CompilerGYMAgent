@@ -23,12 +23,22 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from .config import AgentConfig, NonEmptyStr
+from .errors import (
+    AgentError,
+    EXIT_EXECUTION_REFUSED,
+    EXIT_GENERIC,
+    EXIT_INTEGRITY,
+    EXIT_STALE,
+    EXIT_VALIDATION,
+)
 from .identifiers import validate_session_id_atom
 from .registry import ProjectNamespace, compute_project_namespace
 
 
-class FsMemoryError(RuntimeError):
+class FsMemoryError(AgentError):
     """Base error for FS-Memory failures."""
+
+    exit_code = EXIT_GENERIC
 
 
 class AtomicWriteError(FsMemoryError):
@@ -38,13 +48,19 @@ class AtomicWriteError(FsMemoryError):
 class TrialRecordError(FsMemoryError):
     """Raised when trial record data is invalid for FS-Memory use."""
 
+    exit_code = EXIT_VALIDATION
+
 
 class TrialImmutableError(TrialRecordError):
     """Raised when an immutable trial YAML path already exists."""
 
+    exit_code = EXIT_EXECUTION_REFUSED
+
 
 class TrialIntegrityError(TrialRecordError):
     """Raised when trial record integrity data is missing or invalid."""
+
+    exit_code = EXIT_INTEGRITY
 
 
 class TrialLoadError(TrialRecordError):
@@ -58,17 +74,25 @@ class TrialDiscoveryError(TrialLoadError):
 class TrialIndexError(TrialRecordError):
     """Raised when the rebuildable trial SQLite index cannot be used."""
 
+    exit_code = EXIT_STALE
+
 
 class LearnedRuleError(FsMemoryError):
     """Raised when learned rule data is invalid for FS-Memory use."""
+
+    exit_code = EXIT_VALIDATION
 
 
 class LearnedRuleExistsError(LearnedRuleError):
     """Raised when a learned rule YAML path already exists."""
 
+    exit_code = EXIT_EXECUTION_REFUSED
+
 
 class LearnedRuleIntegrityError(LearnedRuleError):
     """Raised when learned rule integrity data is missing or invalid."""
+
+    exit_code = EXIT_INTEGRITY
 
 
 class LearnedRuleLoadError(LearnedRuleError):
@@ -78,13 +102,19 @@ class LearnedRuleLoadError(LearnedRuleError):
 class ExperienceError(FsMemoryError):
     """Raised when experience data is invalid for FS-Memory use."""
 
+    exit_code = EXIT_VALIDATION
+
 
 class ExperienceExistsError(ExperienceError):
     """Raised when an experience YAML path already exists."""
 
+    exit_code = EXIT_EXECUTION_REFUSED
+
 
 class ExperienceIntegrityError(ExperienceError):
     """Raised when experience integrity data is missing or invalid."""
+
+    exit_code = EXIT_INTEGRITY
 
 
 class ExperienceLoadError(ExperienceError):
@@ -93,6 +123,8 @@ class ExperienceLoadError(ExperienceError):
 
 class TraceError(FsMemoryError):
     """Raised when canonical trace data is invalid for FS-Memory use."""
+
+    exit_code = EXIT_VALIDATION
 
 
 class TraceWriteError(TraceError):
@@ -105,6 +137,8 @@ class TraceLoadError(TraceError):
 
 class CheckpointError(FsMemoryError):
     """Raised when checkpoint state is invalid for FS-Memory use."""
+
+    exit_code = EXIT_VALIDATION
 
 
 class CheckpointLoadError(CheckpointError):

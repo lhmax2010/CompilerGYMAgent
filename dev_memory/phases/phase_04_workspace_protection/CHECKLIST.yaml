@@ -1,0 +1,27 @@
+phase_id: phase_04_workspace_protection
+phase_title: "Workspace Protection Skills + CLI Entrypoint Skeleton"
+status: in_progress
+subtasks:
+  - id: "4.1"
+    title: "src/agent/errors.py + src/agent/types.py"
+    status: implementation_complete
+    implementation_commit: pending
+    review_status: pending
+    ubuntu_validation_status: pending
+    checklist:
+      - item: "Add AgentError base and exit-code constants"
+        status: done
+      - item: "Migrate existing error classes to AgentError while preserving RuntimeError compatibility"
+        status: done
+      - item: "Assign class-level exit_code values for validation/integrity/stale/lock_busy/execution_refused categories"
+        status: done
+      - item: "Add serialization-neutral TypeAlias definitions"
+        status: done
+      - item: "Export new public symbols from agent.__init__"
+        status: done
+      - item: "Add regression tests for shared base, exit_code values, and TypeAlias runtime shapes"
+        status: done
+      - item: "Run targeted and full unit tests"
+        status: done
+      - item: "Generate patch artifacts"
+        status: done

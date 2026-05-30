@@ -12,6 +12,7 @@ from typing import Iterable, Iterator, Literal
 
 import psutil
 
+from .errors import EXIT_EXECUTION_REFUSED, EXIT_STALE, EXIT_VALIDATION
 from .fs_memory import (
     CheckpointState,
     NamespaceLayout,
@@ -32,13 +33,19 @@ _LOCK_CREATE_TIME_TOLERANCE_SECONDS = 0.5
 class TraceCleanupError(TraceError):
     """Raised when a trace cleanup plan cannot be computed safely."""
 
+    exit_code = EXIT_VALIDATION
+
 
 class CleanExecutionRefusedError(TraceCleanupError):
     """Raised when a clean plan is not executable."""
 
+    exit_code = EXIT_EXECUTION_REFUSED
+
 
 class StaleCleanPlanError(TraceCleanupError):
     """Raised when a clean plan no longer matches the trace file."""
+
+    exit_code = EXIT_STALE
 
 
 @dataclass(frozen=True)

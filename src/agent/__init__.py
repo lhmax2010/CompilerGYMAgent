@@ -1,6 +1,15 @@
 """Compiler option tuning agent package."""
 
 from .config import AgentConfig, ConfigLoadError, load_config
+from .errors import (
+    EXIT_EXECUTION_REFUSED,
+    EXIT_GENERIC,
+    EXIT_INTEGRITY,
+    EXIT_LOCK_BUSY,
+    EXIT_STALE,
+    EXIT_VALIDATION,
+    AgentError,
+)
 from .fs_memory import (
     AtomicWriteError,
     CanaryRecord,
@@ -152,6 +161,7 @@ from .trace_cleanup import (
     compute_clean_plan,
     execute_clean_plan,
 )
+from .types import Combo, Mode, Option, ScheduleSlot, SessionId, TrustLevel
 from .workspace_lock import (
     LockReadResult,
     WorkspaceBusyError,
@@ -164,6 +174,7 @@ from .workspace_lock import (
 
 __all__ = [
     "AgentConfig",
+    "AgentError",
     "AtomicWriteError",
     "ByteRange",
     "CanaryRecord",
@@ -176,8 +187,15 @@ __all__ = [
     "CheckpointState",
     "CleanPlan",
     "CleanResult",
+    "Combo",
     "ConfigLoadError",
     "DiscoveredTrialRecord",
+    "EXIT_EXECUTION_REFUSED",
+    "EXIT_GENERIC",
+    "EXIT_INTEGRITY",
+    "EXIT_LOCK_BUSY",
+    "EXIT_STALE",
+    "EXIT_VALIDATION",
     "Experience",
     "ExperienceAuditEvent",
     "ExperienceError",
@@ -210,12 +228,16 @@ __all__ = [
     "LockReadResult",
     "LineRange",
     "ModulesRegistry",
+    "Mode",
     "NamespaceMismatchError",
     "NamespaceLayout",
+    "Option",
     "ProjectNamespace",
     "RegistryLoadError",
     "RegistryValidationError",
     "ScoreVsBest",
+    "ScheduleSlot",
+    "SessionId",
     "SourceTreeChange",
     "StaleCleanPlanError",
     "TraceAppendResult",
@@ -230,6 +252,7 @@ __all__ = [
     "TraceSessionSpan",
     "TraceSessionWriter",
     "TraceWriteError",
+    "TrustLevel",
     "TrialDiscoveryError",
     "TrialImmutableError",
     "TrialIndexError",

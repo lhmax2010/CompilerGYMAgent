@@ -15,17 +15,22 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from .config import AgentConfig, MAX_CONFIG_BYTES, NonEmptyStr, ProjectConfig
+from .errors import AgentError, EXIT_VALIDATION
 
 
 MAX_REGISTRY_BYTES = MAX_CONFIG_BYTES
 
 
-class RegistryLoadError(RuntimeError):
+class RegistryLoadError(AgentError):
     """Raised when `shared/modules.registry.yaml` cannot be loaded."""
 
+    exit_code = EXIT_VALIDATION
 
-class RegistryValidationError(RuntimeError):
+
+class RegistryValidationError(AgentError):
     """Raised when project config fails startup registry validation."""
+
+    exit_code = EXIT_VALIDATION
 
 
 class RegistryYamlLoader(yaml.SafeLoader):
