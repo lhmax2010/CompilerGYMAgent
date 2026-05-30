@@ -6,7 +6,7 @@ import random
 from dataclasses import dataclass
 
 from objective import SyntheticObjective
-from strategies import SearchStrategy, TrialOutcome
+from strategies import CandidateExhausted, SearchStrategy, TrialOutcome
 
 
 @dataclass(frozen=True)
@@ -16,6 +16,7 @@ class RunResult:
     seed: int
     module: str
     trials: tuple[TrialOutcome, ...]
+    exhausted: bool = False
 
     @property
     def successful_trials(self) -> tuple[TrialOutcome, ...]:
@@ -68,7 +69,15 @@ def run_strategy(
     rng = random.Random(seed)
     history: list[TrialOutcome] = []
     for round_index in range(rounds):
-        combo = strategy.propose(history, rng)
+        try:
+            combo = strategy.propose(history, rng)
+        except CandidateExhausted:
+            return RunResult(
+                seed=seed,
+                module=module,
+                trials=tuple(history),
+                exhausted=True,
+            )
         result = objective.evaluate(combo, module=module, rng=rng)
         history.append(
             TrialOutcome(

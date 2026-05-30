@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import random
+
 from mock_llm import MockLLM
 from objective import ScoreResult, SyntheticObjective
 from option_ir import DEFAULT_OPTIONS
@@ -114,6 +116,25 @@ def test_guided_interaction_is_required_without_random_fallback() -> None:
     assert objective.known_optimum not in {trial.combo for trial in history}
 
 
+def test_random_fallback_alone_does_not_find_second_order_optimum() -> None:
+    class NoGuidedInteraction(FullAgentStrategy):
+        def _guided_interaction_candidates(self, history):  # type: ignore[no-untyped-def]
+            del history
+            return iter(())
+
+    objective = objective_without_noise()
+    hits = 0
+    for seed in range(20):
+        strategy = NoGuidedInteraction(llm=MockLLM(quality="poor"))
+        result = run_strategy(strategy, objective, rounds=40, seed=seed)
+        hits += int(
+            result.best_trial is not None
+            and result.best_trial.combo == objective.known_optimum
+        )
+
+    assert hits == 0
+
+
 def test_full_agent_beats_poor_llm_only_and_local_mutation() -> None:
     objective = objective_without_noise()
 
@@ -190,6 +211,37 @@ def test_constraint_layer_filters_known_failed_subsets() -> None:
     )
 
     assert reason == "known_failed_subset"
+
+
+def test_near_miss_suspects_exclude_neutral_noise_options() -> None:
+    objective = objective_without_noise()
+    center = frozenset({"-O3", "-funroll-loops"})
+    combos = (
+        center,
+        frozenset({"-O3", "-funroll-loops", "-fA"}),
+        frozenset({"-O3", "-funroll-loops", "-fB"}),
+        frozenset({"-O3", "-funroll-loops", "-fno-plt"}),
+        frozenset({"-O3", "-funroll-loops", "-flto"}),
+    )
+    history = [
+        TrialOutcome(
+            round_index=index,
+            combo=combo,
+            module="core",
+            result=objective.evaluate(combo, module="core", rng=random.Random(index)),
+        )
+        for index, combo in enumerate(combos)
+    ]
+    memory = ExperienceMemory.from_history(history)
+
+    suspects = memory.near_miss_additions(
+        center=center,
+        min_score_drop=0.75,
+        max_score_drop=1.25,
+        limit=6,
+    )
+
+    assert set(suspects) == {"-fA", "-fB"}
 
 
 def test_suspicion_counter_forces_soft_blocked_candidate_once() -> None:

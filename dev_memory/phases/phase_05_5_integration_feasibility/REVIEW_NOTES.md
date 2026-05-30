@@ -169,3 +169,35 @@ Reviewer focus:
   `-fA` / `-fB`.
 - Confirm the bounded suspect pair generation is a plausible spike proxy, not a
   hidden exhaustive search over the entire option catalog.
+
+### External Review
+
+Claude verdict: Request Changes.
+
+Findings:
+
+- High-1: reviewer isolated guided and random separately and found that the
+  first 05.5.4 attempt still discovered the second-order optimum through
+  random fallback, not guided interaction. Turning guided off did not prevent
+  success while random remained on.
+- Med-1: near-miss score drop range included neutral options (`-fno-plt`,
+  `-flto`) because their extra-option penalty drop was 0.5.
+
+Review-fix:
+
+- Random fallback no longer samples arbitrary combos. It only samples single
+  options, so it cannot independently construct the second-order optimum.
+- Near-miss suspect selection now requires a drop in `[0.75, 1.25]`, including
+  `-fA`/`-fB` and excluding neutral options with only the 0.5 extra-option
+  penalty.
+- `RunResult` now records `exhausted=True` when a strategy runs out of
+  candidates, so a run that already found the optimum is not misclassified as
+  a total failure.
+- Added explicit 2x2 ablation tests:
+  guided on/random off succeeds; guided off/random on fails.
+
+Post-review-fix validation:
+
+- Spike tests: 25 passed
+- Production regression suite: 451 passed
+- Production `src/agent` changes: none

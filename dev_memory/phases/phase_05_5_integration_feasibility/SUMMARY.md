@@ -139,3 +139,28 @@ Addressed 05.5.3 Med-1:
 
 This makes the second-order result depend on guided interaction exploration,
 not deterministic enumeration over the toy option space.
+
+### Review-Fix
+
+Claude requested changes after a stricter 2x2 ablation showed the first
+05.5.4 attempt still depended on random fallback:
+
+- guided on / random off failed;
+- guided off / random on still succeeded.
+
+The review-fix changes:
+
+- random fallback now samples only single options and cannot independently build
+  the second-order optimum;
+- near-miss suspects require a score drop in `[0.75, 1.25]`, excluding neutral
+  extra-penalty options while keeping `-fA` and `-fB`;
+- `RunResult.exhausted` records candidate-stream exhaustion without discarding
+  already-observed best trials;
+- explicit 2x2 tests now show guided is the driver:
+  guided on succeeds with random on or off; guided off fails with random on or
+  off.
+
+Validation:
+
+- Spike tests: 25 passed
+- Production regression suite: 451 passed

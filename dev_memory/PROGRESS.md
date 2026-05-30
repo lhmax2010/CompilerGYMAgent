@@ -1723,3 +1723,29 @@ Next action: sync review records, then begin Subtask 05.5.4 to replace brute enu
   - `.venv/bin/python -m pytest tests/ -q` -> 451 passed.
 
 Next action: generate patch artifacts, commit/push Subtask 05.5.4, then request external review.
+
+## 2026-05-30T10:31:10Z - Phase 05.5 / Subtask 05.5.4 review-fix implemented
+
+- Reviewer: Claude.
+- Verdict: Request Changes.
+- Range: `d2c097f..d7648d5`.
+- Finding:
+  - High-1: first guided-interaction follow-up still found the second-order
+    optimum through random fallback. Reviewer 2x2 ablation showed guided
+    on/random off failed, while guided off/random on succeeded.
+  - Med-1: near-miss threshold included neutral options such as `-fno-plt` and
+    `-flto`.
+- Review-fix:
+  - Random fallback now samples only single options, so it cannot independently
+    construct the second-order optimum.
+  - Near-miss suspect selection now requires score drop in `[0.75, 1.25]`,
+    keeping `-fA`/`-fB` and excluding neutral extra-penalty options.
+  - `RunResult.exhausted` records candidate exhaustion without discarding
+    already-found best trials.
+  - Added true 2x2 ablation tests:
+    guided on succeeds with random on/off; guided off fails with random on/off.
+- Validation:
+  - `.venv/bin/python -m pytest spikes/05.5_integration_feasibility/tests -q` -> 25 passed.
+  - `.venv/bin/python -m pytest tests/ -q` -> 451 passed.
+
+Next action: generate review-fix patch artifacts, commit/push, then request re-review.

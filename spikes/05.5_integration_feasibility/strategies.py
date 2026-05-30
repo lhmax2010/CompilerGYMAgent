@@ -10,6 +10,10 @@ from objective import ScoreResult
 from option_ir import OptionV0, raw_options
 
 
+class CandidateExhausted(RuntimeError):
+    """Strategy has no more candidates worth spending trial budget on."""
+
+
 @dataclass(frozen=True)
 class TrialOutcome:
     """One proposed combo and its mock evaluation result."""

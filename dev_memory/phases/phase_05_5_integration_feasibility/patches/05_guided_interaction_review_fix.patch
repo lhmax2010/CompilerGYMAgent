@@ -1,0 +1,570 @@
+diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index 0f00039..ed81422 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -1,7 +1,7 @@
+ phase_id: phase_05_5_integration_feasibility
+ phase_title: "Integration Feasibility Mock Spike"
+ started_at: 2026-05-30T09:17:16Z
+-last_updated: 2026-05-30T10:19:09Z
++last_updated: 2026-05-30T10:31:10Z
+ target_milestone: "M1.5 (integration gate)"
+ related_requirements:
+   - REQUIREMENTS.md section 4.6
+@@ -179,7 +179,7 @@ subtasks:
+       runner: "local .venv + pytest"
+   - id: "05.5.4"
+     title: "Replace brute enumeration with near-miss guided interaction exploration"
+-    status: implementation_complete
++    status: review_fix_complete
+     related_requirements:
+       - ROADMAP.yaml Phase 05.5 second-order interaction exit criterion
+       - ROADMAP.yaml Phase 05.5 against-baseline exit criterion
+@@ -196,19 +196,38 @@ subtasks:
+       - dev_memory/PROGRESS.md
+     behavior_notes:
+       - "Removed deterministic size-1..4 enumeration fallback from FullAgentStrategy."
+-      - "Interaction exploration now uses observed near-miss single-option additions around the current best combo."
+-      - "With random fallback disabled, full agent finds the second-order optimum in 20/20 poor-LLM seeds."
+-      - "With guided interaction disabled and random fallback disabled, full agent finds the second-order optimum in 0/20 seeds and exhausts candidates."
+-      - "The result now depends on guided interaction exploration rather than brute enumeration."
++      - "Random fallback is no longer allowed to brute-force combinations; it only samples single options and cannot independently find the second-order optimum."
++      - "Interaction exploration now uses observed mildly harmful near-miss single-option additions around the current best combo."
++      - "Neutral noise options are excluded from near-miss suspects via min/max score-drop bounds."
++      - "2x2 ablation now isolates the mechanism: guided ON finds optimum with random ON or OFF; guided OFF finds 0/20 with random ON or OFF."
++      - "Candidate exhaustion is represented by RunResult.exhausted instead of masking already-found optima as run failures."
+     ut_required: true
+     ut_passed: true
+-    targeted_ut: "23 spike tests passed, 0 failed"
++    targeted_ut: "25 spike tests passed, 0 failed"
+     production_regression_ut: "451 production tests passed, 0 failed"
+     self_review_required: true
+     self_reviewed: true
+     patch_required: true
+     patch_file: dev_memory/phases/phase_05_5_integration_feasibility/patches/04_guided_interaction.patch
+     patch_generated: true
++    review_fix_patch_file: dev_memory/phases/phase_05_5_integration_feasibility/patches/05_guided_interaction_review_fix.patch
++    review_fix_patch_generated: true
+     commit_required: true
+     commit_pending: true
+-next_action: "Generate patch artifacts, commit/push Subtask 05.5.4, then request external review."
++    implementation_commit: d7648d5
++    external_review_verdict: request_changes
++    external_reviewed_at: 2026-05-30T10:31:10Z
++    external_review_findings:
++      high:
++        - "High-1: first guided-interaction follow-up still found the second-order optimum via random fallback, not guided interaction. Reviewer 2x2 ablation showed guided ON/random OFF = 0/20 and guided OFF/random ON = 20/20."
++      medium:
++        - "Med-1: near-miss threshold admitted neutral noise options because extra-option penalty drop=0.5 was inside the old 0..1.25 range."
++    review_fix_notes:
++      - "Random fallback changed from combination sampling to single-option sampling, so it cannot independently construct the second-order optimum."
++      - "Near-miss selection now requires score drop in [0.75, 1.25], keeping -fA/-fB and excluding neutral -fno-plt/-flto drops."
++      - "RunResult records exhausted=True when a strategy runs out of candidates, preserving already-found best trials."
++      - "Added explicit 2x2 isolation tests: guided ON/random OFF succeeds; guided OFF/random ON fails."
++    review_fix_tests:
++      spike_pytest: "25 passed in 0.04s"
++      production_pytest: "451 passed in 1.61s"
++next_action: "Generate review-fix patch artifacts, commit/push Subtask 05.5.4 review fix, then request re-review."
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index d96c26f..39473ed 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -1723,3 +1723,29 @@ Next action: sync review records, then begin Subtask 05.5.4 to replace brute enu
+   - `.venv/bin/python -m pytest tests/ -q` -> 451 passed.
+ 
+ Next action: generate patch artifacts, commit/push Subtask 05.5.4, then request external review.
++
++## 2026-05-30T10:31:10Z - Phase 05.5 / Subtask 05.5.4 review-fix implemented
++
++- Reviewer: Claude.
++- Verdict: Request Changes.
++- Range: `d2c097f..d7648d5`.
++- Finding:
++  - High-1: first guided-interaction follow-up still found the second-order
++    optimum through random fallback. Reviewer 2x2 ablation showed guided
++    on/random off failed, while guided off/random on succeeded.
++  - Med-1: near-miss threshold included neutral options such as `-fno-plt` and
++    `-flto`.
++- Review-fix:
++  - Random fallback now samples only single options, so it cannot independently
++    construct the second-order optimum.
++  - Near-miss suspect selection now requires score drop in `[0.75, 1.25]`,
++    keeping `-fA`/`-fB` and excluding neutral extra-penalty options.
++  - `RunResult.exhausted` records candidate exhaustion without discarding
++    already-found best trials.
++  - Added true 2x2 ablation tests:
++    guided on succeeds with random on/off; guided off fails with random on/off.
++- Validation:
++  - `.venv/bin/python -m pytest spikes/05.5_integration_feasibility/tests -q` -> 25 passed.
++  - `.venv/bin/python -m pytest tests/ -q` -> 451 passed.
++
++Next action: generate review-fix patch artifacts, commit/push, then request re-review.
+diff --git a/dev_memory/phases/phase_05_5_integration_feasibility/CHECKLIST.yaml b/dev_memory/phases/phase_05_5_integration_feasibility/CHECKLIST.yaml
+index 7a258cc..74cf185 100644
+--- a/dev_memory/phases/phase_05_5_integration_feasibility/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_05_5_integration_feasibility/CHECKLIST.yaml
+@@ -70,9 +70,9 @@ subtasks:
+         status: done
+   - id: "05.5.4"
+     title: "Replace brute enumeration with near-miss guided interaction exploration"
+-    status: implementation_complete
+-    implementation_commit: pending
+-    review_status: pending
++    status: review_fix_complete
++    implementation_commit: d7648d5
++    review_status: request_changes
+     ubuntu_validation_status: pending
+     checklist:
+       - item: "Remove deterministic size-1..4 enumeration fallback from FullAgentStrategy"
+@@ -89,6 +89,20 @@ subtasks:
+         status: done
+       - item: "Generate patch artifacts"
+         status: done
++      - item: "Claude review request changes: guided contribution not isolated"
++        status: done
++      - item: "Change random fallback from combo sampling to single-option sampling"
++        status: done
++      - item: "Add min score-drop bound to exclude neutral near-miss noise options"
++        status: done
++      - item: "Represent candidate exhaustion in RunResult instead of failing the whole run"
++        status: done
++      - item: "Add true 2x2 ablation tests for guided/random independent contribution"
++        status: done
++      - item: "Run review-fix spike tests and production regression tests"
++        status: done
++      - item: "Generate review-fix patch artifacts"
++        status: done
+   - id: "05.5.2"
+     title: "MockLLM + LLMOnlyStrategy + LocalMutationStrategy baselines"
+     status: done
+diff --git a/dev_memory/phases/phase_05_5_integration_feasibility/REVIEW_NOTES.md b/dev_memory/phases/phase_05_5_integration_feasibility/REVIEW_NOTES.md
+index ac1a3a8..e2fa2d6 100644
+--- a/dev_memory/phases/phase_05_5_integration_feasibility/REVIEW_NOTES.md
++++ b/dev_memory/phases/phase_05_5_integration_feasibility/REVIEW_NOTES.md
+@@ -169,3 +169,35 @@ Reviewer focus:
+   `-fA` / `-fB`.
+ - Confirm the bounded suspect pair generation is a plausible spike proxy, not a
+   hidden exhaustive search over the entire option catalog.
++
++### External Review
++
++Claude verdict: Request Changes.
++
++Findings:
++
++- High-1: reviewer isolated guided and random separately and found that the
++  first 05.5.4 attempt still discovered the second-order optimum through
++  random fallback, not guided interaction. Turning guided off did not prevent
++  success while random remained on.
++- Med-1: near-miss score drop range included neutral options (`-fno-plt`,
++  `-flto`) because their extra-option penalty drop was 0.5.
++
++Review-fix:
++
++- Random fallback no longer samples arbitrary combos. It only samples single
++  options, so it cannot independently construct the second-order optimum.
++- Near-miss suspect selection now requires a drop in `[0.75, 1.25]`, including
++  `-fA`/`-fB` and excluding neutral options with only the 0.5 extra-option
++  penalty.
++- `RunResult` now records `exhausted=True` when a strategy runs out of
++  candidates, so a run that already found the optimum is not misclassified as
++  a total failure.
++- Added explicit 2x2 ablation tests:
++  guided on/random off succeeds; guided off/random on fails.
++
++Post-review-fix validation:
++
++- Spike tests: 25 passed
++- Production regression suite: 451 passed
++- Production `src/agent` changes: none
+diff --git a/dev_memory/phases/phase_05_5_integration_feasibility/SUMMARY.md b/dev_memory/phases/phase_05_5_integration_feasibility/SUMMARY.md
+index 007f8cd..1cd5548 100644
+--- a/dev_memory/phases/phase_05_5_integration_feasibility/SUMMARY.md
++++ b/dev_memory/phases/phase_05_5_integration_feasibility/SUMMARY.md
+@@ -139,3 +139,28 @@ Addressed 05.5.3 Med-1:
+ 
+ This makes the second-order result depend on guided interaction exploration,
+ not deterministic enumeration over the toy option space.
++
++### Review-Fix
++
++Claude requested changes after a stricter 2x2 ablation showed the first
++05.5.4 attempt still depended on random fallback:
++
++- guided on / random off failed;
++- guided off / random on still succeeded.
++
++The review-fix changes:
++
++- random fallback now samples only single options and cannot independently build
++  the second-order optimum;
++- near-miss suspects require a score drop in `[0.75, 1.25]`, excluding neutral
++  extra-penalty options while keeping `-fA` and `-fB`;
++- `RunResult.exhausted` records candidate-stream exhaustion without discarding
++  already-observed best trials;
++- explicit 2x2 tests now show guided is the driver:
++  guided on succeeds with random on or off; guided off fails with random on or
++  off.
++
++Validation:
++
++- Spike tests: 25 passed
++- Production regression suite: 451 passed
+diff --git a/dev_memory/phases/phase_05_5_integration_feasibility/UT_RESULTS.md b/dev_memory/phases/phase_05_5_integration_feasibility/UT_RESULTS.md
+index 8d05552..e8e9c9f 100644
+--- a/dev_memory/phases/phase_05_5_integration_feasibility/UT_RESULTS.md
++++ b/dev_memory/phases/phase_05_5_integration_feasibility/UT_RESULTS.md
+@@ -212,3 +212,38 @@ Probe:
+ FullAgentStrategy, poor LLM, random fallback disabled: 20/20 optimum hits.
+ Guided interaction disabled, poor LLM, random fallback disabled: 0/20 optimum hits; candidate stream exhausts.
+ ```
++
++### Review-fix Validation
++
++Claude review verdict: Request Changes.
++
++Commands:
++
++```bash
++.venv/bin/python -m pytest spikes/05.5_integration_feasibility/tests -q
++```
++
++Result:
++
++```text
++25 passed in 0.04s
++```
++
++```bash
++.venv/bin/python -m pytest tests/ -q
++```
++
++Result:
++
++```text
++451 passed in 1.61s
++```
++
++2x2 ablation after review fix:
++
++```text
++guided=True,  random=True  -> 20/20 optimum hits
++guided=True,  random=False -> 20/20 optimum hits
++guided=False, random=True  -> 0/20 optimum hits
++guided=False, random=False -> 0/20 optimum hits
++```
+diff --git a/dev_memory/phases/phase_05_5_integration_feasibility/patches/05_guided_interaction_review_fix.review.md b/dev_memory/phases/phase_05_5_integration_feasibility/patches/05_guided_interaction_review_fix.review.md
+new file mode 100644
+index 0000000..ca3719d
+--- /dev/null
++++ b/dev_memory/phases/phase_05_5_integration_feasibility/patches/05_guided_interaction_review_fix.review.md
+@@ -0,0 +1,39 @@
++# Self Review - Phase 05.5 / Subtask 05.5.4 Guided Interaction Review Fix
++
++## Scope
++
++This is a review-fix for 05.5.4 High-1. It keeps all changes inside the spike
++directory plus dev_memory records. No production `src/agent` files are touched.
++
++## Checks
++
++- Random fallback cannot build multi-option combinations anymore.
++- Guided interaction can find the second-order optimum with random fallback
++  disabled.
++- Random fallback alone cannot find the second-order optimum when guided
++  interaction is disabled.
++- Near-miss suspects exclude neutral noise options via a minimum score-drop
++  bound.
++- Candidate exhaustion is represented in `RunResult` and does not erase an
++  already-found optimum.
++- The 2x2 ablation is explicit in tests.
++
++## Reviewer Focus
++
++- Confirm the 2x2 ablation now isolates guided interaction's independent
++  contribution.
++- Confirm the random fallback is no longer a disguised brute-force combo search.
++- Confirm the near-miss band is honest: `-fA`/`-fB` are included, neutral
++  options are excluded.
++
++## Validation
++
++```bash
++.venv/bin/python -m pytest spikes/05.5_integration_feasibility/tests -q
++# 25 passed in 0.04s
++```
++
++```bash
++.venv/bin/python -m pytest tests/ -q
++# 451 passed in 1.61s
++```
+diff --git a/dev_memory/phases/phase_05_5_integration_feasibility/patches/05_guided_interaction_review_fix.summary.txt b/dev_memory/phases/phase_05_5_integration_feasibility/patches/05_guided_interaction_review_fix.summary.txt
+new file mode 100644
+index 0000000..1cce204
+--- /dev/null
++++ b/dev_memory/phases/phase_05_5_integration_feasibility/patches/05_guided_interaction_review_fix.summary.txt
+@@ -0,0 +1,27 @@
++Subtask 05.5.4 Review Fix - Guided Interaction Independent Contribution
++
++Claude requested changes because the first guided-interaction follow-up still
++found the second-order optimum through random fallback. This review-fix makes
++guided interaction the independent driver.
++
++Implemented:
++
++- Random fallback no longer samples arbitrary option combinations.
++- Random fallback now emits only single-option candidates, so it cannot
++  construct the second-order optimum by itself.
++- Near-miss suspect selection now requires score drop in [0.75, 1.25]:
++  - includes mildly harmful `-fA` / `-fB`
++  - excludes neutral `-fno-plt` / `-flto` drops from extra-option penalty
++- `RunResult` now has `exhausted: bool`.
++- `run_strategy()` stops cleanly on `CandidateExhausted` instead of discarding
++  an already-successful run.
++- Added true 2x2 ablation tests:
++  - guided on, random on -> success
++  - guided on, random off -> success
++  - guided off, random on -> failure
++  - guided off, random off -> failure
++
++Validation:
++
++- .venv/bin/python -m pytest spikes/05.5_integration_feasibility/tests -q -> 25 passed
++- .venv/bin/python -m pytest tests/ -q -> 451 passed
+diff --git a/dev_memory/spikes/05.5_integration_feasibility_findings.md b/dev_memory/spikes/05.5_integration_feasibility_findings.md
+index 7d5dd75..adcdf58 100644
+--- a/dev_memory/spikes/05.5_integration_feasibility_findings.md
++++ b/dev_memory/spikes/05.5_integration_feasibility_findings.md
+@@ -186,6 +186,34 @@ Validation:
+ - `spikes/05.5_integration_feasibility/tests`: 23 passed.
+ - Production `tests/`: 451 passed.
+ 
++Review:
++
++- Verdict: Request Changes.
++- Reviewer 2x2 ablation showed the first 05.5.4 attempt still depended on
++  random fallback:
++  - guided on / random off: 0/20;
++  - guided off / random on: 20/20.
++- Interpretation: deterministic enumeration was removed, but random fallback
++  was still acting as brute-force combination search. Guided interaction's
++  independent contribution was not yet proven.
++
++Review-fix:
++
++- Random fallback changed to single-option sampling, so it cannot independently
++  construct the `-fA`/`-fB` pair with the local optimum.
++- Near-miss suspect selection now uses a tighter score-drop band:
++  `[0.75, 1.25]`. This keeps mildly harmful interaction candidates (`-fA`,
++  `-fB`) and excludes neutral extra-penalty options (`-fno-plt`, `-flto`).
++- `RunResult.exhausted` records candidate exhaustion without throwing away a
++  run that already found the optimum.
++- New 2x2 ablation:
++  - guided on / random on: 20/20;
++  - guided on / random off: 20/20;
++  - guided off / random on: 0/20;
++  - guided off / random off: 0/20.
++- `spikes/05.5_integration_feasibility/tests`: 25 passed.
++- Production `tests/`: 451 passed.
++
+ ## Exit Criteria
+ 
+ - Full agent finds top-5% optimum within 30-50 rounds in at least 80% of seeds.
+diff --git a/spikes/05.5_integration_feasibility/full_agent.py b/spikes/05.5_integration_feasibility/full_agent.py
+index bca936d..db98060 100644
+--- a/spikes/05.5_integration_feasibility/full_agent.py
++++ b/spikes/05.5_integration_feasibility/full_agent.py
+@@ -9,7 +9,7 @@ from typing import Literal
+ 
+ from mock_llm import MockLLM
+ from option_ir import DEFAULT_OPTIONS, OptionV0, option_by_raw, raw_options
+-from strategies import TrialOutcome
++from strategies import CandidateExhausted, TrialOutcome
+ 
+ 
+ RejectReason = Literal[
+@@ -56,6 +56,7 @@ class ExperienceMemory:
+         self,
+         *,
+         center: frozenset[str],
++        min_score_drop: float,
+         max_score_drop: float,
+         limit: int,
+     ) -> tuple[str, ...]:
+@@ -74,7 +75,7 @@ class ExperienceMemory:
+             if score is None:
+                 continue
+             drop = center_score - score
+-            if 0.0 <= drop <= max_score_drop:
++            if min_score_drop <= drop <= max_score_drop:
+                 near_misses.append((drop, next(iter(added))))
+         near_misses.sort(key=lambda item: (item[0], item[1]))
+         return tuple(raw for _drop, raw in near_misses[:limit])
+@@ -149,6 +150,7 @@ class FullAgentStrategy:
+     llm: MockLLM = field(default_factory=lambda: MockLLM(quality="poor"))
+     constraint_layer: ConstraintLayer | None = None
+     max_random_fallbacks: int = 24
++    interaction_min_score_drop: float = 0.75
+     interaction_max_score_drop: float = 1.25
+     interaction_suspect_limit: int = 6
+     rejections: list[RejectedCandidate] = field(default_factory=list)
+@@ -168,7 +170,7 @@ class FullAgentStrategy:
+             if reason is None:
+                 return combo
+             self.rejections.append(RejectedCandidate(combo=combo, reason=reason))
+-        raise RuntimeError("FullAgentStrategy exhausted candidate stream")
++        raise CandidateExhausted("FullAgentStrategy exhausted candidate stream")
+ 
+     def _candidate_stream(
+         self,
+@@ -192,6 +194,7 @@ class FullAgentStrategy:
+         memory = ExperienceMemory.from_history(history)
+         suspects = memory.near_miss_additions(
+             center=center,
++            min_score_drop=self.interaction_min_score_drop,
+             max_score_drop=self.interaction_max_score_drop,
+             limit=self.interaction_suspect_limit,
+         )
+@@ -207,11 +210,10 @@ class FullAgentStrategy:
+                 yield frozenset((*center, raw))
+ 
+     def _random_candidates(self, rng: random.Random):
++        center = frozenset()
+         raws = tuple(raw_options(self.options))
+         for _ in range(self.max_random_fallbacks):
+-            combo = frozenset(raw for raw in raws if rng.random() < 0.35)
+-            if combo:
+-                yield combo
++            yield frozenset({rng.choice(raws)}) | center
+ 
+     def _best_successful_combo(
+         self,
+diff --git a/spikes/05.5_integration_feasibility/runner.py b/spikes/05.5_integration_feasibility/runner.py
+index ac2b45f..1dacdc0 100644
+--- a/spikes/05.5_integration_feasibility/runner.py
++++ b/spikes/05.5_integration_feasibility/runner.py
+@@ -6,7 +6,7 @@ import random
+ from dataclasses import dataclass
+ 
+ from objective import SyntheticObjective
+-from strategies import SearchStrategy, TrialOutcome
++from strategies import CandidateExhausted, SearchStrategy, TrialOutcome
+ 
+ 
+ @dataclass(frozen=True)
+@@ -16,6 +16,7 @@ class RunResult:
+     seed: int
+     module: str
+     trials: tuple[TrialOutcome, ...]
++    exhausted: bool = False
+ 
+     @property
+     def successful_trials(self) -> tuple[TrialOutcome, ...]:
+@@ -68,7 +69,15 @@ def run_strategy(
+     rng = random.Random(seed)
+     history: list[TrialOutcome] = []
+     for round_index in range(rounds):
+-        combo = strategy.propose(history, rng)
++        try:
++            combo = strategy.propose(history, rng)
++        except CandidateExhausted:
++            return RunResult(
++                seed=seed,
++                module=module,
++                trials=tuple(history),
++                exhausted=True,
++            )
+         result = objective.evaluate(combo, module=module, rng=rng)
+         history.append(
+             TrialOutcome(
+diff --git a/spikes/05.5_integration_feasibility/strategies.py b/spikes/05.5_integration_feasibility/strategies.py
+index 80a5558..3637815 100644
+--- a/spikes/05.5_integration_feasibility/strategies.py
++++ b/spikes/05.5_integration_feasibility/strategies.py
+@@ -10,6 +10,10 @@ from objective import ScoreResult
+ from option_ir import OptionV0, raw_options
+ 
+ 
++class CandidateExhausted(RuntimeError):
++    """Strategy has no more candidates worth spending trial budget on."""
++
++
+ @dataclass(frozen=True)
+ class TrialOutcome:
+     """One proposed combo and its mock evaluation result."""
+diff --git a/spikes/05.5_integration_feasibility/tests/test_full_agent_strategy.py b/spikes/05.5_integration_feasibility/tests/test_full_agent_strategy.py
+index fb546cc..f10b004 100644
+--- a/spikes/05.5_integration_feasibility/tests/test_full_agent_strategy.py
++++ b/spikes/05.5_integration_feasibility/tests/test_full_agent_strategy.py
+@@ -1,5 +1,7 @@
+ from __future__ import annotations
+ 
++import random
++
+ from mock_llm import MockLLM
+ from objective import ScoreResult, SyntheticObjective
+ from option_ir import DEFAULT_OPTIONS
+@@ -114,6 +116,25 @@ def test_guided_interaction_is_required_without_random_fallback() -> None:
+     assert objective.known_optimum not in {trial.combo for trial in history}
+ 
+ 
++def test_random_fallback_alone_does_not_find_second_order_optimum() -> None:
++    class NoGuidedInteraction(FullAgentStrategy):
++        def _guided_interaction_candidates(self, history):  # type: ignore[no-untyped-def]
++            del history
++            return iter(())
++
++    objective = objective_without_noise()
++    hits = 0
++    for seed in range(20):
++        strategy = NoGuidedInteraction(llm=MockLLM(quality="poor"))
++        result = run_strategy(strategy, objective, rounds=40, seed=seed)
++        hits += int(
++            result.best_trial is not None
++            and result.best_trial.combo == objective.known_optimum
++        )
++
++    assert hits == 0
++
++
+ def test_full_agent_beats_poor_llm_only_and_local_mutation() -> None:
+     objective = objective_without_noise()
+ 
+@@ -192,6 +213,37 @@ def test_constraint_layer_filters_known_failed_subsets() -> None:
+     assert reason == "known_failed_subset"
+ 
+ 
++def test_near_miss_suspects_exclude_neutral_noise_options() -> None:
++    objective = objective_without_noise()
++    center = frozenset({"-O3", "-funroll-loops"})
++    combos = (
++        center,
++        frozenset({"-O3", "-funroll-loops", "-fA"}),
++        frozenset({"-O3", "-funroll-loops", "-fB"}),
++        frozenset({"-O3", "-funroll-loops", "-fno-plt"}),
++        frozenset({"-O3", "-funroll-loops", "-flto"}),
++    )
++    history = [
++        TrialOutcome(
++            round_index=index,
++            combo=combo,
++            module="core",
++            result=objective.evaluate(combo, module="core", rng=random.Random(index)),
++        )
++        for index, combo in enumerate(combos)
++    ]
++    memory = ExperienceMemory.from_history(history)
++
++    suspects = memory.near_miss_additions(
++        center=center,
++        min_score_drop=0.75,
++        max_score_drop=1.25,
++        limit=6,
++    )
++
++    assert set(suspects) == {"-fA", "-fB"}
++
++
+ def test_suspicion_counter_forces_soft_blocked_candidate_once() -> None:
+     optimum = SyntheticObjective().known_optimum
+     layer = ConstraintLayer(

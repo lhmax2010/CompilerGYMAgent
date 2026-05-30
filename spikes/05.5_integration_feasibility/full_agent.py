@@ -9,7 +9,7 @@ from typing import Literal
 
 from mock_llm import MockLLM
 from option_ir import DEFAULT_OPTIONS, OptionV0, option_by_raw, raw_options
-from strategies import TrialOutcome
+from strategies import CandidateExhausted, TrialOutcome
 
 
 RejectReason = Literal[
@@ -56,6 +56,7 @@ class ExperienceMemory:
         self,
         *,
         center: frozenset[str],
+        min_score_drop: float,
         max_score_drop: float,
         limit: int,
     ) -> tuple[str, ...]:
@@ -74,7 +75,7 @@ class ExperienceMemory:
             if score is None:
                 continue
             drop = center_score - score
-            if 0.0 <= drop <= max_score_drop:
+            if min_score_drop <= drop <= max_score_drop:
                 near_misses.append((drop, next(iter(added))))
         near_misses.sort(key=lambda item: (item[0], item[1]))
         return tuple(raw for _drop, raw in near_misses[:limit])
@@ -149,6 +150,7 @@ class FullAgentStrategy:
     llm: MockLLM = field(default_factory=lambda: MockLLM(quality="poor"))
     constraint_layer: ConstraintLayer | None = None
     max_random_fallbacks: int = 24
+    interaction_min_score_drop: float = 0.75
     interaction_max_score_drop: float = 1.25
     interaction_suspect_limit: int = 6
     rejections: list[RejectedCandidate] = field(default_factory=list)
@@ -168,7 +170,7 @@ class FullAgentStrategy:
             if reason is None:
                 return combo
             self.rejections.append(RejectedCandidate(combo=combo, reason=reason))
-        raise RuntimeError("FullAgentStrategy exhausted candidate stream")
+        raise CandidateExhausted("FullAgentStrategy exhausted candidate stream")
 
     def _candidate_stream(
         self,
@@ -192,6 +194,7 @@ class FullAgentStrategy:
         memory = ExperienceMemory.from_history(history)
         suspects = memory.near_miss_additions(
             center=center,
+            min_score_drop=self.interaction_min_score_drop,
             max_score_drop=self.interaction_max_score_drop,
             limit=self.interaction_suspect_limit,
         )
@@ -207,11 +210,10 @@ class FullAgentStrategy:
                 yield frozenset((*center, raw))
 
     def _random_candidates(self, rng: random.Random):
+        center = frozenset()
         raws = tuple(raw_options(self.options))
         for _ in range(self.max_random_fallbacks):
-            combo = frozenset(raw for raw in raws if rng.random() < 0.35)
-            if combo:
-                yield combo
+            yield frozenset({rng.choice(raws)}) | center
 
     def _best_successful_combo(
         self,

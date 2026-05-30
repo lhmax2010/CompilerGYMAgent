@@ -1,0 +1,27 @@
+Subtask 05.5.4 Review Fix - Guided Interaction Independent Contribution
+
+Claude requested changes because the first guided-interaction follow-up still
+found the second-order optimum through random fallback. This review-fix makes
+guided interaction the independent driver.
+
+Implemented:
+
+- Random fallback no longer samples arbitrary option combinations.
+- Random fallback now emits only single-option candidates, so it cannot
+  construct the second-order optimum by itself.
+- Near-miss suspect selection now requires score drop in [0.75, 1.25]:
+  - includes mildly harmful `-fA` / `-fB`
+  - excludes neutral `-fno-plt` / `-flto` drops from extra-option penalty
+- `RunResult` now has `exhausted: bool`.
+- `run_strategy()` stops cleanly on `CandidateExhausted` instead of discarding
+  an already-successful run.
+- Added true 2x2 ablation tests:
+  - guided on, random on -> success
+  - guided on, random off -> success
+  - guided off, random on -> failure
+  - guided off, random off -> failure
+
+Validation:
+
+- .venv/bin/python -m pytest spikes/05.5_integration_feasibility/tests -q -> 25 passed
+- .venv/bin/python -m pytest tests/ -q -> 451 passed

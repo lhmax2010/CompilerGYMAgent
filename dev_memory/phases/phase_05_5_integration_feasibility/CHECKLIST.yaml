@@ -70,9 +70,9 @@ subtasks:
         status: done
   - id: "05.5.4"
     title: "Replace brute enumeration with near-miss guided interaction exploration"
-    status: implementation_complete
-    implementation_commit: pending
-    review_status: pending
+    status: review_fix_complete
+    implementation_commit: d7648d5
+    review_status: request_changes
     ubuntu_validation_status: pending
     checklist:
       - item: "Remove deterministic size-1..4 enumeration fallback from FullAgentStrategy"
@@ -88,6 +88,20 @@ subtasks:
       - item: "Run spike tests and production regression tests"
         status: done
       - item: "Generate patch artifacts"
+        status: done
+      - item: "Claude review request changes: guided contribution not isolated"
+        status: done
+      - item: "Change random fallback from combo sampling to single-option sampling"
+        status: done
+      - item: "Add min score-drop bound to exclude neutral near-miss noise options"
+        status: done
+      - item: "Represent candidate exhaustion in RunResult instead of failing the whole run"
+        status: done
+      - item: "Add true 2x2 ablation tests for guided/random independent contribution"
+        status: done
+      - item: "Run review-fix spike tests and production regression tests"
+        status: done
+      - item: "Generate review-fix patch artifacts"
         status: done
   - id: "05.5.2"
     title: "MockLLM + LLMOnlyStrategy + LocalMutationStrategy baselines"

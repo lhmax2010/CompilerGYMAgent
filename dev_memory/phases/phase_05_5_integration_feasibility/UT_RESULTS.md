@@ -212,3 +212,38 @@ Probe:
 FullAgentStrategy, poor LLM, random fallback disabled: 20/20 optimum hits.
 Guided interaction disabled, poor LLM, random fallback disabled: 0/20 optimum hits; candidate stream exhausts.
 ```
+
+### Review-fix Validation
+
+Claude review verdict: Request Changes.
+
+Commands:
+
+```bash
+.venv/bin/python -m pytest spikes/05.5_integration_feasibility/tests -q
+```
+
+Result:
+
+```text
+25 passed in 0.04s
+```
+
+```bash
+.venv/bin/python -m pytest tests/ -q
+```
+
+Result:
+
+```text
+451 passed in 1.61s
+```
+
+2x2 ablation after review fix:
+
+```text
+guided=True,  random=True  -> 20/20 optimum hits
+guided=True,  random=False -> 20/20 optimum hits
+guided=False, random=True  -> 0/20 optimum hits
+guided=False, random=False -> 0/20 optimum hits
+```
