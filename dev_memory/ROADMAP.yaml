@@ -1,6 +1,6 @@
 # dev_memory/ROADMAP.yaml
 roadmap_version: 1
-last_updated: 2026-05-30T10:31:10Z
+last_updated: 2026-05-30T11:00:31Z
 status: active
 
 # ============================================================
@@ -88,29 +88,56 @@ planned_phases:
     estimate_subtasks: { low: 6, high: 9 }
     risk: high
     goals:
-      - "process_runner: independent process group + cmdline_hash + AGENT_SESSION_ID env marker"
-      - "process_cleaner: stale process detection via psutil + multi-signal validation"
-      - "Shared ProcessIdentity model for checkpoint/process/trace/doctor surfaces"
-      - "State consistency validator for doctor/resume preflight"
+      - "Shared ProcessIdentity/ProcessRecord model for process cleanup without changing existing checkpoint/lock schemas yet"
+      - "process_runner: subprocess.Popen(start_new_session=True) with AGENT_SESSION_ID marker and lease registration"
+      - "Process Lease Registry under state/processes/<session_id>/<trial_id>/<role>-<pid>.yaml with running/exited/killed/unsafe_skip/unknown ledger states"
+      - "process_cleaner: graded ownership scoring, conservative default, killpg for whole process groups, leader-dead child scanning, lease GC"
+      - "State consistency validator for checkpoint/trace/process lease reconciliation"
+      - "TrialState operation ledger checkpoint extension for idempotent resume, with backward-compatible migration from legacy checkpoints"
+      - "Workspace lock hardening: real nonblocking flock probe + LockStatus unknown for unreadable holder"
+      - "Clean trace hardening: plan hashes + Layer D current-trial protection"
+      - "NFS/FUSE runtime warning and comment-only LangGraph checkpoint reservation"
       - "process_lab pytest fixture (controlled Python subprocess scripts, NOT raw fork)"
       - "Linux integration tests (start_new_session, killpg, timeout)"
     deliverables:
-      - "src/agent/process_identity.py"
-      - "src/agent/skills/process_runner.py"
-      - "src/agent/skills/process_cleaner.py"
-      - "src/agent/doctor/state_consistency.py"
-      - "tests/fixtures/process_lab.py"
+      - "src/agent/process_identity.py: ProcessRecord/ProcessIdentity with pid, pgid, create_time, session_id, cmdline_hash (diagnostic only), env_marker_visible_at_spawn, cgroup_path: str | None (v2 reservation). Unifies CheckpointProcess and WorkspaceLockHolder field vocabulary for cleanup, but Phase 06 does not change those existing schemas."
+      - "src/agent/process_runner.py: controlled subprocess spawn via subprocess.Popen(start_new_session=True, env=os.environ | {AGENT_SESSION_ID}); records ProcessRecord including env_marker_visible_at_spawn and writes process leases."
+      - "src/agent/process_registry.py: Process Lease Registry files at state/processes/<session_id>/<trial_id>/<role>-<pid>.yaml; lease states running -> exited | killed | unsafe_skip | unknown; records exit_code, signal, ended_at, cleanup_attempts; derived state without integrity hash; includes lease GC via doctor/cleanup."
+      - "src/agent/process_cleaner.py: process attribution by graded score (pid+create_time +3, pgid +3, env_marker +4; score >=7 owned/killpg, >=4 suspected/skip_and_log unless doctor --force-trial, <4 not_ours); cmdline_hash only in debug logs; is_ours defaults false; handles env-marker unavailable traces and leader-dead child scanning."
+      - "src/agent/doctor/state_consistency.py: checkpoint <-> trace <-> process lease validator using existing 3.8 reconcile and 3.9 spans; emits diagnosis and repair suggestions."
+      - "Checkpoint TrialState operation ledger: operations [{op, status, output_ref, process_refs}] with process_refs pointing at lease registry paths plus current_trial_start_line for trace protection; backward-compatible migration when old checkpoints lack operations; recovery uses operation status instead of guessing from a stage string."
+      - "tests/fixtures/process_lab.py: controlled Python subprocess fixture covering pid_gone, create_time_drift, pgid_mismatch, env_marker_missing, AccessDenied, leader_dead_children_alive, double_fork_escape."
+      - "Workspace lock hardening: _read_workspace_lock uses a real LOCK_NB probe to classify free/busy, metadata only explains holder; LockStatus adds unknown for unreadable holder and CleanPlan execution predicates reject unknown."
+      - "Clean trace hardening: CleanPlan records checkpoint_hash + protected_sessions_hash and execute recomputes under lock; Layer D protects current-trial trace from current_trial_start_line when checkpoint operation ledger indicates trial-in-progress."
+      - "NFS/FUSE runtime detection and warning during lock acquisition / agent init; v1 remains Linux local POSIX but warns instead of silently assuming remote fs semantics."
+      - "CheckpointState comment-only reservation for future LangGraph state snapshot field (# Reserved for Phase 9.0 spike); do not add actual dict field in Phase 06."
       - "tests/integration/test_process_lifecycle.py"
     exit_criteria:
-      - "kill-9 a runaway process and clean it up via cmdline+pgid+env_marker"
-      - "psutil mock tests cover: pid_gone, create_time_drift, pgid_mismatch, cmdline_mismatch, env_marker_missing, AccessDenied"
+      - "kill-9 a runaway process and clean it up via pgid/create_time/env_marker graded ownership; cmdline_hash remains diagnostic only"
+      - "psutil mock tests cover: pid_gone, create_time_drift, pgid_mismatch, env_marker_missing, AccessDenied, leader_dead_children_alive, double_fork_escape"
       - "Linux integration test boots/kills 3 nested process groups in <2s"
+      - "Lease registry records running/exited/killed/unsafe_skip/unknown transitions and doctor GC removes orphan leases only after liveness + ownership checks"
+      - "Workspace lock status uses real flock probe and exposes unknown for unreadable holder"
+      - "Clean trace execute rejects stale checkpoint_hash/protected_sessions_hash and Layer D protects current trial traces from current_trial_start_line"
+      - "TrialState operation ledger migrates old checkpoints without operations and preserves checkpoint integrity semantics"
+      - "NFS/FUSE warning path is covered without changing the v1 local POSIX correctness contract"
       - "Closes deferred Item: process_event kind whitelist (3.5 I-3)"
     validation_plan: ["Linux integration tests required", "Ubuntu fcntl regression"]
+    subtask_order:
+      - "6.1 process_identity.py + process_lab fixture (shared model and test harness; all later process tests depend on it)"
+      - "6.2 process_runner.py + Process Lease Registry (spawn, ProcessRecord capture, lease write/read transitions)"
+      - "6.3 process_cleaner.py (graded scoring, killpg, leader-dead scanning, env-marker downgrade, lease GC)"
+      - "6.4 workspace lock hardening (real flock probe + LockStatus unknown)"
+      - "6.5 TrialState operation ledger (checkpoint schema extension + backward-compatible migration)"
+      - "6.6 doctor/state_consistency.py (checkpoint/trace/process lease validator)"
+      - "6.7 clean trace hardening (CleanPlan hashes + Layer D current-trial protection)"
+      - "6.8 NFS detection + warning + CheckpointState LangGraph comment reservation"
     risk_notes:
       - "psutil cross-platform quirks (macOS/WSL may behave differently than Linux)"
       - "process_lab design influences all subsequent compile/benchmark testing"
-    note: "LockStatus: add 'unknown' state for unreadable holder (currently _read_workspace_lock returns 'free' when holder unreadable, which is semantically misleading though refusal_reason already guards execution). can_execute / can_execute_with_force_inactive_only must reject 'unknown'. Priority: low (clarity improvement, not a safety fix — refusal_reason already protects). Do alongside doctor/state_consistency.py since lock-status semantics get reviewed there anyway."
+      - "Env marker may be unavailable under sudo/ssh/chroot/hidepid; ownership must downgrade conservatively and trace env_marker_unavailable."
+      - "Lease registry is derived state: doctor can rebuild or GC it from checkpoint + trace, so it intentionally has no integrity hash."
+      - "Existing WorkspaceLock holder write decision remains unchanged: never os.replace run.lock; in-place fd write preserves flock inode binding."
 
   - id: "05.5"
     title: "Integration Feasibility Mock Spike"

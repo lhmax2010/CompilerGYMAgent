@@ -777,3 +777,85 @@ Decision records must include:
   - Keep iterating the mock spike until noisy interaction discovery passes by heuristic tuning, which risks overfitting the toy objective and hiding the need for statistical machinery.
   - Declare the full candidate engine validated because noiseless guided interaction works, which would ignore the most important real-world risk exposed by the spike.
   - Defer all 05.5 findings to Phase 07 without recording the partial wins, which would lose useful validated design pieces: constraints, dedup, suspicion counter, scenario-split baseline reporting, and resume-from-history behavior.
+
+## 2026-05-30T11:00:31Z - Process attribution: graded scoring, cmdline_hash diagnostic only
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 06
+  - REQUIREMENTS.md section 3.3.5
+  - REQUIREMENTS.md section 4.11.x
+- decision: Phase 06 process ownership uses graded evidence: matching pid + create_time within tolerance contributes 3 points, matching pgid contributes 3 points, and matching `AGENT_SESSION_ID` environment marker contributes 4 points. Score >= 7 is owned and may be cleaned with `killpg`; score >= 4 is suspected and is skipped/logged by default unless an explicit doctor force path is used; score < 4 is not ours. `cmdline_hash` is retained only for diagnostics/debug logs and does not add safety score. `is_ours` defaults to false when evidence cannot be read.
+- rationale: `cmdline_hash` is brittle: moving the project directory, shell wrappers, ccache, or toolchain argv rewriting can change it for a legitimate child process, while an unrelated same-name process can collide well enough to look plausible. Environment marker is the strongest ownership signal when visible; pgid and pid/create_time give a conservative fallback when marker inheritance or visibility breaks. When evidence is missing or ambiguous, the safe action is to avoid killing.
+- alternatives_considered:
+  - Treat all five signals including `cmdline_hash` as mandatory attribution evidence. Rejected because cmdline changes cause legitimate children to be missed and unrelated same-name processes can still be misclassified.
+  - Use only `AGENT_SESSION_ID`. Rejected because sudo/ssh/chroot/hidepid or toolchain behavior can hide or strip the marker, leaving no safe degraded path.
+  - Kill by pid alone. Rejected because PID reuse and unrelated user processes make this unsafe.
+
+## 2026-05-30T11:00:31Z - Process cleanup authority: checkpoint + trace, not lock
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 06
+  - REQUIREMENTS.md section 3.3.5
+  - REQUIREMENTS.md section 4.11.x
+  - REQUIREMENTS.md section 4.15
+- decision: Process cleanup authority comes from checkpoint trial/operation state, trace audit events, and the Process Lease Registry. The workspace lock is only a concurrent-writer exclusion primitive and must not decide which child process groups should be cleaned.
+- rationale: A lock holder describes who currently serializes workspace writes, not which compile or benchmark children belong to an interrupted trial. After SIGKILL, Linux releases the lock while child process groups can keep running. After resume, a new session may overwrite lock metadata while old children still need cleanup. Checkpoint + trace + leases preserve the trial context needed for safe attribution and audit.
+- alternatives_considered:
+  - Use the workspace lock holder as process cleanup source of truth. Rejected because it misses the "lock released but process still alive" crash window and can be overwritten by a newer session.
+  - Use trace alone. Rejected because trace is audit/history and may need checkpoint reconciliation before it can identify the current recovery operation.
+  - Require manual cleanup whenever lock and checkpoint disagree. Rejected because this makes normal crash recovery too fragile.
+
+## 2026-05-30T11:00:31Z - Process Lease Registry: independent derived files, not checkpoint field
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 06
+  - REQUIREMENTS.md section 3.3.5
+  - REQUIREMENTS.md section 4.11.x
+- decision: Phase 06 stores process leases as independent derived files under `state/processes/<session_id>/<trial_id>/<role>-<pid>.yaml`. Each lease records a state ledger (`running -> exited | killed | unsafe_skip | unknown`), exit code or signal, `ended_at`, and cleanup attempts. Leases are derived state without integrity hashes and can be rebuilt or garbage-collected from checkpoint + trace evidence.
+- rationale: A single checkpoint field cannot scale to benchmark repetitions, compile helpers, future canary runs, or multiple child roles. Independent leases let each process group move through its lifecycle without rewriting one large checkpoint field, while doctor can GC orphan leases after checking liveness and ownership. Keeping leases derived avoids pretending they are canonical SoT when checkpoint + trace remain the authoritative recovery/audit pair.
+- alternatives_considered:
+  - Store one `ProcessInfo` list directly in checkpoint. Rejected because it becomes awkward for many roles and lifecycle transitions, and it bloats checkpoint writes.
+  - Store process leases only in trace. Rejected because cleanup needs a current mutable view of lease status and cleanup attempts.
+  - Give leases integrity hashes like canonical records. Rejected because leases are repairable derived state, not user-edited canonical memory.
+
+## 2026-05-30T11:00:31Z - TrialState operation ledger, not stage enum
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 06
+  - REQUIREMENTS.md section 3.3.3
+  - REQUIREMENTS.md section 3.3.5
+  - REQUIREMENTS.md section 4.11.x
+- decision: Phase 06 checkpoint schema should add a backward-compatible TrialState operation ledger: `operations: [{op, status, output_ref, process_refs}]`, where `process_refs` point to lease registry files. Recovery should use operation status and idempotency rules instead of inferring progress from a coarse stage string.
+- rationale: A stage string such as `compile` cannot distinguish "compile not started", "compile process running", "compile exited but result not recorded", and "compile cleaned after failure". Those distinctions determine whether resume should wait, kill, restore, retry, or skip. An operation ledger makes the recovery point explicit and lets each operation define replay/cleanup behavior without a giant stage-based if/elif tree.
+- alternatives_considered:
+  - Keep a stage enum plus ad hoc substate fields. Rejected because every new operation would still need bespoke recovery guessing.
+  - Put all operation detail only in LangGraph cache. Rejected because LangGraph checkpoint is cache-only; canonical cold recovery must survive without it.
+  - Defer trial operation state until Phase 10 resume. Rejected because process leases and cleanup in Phase 06 need stable references now.
+
+## 2026-05-30T11:00:31Z - Workspace lock status: real flock probe, add unknown state
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 06
+  - REQUIREMENTS.md section 4.14.7a
+  - REQUIREMENTS.md section 4.15
+- decision: Phase 06 should make read-only workspace lock classification attempt a real nonblocking `flock` probe on `run.lock`. The probe determines free vs busy; holder metadata only explains the holder when available. If holder metadata is unreadable, lock status should be `unknown`, and clean execution predicates must reject `unknown`.
+- rationale: Metadata plus pid/create_time can misclassify "released but process still alive" as held, because the old holder process may remain alive after it closed or lost the lock. The kernel lock is the source of truth for free/busy. Separately, returning `free` when holder YAML is unreadable is semantically misleading: execution may already be guarded by a refusal reason, but status rendering and doctor logic should name the uncertainty directly.
+- alternatives_considered:
+  - Continue inferring lock state from holder metadata. Rejected because it over-reports held_by_other and conflates diagnostic metadata with the actual lock.
+  - Treat unreadable holder as free. Rejected because it hides uncertainty from callers and doctor output.
+  - Treat unreadable holder as always held_by_other. Rejected because a real flock probe can distinguish free locks from active locks without guessing.
+
+## 2026-05-30T11:00:31Z - Spike 05.5 finding: noise-robust interaction discovery is Phase 07 top risk
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 05.5
+  - ROADMAP.yaml Phase 7.0
+  - ROADMAP.yaml Phase 08
+  - REQUIREMENTS.md section 4.6
+  - REQUIREMENTS.md section 4.8
+- decision: Treat noise-robust second-order interaction discovery as the top technical risk for Phase 07. Phase 7.0 expands from constraint-solver performance into candidate search strategy and ablation testing, while Phase 08 owns the repeated-evaluation, aggregation, confidence interval, and bootstrap machinery needed to make near-miss interaction signals robust under noisy benchmarks. Phase 07 acceptance must include ablations proving the search mechanism contributes independently instead of relying on random or brute-force fallback.
+- rationale: Phase 05.5 showed that near-miss guided interaction is independently effective without noise, but default `noise_sigma=2.0` overwhelms the narrow near-miss window and collapses all guided/random ablation configurations to the same 11/20 top-5% hit rate. Solving this honestly requires statistics or repeated measurements, not more toy-constant tuning inside the spike. Capturing the risk now prevents Phase 07 from mistaking small-space fallback success for scalable search intelligence.
+- alternatives_considered:
+  - Keep iterating Phase 05.5 until noisy interaction discovery passes. Rejected because it would prematurely implement Phase 08-style statistics or overfit the mock objective.
+  - Accept full-agent success under random/brute fallback as proof of candidate-engine intelligence. Rejected because those mechanisms do not scale to real option spaces.
+  - Leave interaction discovery as an implicit Phase 07 concern. Rejected because it is now the clearest cross-phase risk and needs explicit Phase 7.0/08 handoff.
