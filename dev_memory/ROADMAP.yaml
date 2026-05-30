@@ -1,6 +1,6 @@
 # dev_memory/ROADMAP.yaml
 roadmap_version: 1
-last_updated: 2026-05-30T00:00:00Z
+last_updated: 2026-05-30T00:47:43Z
 status: active
 
 # ============================================================
@@ -12,6 +12,8 @@ cadence_assumption:
   phase_expansion_factor: "1.5-2.0x nominal subtask count (actual Phase 03 was 15 vs nominal 10; Phase 02 was 11 vs nominal 8)"
   review_fix_rounds_per_subtask: 0-3
   ubuntu_validation_required: true
+  recalibration_trigger: "If actual Phase 04-06 cadence drops below 1.0 subtask/workday, immediately revise all downstream estimates to the measured rate and push milestone dates. Do NOT wait until Phase 07."
+  phase_07_note: "Phase 07 estimate (10-16 subtasks) is OPTIMISTIC; actual may need 1.5-2x due to LLM integration + constraint solving."
   notes: |
     Every "subtask" in dev_memory count includes implementation commit,
     Claude review, review-fix iterations, and Ubuntu validation sync commits.
@@ -82,25 +84,35 @@ planned_phases:
       - "workspace_snapshot/verify, spec_backup/injector/restore skills"
       - "Replace 3.11's placeholder `agent = clean_trace:main` with proper subcommand dispatcher"
       - "Introduce unified AgentError + exit_code framework"
-      - "Migrate WorkspaceLock holder writes to atomic_write_yaml"
+      - "WorkspaceLock holder write hardening: preserve current inode-safe in-place fd write; never atomic-replace run.lock"
+      - "Holder change scope LIMITED to atomicity/inode-safety + conservative-path tests; field structure unchanged (ProcessIdentity unification deferred to Phase 06 to avoid cross-phase rework)"
       - "Establish test infrastructure: fake-workspace fixture"
     deliverables:
-      - "src/agent/errors.py (AgentError + exit_code framework)"
+      - "src/agent/errors.py (AgentError base + per-error-class exit_code attribute; NOT CLI formatting; suggested exit codes: 1 generic, 2 validation, 3 integrity, 4 stale, 5 lock_busy, 6 execution_refused)"
+      - "src/agent/types.py (TypeAlias for SessionId, Combo, Option, Mode, TrustLevel, ScheduleSlot; use TypeAlias not NewType to avoid serialization friction)"
       - "src/agent/skills/workspace_snapshot.py"
       - "src/agent/skills/workspace_verify.py"
       - "src/agent/skills/spec_backup.py"
       - "src/agent/skills/spec_injector.py"
       - "src/agent/skills/spec_restore.py"
       - "src/agent/cli/__main__.py (unified dispatcher)"
-      - "Migrate WorkspaceLock._write_holder to atomic_write_yaml"
+      - "WorkspaceLock holder write hardening: keep ftruncate+write+fsync through the already-flocked fd (inode-safe); NEVER atomic-replace run.lock (os.replace breaks flock inode binding); add conservative-path tests for crash/malformed/partial-write holder"
       - "tests/fixtures/fake_workspace.py"
     exit_criteria:
       - "5 skills round-trip in unit tests"
       - "`agent clean trace` / `agent doctor trace` still work after CLI reorganization"
       - "spec hash verify catches one-byte mutation"
       - "CLI catches AgentError uniformly and returns each error's exit_code"
-      - "WorkspaceLock holder crash probe leaves complete old or complete new YAML"
+      - "run.lock inode stable across holder rewrites (flock survives concurrent second-acquire probe)"
+      - "crash-truncated / 0-byte / partial-YAML holder → read_holder reports unreadable → acquire raises WorkspaceBusyError + clean trace planner sets refusal_reason (conservative path tested)"
+      - "partial-write stale holder with no live flock (for example only 'pid: 1234\\npgid: 0\\ncreate_time: 1') is overwritten by a new successful acquire, and the new holder pid matches the acquiring process"
     validation_plan: ["full pytest on Linux", "Ubuntu fcntl regression"]
+    note: "Default: keep single-file in-place holder write (inode-safe, verified). Do NOT split into a separate .holder.yaml preemptively — it adds two-file sync complexity + a new holder-deleted-but-lock-held inconsistency, for a low-probability crash already covered by the conservative busy path. Split only if a concrete scenario in this subtask requires it."
+    subtask_order:
+      - "4.1 errors.py + types.py"
+      - "4.2 WorkspaceLock holder hardening + conservative-path tests (lock-core semantics settled early)"
+      - "4.3 CLI dispatcher (depends on settled lock behavior)"
+      - "4.4 workspace / spec skills"
 
   - id: "06"
     title: "Process Management (runner + cleaner + monitor)"
@@ -134,6 +146,7 @@ planned_phases:
     risk_notes:
       - "psutil cross-platform quirks (macOS/WSL may behave differently than Linux)"
       - "process_lab design influences all subsequent compile/benchmark testing"
+    note: "LockStatus: add 'unknown' state for unreadable holder (currently _read_workspace_lock returns 'free' when holder unreadable, which is semantically misleading though refusal_reason already guards execution). can_execute / can_execute_with_force_inactive_only must reject 'unknown'. Priority: low (clarity improvement, not a safety fix — refusal_reason already protects). Do alongside doctor/state_consistency.py since lock-status semantics get reviewed there anyway."
 
   - id: "05"
     title: "Compile / Benchmark Skills"
@@ -207,6 +220,10 @@ planned_phases:
     exit_criteria:
       - "Benchmark report records solver runtime/memory at 10^3, 10^4, and 10^5 combos"
       - "Fallback decision is captured before Phase 07 implementation"
+      - "Memory < 1GB at 10^5 combos (else flag memory-blowup risk)"
+      - "If 10^4 combo solve > 30s → heuristic fallback decision required"
+      - "Rejected-candidate trace events bounded — count only ACTUALLY-generated/considered rejected candidates, NOT the theoretical combo space (avoid conflict with §4.6.2 trace requirement)"
+      - "Measure rejected-candidate trace volume across greedy/random/exhaustive generator strategies at 10^3/10^4/10^5; if a single generator run produces >10^4 rejected candidates, document trace volume impact + recommend generator batching/throttling"
     spike_findings_output: "dev_memory/spikes/7.0_candidate_constraint_solver_findings.md"
 
   - id: "07"
@@ -342,7 +359,7 @@ planned_phases:
       - "src/agent/cli/stop.py"
       - "src/agent/cli/doctor.py"
       - "src/agent/cli/clean.py (full clean command family)"
-      - "src/agent/cli/errors.py (unified exit code framework)"
+      - "src/agent/cli/errors.py (CLI-layer argparse error mapping + message formatting + user-friendly output; consumes agent/errors.py exit_codes)"
     exit_criteria:
       - "pause/stop at trial boundary verified"
       - "crash-resume across each of 8 trial stages tested"

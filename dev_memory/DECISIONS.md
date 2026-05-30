@@ -676,3 +676,14 @@ Decision records must include:
   - Automatically reset writer counters after clean trace in v1, which adds hidden mutable coordination between cleanup and writer state.
   - Allow active writers during clean trace and rely on byte refs only, which would leave misleading line refs in later trace events.
   - Forbid clean trace completely while any lock is held, which would remove the dev-mode force-clean-inactive-only use case already exposed by `CleanPlan`.
+
+## 2026-05-30T00:47:43Z - WorkspaceLock holder: in-place fd write, never os.replace run.lock
+
+- affected_requirement:
+  - REQUIREMENTS.md section 4.15
+- decision: `_write_holder` continues to write holder metadata in-place through the already-flocked fd (`ftruncate(0) + lseek(0) + write + fsync`), keeping `run.lock`'s inode stable. NEVER migrate to `atomic_write_yaml` or use `os.replace` on `run.lock`.
+- rationale: `fcntl.flock` binds to the inode, not the path. `os.replace` swaps the path to a new inode, so a waiting process can flock the new inode while the original holder still holds the old-inode lock — a verified double-acquire race. The current in-place write preserves the inode and the flock binding. Its only failure mode is a truncated / partial / 0-byte holder on crash, which is NOT a mutex failure: `read_holder` returns `holder=None`, acquire skips the stale check and overwrites with its own holder, and the clean trace planner sets `refusal_reason`. Mutex safety (`flock`) is never compromised; only holder metadata readability degrades.
+- alternatives_considered:
+  - Migrate `_write_holder` to `atomic_write_yaml` (REJECTED: `os.replace` breaks flock inode binding — verified double-acquire race)
+  - Split holder into a separate `.holder.yaml` written atomically (REJECTED for v1: requires `read_holder` rewrite, `trace_cleanup` exists-check rewrite, release lifecycle change, explicit `file_mode=0o600`, parent fsync, ~12-18 test changes, AND introduces a new holder-deleted-but-lock-held inconsistency; net negative for a low-probability crash already covered conservatively)
+  - Single-file + `.bak` backup (REJECTED: ambiguous whether `.bak` represents the current holder)
