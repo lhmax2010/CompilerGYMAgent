@@ -138,3 +138,17 @@ Implemented Phase 06's core process ownership and cleanup logic.
 - `tests/test_process_cleaner.py`: 8 passed
 - Cleaner adjacent target set: 31 passed
 - Full suite: 492 passed
+
+### Review
+
+- Claude review verdict: Approve
+- Review range: `1f2bf61..ca9373a`
+- Validation re-run:
+  - targeted cleaner-adjacent set 31 passed
+  - full suite 492 passed
+- Reviewer independently verified:
+  - single-read env marker probing avoids runner-style retry delays,
+  - score thresholds map correctly to owned/suspected/not_ours,
+  - leader-dead children-alive is discovered through pgid scanning,
+  - double-fork escape is discovered through env-marker scanning,
+  - owned cleanup kills the process group and updates the lease to `killed`.

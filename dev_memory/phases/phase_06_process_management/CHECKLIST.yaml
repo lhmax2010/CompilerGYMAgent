@@ -74,10 +74,10 @@ subtasks:
         status: done
   - id: "6.3"
     title: "process_cleaner.py"
-    status: implementation_complete
-    implementation_commit: pending
-    review_status: pending
-    ubuntu_validation_status: pending
+    status: done
+    implementation_commit: ca9373a
+    review_status: approve
+    ubuntu_validation_status: passed
     checklist:
       - item: "Implement single-read env marker probe for cleaner scans"
         status: done
@@ -104,6 +104,6 @@ subtasks:
       - item: "Generate patch artifacts"
         status: done
       - item: "Claude review"
-        status: pending
+        status: done
       - item: "Ubuntu/Linux validation"
-        status: pending
+        status: done

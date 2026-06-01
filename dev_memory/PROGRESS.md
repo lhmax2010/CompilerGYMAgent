@@ -1908,3 +1908,22 @@ Next action: begin Subtask 6.3 process_cleaner.py.
   - `.venv/bin/python -m pytest tests/ -q` -> 492 passed.
 
 Next action: generate patch artifacts, commit/push Subtask 6.3, then request Claude review.
+
+## 2026-06-01T11:51:24Z - Phase 06 / Subtask 6.3 approved and validated
+
+- Claude review verdict: Approve.
+- Review range: `1f2bf61..ca9373a`.
+- Re-ran validation:
+  - `.venv/bin/python -m pytest tests/test_process_cleaner.py tests/test_process_registry.py tests/test_process_runner.py tests/test_process_lab.py tests/test_errors.py -q` -> 31 passed.
+  - `.venv/bin/python -m pytest tests/ -q` -> 492 passed.
+- Reviewer independently verified:
+  - `read_env_marker()` is single-shot and does not reuse the runner retry helper,
+  - graded scoring boundaries are correct,
+  - leader-dead children-alive cleanup works through pgid scanning,
+  - double-fork escape discovery works through env-marker scanning,
+  - owned cleanup kills the process group and updates the lease.
+- Low follow-up: lease GC can conservatively retain an orphan under rare
+  pid/pgid reuse; safe direction, later doctor/state-consistency hardening can
+  tighten it.
+
+Next action: begin Subtask 6.4 workspace lock hardening.

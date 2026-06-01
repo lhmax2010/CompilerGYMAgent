@@ -88,3 +88,13 @@ Notes:
   cleanup, and double-fork-style env-marker discovery.
 - Cleaner env marker reads are intentionally single-shot to avoid scanning
   arbitrary external processes with runner-style retry delays.
+
+Review / validation sync:
+
+- Claude review verdict: Approve
+- Review range: `1f2bf61..ca9373a`
+- Re-run targeted cleaner-adjacent tests: 31 passed
+- Re-run full suite: 492 passed
+- Independent reviewer probe: graded scoring, leader-dead pgid scan,
+  double-fork env scan, conservative env-missing behavior, owned killpg, and
+  lease GC all matched the Phase 06 design.

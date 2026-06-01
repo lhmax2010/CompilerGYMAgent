@@ -98,3 +98,14 @@ Residual risks / follow-up:
 - Cleaner CLI / doctor force flags are deferred to later CLI/doctor subtasks.
 - Process-event kind whitelist closure still needs to be wired when trace
   process cleanup events are emitted.
+
+External review:
+
+- Verdict: Approve
+- Range: `1f2bf61..ca9373a`
+- Notes: graded scoring boundaries, single-read env marker probing,
+  leader-dead pgid discovery, double-fork env-marker discovery, owned killpg
+  cleanup, and orphan lease GC were independently probed.
+- Low follow-up: lease GC can conservatively retain an orphan under rare
+  pid/pgid reuse; the error direction is safe and can be tightened in later
+  doctor/state-consistency work.
