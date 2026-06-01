@@ -36,3 +36,28 @@ External review:
 - Notes: model validation is clean, existing schemas were not touched,
   process_lab reproduces the seven planned scenarios, and independent cleanup
   probing found 0 residual processes.
+
+## Subtask 6.2 - Process Runner + Process Lease Registry
+
+Self-review checklist:
+
+- [x] Lease files use the planned `state/processes/<session>/<trial>/<role>-<pid>.yaml`
+  shape.
+- [x] `session_id`, `trial_id`, and `role` reuse path-safe atom validation.
+- [x] Lease YAML uses a safe loader that rejects aliases.
+- [x] Lease writes are atomic and use restrictive `0600` mode.
+- [x] Lease payloads intentionally do not contain integrity hashes.
+- [x] Status-specific validation rejects malformed terminal states.
+- [x] Terminal status transitions reject attempts to move from a terminal state.
+- [x] Runner injects `AGENT_SESSION_ID` and records
+  `env_marker_visible_at_spawn`.
+- [x] Runner uses `start_new_session=True`; spawned child `pgid == pid` in
+  tests.
+- [x] Runner can refresh leases to `exited` or `killed` from `Popen.returncode`.
+- [x] Full suite passes.
+
+Residual risks / follow-up:
+
+- Ownership scoring and cleanup decisions remain 6.3 scope.
+- Lease GC remains 6.3 scope.
+- TrialState operation ledger remains 6.5 scope.

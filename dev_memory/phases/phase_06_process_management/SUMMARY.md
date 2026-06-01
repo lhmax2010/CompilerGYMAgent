@@ -50,3 +50,42 @@ lease registry, cleaner, and doctor work will depend on.
 - Ubuntu/Linux validation re-run:
   - targeted 20 passed
   - full suite 471 passed
+
+## Subtask 6.2 - Process Runner + Process Lease Registry
+
+Added the first process-management behavior above the 6.1 model/fixture
+foundation.
+
+### Changes
+
+- Added `src/agent/process_registry.py`.
+- Added `ProcessLease` and `ProcessLeaseStatus`.
+- Added lease path helpers for
+  `state/processes/<session_id>/<trial_id>/<role>-<pid>.yaml`.
+- Added safe process lease YAML loading and atomic writing.
+- Added running lease registration.
+- Added terminal state transitions:
+  - `exited`
+  - `killed`
+  - `unsafe_skip`
+  - `unknown`
+- Kept process leases as derived state without integrity hashes.
+- Added `src/agent/process_runner.py`.
+- Added `spawn_process()` using `subprocess.Popen(start_new_session=True)` and
+  injected `AGENT_SESSION_ID`.
+- Added `refresh_process_lease_from_popen()` to mark completed processes as
+  `exited` or `killed`.
+- Exported process registry and runner symbols from `agent.__init__`.
+
+### Guardrails
+
+- Process cleanup / ownership scoring is still deferred to 6.3.
+- Lease GC is still deferred to 6.3 doctor/cleanup integration.
+- Checkpoint operation ledger is still deferred to 6.5.
+
+### Validation
+
+- `tests/test_process_registry.py`: 7 passed
+- `tests/test_process_runner.py`: 6 passed
+- Adjacent targeted tests: 16 passed
+- Full suite: 484 passed

@@ -1817,3 +1817,30 @@ Next action: generate patch artifacts, commit/push Subtask 6.1, then request Cla
   0 residual processes after cleanup.
 
 Next action: begin Subtask 6.2 process_runner.py + Process Lease Registry.
+
+## 2026-06-01T08:07:08Z - Phase 06 / Subtask 6.2 implemented
+
+- Added `src/agent/process_registry.py`.
+- Added `ProcessLease` derived YAML records under
+  `state/processes/<session_id>/<trial_id>/<role>-<pid>.yaml`.
+- Added lease status transitions:
+  - `running -> exited`
+  - `running -> killed`
+  - `running -> unsafe_skip`
+  - `running -> unknown`
+- Lease files are written atomically with mode `0600` and intentionally carry
+  no integrity hash.
+- Added `src/agent/process_runner.py`.
+- `spawn_process()` starts children with `start_new_session=True`, injects
+  `AGENT_SESSION_ID`, records a `ProcessRecord`, and writes a running lease.
+- `refresh_process_lease_from_popen()` marks completed processes as exited or
+  killed.
+- If lease registration fails after spawn, the runner terminates the started
+  process group instead of leaving an untracked child.
+- Validation:
+  - `.venv/bin/python -m pytest tests/test_process_registry.py -q` -> 7 passed.
+  - `.venv/bin/python -m pytest tests/test_process_runner.py -q` -> 6 passed.
+  - `.venv/bin/python -m pytest tests/test_errors.py tests/test_process_identity.py -q` -> 16 passed.
+  - `.venv/bin/python -m pytest tests/ -q` -> 484 passed.
+
+Next action: generate patch artifacts, commit/push Subtask 6.2, then request Claude review.

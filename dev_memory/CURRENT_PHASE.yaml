@@ -1,7 +1,7 @@
 phase_id: phase_06_process_management
 phase_title: "Process Management (runner + cleaner + monitor)"
 started_at: 2026-06-01T15:30:36+08:00
-last_updated: 2026-06-01T16:00:35+08:00
+last_updated: 2026-06-01T16:07:08+08:00
 target_milestone: "M3 (advanced)"
 related_requirements:
   - REQUIREMENTS.md section 3.3.5
@@ -55,4 +55,42 @@ subtasks:
     ubuntu_validation_tests:
       targeted: "20 passed"
       full: "471 passed"
-next_action: "Begin Phase 06 Subtask 6.2: process_runner.py + Process Lease Registry."
+  - id: "6.2"
+    title: "process_runner.py + Process Lease Registry"
+    status: implementation_complete
+    related_requirements:
+      - ROADMAP.yaml Phase 06 deliverable process_runner.py
+      - ROADMAP.yaml Phase 06 deliverable process_registry.py
+    files_created:
+      - src/agent/process_registry.py
+      - src/agent/process_runner.py
+      - tests/test_process_registry.py
+      - tests/test_process_runner.py
+    files_modified:
+      - src/agent/__init__.py
+      - tests/test_errors.py
+      - dev_memory/CURRENT_PHASE.yaml
+      - dev_memory/DECISIONS.md
+      - dev_memory/PROGRESS.md
+      - dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
+      - dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
+      - dev_memory/phases/phase_06_process_management/SUMMARY.md
+      - dev_memory/phases/phase_06_process_management/UT_RESULTS.md
+    behavior_notes:
+      - "Process Lease Registry writes derived YAML files under state/processes/<session_id>/<trial_id>/<role>-<pid>.yaml."
+      - "Lease states support running -> exited | killed | unsafe_skip | unknown; terminal leases include ended_at."
+      - "Leases intentionally omit integrity hashes because they are derived state."
+      - "process_runner starts subprocesses with start_new_session=True and injects AGENT_SESSION_ID."
+      - "If lease registration fails after spawn, process_runner terminates the started process group."
+    ut_required: true
+    ut_passed: true
+    targeted_ut: "29 tests passed, 0 failed (registry/runner/errors/identity)"
+    production_regression_ut: "484 tests passed, 0 failed"
+    self_review_required: true
+    self_reviewed: true
+    patch_required: true
+    patch_file: dev_memory/phases/phase_06_process_management/patches/02_process_runner_registry.patch
+    patch_generated: true
+    commit_required: true
+    commit_pending: true
+next_action: "Push Phase 06 Subtask 6.2 implementation for Claude review."

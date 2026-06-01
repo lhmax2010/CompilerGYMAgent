@@ -36,3 +36,38 @@ subtasks:
         status: done
       - item: "Ubuntu/Linux validation"
         status: done
+  - id: "6.2"
+    title: "process_runner.py + Process Lease Registry"
+    status: implementation_complete
+    implementation_commit: pending
+    review_status: pending
+    ubuntu_validation_status: pending
+    checklist:
+      - item: "Add Process Lease Registry model and safe YAML loader"
+        status: done
+      - item: "Persist leases under state/processes/<session_id>/<trial_id>/<role>-<pid>.yaml"
+        status: done
+      - item: "Validate session_id, trial_id, role, pid, timestamps, and status-specific fields"
+        status: done
+      - item: "Support running -> exited | killed | unsafe_skip | unknown transitions"
+        status: done
+      - item: "Keep leases as derived state without integrity hashes"
+        status: done
+      - item: "Add process_runner spawn_process with start_new_session=True and AGENT_SESSION_ID injection"
+        status: done
+      - item: "Record ProcessRecord at spawn and write running lease"
+        status: done
+      - item: "Terminate started process group if lease registration fails"
+        status: done
+      - item: "Add refresh_process_lease_from_popen for exited/killed status updates"
+        status: done
+      - item: "Export new registry and runner symbols"
+        status: done
+      - item: "Run targeted tests and full production suite"
+        status: done
+      - item: "Generate patch artifacts"
+        status: done
+      - item: "Claude review"
+        status: pending
+      - item: "Ubuntu/Linux validation"
+        status: pending

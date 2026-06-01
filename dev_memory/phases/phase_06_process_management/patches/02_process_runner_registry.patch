@@ -1,0 +1,1465 @@
+diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index 9e03ed4..27ea378 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -1,7 +1,7 @@
+ phase_id: phase_06_process_management
+ phase_title: "Process Management (runner + cleaner + monitor)"
+ started_at: 2026-06-01T15:30:36+08:00
+-last_updated: 2026-06-01T16:00:35+08:00
++last_updated: 2026-06-01T16:07:08+08:00
+ target_milestone: "M3 (advanced)"
+ related_requirements:
+   - REQUIREMENTS.md section 3.3.5
+@@ -55,4 +55,42 @@ subtasks:
+     ubuntu_validation_tests:
+       targeted: "20 passed"
+       full: "471 passed"
+-next_action: "Begin Phase 06 Subtask 6.2: process_runner.py + Process Lease Registry."
++  - id: "6.2"
++    title: "process_runner.py + Process Lease Registry"
++    status: implementation_complete
++    related_requirements:
++      - ROADMAP.yaml Phase 06 deliverable process_runner.py
++      - ROADMAP.yaml Phase 06 deliverable process_registry.py
++    files_created:
++      - src/agent/process_registry.py
++      - src/agent/process_runner.py
++      - tests/test_process_registry.py
++      - tests/test_process_runner.py
++    files_modified:
++      - src/agent/__init__.py
++      - tests/test_errors.py
++      - dev_memory/CURRENT_PHASE.yaml
++      - dev_memory/DECISIONS.md
++      - dev_memory/PROGRESS.md
++      - dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
++      - dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
++      - dev_memory/phases/phase_06_process_management/SUMMARY.md
++      - dev_memory/phases/phase_06_process_management/UT_RESULTS.md
++    behavior_notes:
++      - "Process Lease Registry writes derived YAML files under state/processes/<session_id>/<trial_id>/<role>-<pid>.yaml."
++      - "Lease states support running -> exited | killed | unsafe_skip | unknown; terminal leases include ended_at."
++      - "Leases intentionally omit integrity hashes because they are derived state."
++      - "process_runner starts subprocesses with start_new_session=True and injects AGENT_SESSION_ID."
++      - "If lease registration fails after spawn, process_runner terminates the started process group."
++    ut_required: true
++    ut_passed: true
++    targeted_ut: "29 tests passed, 0 failed (registry/runner/errors/identity)"
++    production_regression_ut: "484 tests passed, 0 failed"
++    self_review_required: true
++    self_reviewed: true
++    patch_required: true
++    patch_file: dev_memory/phases/phase_06_process_management/patches/02_process_runner_registry.patch
++    patch_generated: true
++    commit_required: true
++    commit_pending: true
++next_action: "Push Phase 06 Subtask 6.2 implementation for Claude review."
+diff --git a/dev_memory/DECISIONS.md b/dev_memory/DECISIONS.md
+index 993e6aa..f559055 100644
+--- a/dev_memory/DECISIONS.md
++++ b/dev_memory/DECISIONS.md
+@@ -872,3 +872,16 @@ Decision records must include:
+   - Migrate `CheckpointProcess` and `WorkspaceLockHolder` immediately to the new model. Rejected because schema migration and lock/checkpoint compatibility belong to later Phase 06 subtasks.
+   - Start with `process_runner` before the fixture. Rejected because runner/cleaner tests need the process_lab substrate first.
+   - Mock all process behavior. Rejected because Phase 06 correctness depends on real `start_new_session`, pgid, env-marker, and `killpg` behavior on Linux.
++
++## 2026-06-01T08:07:08Z - Process leases are derived YAML state with atomic transitions
++
++- affected_requirement:
++  - ROADMAP.yaml Phase 06
++  - REQUIREMENTS.md section 3.3.5
++  - REQUIREMENTS.md section 4.11.x
++- decision: Subtask 6.2 stores process leases as derived YAML files under `state/processes/<session_id>/<trial_id>/<role>-<pid>.yaml`, written atomically with restrictive file mode and no integrity hash. The runner writes a `running` lease immediately after `Popen(start_new_session=True)` and transitions the lease to `exited` or `killed` from `Popen.returncode`; `unsafe_skip` and `unknown` terminal states are modeled for the 6.3 cleaner.
++- rationale: The lease registry needs a current mutable view of active process groups, but checkpoint + trace remain canonical for recovery/audit. Treating leases as derived state keeps them repairable and garbage-collectable. Atomic writes avoid torn lease YAML, while no integrity hash avoids pretending lease files are user-edited SoT. If lease persistence fails after spawn, the runner terminates the just-started process group so it does not create an untracked child.
++- alternatives_considered:
++  - Store leases only in checkpoint. Rejected because multi-process roles and status transitions would bloat checkpoint and couple process liveness to canonical state writes.
++  - Add integrity hashes to leases. Rejected because leases are derived operational state and can be rebuilt or discarded by doctor/cleanup.
++  - Let a process continue running if lease registration fails. Rejected because an untracked child process group is worse than failing the spawn loudly.
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index 4b46739..cb5ab5b 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -1817,3 +1817,30 @@ Next action: generate patch artifacts, commit/push Subtask 6.1, then request Cla
+   0 residual processes after cleanup.
+ 
+ Next action: begin Subtask 6.2 process_runner.py + Process Lease Registry.
++
++## 2026-06-01T08:07:08Z - Phase 06 / Subtask 6.2 implemented
++
++- Added `src/agent/process_registry.py`.
++- Added `ProcessLease` derived YAML records under
++  `state/processes/<session_id>/<trial_id>/<role>-<pid>.yaml`.
++- Added lease status transitions:
++  - `running -> exited`
++  - `running -> killed`
++  - `running -> unsafe_skip`
++  - `running -> unknown`
++- Lease files are written atomically with mode `0600` and intentionally carry
++  no integrity hash.
++- Added `src/agent/process_runner.py`.
++- `spawn_process()` starts children with `start_new_session=True`, injects
++  `AGENT_SESSION_ID`, records a `ProcessRecord`, and writes a running lease.
++- `refresh_process_lease_from_popen()` marks completed processes as exited or
++  killed.
++- If lease registration fails after spawn, the runner terminates the started
++  process group instead of leaving an untracked child.
++- Validation:
++  - `.venv/bin/python -m pytest tests/test_process_registry.py -q` -> 7 passed.
++  - `.venv/bin/python -m pytest tests/test_process_runner.py -q` -> 6 passed.
++  - `.venv/bin/python -m pytest tests/test_errors.py tests/test_process_identity.py -q` -> 16 passed.
++  - `.venv/bin/python -m pytest tests/ -q` -> 484 passed.
++
++Next action: generate patch artifacts, commit/push Subtask 6.2, then request Claude review.
+diff --git a/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml b/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
+index 5db3c8e..e22ce74 100644
+--- a/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
+@@ -36,3 +36,38 @@ subtasks:
+         status: done
+       - item: "Ubuntu/Linux validation"
+         status: done
++  - id: "6.2"
++    title: "process_runner.py + Process Lease Registry"
++    status: implementation_complete
++    implementation_commit: pending
++    review_status: pending
++    ubuntu_validation_status: pending
++    checklist:
++      - item: "Add Process Lease Registry model and safe YAML loader"
++        status: done
++      - item: "Persist leases under state/processes/<session_id>/<trial_id>/<role>-<pid>.yaml"
++        status: done
++      - item: "Validate session_id, trial_id, role, pid, timestamps, and status-specific fields"
++        status: done
++      - item: "Support running -> exited | killed | unsafe_skip | unknown transitions"
++        status: done
++      - item: "Keep leases as derived state without integrity hashes"
++        status: done
++      - item: "Add process_runner spawn_process with start_new_session=True and AGENT_SESSION_ID injection"
++        status: done
++      - item: "Record ProcessRecord at spawn and write running lease"
++        status: done
++      - item: "Terminate started process group if lease registration fails"
++        status: done
++      - item: "Add refresh_process_lease_from_popen for exited/killed status updates"
++        status: done
++      - item: "Export new registry and runner symbols"
++        status: done
++      - item: "Run targeted tests and full production suite"
++        status: done
++      - item: "Generate patch artifacts"
++        status: done
++      - item: "Claude review"
++        status: pending
++      - item: "Ubuntu/Linux validation"
++        status: pending
+diff --git a/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md b/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
+index 1380964..24895ea 100644
+--- a/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
++++ b/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
+@@ -36,3 +36,28 @@ External review:
+ - Notes: model validation is clean, existing schemas were not touched,
+   process_lab reproduces the seven planned scenarios, and independent cleanup
+   probing found 0 residual processes.
++
++## Subtask 6.2 - Process Runner + Process Lease Registry
++
++Self-review checklist:
++
++- [x] Lease files use the planned `state/processes/<session>/<trial>/<role>-<pid>.yaml`
++  shape.
++- [x] `session_id`, `trial_id`, and `role` reuse path-safe atom validation.
++- [x] Lease YAML uses a safe loader that rejects aliases.
++- [x] Lease writes are atomic and use restrictive `0600` mode.
++- [x] Lease payloads intentionally do not contain integrity hashes.
++- [x] Status-specific validation rejects malformed terminal states.
++- [x] Terminal status transitions reject attempts to move from a terminal state.
++- [x] Runner injects `AGENT_SESSION_ID` and records
++  `env_marker_visible_at_spawn`.
++- [x] Runner uses `start_new_session=True`; spawned child `pgid == pid` in
++  tests.
++- [x] Runner can refresh leases to `exited` or `killed` from `Popen.returncode`.
++- [x] Full suite passes.
++
++Residual risks / follow-up:
++
++- Ownership scoring and cleanup decisions remain 6.3 scope.
++- Lease GC remains 6.3 scope.
++- TrialState operation ledger remains 6.5 scope.
+diff --git a/dev_memory/phases/phase_06_process_management/SUMMARY.md b/dev_memory/phases/phase_06_process_management/SUMMARY.md
+index af9a2f5..2d814ea 100644
+--- a/dev_memory/phases/phase_06_process_management/SUMMARY.md
++++ b/dev_memory/phases/phase_06_process_management/SUMMARY.md
+@@ -50,3 +50,42 @@ lease registry, cleaner, and doctor work will depend on.
+ - Ubuntu/Linux validation re-run:
+   - targeted 20 passed
+   - full suite 471 passed
++
++## Subtask 6.2 - Process Runner + Process Lease Registry
++
++Added the first process-management behavior above the 6.1 model/fixture
++foundation.
++
++### Changes
++
++- Added `src/agent/process_registry.py`.
++- Added `ProcessLease` and `ProcessLeaseStatus`.
++- Added lease path helpers for
++  `state/processes/<session_id>/<trial_id>/<role>-<pid>.yaml`.
++- Added safe process lease YAML loading and atomic writing.
++- Added running lease registration.
++- Added terminal state transitions:
++  - `exited`
++  - `killed`
++  - `unsafe_skip`
++  - `unknown`
++- Kept process leases as derived state without integrity hashes.
++- Added `src/agent/process_runner.py`.
++- Added `spawn_process()` using `subprocess.Popen(start_new_session=True)` and
++  injected `AGENT_SESSION_ID`.
++- Added `refresh_process_lease_from_popen()` to mark completed processes as
++  `exited` or `killed`.
++- Exported process registry and runner symbols from `agent.__init__`.
++
++### Guardrails
++
++- Process cleanup / ownership scoring is still deferred to 6.3.
++- Lease GC is still deferred to 6.3 doctor/cleanup integration.
++- Checkpoint operation ledger is still deferred to 6.5.
++
++### Validation
++
++- `tests/test_process_registry.py`: 7 passed
++- `tests/test_process_runner.py`: 6 passed
++- Adjacent targeted tests: 16 passed
++- Full suite: 484 passed
+diff --git a/dev_memory/phases/phase_06_process_management/UT_RESULTS.md b/dev_memory/phases/phase_06_process_management/UT_RESULTS.md
+index 500b1b5..264f323 100644
+--- a/dev_memory/phases/phase_06_process_management/UT_RESULTS.md
++++ b/dev_memory/phases/phase_06_process_management/UT_RESULTS.md
+@@ -30,3 +30,26 @@ Review / validation sync:
+ - Re-run full suite: 471 passed
+ - Independent reviewer probe: seven process_lab scenarios reproducible; 0
+   residual processes after cleanup.
++
++## Subtask 6.2 - Process Runner + Process Lease Registry
++
++Commands:
++
++```bash
++.venv/bin/python -m pytest tests/test_process_registry.py -q
++.venv/bin/python -m pytest tests/test_process_runner.py -q
++.venv/bin/python -m pytest tests/test_errors.py tests/test_process_identity.py -q
++.venv/bin/python -m pytest tests/ -q
++```
++
++Results:
++
++- `tests/test_process_registry.py`: 7 passed
++- `tests/test_process_runner.py`: 6 passed
++- `tests/test_errors.py tests/test_process_identity.py`: 16 passed
++- Full suite: 484 passed
++
++Notes:
++
++- `test_process_runner.py` is POSIX-only because it checks real
++  `start_new_session` / process-group behavior.
+diff --git a/dev_memory/phases/phase_06_process_management/patches/02_process_runner_registry.review.md b/dev_memory/phases/phase_06_process_management/patches/02_process_runner_registry.review.md
+new file mode 100644
+index 0000000..63bb3c4
+--- /dev/null
++++ b/dev_memory/phases/phase_06_process_management/patches/02_process_runner_registry.review.md
+@@ -0,0 +1,36 @@
++# Self Review - Phase 06 / Subtask 6.2
++
++## Scope
++
++Implemented Process Lease Registry and process runner spawn/refresh behavior.
++
++No ownership scoring, process cleanup policy, lease GC, or checkpoint operation
++ledger was implemented in this subtask.
++
++## Checks
++
++- Lease path shape is `state/processes/<session_id>/<trial_id>/<role>-<pid>.yaml`.
++- Session/trial/role atoms are path-safe.
++- Lease YAML rejects aliases and symlink paths.
++- Lease writes are atomic and use `0600`.
++- Lease payloads are derived state and omit integrity hashes.
++- Running leases cannot carry terminal fields.
++- Terminal leases require `ended_at` and status-specific exit/signal fields.
++- Terminal leases cannot transition again.
++- Runner uses `start_new_session=True`.
++- Runner injects `AGENT_SESSION_ID` even when caller env tries to override it.
++- Runner records `env_marker_visible_at_spawn`.
++- Runner refresh marks process exits and signals.
++
++## Test Results
++
++```bash
++.venv/bin/python -m pytest tests/test_process_registry.py -q  # 7 passed
++.venv/bin/python -m pytest tests/test_process_runner.py -q    # 6 passed
++.venv/bin/python -m pytest tests/ -q                          # 484 passed
++```
++
++## Residual Risk
++
++6.3 must verify cleaner behavior against leases, including leader-dead child
++scanning, env-marker downgrade, suspected ownership, and lease GC.
+diff --git a/dev_memory/phases/phase_06_process_management/patches/02_process_runner_registry.summary.txt b/dev_memory/phases/phase_06_process_management/patches/02_process_runner_registry.summary.txt
+new file mode 100644
+index 0000000..6c6b4d4
+--- /dev/null
++++ b/dev_memory/phases/phase_06_process_management/patches/02_process_runner_registry.summary.txt
+@@ -0,0 +1,29 @@
++Subtask 6.2 adds Process Lease Registry and controlled process runner support.
++
++Implemented:
++- src/agent/process_registry.py
++  - ProcessLease model and ProcessLeaseStatus values
++  - state/processes/<session_id>/<trial_id>/<role>-<pid>.yaml path helpers
++  - safe YAML loader for process leases
++  - atomic write / load / iter helpers
++  - running -> exited | killed | unsafe_skip | unknown transition helpers
++- src/agent/process_runner.py
++  - spawn_process() with start_new_session=True
++  - AGENT_SESSION_ID env injection
++  - ProcessRecord capture at spawn
++  - running lease registration
++  - refresh_process_lease_from_popen() for exited/killed updates
++  - best-effort process-group termination if lease registration fails
++- agent.__init__ exports
++- tests/test_process_registry.py and tests/test_process_runner.py
++
++Validation:
++- tests/test_process_registry.py: 7 passed
++- tests/test_process_runner.py: 6 passed
++- tests/test_errors.py tests/test_process_identity.py: 16 passed
++- Full suite: 484 passed
++
++Deferred:
++- ownership scoring / cleaner: 6.3
++- lease GC: 6.3
++- TrialState operation ledger: 6.5
+diff --git a/src/agent/__init__.py b/src/agent/__init__.py
+index c9a4477..04b55a9 100644
+--- a/src/agent/__init__.py
++++ b/src/agent/__init__.py
+@@ -133,6 +133,34 @@ from .process_identity import (
+     ProcessRecord,
+     compute_cmdline_hash,
+ )
++from .process_registry import (
++    PROCESS_LEASE_SCHEMA_VERSION,
++    ProcessLease,
++    ProcessLeaseStatus,
++    ProcessRegistryError,
++    iter_process_lease_paths,
++    load_process_lease,
++    load_process_lease_for_layout,
++    load_process_leases,
++    mark_process_exited,
++    mark_process_killed,
++    mark_process_unknown,
++    mark_process_unsafe_skip,
++    process_lease_path,
++    process_lease_payload,
++    process_leases_dir,
++    process_trial_leases_dir,
++    register_process_lease,
++    transition_process_lease,
++    write_process_lease,
++)
++from .process_runner import (
++    ProcessRunnerError,
++    ProcessSpawnResult,
++    process_record_for_pid,
++    refresh_process_lease_from_popen,
++    spawn_process,
++)
+ from .registry import (
+     ModulesRegistry,
+     ProjectNamespace,
+@@ -255,9 +283,15 @@ __all__ = [
+     "NamespaceMismatchError",
+     "NamespaceLayout",
+     "Option",
++    "PROCESS_LEASE_SCHEMA_VERSION",
+     "ProjectNamespace",
+     "ProcessIdentity",
++    "ProcessLease",
++    "ProcessLeaseStatus",
+     "ProcessRecord",
++    "ProcessRegistryError",
++    "ProcessRunnerError",
++    "ProcessSpawnResult",
+     "RegistryLoadError",
+     "RegistryValidationError",
+     "ScoreVsBest",
+@@ -327,6 +361,7 @@ __all__ = [
+     "existing_trial_compiler_versions",
+     "execute_clean_plan",
+     "ensure_trial_index_current",
++    "iter_process_lease_paths",
+     "iter_trial_record_paths",
+     "iter_trace_events",
+     "inspect_trace_checkpoint_alignment",
+@@ -340,6 +375,9 @@ __all__ = [
+     "load_initialized_state",
+     "load_learned_rule",
+     "load_modules_registry",
++    "load_process_lease",
++    "load_process_lease_for_layout",
++    "load_process_leases",
+     "load_trial_index_rows",
+     "load_trial_index_summary",
+     "load_trial_record",
+@@ -347,21 +385,34 @@ __all__ = [
+     "load_trace_events",
+     "load_workspace_snapshot",
+     "lock_path_for_workspace",
++    "mark_process_exited",
++    "mark_process_killed",
++    "mark_process_unknown",
++    "mark_process_unsafe_skip",
+     "namespace_layout_for_config",
+     "normalize_init_choice",
+     "prepare_init_context",
+     "prompt_for_init_confirmation",
++    "process_lease_path",
++    "process_lease_payload",
++    "process_leases_dir",
++    "process_record_for_pid",
++    "process_trial_leases_dir",
+     "registry_path_for_workspace",
++    "refresh_process_lease_from_popen",
++    "register_process_lease",
+     "render_init_confirmation",
+     "rebuild_trial_index",
+     "run_init",
+     "spec_backup",
+     "spec_injector",
+     "spec_restore",
++    "spawn_process",
+     "trial_index_is_stale",
+     "trial_record_path",
+     "trial_record_payload",
+     "trace_event_payload",
++    "transition_process_lease",
+     "validate_project_against_registry",
+     "verify_experience_local_integrity",
+     "verify_initialized_for_startup",
+@@ -376,5 +427,6 @@ __all__ = [
+     "write_experience",
+     "write_initialized_state",
+     "write_learned_rule",
++    "write_process_lease",
+     "write_trial_record",
+ ]
+diff --git a/src/agent/process_registry.py b/src/agent/process_registry.py
+new file mode 100644
+index 0000000..43e1bd5
+--- /dev/null
++++ b/src/agent/process_registry.py
+@@ -0,0 +1,393 @@
++"""Derived process lease registry for Phase 06 process management."""
++
++from __future__ import annotations
++
++from collections.abc import Iterator, Mapping
++from datetime import UTC, datetime, timedelta
++from pathlib import Path
++from typing import Any, Literal
++
++import yaml
++from pydantic import BaseModel, ConfigDict, Field, ValidationError
++from pydantic import field_validator, model_validator
++
++from .config import NonEmptyStr
++from .errors import AgentError, EXIT_VALIDATION
++from .fs_memory import NamespaceLayout, atomic_write_yaml
++from .identifiers import validate_session_id_atom
++from .process_identity import ProcessRecord
++
++
++PROCESS_LEASE_SCHEMA_VERSION = "process_lease.v1"
++MAX_PROCESS_LEASE_BYTES = 64 * 1024
++ProcessLeaseStatus = Literal["running", "exited", "killed", "unsafe_skip", "unknown"]
++
++
++class ProcessRegistryError(AgentError):
++    """Raised when process lease registry operations fail."""
++
++    exit_code = EXIT_VALIDATION
++
++
++class ProcessLeaseYamlLoader(yaml.SafeLoader):
++    """Safe YAML loader for process lease files."""
++
++    def compose_node(self, parent: Any, index: Any) -> yaml.Node:
++        if self.check_event(yaml.AliasEvent):
++            raise yaml.YAMLError("YAML aliases are not allowed in process leases")
++        return super().compose_node(parent, index)
++
++
++class StrictProcessRegistryModel(BaseModel):
++    model_config = ConfigDict(extra="forbid", validate_assignment=True)
++
++
++class ProcessLease(StrictProcessRegistryModel):
++    """Derived process lease persisted under state/processes/."""
++
++    schema_version: NonEmptyStr = PROCESS_LEASE_SCHEMA_VERSION
++    session_id: NonEmptyStr
++    trial_id: NonEmptyStr
++    role: NonEmptyStr
++    record: ProcessRecord
++    status: ProcessLeaseStatus = "running"
++    created_at: NonEmptyStr
++    updated_at: NonEmptyStr
++    ended_at: NonEmptyStr | None = None
++    exit_code: int | None = None
++    signal: int | None = Field(default=None, ge=0)
++    cleanup_attempts: int = Field(default=0, ge=0)
++
++    @field_validator("schema_version")
++    @classmethod
++    def schema_version_must_match(cls, value: str) -> str:
++        if value != PROCESS_LEASE_SCHEMA_VERSION:
++            raise ValueError(
++                f"schema_version must be {PROCESS_LEASE_SCHEMA_VERSION!r}"
++            )
++        return value
++
++    @field_validator("session_id", "trial_id", "role", mode="before")
++    @classmethod
++    def atom_must_not_be_trimmed(cls, value: Any, info: Any) -> Any:
++        if isinstance(value, str) and value != value.strip():
++            raise ValueError(f"{info.field_name} cannot contain surrounding whitespace")
++        return value
++
++    @field_validator("session_id", "trial_id", "role")
++    @classmethod
++    def atom_must_be_safe(cls, value: str, info: Any) -> str:
++        validate_session_id_atom(value, info.field_name)
++        return value
++
++    @field_validator("created_at", "updated_at", "ended_at")
++    @classmethod
++    def timestamp_must_be_utc_isoformat(cls, value: str | None, info: Any) -> str | None:
++        if value is not None:
++            _parse_utc_isoformat(value, info.field_name)
++        return value
++
++    @model_validator(mode="after")
++    def lease_consistency(self) -> ProcessLease:
++        if self.record.session_id != self.session_id:
++            raise ValueError("record.session_id must match lease session_id")
++        created_at = _parse_utc_isoformat(self.created_at, "created_at")
++        updated_at = _parse_utc_isoformat(self.updated_at, "updated_at")
++        if updated_at < created_at:
++            raise ValueError("updated_at cannot be before created_at")
++        if self.ended_at is not None:
++            ended_at = _parse_utc_isoformat(self.ended_at, "ended_at")
++            if ended_at < created_at:
++                raise ValueError("ended_at cannot be before created_at")
++        if self.status == "running":
++            if self.ended_at is not None:
++                raise ValueError("running leases must not include ended_at")
++            if self.exit_code is not None:
++                raise ValueError("running leases must not include exit_code")
++            if self.signal is not None:
++                raise ValueError("running leases must not include signal")
++        else:
++            if self.ended_at is None:
++                raise ValueError(f"{self.status} leases must include ended_at")
++        if self.status == "exited":
++            if self.exit_code is None:
++                raise ValueError("exited leases must include exit_code")
++            if self.signal is not None:
++                raise ValueError("exited leases must not include signal")
++        elif self.status == "killed":
++            if self.signal is None:
++                raise ValueError("killed leases must include signal")
++            if self.exit_code is not None:
++                raise ValueError("killed leases must not include exit_code")
++        elif self.status in {"unsafe_skip", "unknown"}:
++            if self.exit_code is not None:
++                raise ValueError(f"{self.status} leases must not include exit_code")
++            if self.signal is not None:
++                raise ValueError(f"{self.status} leases must not include signal")
++        return self
++
++
++def process_lease_payload(lease: ProcessLease | Mapping[str, Any]) -> dict[str, Any]:
++    validated = ProcessLease.model_validate(lease)
++    return validated.model_dump(mode="json", exclude_none=True)
++
++
++def process_leases_dir(layout: NamespaceLayout) -> Path:
++    return layout.state_dir / "processes"
++
++
++def process_trial_leases_dir(
++    layout: NamespaceLayout, *, session_id: str, trial_id: str
++) -> Path:
++    safe_session_id = validate_session_id_atom(session_id, "session_id")
++    safe_trial_id = validate_session_id_atom(trial_id, "trial_id")
++    return process_leases_dir(layout) / safe_session_id / safe_trial_id
++
++
++def process_lease_path(
++    layout: NamespaceLayout,
++    *,
++    session_id: str,
++    trial_id: str,
++    role: str,
++    pid: int,
++) -> Path:
++    if pid <= 0:
++        raise ProcessRegistryError("pid must be > 0")
++    safe_role = validate_session_id_atom(role, "role")
++    return (
++        process_trial_leases_dir(
++            layout,
++            session_id=session_id,
++            trial_id=trial_id,
++        )
++        / f"{safe_role}-{pid}.yaml"
++    )
++
++
++def register_process_lease(
++    layout: NamespaceLayout,
++    *,
++    record: ProcessRecord,
++    trial_id: str,
++    role: str,
++    now: datetime | None = None,
++) -> ProcessLease:
++    timestamp = _utc_now_isoformat(now)
++    lease = ProcessLease(
++        session_id=record.session_id,
++        trial_id=trial_id,
++        role=role,
++        record=record,
++        status="running",
++        created_at=timestamp,
++        updated_at=timestamp,
++    )
++    write_process_lease(layout, lease)
++    return lease
++
++
++def write_process_lease(layout: NamespaceLayout, lease: ProcessLease) -> Path:
++    target = process_lease_path(
++        layout,
++        session_id=lease.session_id,
++        trial_id=lease.trial_id,
++        role=lease.role,
++        pid=lease.record.pid,
++    )
++    if target.exists() and target.is_symlink():
++        raise ProcessRegistryError(f"process lease path must not be a symlink: {target}")
++    try:
++        atomic_write_yaml(process_lease_payload(lease), target, file_mode=0o600)
++    except Exception as exc:
++        if isinstance(exc, ProcessRegistryError):
++            raise
++        raise ProcessRegistryError(f"failed to write process lease {target}: {exc}") from exc
++    return target
++
++
++def transition_process_lease(
++    layout: NamespaceLayout,
++    lease: ProcessLease,
++    *,
++    status: ProcessLeaseStatus,
++    exit_code: int | None = None,
++    signal: int | None = None,
++    cleanup_attempts: int | None = None,
++    now: datetime | None = None,
++) -> ProcessLease:
++    if lease.status != "running":
++        raise ProcessRegistryError(
++            f"cannot transition process lease from terminal status {lease.status!r}"
++        )
++    if status == "running":
++        raise ProcessRegistryError("transition status must not be 'running'")
++    timestamp = _utc_now_isoformat(now)
++    transitioned = ProcessLease.model_validate(
++        {
++            **lease.model_dump(mode="json"),
++            "status": status,
++            "updated_at": timestamp,
++            "ended_at": timestamp,
++            "exit_code": exit_code,
++            "signal": signal,
++            "cleanup_attempts": (
++                lease.cleanup_attempts
++                if cleanup_attempts is None
++                else cleanup_attempts
++            ),
++        }
++    )
++    write_process_lease(layout, transitioned)
++    return transitioned
++
++
++def mark_process_exited(
++    layout: NamespaceLayout,
++    lease: ProcessLease,
++    *,
++    exit_code: int,
++    now: datetime | None = None,
++) -> ProcessLease:
++    return transition_process_lease(
++        layout,
++        lease,
++        status="exited",
++        exit_code=exit_code,
++        now=now,
++    )
++
++
++def mark_process_killed(
++    layout: NamespaceLayout,
++    lease: ProcessLease,
++    *,
++    signal: int,
++    cleanup_attempts: int | None = None,
++    now: datetime | None = None,
++) -> ProcessLease:
++    return transition_process_lease(
++        layout,
++        lease,
++        status="killed",
++        signal=signal,
++        cleanup_attempts=cleanup_attempts,
++        now=now,
++    )
++
++
++def mark_process_unsafe_skip(
++    layout: NamespaceLayout,
++    lease: ProcessLease,
++    *,
++    cleanup_attempts: int | None = None,
++    now: datetime | None = None,
++) -> ProcessLease:
++    return transition_process_lease(
++        layout,
++        lease,
++        status="unsafe_skip",
++        cleanup_attempts=cleanup_attempts,
++        now=now,
++    )
++
++
++def mark_process_unknown(
++    layout: NamespaceLayout,
++    lease: ProcessLease,
++    *,
++    cleanup_attempts: int | None = None,
++    now: datetime | None = None,
++) -> ProcessLease:
++    return transition_process_lease(
++        layout,
++        lease,
++        status="unknown",
++        cleanup_attempts=cleanup_attempts,
++        now=now,
++    )
++
++
++def load_process_lease(path: str | Path) -> ProcessLease:
++    lease_path = Path(path)
++    if lease_path.is_symlink():
++        raise ProcessRegistryError(f"process lease path must not be a symlink: {lease_path}")
++    try:
++        file_size = lease_path.stat().st_size
++    except FileNotFoundError as exc:
++        raise ProcessRegistryError(f"process lease file not found: {lease_path}") from exc
++    if file_size > MAX_PROCESS_LEASE_BYTES:
++        raise ProcessRegistryError(
++            f"process lease {lease_path} is too large "
++            f"({file_size} bytes > {MAX_PROCESS_LEASE_BYTES} bytes)"
++        )
++    try:
++        raw_text = lease_path.read_text(encoding="utf-8")
++    except UnicodeDecodeError as exc:
++        raise ProcessRegistryError(
++            f"process lease {lease_path} is not valid UTF-8"
++        ) from exc
++    try:
++        data = yaml.load(raw_text, Loader=ProcessLeaseYamlLoader)
++    except yaml.YAMLError as exc:
++        raise ProcessRegistryError(
++            f"process lease {lease_path} failed to parse YAML: {exc}"
++        ) from exc
++    if not data:
++        raise ProcessRegistryError(f"process lease {lease_path} is empty")
++    if not isinstance(data, Mapping):
++        raise ProcessRegistryError(
++            f"process lease {lease_path} must contain a YAML mapping"
++        )
++    try:
++        return ProcessLease.model_validate(data)
++    except ValidationError as exc:
++        raise ProcessRegistryError(f"process lease {lease_path} is invalid:\n{exc}") from exc
++
++
++def load_process_lease_for_layout(
++    layout: NamespaceLayout,
++    *,
++    session_id: str,
++    trial_id: str,
++    role: str,
++    pid: int,
++) -> ProcessLease:
++    return load_process_lease(
++        process_lease_path(
++            layout,
++            session_id=session_id,
++            trial_id=trial_id,
++            role=role,
++            pid=pid,
++        )
++    )
++
++
++def iter_process_lease_paths(layout: NamespaceLayout) -> Iterator[Path]:
++    root = process_leases_dir(layout)
++    if not root.exists():
++        return iter(())
++    return iter(sorted(path for path in root.rglob("*.yaml") if path.is_file()))
++
++
++def load_process_leases(layout: NamespaceLayout) -> tuple[ProcessLease, ...]:
++    return tuple(load_process_lease(path) for path in iter_process_lease_paths(layout))
++
++
++def _utc_now_isoformat(now: datetime | None) -> str:
++    value = datetime.now(UTC) if now is None else now
++    if value.tzinfo is None or value.utcoffset() is None:
++        raise ProcessRegistryError("timestamp must be timezone-aware")
++    return value.astimezone(UTC).isoformat()
++
++
++def _parse_utc_isoformat(value: str, label: str) -> datetime:
++    normalized = value[:-1] + "+00:00" if value.endswith("Z") else value
++    try:
++        parsed = datetime.fromisoformat(normalized)
++    except ValueError as exc:
++        raise ValueError(f"{label} must be ISO 8601") from exc
++    if parsed.tzinfo is None or parsed.utcoffset() != timedelta(0):
++        raise ValueError(f"{label} must be UTC timezone-aware ISO 8601")
++    return parsed
+diff --git a/src/agent/process_runner.py b/src/agent/process_runner.py
+new file mode 100644
+index 0000000..ca32690
+--- /dev/null
++++ b/src/agent/process_runner.py
+@@ -0,0 +1,190 @@
++"""Controlled subprocess runner with Phase 06 process lease registration."""
++
++from __future__ import annotations
++
++import os
++import signal
++import subprocess
++import time
++from collections.abc import Mapping, Sequence
++from dataclasses import dataclass
++from pathlib import Path
++
++import psutil
++
++from .errors import AgentError, EXIT_GENERIC
++from .fs_memory import NamespaceLayout
++from .process_identity import (
++    AGENT_SESSION_ID_ENV,
++    ProcessRecord,
++    compute_cmdline_hash,
++)
++from .process_registry import (
++    ProcessLease,
++    ProcessRegistryError,
++    mark_process_exited,
++    mark_process_killed,
++    register_process_lease,
++)
++
++
++class ProcessRunnerError(AgentError):
++    """Raised when a managed subprocess cannot be started or recorded."""
++
++    exit_code = EXIT_GENERIC
++
++
++@dataclass(frozen=True)
++class ProcessSpawnResult:
++    popen: subprocess.Popen[bytes]
++    lease: ProcessLease
++
++    @property
++    def record(self) -> ProcessRecord:
++        return self.lease.record
++
++
++def spawn_process(
++    layout: NamespaceLayout,
++    args: Sequence[str | os.PathLike[str]],
++    *,
++    session_id: str,
++    trial_id: str,
++    role: str,
++    cwd: str | os.PathLike[str] | None = None,
++    env: Mapping[str, str] | None = None,
++    stdin: int | None = subprocess.DEVNULL,
++    stdout: int | None = subprocess.DEVNULL,
++    stderr: int | None = subprocess.DEVNULL,
++) -> ProcessSpawnResult:
++    """Start a managed child process and persist a running process lease."""
++
++    argv = [os.fspath(arg) for arg in args]
++    if not argv:
++        raise ProcessRunnerError("process args must not be empty")
++    child_env = os.environ.copy()
++    if env is not None:
++        child_env.update({str(key): str(value) for key, value in env.items()})
++    child_env[AGENT_SESSION_ID_ENV] = session_id
++
++    try:
++        popen = subprocess.Popen(
++            argv,
++            stdin=stdin,
++            stdout=stdout,
++            stderr=stderr,
++            cwd=None if cwd is None else os.fspath(cwd),
++            env=child_env,
++            start_new_session=True,
++        )
++    except OSError as exc:
++        raise ProcessRunnerError(f"failed to start process {argv!r}: {exc}") from exc
++
++    try:
++        record = process_record_for_pid(
++            popen.pid,
++            session_id=session_id,
++            fallback_cmdline=argv,
++        )
++        lease = register_process_lease(
++            layout,
++            record=record,
++            trial_id=trial_id,
++            role=role,
++        )
++    except Exception as exc:
++        _terminate_started_process_group(popen)
++        if isinstance(exc, (ProcessRunnerError, ProcessRegistryError)):
++            raise
++        raise ProcessRunnerError(
++            f"failed to record started process {popen.pid}: {exc}"
++        ) from exc
++
++    return ProcessSpawnResult(popen=popen, lease=lease)
++
++
++def process_record_for_pid(
++    pid: int,
++    *,
++    session_id: str,
++    fallback_cmdline: Sequence[str] = (),
++    cgroup_path: str | None = None,
++) -> ProcessRecord:
++    """Read process identity evidence for a just-spawned managed child."""
++
++    try:
++        proc = psutil.Process(pid)
++        create_time = proc.create_time()
++        pgid = os.getpgid(pid)
++    except (psutil.Error, ProcessLookupError) as exc:
++        raise ProcessRunnerError(f"process {pid} disappeared before recording") from exc
++
++    try:
++        cmdline = proc.cmdline()
++    except (psutil.AccessDenied, psutil.NoSuchProcess):
++        cmdline = list(fallback_cmdline)
++    if not cmdline:
++        cmdline = list(fallback_cmdline) or [str(pid)]
++
++    return ProcessRecord(
++        pid=pid,
++        pgid=pgid,
++        create_time=create_time,
++        session_id=session_id,
++        cmdline_hash=compute_cmdline_hash(cmdline),
++        env_marker_visible_at_spawn=_env_marker_visible(proc, session_id),
++        cgroup_path=cgroup_path,
++    )
++
++
++def refresh_process_lease_from_popen(
++    layout: NamespaceLayout,
++    result: ProcessSpawnResult,
++) -> ProcessLease:
++    """Mark a lease exited/killed when the associated Popen has completed."""
++
++    return_code = result.popen.poll()
++    if return_code is None:
++        return result.lease
++    if return_code < 0:
++        return mark_process_killed(
++            layout,
++            result.lease,
++            signal=-return_code,
++        )
++    return mark_process_exited(
++        layout,
++        result.lease,
++        exit_code=return_code,
++    )
++
++
++def _env_marker_visible(proc: psutil.Process, session_id: str) -> bool:
++    try:
++        return proc.environ().get(AGENT_SESSION_ID_ENV) == session_id
++    except (psutil.AccessDenied, psutil.NoSuchProcess):
++        return False
++
++
++def _terminate_started_process_group(popen: subprocess.Popen[bytes]) -> None:
++    try:
++        pgid = os.getpgid(popen.pid)
++    except ProcessLookupError:
++        return
++    try:
++        os.killpg(pgid, signal.SIGTERM)
++    except ProcessLookupError:
++        return
++    deadline = time.monotonic() + 2.0
++    while time.monotonic() < deadline:
++        if popen.poll() is not None:
++            return
++        time.sleep(0.02)
++    try:
++        os.killpg(pgid, signal.SIGKILL)
++    except ProcessLookupError:
++        return
++    try:
++        popen.wait(timeout=2)
++    except subprocess.TimeoutExpired:
++        return
+diff --git a/tests/test_errors.py b/tests/test_errors.py
+index 33e356f..5e5e143 100644
+--- a/tests/test_errors.py
++++ b/tests/test_errors.py
+@@ -30,6 +30,8 @@ from agent import (
+     Mode,
+     NamespaceMismatchError,
+     Option,
++    ProcessRegistryError,
++    ProcessRunnerError,
+     RegistryLoadError,
+     RegistryValidationError,
+     ScheduleSlot,
+@@ -91,6 +93,8 @@ def test_known_agent_errors_share_base_class() -> None:
+         InitEditRequested,
+         InitializedLoadError,
+         NamespaceMismatchError,
++        ProcessRegistryError,
++        ProcessRunnerError,
+     )
+ 
+     assert issubclass(AgentError, RuntimeError)
+@@ -115,6 +119,8 @@ def test_agent_error_exit_codes_are_class_attributes() -> None:
+         WorkspaceBusyError: EXIT_LOCK_BUSY,
+         RegistryValidationError: EXIT_VALIDATION,
+         InitAborted: EXIT_EXECUTION_REFUSED,
++        ProcessRegistryError: EXIT_VALIDATION,
++        ProcessRunnerError: EXIT_GENERIC,
+     }
+ 
+     for error_class, exit_code in expected_codes.items():
+diff --git a/tests/test_process_registry.py b/tests/test_process_registry.py
+new file mode 100644
+index 0000000..60ad11a
+--- /dev/null
++++ b/tests/test_process_registry.py
+@@ -0,0 +1,212 @@
++from __future__ import annotations
++
++from datetime import UTC, datetime, timedelta
++
++import pytest
++from pydantic import ValidationError
++
++from agent import (
++    ProcessLease,
++    ProcessRegistryError,
++    ProcessRecord,
++    compute_cmdline_hash,
++    load_process_lease,
++    load_process_lease_for_layout,
++    load_process_leases,
++    mark_process_exited,
++    mark_process_killed,
++    mark_process_unknown,
++    mark_process_unsafe_skip,
++    process_lease_path,
++    process_lease_payload,
++    process_leases_dir,
++    register_process_lease,
++    transition_process_lease,
++)
++from tests.fixtures.fake_workspace import create_fake_workspace
++
++
++def test_register_process_lease_writes_derived_yaml(tmp_path) -> None:
++    fake = create_fake_workspace(tmp_path)
++    record = _record(pid=123)
++    now = datetime(2026, 6, 1, 8, 0, tzinfo=UTC)
++
++    lease = register_process_lease(
++        fake.layout,
++        record=record,
++        trial_id="trial_1",
++        role="compile",
++        now=now,
++    )
++
++    expected_path = (
++        fake.layout.state_dir
++        / "processes"
++        / "sess_1"
++        / "trial_1"
++        / "compile-123.yaml"
++    )
++    assert process_lease_path(
++        fake.layout,
++        session_id="sess_1",
++        trial_id="trial_1",
++        role="compile",
++        pid=123,
++    ) == expected_path
++    assert expected_path.exists()
++    assert oct(expected_path.stat().st_mode & 0o777) == "0o600"
++    assert lease.status == "running"
++    assert lease.created_at == "2026-06-01T08:00:00+00:00"
++    assert "integrity" not in process_lease_payload(lease)
++    assert load_process_lease(expected_path) == lease
++    assert load_process_lease_for_layout(
++        fake.layout,
++        session_id="sess_1",
++        trial_id="trial_1",
++        role="compile",
++        pid=123,
++    ) == lease
++    assert load_process_leases(fake.layout) == (lease,)
++    assert process_leases_dir(fake.layout) == fake.layout.state_dir / "processes"
++
++
++def test_process_lease_status_transitions(tmp_path) -> None:
++    fake = create_fake_workspace(tmp_path)
++    now = datetime(2026, 6, 1, 8, 0, tzinfo=UTC)
++
++    exited = mark_process_exited(
++        fake.layout,
++        _register(fake.layout, pid=201, now=now),
++        exit_code=7,
++        now=now + timedelta(seconds=1),
++    )
++    killed = mark_process_killed(
++        fake.layout,
++        _register(fake.layout, pid=202, now=now),
++        signal=15,
++        cleanup_attempts=1,
++        now=now + timedelta(seconds=2),
++    )
++    unsafe = mark_process_unsafe_skip(
++        fake.layout,
++        _register(fake.layout, pid=203, now=now),
++        cleanup_attempts=2,
++        now=now + timedelta(seconds=3),
++    )
++    unknown = mark_process_unknown(
++        fake.layout,
++        _register(fake.layout, pid=204, now=now),
++        cleanup_attempts=3,
++        now=now + timedelta(seconds=4),
++    )
++
++    assert exited.status == "exited"
++    assert exited.exit_code == 7
++    assert killed.status == "killed"
++    assert killed.signal == 15
++    assert killed.cleanup_attempts == 1
++    assert unsafe.status == "unsafe_skip"
++    assert unsafe.cleanup_attempts == 2
++    assert unknown.status == "unknown"
++    assert unknown.cleanup_attempts == 3
++    assert tuple(lease.record.pid for lease in load_process_leases(fake.layout)) == (
++        201,
++        202,
++        203,
++        204,
++    )
++
++
++def test_process_lease_rejects_invalid_transitions_and_fields(tmp_path) -> None:
++    fake = create_fake_workspace(tmp_path)
++    lease = _register(fake.layout, pid=301)
++
++    with pytest.raises(ProcessRegistryError, match="transition status"):
++        transition_process_lease(fake.layout, lease, status="running")
++
++    exited = mark_process_exited(fake.layout, lease, exit_code=0)
++    with pytest.raises(ProcessRegistryError, match="terminal status"):
++        mark_process_unknown(fake.layout, exited)
++
++    with pytest.raises(ValidationError):
++        ProcessLease.model_validate(
++            {
++                **exited.model_dump(mode="json"),
++                "status": "killed",
++                "exit_code": 0,
++                "signal": None,
++            }
++        )
++
++
++@pytest.mark.parametrize(
++    ("field", "value"),
++    [
++        ("session_id", "../escape"),
++        ("trial_id", "bad/slash"),
++        ("role", "bad role"),
++    ],
++)
++def test_process_lease_rejects_unsafe_path_atoms(field: str, value: str) -> None:
++    data = _running_lease(pid=401).model_dump(mode="json")
++    data[field] = value
++    if field == "session_id":
++        data["record"]["session_id"] = value
++
++    with pytest.raises(ValidationError):
++        ProcessLease.model_validate(data)
++
++
++def test_process_lease_loader_rejects_alias_and_symlink(tmp_path) -> None:
++    fake = create_fake_workspace(tmp_path)
++    lease = _register(fake.layout, pid=501)
++    path = process_lease_path(
++        fake.layout,
++        session_id=lease.session_id,
++        trial_id=lease.trial_id,
++        role=lease.role,
++        pid=lease.record.pid,
++    )
++    path.write_text("a: &a 1\nb: *a\n", encoding="utf-8")
++    with pytest.raises(ProcessRegistryError, match="aliases"):
++        load_process_lease(path)
++
++    target = tmp_path / "target.yaml"
++    target.write_text("{}", encoding="utf-8")
++    symlink = tmp_path / "lease-link.yaml"
++    symlink.symlink_to(target)
++    with pytest.raises(ProcessRegistryError, match="symlink"):
++        load_process_lease(symlink)
++
++
++def _register(layout, *, pid: int, now: datetime | None = None):
++    return register_process_lease(
++        layout,
++        record=_record(pid=pid),
++        trial_id=f"trial_{pid}",
++        role="compile",
++        now=now,
++    )
++
++
++def _running_lease(*, pid: int) -> ProcessLease:
++    return ProcessLease(
++        session_id="sess_1",
++        trial_id=f"trial_{pid}",
++        role="compile",
++        record=_record(pid=pid),
++        created_at="2026-06-01T08:00:00+00:00",
++        updated_at="2026-06-01T08:00:00+00:00",
++    )
++
++
++def _record(*, pid: int) -> ProcessRecord:
++    return ProcessRecord(
++        pid=pid,
++        pgid=pid,
++        create_time=1.0 + pid,
++        session_id="sess_1",
++        cmdline_hash=compute_cmdline_hash(["python", str(pid)]),
++        env_marker_visible_at_spawn=True,
++        cgroup_path=None,
++    )
+diff --git a/tests/test_process_runner.py b/tests/test_process_runner.py
+new file mode 100644
+index 0000000..5697988
+--- /dev/null
++++ b/tests/test_process_runner.py
+@@ -0,0 +1,156 @@
++from __future__ import annotations
++
++import os
++import signal
++import subprocess
++import sys
++import time
++
++import pytest
++
++from agent import (
++    AGENT_SESSION_ID_ENV,
++    ProcessRunnerError,
++    load_process_lease_for_layout,
++    refresh_process_lease_from_popen,
++    spawn_process,
++)
++from tests.fixtures.fake_workspace import create_fake_workspace
++
++
++pytestmark = pytest.mark.skipif(os.name != "posix", reason="process runner is POSIX-only")
++
++
++def test_spawn_process_starts_new_session_and_writes_running_lease(tmp_path) -> None:
++    fake = create_fake_workspace(tmp_path)
++    result = spawn_process(
++        fake.layout,
++        [sys.executable, "-c", "import time; time.sleep(60)"],
++        session_id="sess_runner_1",
++        trial_id="trial_1",
++        role="compile",
++    )
++    try:
++        assert result.record.pid == result.popen.pid
++        assert result.record.pgid == result.record.pid
++        assert os.getpgid(result.popen.pid) == result.record.pgid
++        assert result.record.env_marker_visible_at_spawn is True
++        assert result.lease.status == "running"
++
++        loaded = load_process_lease_for_layout(
++            fake.layout,
++            session_id="sess_runner_1",
++            trial_id="trial_1",
++            role="compile",
++            pid=result.record.pid,
++        )
++        assert loaded == result.lease
++    finally:
++        _terminate_result(result)
++
++
++def test_spawn_process_overrides_env_marker(tmp_path) -> None:
++    fake = create_fake_workspace(tmp_path)
++    result = spawn_process(
++        fake.layout,
++        [sys.executable, "-c", "import time; time.sleep(60)"],
++        session_id="sess_runner_env",
++        trial_id="trial_env",
++        role="compile",
++        env={AGENT_SESSION_ID_ENV: "wrong"},
++    )
++    try:
++        assert result.record.session_id == "sess_runner_env"
++        assert result.record.env_marker_visible_at_spawn is True
++    finally:
++        _terminate_result(result)
++
++
++def test_refresh_process_lease_marks_exit_code(tmp_path) -> None:
++    fake = create_fake_workspace(tmp_path)
++    result = spawn_process(
++        fake.layout,
++        [
++            sys.executable,
++            "-c",
++            "import sys, time; time.sleep(0.05); sys.exit(7)",
++        ],
++        session_id="sess_runner_exit",
++        trial_id="trial_exit",
++        role="benchmark",
++    )
++
++    result.popen.wait(timeout=5)
++    refreshed = refresh_process_lease_from_popen(fake.layout, result)
++
++    assert refreshed.status == "exited"
++    assert refreshed.exit_code == 7
++    assert refreshed.ended_at is not None
++
++
++def test_refresh_process_lease_marks_killed_signal(tmp_path) -> None:
++    fake = create_fake_workspace(tmp_path)
++    result = spawn_process(
++        fake.layout,
++        [sys.executable, "-c", "import time; time.sleep(60)"],
++        session_id="sess_runner_kill",
++        trial_id="trial_kill",
++        role="compile",
++    )
++
++    os.killpg(result.record.pgid, signal.SIGTERM)
++    result.popen.wait(timeout=5)
++    refreshed = refresh_process_lease_from_popen(fake.layout, result)
++
++    assert refreshed.status == "killed"
++    assert refreshed.signal == signal.SIGTERM
++
++
++def test_refresh_process_lease_leaves_running_process_unchanged(tmp_path) -> None:
++    fake = create_fake_workspace(tmp_path)
++    result = spawn_process(
++        fake.layout,
++        [sys.executable, "-c", "import time; time.sleep(60)"],
++        session_id="sess_runner_still",
++        trial_id="trial_still",
++        role="compile",
++    )
++    try:
++        assert refresh_process_lease_from_popen(fake.layout, result) == result.lease
++    finally:
++        _terminate_result(result)
++
++
++def test_spawn_process_rejects_empty_args(tmp_path) -> None:
++    fake = create_fake_workspace(tmp_path)
++
++    with pytest.raises(ProcessRunnerError, match="args"):
++        spawn_process(
++            fake.layout,
++            [],
++            session_id="sess_runner_empty",
++            trial_id="trial_empty",
++            role="compile",
++        )
++
++
++def _terminate_result(result) -> None:
++    if result.popen.poll() is not None:
++        return
++    try:
++        os.killpg(result.record.pgid, signal.SIGTERM)
++    except ProcessLookupError:
++        return
++    deadline = time.monotonic() + 2.0
++    while time.monotonic() < deadline:
++        if result.popen.poll() is not None:
++            return
++        time.sleep(0.02)
++    try:
++        os.killpg(result.record.pgid, signal.SIGKILL)
++    except ProcessLookupError:
++        return
++    try:
++        result.popen.wait(timeout=2)
++    except subprocess.TimeoutExpired:
++        return

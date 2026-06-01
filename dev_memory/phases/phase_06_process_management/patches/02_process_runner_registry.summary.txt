@@ -1,0 +1,29 @@
+Subtask 6.2 adds Process Lease Registry and controlled process runner support.
+
+Implemented:
+- src/agent/process_registry.py
+  - ProcessLease model and ProcessLeaseStatus values
+  - state/processes/<session_id>/<trial_id>/<role>-<pid>.yaml path helpers
+  - safe YAML loader for process leases
+  - atomic write / load / iter helpers
+  - running -> exited | killed | unsafe_skip | unknown transition helpers
+- src/agent/process_runner.py
+  - spawn_process() with start_new_session=True
+  - AGENT_SESSION_ID env injection
+  - ProcessRecord capture at spawn
+  - running lease registration
+  - refresh_process_lease_from_popen() for exited/killed updates
+  - best-effort process-group termination if lease registration fails
+- agent.__init__ exports
+- tests/test_process_registry.py and tests/test_process_runner.py
+
+Validation:
+- tests/test_process_registry.py: 7 passed
+- tests/test_process_runner.py: 6 passed
+- tests/test_errors.py tests/test_process_identity.py: 16 passed
+- Full suite: 484 passed
+
+Deferred:
+- ownership scoring / cleaner: 6.3
+- lease GC: 6.3
+- TrialState operation ledger: 6.5

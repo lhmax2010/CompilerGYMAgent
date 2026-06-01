@@ -872,3 +872,16 @@ Decision records must include:
   - Migrate `CheckpointProcess` and `WorkspaceLockHolder` immediately to the new model. Rejected because schema migration and lock/checkpoint compatibility belong to later Phase 06 subtasks.
   - Start with `process_runner` before the fixture. Rejected because runner/cleaner tests need the process_lab substrate first.
   - Mock all process behavior. Rejected because Phase 06 correctness depends on real `start_new_session`, pgid, env-marker, and `killpg` behavior on Linux.
+
+## 2026-06-01T08:07:08Z - Process leases are derived YAML state with atomic transitions
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 06
+  - REQUIREMENTS.md section 3.3.5
+  - REQUIREMENTS.md section 4.11.x
+- decision: Subtask 6.2 stores process leases as derived YAML files under `state/processes/<session_id>/<trial_id>/<role>-<pid>.yaml`, written atomically with restrictive file mode and no integrity hash. The runner writes a `running` lease immediately after `Popen(start_new_session=True)` and transitions the lease to `exited` or `killed` from `Popen.returncode`; `unsafe_skip` and `unknown` terminal states are modeled for the 6.3 cleaner.
+- rationale: The lease registry needs a current mutable view of active process groups, but checkpoint + trace remain canonical for recovery/audit. Treating leases as derived state keeps them repairable and garbage-collectable. Atomic writes avoid torn lease YAML, while no integrity hash avoids pretending lease files are user-edited SoT. If lease persistence fails after spawn, the runner terminates the just-started process group so it does not create an untracked child.
+- alternatives_considered:
+  - Store leases only in checkpoint. Rejected because multi-process roles and status transitions would bloat checkpoint and couple process liveness to canonical state writes.
+  - Add integrity hashes to leases. Rejected because leases are derived operational state and can be rebuilt or discarded by doctor/cleanup.
+  - Let a process continue running if lease registration fails. Rejected because an untracked child process group is worse than failing the spawn loudly.

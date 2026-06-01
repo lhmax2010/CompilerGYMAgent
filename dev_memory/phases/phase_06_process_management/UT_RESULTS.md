@@ -30,3 +30,26 @@ Review / validation sync:
 - Re-run full suite: 471 passed
 - Independent reviewer probe: seven process_lab scenarios reproducible; 0
   residual processes after cleanup.
+
+## Subtask 6.2 - Process Runner + Process Lease Registry
+
+Commands:
+
+```bash
+.venv/bin/python -m pytest tests/test_process_registry.py -q
+.venv/bin/python -m pytest tests/test_process_runner.py -q
+.venv/bin/python -m pytest tests/test_errors.py tests/test_process_identity.py -q
+.venv/bin/python -m pytest tests/ -q
+```
+
+Results:
+
+- `tests/test_process_registry.py`: 7 passed
+- `tests/test_process_runner.py`: 6 passed
+- `tests/test_errors.py tests/test_process_identity.py`: 16 passed
+- Full suite: 484 passed
+
+Notes:
+
+- `test_process_runner.py` is POSIX-only because it checks real
+  `start_new_session` / process-group behavior.
