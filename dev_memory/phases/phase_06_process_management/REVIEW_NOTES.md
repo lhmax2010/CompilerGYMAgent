@@ -74,3 +74,27 @@ External review:
 - Follow-up for 6.3: cleaner must use single-read env-marker probing and must
   not reuse `process_runner._env_marker_visible()` because that helper has
   spawn-only retry semantics.
+
+## Subtask 6.3 - Process Cleaner
+
+Self-review checklist:
+
+- [x] Cleaner uses single-read env marker probing; no retry and no dependency
+  on `process_runner._env_marker_visible()`.
+- [x] Graded scoring implements pid+create_time +3, pgid +3, env_marker +4.
+- [x] Score thresholds map to owned/suspected/not_ours as designed.
+- [x] AccessDenied / missing env marker does not add score.
+- [x] Owned process groups are killed with `killpg`.
+- [x] Suspected process groups are skipped by default and can be force-killed.
+- [x] Leader-dead / children-alive is discoverable through pgid scan.
+- [x] Double-fork-style escape is discoverable through env-marker scan and
+  remains suspected unless forced.
+- [x] Lease GC deletes orphan leases only when no live cleanup target remains.
+- [x] Full suite passes.
+
+Residual risks / follow-up:
+
+- Trace process-cleanup event emission is still deferred.
+- Cleaner CLI / doctor force flags are deferred to later CLI/doctor subtasks.
+- Process-event kind whitelist closure still needs to be wired when trace
+  process cleanup events are emitted.

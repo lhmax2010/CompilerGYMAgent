@@ -72,3 +72,38 @@ subtasks:
         status: done
       - item: "Ubuntu/Linux validation"
         status: done
+  - id: "6.3"
+    title: "process_cleaner.py"
+    status: implementation_complete
+    implementation_commit: pending
+    review_status: pending
+    ubuntu_validation_status: pending
+    checklist:
+      - item: "Implement single-read env marker probe for cleaner scans"
+        status: done
+      - item: "Implement graded ownership scoring: pid+create_time, pgid, env_marker"
+        status: done
+      - item: "Classify owned / suspected / not_ours at score thresholds 7 and 4"
+        status: done
+      - item: "Implement cleanup target discovery from recorded pid, pgid scan, and env_marker scan"
+        status: done
+      - item: "Implement killpg cleanup for owned targets"
+        status: done
+      - item: "Implement suspected default unsafe_skip and force_suspected kill path"
+        status: done
+      - item: "Handle leader-dead children-alive via pgid scanning"
+        status: done
+      - item: "Handle double-fork escape via env_marker scanning"
+        status: done
+      - item: "Implement lease GC for orphan leases only when no live targets remain"
+        status: done
+      - item: "Export cleaner symbols"
+        status: done
+      - item: "Run targeted tests and full production suite"
+        status: done
+      - item: "Generate patch artifacts"
+        status: done
+      - item: "Claude review"
+        status: pending
+      - item: "Ubuntu/Linux validation"
+        status: pending

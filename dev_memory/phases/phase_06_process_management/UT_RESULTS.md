@@ -65,3 +65,26 @@ Review / validation sync:
 - Re-run targeted tests: 29 passed
 - Re-run full suite: 484 passed
 - Follow-up: 6.3 cleaner must use single-read env marker probing.
+
+## Subtask 6.3 - Process Cleaner
+
+Commands:
+
+```bash
+.venv/bin/python -m pytest tests/test_process_cleaner.py -q
+.venv/bin/python -m pytest tests/test_process_cleaner.py tests/test_process_registry.py tests/test_process_runner.py tests/test_process_lab.py tests/test_errors.py -q
+.venv/bin/python -m pytest tests/ -q
+```
+
+Results:
+
+- `tests/test_process_cleaner.py`: 8 passed
+- Cleaner adjacent target set: 31 passed
+- Full suite: 492 passed
+
+Notes:
+
+- Tests exercise real process groups for owned cleanup, leader-dead child
+  cleanup, and double-fork-style env-marker discovery.
+- Cleaner env marker reads are intentionally single-shot to avoid scanning
+  arbitrary external processes with runner-style retry delays.

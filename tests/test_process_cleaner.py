@@ -1,0 +1,311 @@
+from __future__ import annotations
+
+import os
+import signal
+import time
+
+import psutil
+import pytest
+
+from agent import (
+    OWNED_SCORE_THRESHOLD,
+    SUSPECTED_SCORE_THRESHOLD,
+    ProcessRecord,
+    attribute_process,
+    cleanup_process_lease,
+    find_cleanup_targets,
+    garbage_collect_process_leases,
+    load_process_leases,
+    mark_process_exited,
+    read_env_marker,
+    register_process_lease,
+)
+from tests.fixtures.fake_workspace import create_fake_workspace
+from tests.fixtures.process_lab import create_process_lab
+
+
+pytestmark = pytest.mark.skipif(os.name != "posix", reason="process cleaner is POSIX-only")
+
+
+def test_read_env_marker_is_single_read_without_retry() -> None:
+    class FakeProc:
+        pid = 123
+
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def environ(self) -> dict[str, str]:
+            self.calls += 1
+            return {}
+
+    proc = FakeProc()
+
+    marker = read_env_marker(proc)  # type: ignore[arg-type]
+
+    assert marker.value is None
+    assert marker.status == "missing"
+    assert proc.calls == 1
+
+
+def test_read_env_marker_handles_access_denied_without_retry() -> None:
+    class FakeProc:
+        pid = 123
+
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def environ(self) -> dict[str, str]:
+            self.calls += 1
+            raise psutil.AccessDenied(pid=self.pid)
+
+    proc = FakeProc()
+
+    marker = read_env_marker(proc)  # type: ignore[arg-type]
+
+    assert marker.value is None
+    assert marker.status == "unavailable"
+    assert proc.calls == 1
+
+
+def test_attribute_process_scores_owned_and_suspected(tmp_path) -> None:
+    lab = create_process_lab(tmp_path)
+    try:
+        owned = lab.spawn_live(session_id="sess_clean_owned")
+        owned_attr = attribute_process(psutil.Process(owned.pid), owned.record)
+
+        assert owned_attr.score >= OWNED_SCORE_THRESHOLD
+        assert owned_attr.verdict == "owned"
+        assert owned_attr.pid_create_time_match is True
+        assert owned_attr.pgid_match is True
+        assert owned_attr.env_marker_match is True
+
+        no_marker = lab.spawn_live(
+            session_id="sess_clean_nomarker",
+            include_env_marker=False,
+        )
+        suspected_attr = attribute_process(
+            psutil.Process(no_marker.pid),
+            no_marker.record,
+        )
+
+        assert suspected_attr.score == 6
+        assert suspected_attr.score >= SUSPECTED_SCORE_THRESHOLD
+        assert suspected_attr.verdict == "suspected"
+        assert suspected_attr.env_marker_status == "missing"
+    finally:
+        lab.cleanup()
+
+
+def test_cleanup_kills_owned_process_group_and_marks_lease(tmp_path) -> None:
+    fake = create_fake_workspace(tmp_path)
+    lab = create_process_lab(tmp_path)
+    try:
+        process = lab.spawn_live(session_id="sess_clean_kill")
+        lease = register_process_lease(
+            fake.layout,
+            record=process.record,
+            trial_id="trial_kill",
+            role="compile",
+        )
+
+        result = cleanup_process_lease(fake.layout, lease)
+
+        assert result.action == "killed"
+        assert process.pgid in result.killed_pgids
+        assert result.updated_lease is not None
+        assert result.updated_lease.status == "killed"
+        assert result.updated_lease.signal == signal.SIGTERM
+        _wait_until(lambda: not _pid_alive(process.pid))
+    finally:
+        lab.cleanup()
+
+
+def test_suspected_process_is_skipped_by_default_and_force_killed(tmp_path) -> None:
+    fake = create_fake_workspace(tmp_path)
+    lab = create_process_lab(tmp_path)
+    try:
+        process = lab.spawn_live(
+            session_id="sess_clean_suspected",
+            include_env_marker=False,
+        )
+        lease = register_process_lease(
+            fake.layout,
+            record=process.record,
+            trial_id="trial_skip",
+            role="compile",
+        )
+
+        skipped = cleanup_process_lease(fake.layout, lease)
+
+        assert skipped.action == "unsafe_skip"
+        assert skipped.updated_lease is not None
+        assert skipped.updated_lease.status == "unsafe_skip"
+        assert _pid_alive(process.pid)
+    finally:
+        lab.cleanup()
+
+    lab_force = create_process_lab(tmp_path)
+    try:
+        process = lab_force.spawn_live(
+            session_id="sess_clean_suspected_force",
+            include_env_marker=False,
+        )
+        lease = register_process_lease(
+            fake.layout,
+            record=process.record,
+            trial_id="trial_force",
+            role="compile",
+        )
+
+        killed = cleanup_process_lease(fake.layout, lease, force_suspected=True)
+
+        assert killed.action == "killed"
+        assert process.pgid in killed.killed_pgids
+        _wait_until(lambda: not _pid_alive(process.pid))
+    finally:
+        lab_force.cleanup()
+
+
+def test_leader_dead_children_alive_is_found_by_pgid_scan(tmp_path) -> None:
+    fake = create_fake_workspace(tmp_path)
+    lab = create_process_lab(tmp_path)
+    try:
+        process = lab.spawn_leader_dead_children_alive(
+            session_id="sess_clean_leader_dead"
+        )
+        lease = register_process_lease(
+            fake.layout,
+            record=process.record,
+            trial_id="trial_leader_dead",
+            role="compile",
+        )
+
+        targets = find_cleanup_targets(process.record)
+        result = cleanup_process_lease(fake.layout, lease)
+
+        assert any(target.attribution.source == "pgid_scan+env_scan" for target in targets)
+        assert result.action == "killed"
+        assert process.pgid in result.killed_pgids
+        assert process.child_pids
+        _wait_until(lambda: not _pid_alive(process.child_pids[0]))
+    finally:
+        lab.cleanup()
+
+
+def test_double_fork_escape_requires_env_marker_and_force(tmp_path) -> None:
+    fake = create_fake_workspace(tmp_path)
+    lab = create_process_lab(tmp_path)
+    try:
+        process = lab.spawn_double_fork_escape(session_id="sess_clean_escape")
+        lease = register_process_lease(
+            fake.layout,
+            record=process.record,
+            trial_id="trial_escape_skip",
+            role="compile",
+        )
+
+        targets = find_cleanup_targets(process.record)
+        skipped = cleanup_process_lease(fake.layout, lease)
+
+        assert process.child_pids
+        assert process.child_pgids[0] != process.pgid
+        assert any(target.attribution.source == "env_scan" for target in targets)
+        assert all(target.attribution.verdict == "suspected" for target in targets)
+        assert skipped.action == "unsafe_skip"
+        assert _pid_alive(process.child_pids[0])
+    finally:
+        lab.cleanup()
+
+    lab_force = create_process_lab(tmp_path)
+    try:
+        process = lab_force.spawn_double_fork_escape(
+            session_id="sess_clean_escape_force"
+        )
+        lease = register_process_lease(
+            fake.layout,
+            record=process.record,
+            trial_id="trial_escape_force",
+            role="compile",
+        )
+
+        killed = cleanup_process_lease(fake.layout, lease, force_suspected=True)
+
+        assert killed.action == "killed"
+        assert process.child_pgids[0] in killed.killed_pgids
+        _wait_until(lambda: not _pid_alive(process.child_pids[0]))
+    finally:
+        lab_force.cleanup()
+
+
+def test_garbage_collect_process_leases_deletes_only_orphans(tmp_path) -> None:
+    fake = create_fake_workspace(tmp_path)
+    lab = create_process_lab(tmp_path)
+    try:
+        live = lab.spawn_live(session_id="sess_clean_gc_live")
+        live_lease = register_process_lease(
+            fake.layout,
+            record=live.record,
+            trial_id="trial_live",
+            role="compile",
+        )
+
+        gone_record = lab.make_pid_gone_record()
+        register_process_lease(
+            fake.layout,
+            record=gone_record,
+            trial_id="trial_gone",
+            role="compile",
+        )
+
+        terminal = mark_process_exited(
+            fake.layout,
+            register_process_lease(
+                fake.layout,
+                record=_dead_record(pid=999_991),
+                trial_id="trial_terminal",
+                role="compile",
+            ),
+            exit_code=0,
+        )
+
+        gc = garbage_collect_process_leases(fake.layout)
+
+        assert any("trial_gone" in path for path in gc.deleted_paths)
+        assert any("trial_terminal" in path for path in gc.deleted_paths)
+        assert any("trial_live" in path for path in gc.kept_paths)
+        remaining = load_process_leases(fake.layout)
+        assert tuple(lease.trial_id for lease in remaining) == (live_lease.trial_id,)
+        assert terminal.trial_id == "trial_terminal"
+    finally:
+        lab.cleanup()
+
+
+def _dead_record(*, pid: int) -> ProcessRecord:
+    return ProcessRecord(
+        pid=pid,
+        pgid=pid,
+        create_time=1.0,
+        session_id="sess_dead",
+        cmdline_hash="sha256:" + "0" * 64,
+        env_marker_visible_at_spawn=False,
+    )
+
+
+def _pid_alive(pid: int) -> bool:
+    try:
+        proc = psutil.Process(pid)
+    except psutil.NoSuchProcess:
+        return False
+    try:
+        return proc.status() != psutil.STATUS_ZOMBIE
+    except psutil.NoSuchProcess:
+        return False
+
+
+def _wait_until(predicate, *, timeout: float = 3.0) -> None:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if predicate():
+            return
+        time.sleep(0.02)
+    raise AssertionError("condition did not become true before timeout")

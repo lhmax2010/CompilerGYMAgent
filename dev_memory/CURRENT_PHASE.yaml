@@ -1,7 +1,7 @@
 phase_id: phase_06_process_management
 phase_title: "Process Management (runner + cleaner + monitor)"
 started_at: 2026-06-01T15:30:36+08:00
-last_updated: 2026-06-01T18:01:36+08:00
+last_updated: 2026-06-01T18:07:24+08:00
 target_milestone: "M3 (advanced)"
 related_requirements:
   - REQUIREMENTS.md section 3.3.5
@@ -104,4 +104,41 @@ subtasks:
     ubuntu_validation_tests:
       targeted: "29 passed"
       full: "484 passed"
-next_action: "Begin Phase 06 Subtask 6.3: process_cleaner.py."
+  - id: "6.3"
+    title: "process_cleaner.py"
+    status: implementation_complete
+    related_requirements:
+      - ROADMAP.yaml Phase 06 deliverable process_cleaner.py
+      - DECISIONS.md process attribution graded scoring
+      - DECISIONS.md process cleanup authority
+    files_created:
+      - src/agent/process_cleaner.py
+      - tests/test_process_cleaner.py
+    files_modified:
+      - src/agent/__init__.py
+      - tests/test_errors.py
+      - dev_memory/CURRENT_PHASE.yaml
+      - dev_memory/DECISIONS.md
+      - dev_memory/PROGRESS.md
+      - dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
+      - dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
+      - dev_memory/phases/phase_06_process_management/SUMMARY.md
+      - dev_memory/phases/phase_06_process_management/UT_RESULTS.md
+    behavior_notes:
+      - "Cleaner uses graded scoring: pid+create_time +3, pgid +3, env_marker +4."
+      - "Score >=7 is owned and killable; score >=4 is suspected and skipped unless force_suspected=True."
+      - "Cleaner env marker reads are single-shot and do not reuse process_runner's retry helper."
+      - "leader_dead_children_alive is found through pgid scanning; double_fork_escape is found through env_marker scanning and needs force to kill."
+      - "Lease GC deletes orphan leases only when no live cleanup targets remain."
+    ut_required: true
+    ut_passed: true
+    targeted_ut: "31 tests passed, 0 failed (cleaner/registry/runner/lab/errors)"
+    production_regression_ut: "492 tests passed, 0 failed"
+    self_review_required: true
+    self_reviewed: true
+    patch_required: true
+    patch_file: dev_memory/phases/phase_06_process_management/patches/03_process_cleaner.patch
+    patch_generated: true
+    commit_required: true
+    commit_pending: true
+next_action: "Push Phase 06 Subtask 6.3 implementation for Claude review."

@@ -103,3 +103,38 @@ foundation.
   - full suite 484 passed
 - Follow-up carried into 6.3: process cleaner env-marker reads must be
   single-shot and must not reuse the runner's retry helper.
+
+## Subtask 6.3 - Process Cleaner
+
+Implemented Phase 06's core process ownership and cleanup logic.
+
+### Changes
+
+- Added `src/agent/process_cleaner.py`.
+- Added single-read `read_env_marker()` for cleaner scans. It intentionally
+  does not retry and does not reuse the runner's spawn-only retry helper.
+- Added graded process attribution:
+  - pid + create_time match: +3
+  - pgid match: +3
+  - env marker match: +4
+  - score >= 7: owned
+  - score >= 4: suspected
+  - score < 4: not ours
+- Added cleanup target discovery through:
+  - recorded pid,
+  - pgid scan,
+  - env-marker scan.
+- Added `cleanup_process_lease()`:
+  - owned targets are killed with `killpg`,
+  - suspected targets become `unsafe_skip` by default,
+  - `force_suspected=True` can kill suspected targets,
+  - no matching live target becomes `unknown`.
+- Added `garbage_collect_process_leases()` for orphan lease deletion when no
+  live cleanup targets remain.
+- Exported cleaner symbols from `agent.__init__`.
+
+### Validation
+
+- `tests/test_process_cleaner.py`: 8 passed
+- Cleaner adjacent target set: 31 passed
+- Full suite: 492 passed

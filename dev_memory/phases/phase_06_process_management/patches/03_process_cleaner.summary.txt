@@ -1,0 +1,21 @@
+Subtask 6.3 adds process ownership scoring and cleanup.
+
+Implemented:
+- src/agent/process_cleaner.py
+  - single-read read_env_marker() for cleaner scans
+  - graded scoring: pid+create_time +3, pgid +3, env_marker +4
+  - owned / suspected / not_ours verdict thresholds
+  - cleanup target discovery through recorded pid, pgid scan, and env scan
+  - cleanup_process_lease() with killpg, unsafe_skip, force_suspected, unknown
+  - garbage_collect_process_leases()
+- agent.__init__ exports
+- tests/test_process_cleaner.py
+
+Validation:
+- tests/test_process_cleaner.py: 8 passed
+- cleaner adjacent target set: 31 passed
+- full suite: 492 passed
+
+Follow-up:
+- trace process cleanup events and process_event kind whitelist closure remain
+  future work.

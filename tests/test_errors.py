@@ -30,6 +30,7 @@ from agent import (
     Mode,
     NamespaceMismatchError,
     Option,
+    ProcessCleanerError,
     ProcessRegistryError,
     ProcessRunnerError,
     RegistryLoadError,
@@ -95,6 +96,7 @@ def test_known_agent_errors_share_base_class() -> None:
         NamespaceMismatchError,
         ProcessRegistryError,
         ProcessRunnerError,
+        ProcessCleanerError,
     )
 
     assert issubclass(AgentError, RuntimeError)
@@ -121,6 +123,7 @@ def test_agent_error_exit_codes_are_class_attributes() -> None:
         InitAborted: EXIT_EXECUTION_REFUSED,
         ProcessRegistryError: EXIT_VALIDATION,
         ProcessRunnerError: EXIT_GENERIC,
+        ProcessCleanerError: EXIT_GENERIC,
     }
 
     for error_class, exit_code in expected_codes.items():

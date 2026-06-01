@@ -1,0 +1,1169 @@
+diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index 45c7fac..dd8c699 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -1,7 +1,7 @@
+ phase_id: phase_06_process_management
+ phase_title: "Process Management (runner + cleaner + monitor)"
+ started_at: 2026-06-01T15:30:36+08:00
+-last_updated: 2026-06-01T18:01:36+08:00
++last_updated: 2026-06-01T18:07:24+08:00
+ target_milestone: "M3 (advanced)"
+ related_requirements:
+   - REQUIREMENTS.md section 3.3.5
+@@ -104,4 +104,41 @@ subtasks:
+     ubuntu_validation_tests:
+       targeted: "29 passed"
+       full: "484 passed"
+-next_action: "Begin Phase 06 Subtask 6.3: process_cleaner.py."
++  - id: "6.3"
++    title: "process_cleaner.py"
++    status: implementation_complete
++    related_requirements:
++      - ROADMAP.yaml Phase 06 deliverable process_cleaner.py
++      - DECISIONS.md process attribution graded scoring
++      - DECISIONS.md process cleanup authority
++    files_created:
++      - src/agent/process_cleaner.py
++      - tests/test_process_cleaner.py
++    files_modified:
++      - src/agent/__init__.py
++      - tests/test_errors.py
++      - dev_memory/CURRENT_PHASE.yaml
++      - dev_memory/DECISIONS.md
++      - dev_memory/PROGRESS.md
++      - dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
++      - dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
++      - dev_memory/phases/phase_06_process_management/SUMMARY.md
++      - dev_memory/phases/phase_06_process_management/UT_RESULTS.md
++    behavior_notes:
++      - "Cleaner uses graded scoring: pid+create_time +3, pgid +3, env_marker +4."
++      - "Score >=7 is owned and killable; score >=4 is suspected and skipped unless force_suspected=True."
++      - "Cleaner env marker reads are single-shot and do not reuse process_runner's retry helper."
++      - "leader_dead_children_alive is found through pgid scanning; double_fork_escape is found through env_marker scanning and needs force to kill."
++      - "Lease GC deletes orphan leases only when no live cleanup targets remain."
++    ut_required: true
++    ut_passed: true
++    targeted_ut: "31 tests passed, 0 failed (cleaner/registry/runner/lab/errors)"
++    production_regression_ut: "492 tests passed, 0 failed"
++    self_review_required: true
++    self_reviewed: true
++    patch_required: true
++    patch_file: dev_memory/phases/phase_06_process_management/patches/03_process_cleaner.patch
++    patch_generated: true
++    commit_required: true
++    commit_pending: true
++next_action: "Push Phase 06 Subtask 6.3 implementation for Claude review."
+diff --git a/dev_memory/DECISIONS.md b/dev_memory/DECISIONS.md
+index f559055..a4e8423 100644
+--- a/dev_memory/DECISIONS.md
++++ b/dev_memory/DECISIONS.md
+@@ -885,3 +885,16 @@ Decision records must include:
+   - Store leases only in checkpoint. Rejected because multi-process roles and status transitions would bloat checkpoint and couple process liveness to canonical state writes.
+   - Add integrity hashes to leases. Rejected because leases are derived operational state and can be rebuilt or discarded by doctor/cleanup.
+   - Let a process continue running if lease registration fails. Rejected because an untracked child process group is worse than failing the spawn loudly.
++
++## 2026-06-01T10:07:24Z - Cleaner env-marker reads are single-shot, not spawn retries
++
++- affected_requirement:
++  - ROADMAP.yaml Phase 06
++  - REQUIREMENTS.md section 3.3.5
++  - REQUIREMENTS.md section 4.11.x
++- decision: `process_cleaner` uses a single-read env marker probe for scanned processes and does not reuse `process_runner._env_marker_visible()`, which has retry semantics reserved for the just-spawned child process window.
++- rationale: Spawn and cleanup answer different questions. Spawn knows the agent just injected `AGENT_SESSION_ID` and may briefly wait for `/proc/<pid>/environ` to expose it. Cleaner scans arbitrary processes; most external processes legitimately lack the marker, so retrying would turn every non-agent process into a one-second timeout and make pgid/env scans unusably slow. A single read keeps cleanup conservative and bounded.
++- alternatives_considered:
++  - Reuse the runner retry helper in cleaner. Rejected because bulk process scans would stall on every process without a marker.
++  - Add a `retry` flag to one shared helper. Rejected because the two semantics are different enough that separate helpers are clearer and harder to misuse.
++  - Treat missing env marker as an error. Rejected because external processes and env-stripped toolchains are normal cases; missing marker simply contributes no score.
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index 8ab17fa..7672123 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -1872,3 +1872,39 @@ Next action: update Subtask 6.2 patch artifacts, commit/push the hardening fix,
+     scanned processes.
+ 
+ Next action: begin Subtask 6.3 process_cleaner.py.
++
++## 2026-06-01T10:07:24Z - Phase 06 / Subtask 6.3 implemented
++
++- Added `src/agent/process_cleaner.py`.
++- Implemented single-shot env marker probing for cleaner scans; this
++  intentionally does not reuse the runner's spawn retry helper.
++- Implemented graded process attribution:
++  - pid + create_time: +3
++  - pgid: +3
++  - env marker: +4
++  - score >= 7: owned
++  - score >= 4: suspected
++  - score < 4: not ours
++- Implemented cleanup target discovery through recorded pid, pgid scan, and
++  env-marker scan.
++- Implemented `cleanup_process_lease()`:
++  - owned targets -> killpg + `killed` lease,
++  - suspected targets -> `unsafe_skip` by default,
++  - `force_suspected=True` -> kill suspected targets,
++  - no live targets -> `unknown` lease.
++- Implemented `garbage_collect_process_leases()` for orphan lease deletion
++  when no live cleanup target remains.
++- Added tests for:
++  - single-read env marker behavior,
++  - score thresholds,
++  - owned killpg cleanup,
++  - suspected skip/force kill,
++  - leader-dead child cleanup via pgid scan,
++  - double-fork escape discovery via env marker,
++  - lease GC.
++- Validation:
++  - `.venv/bin/python -m pytest tests/test_process_cleaner.py -q` -> 8 passed.
++  - `.venv/bin/python -m pytest tests/test_process_cleaner.py tests/test_process_registry.py tests/test_process_runner.py tests/test_process_lab.py tests/test_errors.py -q` -> 31 passed.
++  - `.venv/bin/python -m pytest tests/ -q` -> 492 passed.
++
++Next action: generate patch artifacts, commit/push Subtask 6.3, then request Claude review.
+diff --git a/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml b/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
+index 115edcb..df9d43f 100644
+--- a/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
+@@ -72,3 +72,38 @@ subtasks:
+         status: done
+       - item: "Ubuntu/Linux validation"
+         status: done
++  - id: "6.3"
++    title: "process_cleaner.py"
++    status: implementation_complete
++    implementation_commit: pending
++    review_status: pending
++    ubuntu_validation_status: pending
++    checklist:
++      - item: "Implement single-read env marker probe for cleaner scans"
++        status: done
++      - item: "Implement graded ownership scoring: pid+create_time, pgid, env_marker"
++        status: done
++      - item: "Classify owned / suspected / not_ours at score thresholds 7 and 4"
++        status: done
++      - item: "Implement cleanup target discovery from recorded pid, pgid scan, and env_marker scan"
++        status: done
++      - item: "Implement killpg cleanup for owned targets"
++        status: done
++      - item: "Implement suspected default unsafe_skip and force_suspected kill path"
++        status: done
++      - item: "Handle leader-dead children-alive via pgid scanning"
++        status: done
++      - item: "Handle double-fork escape via env_marker scanning"
++        status: done
++      - item: "Implement lease GC for orphan leases only when no live targets remain"
++        status: done
++      - item: "Export cleaner symbols"
++        status: done
++      - item: "Run targeted tests and full production suite"
++        status: done
++      - item: "Generate patch artifacts"
++        status: done
++      - item: "Claude review"
++        status: pending
++      - item: "Ubuntu/Linux validation"
++        status: pending
+diff --git a/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md b/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
+index 79300da..7888c91 100644
+--- a/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
++++ b/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
+@@ -74,3 +74,27 @@ External review:
+ - Follow-up for 6.3: cleaner must use single-read env-marker probing and must
+   not reuse `process_runner._env_marker_visible()` because that helper has
+   spawn-only retry semantics.
++
++## Subtask 6.3 - Process Cleaner
++
++Self-review checklist:
++
++- [x] Cleaner uses single-read env marker probing; no retry and no dependency
++  on `process_runner._env_marker_visible()`.
++- [x] Graded scoring implements pid+create_time +3, pgid +3, env_marker +4.
++- [x] Score thresholds map to owned/suspected/not_ours as designed.
++- [x] AccessDenied / missing env marker does not add score.
++- [x] Owned process groups are killed with `killpg`.
++- [x] Suspected process groups are skipped by default and can be force-killed.
++- [x] Leader-dead / children-alive is discoverable through pgid scan.
++- [x] Double-fork-style escape is discoverable through env-marker scan and
++  remains suspected unless forced.
++- [x] Lease GC deletes orphan leases only when no live cleanup target remains.
++- [x] Full suite passes.
++
++Residual risks / follow-up:
++
++- Trace process-cleanup event emission is still deferred.
++- Cleaner CLI / doctor force flags are deferred to later CLI/doctor subtasks.
++- Process-event kind whitelist closure still needs to be wired when trace
++  process cleanup events are emitted.
+diff --git a/dev_memory/phases/phase_06_process_management/SUMMARY.md b/dev_memory/phases/phase_06_process_management/SUMMARY.md
+index 2a0e49a..9c885e7 100644
+--- a/dev_memory/phases/phase_06_process_management/SUMMARY.md
++++ b/dev_memory/phases/phase_06_process_management/SUMMARY.md
+@@ -103,3 +103,38 @@ foundation.
+   - full suite 484 passed
+ - Follow-up carried into 6.3: process cleaner env-marker reads must be
+   single-shot and must not reuse the runner's retry helper.
++
++## Subtask 6.3 - Process Cleaner
++
++Implemented Phase 06's core process ownership and cleanup logic.
++
++### Changes
++
++- Added `src/agent/process_cleaner.py`.
++- Added single-read `read_env_marker()` for cleaner scans. It intentionally
++  does not retry and does not reuse the runner's spawn-only retry helper.
++- Added graded process attribution:
++  - pid + create_time match: +3
++  - pgid match: +3
++  - env marker match: +4
++  - score >= 7: owned
++  - score >= 4: suspected
++  - score < 4: not ours
++- Added cleanup target discovery through:
++  - recorded pid,
++  - pgid scan,
++  - env-marker scan.
++- Added `cleanup_process_lease()`:
++  - owned targets are killed with `killpg`,
++  - suspected targets become `unsafe_skip` by default,
++  - `force_suspected=True` can kill suspected targets,
++  - no matching live target becomes `unknown`.
++- Added `garbage_collect_process_leases()` for orphan lease deletion when no
++  live cleanup targets remain.
++- Exported cleaner symbols from `agent.__init__`.
++
++### Validation
++
++- `tests/test_process_cleaner.py`: 8 passed
++- Cleaner adjacent target set: 31 passed
++- Full suite: 492 passed
+diff --git a/dev_memory/phases/phase_06_process_management/UT_RESULTS.md b/dev_memory/phases/phase_06_process_management/UT_RESULTS.md
+index 5b874ac..9b89b9a 100644
+--- a/dev_memory/phases/phase_06_process_management/UT_RESULTS.md
++++ b/dev_memory/phases/phase_06_process_management/UT_RESULTS.md
+@@ -65,3 +65,26 @@ Review / validation sync:
+ - Re-run targeted tests: 29 passed
+ - Re-run full suite: 484 passed
+ - Follow-up: 6.3 cleaner must use single-read env marker probing.
++
++## Subtask 6.3 - Process Cleaner
++
++Commands:
++
++```bash
++.venv/bin/python -m pytest tests/test_process_cleaner.py -q
++.venv/bin/python -m pytest tests/test_process_cleaner.py tests/test_process_registry.py tests/test_process_runner.py tests/test_process_lab.py tests/test_errors.py -q
++.venv/bin/python -m pytest tests/ -q
++```
++
++Results:
++
++- `tests/test_process_cleaner.py`: 8 passed
++- Cleaner adjacent target set: 31 passed
++- Full suite: 492 passed
++
++Notes:
++
++- Tests exercise real process groups for owned cleanup, leader-dead child
++  cleanup, and double-fork-style env-marker discovery.
++- Cleaner env marker reads are intentionally single-shot to avoid scanning
++  arbitrary external processes with runner-style retry delays.
+diff --git a/dev_memory/phases/phase_06_process_management/patches/03_process_cleaner.review.md b/dev_memory/phases/phase_06_process_management/patches/03_process_cleaner.review.md
+new file mode 100644
+index 0000000..6bd14f4
+--- /dev/null
++++ b/dev_memory/phases/phase_06_process_management/patches/03_process_cleaner.review.md
+@@ -0,0 +1,38 @@
++# Self Review - Phase 06 / Subtask 6.3
++
++## Scope
++
++Implemented `process_cleaner.py` ownership scoring, process-group cleanup, and
++lease GC. This subtask does not add CLI flags, doctor output, or trace process
++cleanup events.
++
++## Checks
++
++- Cleaner env marker reads are single-shot and do not call the runner retry
++  helper.
++- Score thresholds match the Phase 06 decision:
++  - pid + create_time = +3
++  - pgid = +3
++  - env marker = +4
++  - owned >= 7
++  - suspected >= 4
++- AccessDenied or missing env marker contributes no score.
++- Owned targets are killed with `killpg`.
++- Suspected targets are skipped by default and can be force-killed.
++- leader-dead / children-alive is found through pgid scanning.
++- double-fork-style escape is found through env-marker scanning and remains
++  suspected unless forced.
++- Lease GC deletes only leases with no live cleanup target.
++
++## Test Results
++
++```bash
++.venv/bin/python -m pytest tests/test_process_cleaner.py -q  # 8 passed
++.venv/bin/python -m pytest tests/ -q                         # 492 passed
++```
++
++## Residual Risk
++
++Process cleanup trace events are still deferred. When they are added, the
++Phase 03 process_event kind whitelist deferred item should close in the same
++subtask.
+diff --git a/dev_memory/phases/phase_06_process_management/patches/03_process_cleaner.summary.txt b/dev_memory/phases/phase_06_process_management/patches/03_process_cleaner.summary.txt
+new file mode 100644
+index 0000000..2ee8c75
+--- /dev/null
++++ b/dev_memory/phases/phase_06_process_management/patches/03_process_cleaner.summary.txt
+@@ -0,0 +1,21 @@
++Subtask 6.3 adds process ownership scoring and cleanup.
++
++Implemented:
++- src/agent/process_cleaner.py
++  - single-read read_env_marker() for cleaner scans
++  - graded scoring: pid+create_time +3, pgid +3, env_marker +4
++  - owned / suspected / not_ours verdict thresholds
++  - cleanup target discovery through recorded pid, pgid scan, and env scan
++  - cleanup_process_lease() with killpg, unsafe_skip, force_suspected, unknown
++  - garbage_collect_process_leases()
++- agent.__init__ exports
++- tests/test_process_cleaner.py
++
++Validation:
++- tests/test_process_cleaner.py: 8 passed
++- cleaner adjacent target set: 31 passed
++- full suite: 492 passed
++
++Follow-up:
++- trace process cleanup events and process_event kind whitelist closure remain
++  future work.
+diff --git a/src/agent/__init__.py b/src/agent/__init__.py
+index 04b55a9..1df9a5c 100644
+--- a/src/agent/__init__.py
++++ b/src/agent/__init__.py
+@@ -133,6 +133,22 @@ from .process_identity import (
+     ProcessRecord,
+     compute_cmdline_hash,
+ )
++from .process_cleaner import (
++    CREATE_TIME_TOLERANCE_SECONDS,
++    OWNED_SCORE_THRESHOLD,
++    SUSPECTED_SCORE_THRESHOLD,
++    CleanupTarget,
++    EnvMarkerRead,
++    LeaseGcResult,
++    ProcessAttribution,
++    ProcessCleanerError,
++    ProcessCleanupResult,
++    attribute_process,
++    cleanup_process_lease,
++    find_cleanup_targets,
++    garbage_collect_process_leases,
++    read_env_marker,
++)
+ from .process_registry import (
+     PROCESS_LEASE_SCHEMA_VERSION,
+     ProcessLease,
+@@ -240,6 +256,8 @@ __all__ = [
+     "CleanResult",
+     "Combo",
+     "ConfigLoadError",
++    "CREATE_TIME_TOLERANCE_SECONDS",
++    "CleanupTarget",
+     "DiscoveredTrialRecord",
+     "EXIT_EXECUTION_REFUSED",
+     "EXIT_GENERIC",
+@@ -259,6 +277,7 @@ __all__ = [
+     "ExperienceRuleScope",
+     "ExperienceSourceIntegrity",
+     "ExperienceValidation",
++    "EnvMarkerRead",
+     "FsMemoryError",
+     "HistorySummary",
+     "InitAborted",
+@@ -276,6 +295,7 @@ __all__ = [
+     "LearnedRuleIntegrityError",
+     "LearnedRuleLoadError",
+     "LearnedRuleScope",
++    "LeaseGcResult",
+     "LockReadResult",
+     "LineRange",
+     "ModulesRegistry",
+@@ -283,9 +303,13 @@ __all__ = [
+     "NamespaceMismatchError",
+     "NamespaceLayout",
+     "Option",
++    "OWNED_SCORE_THRESHOLD",
+     "PROCESS_LEASE_SCHEMA_VERSION",
+     "ProjectNamespace",
+     "ProcessIdentity",
++    "ProcessAttribution",
++    "ProcessCleanerError",
++    "ProcessCleanupResult",
+     "ProcessLease",
+     "ProcessLeaseStatus",
+     "ProcessRecord",
+@@ -302,6 +326,7 @@ __all__ = [
+     "SpecInjectResult",
+     "SpecRestoreResult",
+     "StaleCleanPlanError",
++    "SUSPECTED_SCORE_THRESHOLD",
+     "TraceAppendResult",
+     "TraceCheckpointAlignment",
+     "TraceCheckpointResult",
+@@ -341,9 +366,11 @@ __all__ = [
+     "assert_initialized_matches",
+     "atomic_write_yaml",
+     "append_trace_event",
++    "attribute_process",
+     "checkpoint_payload",
+     "checkpoint_with_reconciled_trace_count",
+     "checkpoint_with_trace_line_count",
++    "cleanup_process_lease",
+     "collect_history_summary",
+     "collect_trial_startup_validation_inputs",
+     "compute_combo_hash",
+@@ -361,6 +388,8 @@ __all__ = [
+     "existing_trial_compiler_versions",
+     "execute_clean_plan",
+     "ensure_trial_index_current",
++    "find_cleanup_targets",
++    "garbage_collect_process_leases",
+     "iter_process_lease_paths",
+     "iter_trial_record_paths",
+     "iter_trace_events",
+@@ -398,6 +427,7 @@ __all__ = [
+     "process_leases_dir",
+     "process_record_for_pid",
+     "process_trial_leases_dir",
++    "read_env_marker",
+     "registry_path_for_workspace",
+     "refresh_process_lease_from_popen",
+     "register_process_lease",
+diff --git a/src/agent/process_cleaner.py b/src/agent/process_cleaner.py
+new file mode 100644
+index 0000000..4ada448
+--- /dev/null
++++ b/src/agent/process_cleaner.py
+@@ -0,0 +1,374 @@
++"""Process ownership scoring and cleanup for Phase 06."""
++
++from __future__ import annotations
++
++import os
++import signal
++import time
++from dataclasses import dataclass
++from typing import Literal
++
++import psutil
++
++from .errors import AgentError, EXIT_GENERIC
++from .fs_memory import NamespaceLayout
++from .process_identity import AGENT_SESSION_ID_ENV, ProcessRecord
++from .process_registry import (
++    ProcessLease,
++    load_process_leases,
++    mark_process_killed,
++    mark_process_unknown,
++    mark_process_unsafe_skip,
++    process_lease_path,
++)
++
++
++CREATE_TIME_TOLERANCE_SECONDS = 0.5
++OWNED_SCORE_THRESHOLD = 7
++SUSPECTED_SCORE_THRESHOLD = 4
++
++OwnershipVerdict = Literal["owned", "suspected", "not_ours"]
++EnvMarkerStatus = Literal["matched", "mismatch", "missing", "unavailable", "gone"]
++CleanupAction = Literal["killed", "unsafe_skip", "unknown", "deleted_orphan"]
++
++
++class ProcessCleanerError(AgentError):
++    """Raised when process cleanup cannot complete safely."""
++
++    exit_code = EXIT_GENERIC
++
++
++@dataclass(frozen=True)
++class EnvMarkerRead:
++    value: str | None
++    status: EnvMarkerStatus
++
++
++@dataclass(frozen=True)
++class ProcessAttribution:
++    pid: int
++    pgid: int | None
++    score: int
++    verdict: OwnershipVerdict
++    pid_create_time_match: bool
++    pgid_match: bool
++    env_marker_match: bool
++    env_marker_status: EnvMarkerStatus
++    source: str
++
++
++@dataclass(frozen=True)
++class CleanupTarget:
++    pid: int
++    pgid: int
++    attribution: ProcessAttribution
++
++
++@dataclass(frozen=True)
++class ProcessCleanupResult:
++    lease: ProcessLease
++    action: CleanupAction
++    updated_lease: ProcessLease | None
++    targets: tuple[CleanupTarget, ...]
++    killed_pgids: tuple[int, ...]
++    reason: str | None = None
++
++
++@dataclass(frozen=True)
++class LeaseGcResult:
++    deleted_paths: tuple[str, ...]
++    kept_paths: tuple[str, ...]
++
++
++def read_env_marker(proc: psutil.Process) -> EnvMarkerRead:
++    """Read AGENT_SESSION_ID once.
++
++    This function intentionally does not retry. Cleaner scans arbitrary
++    processes, so a missing marker means "not present", not "wait for spawn".
++    """
++
++    try:
++        value = proc.environ().get(AGENT_SESSION_ID_ENV)
++    except psutil.NoSuchProcess:
++        return EnvMarkerRead(value=None, status="gone")
++    except psutil.AccessDenied:
++        return EnvMarkerRead(value=None, status="unavailable")
++    if value is None:
++        return EnvMarkerRead(value=None, status="missing")
++    return EnvMarkerRead(value=value, status="matched")
++
++
++def attribute_process(
++    proc: psutil.Process,
++    record: ProcessRecord,
++    *,
++    source: str = "direct",
++) -> ProcessAttribution:
++    pid_create_time_match = False
++    pgid_match = False
++    env_marker_match = False
++    score = 0
++    pgid: int | None = None
++
++    try:
++        pid = proc.pid
++        if pid == record.pid:
++            create_time = proc.create_time()
++            if abs(create_time - record.create_time) <= CREATE_TIME_TOLERANCE_SECONDS:
++                pid_create_time_match = True
++                score += 3
++        pgid = os.getpgid(pid)
++        if pgid == record.pgid:
++            pgid_match = True
++            score += 3
++    except (psutil.NoSuchProcess, ProcessLookupError):
++        return ProcessAttribution(
++            pid=getattr(proc, "pid", record.pid),
++            pgid=None,
++            score=0,
++            verdict="not_ours",
++            pid_create_time_match=False,
++            pgid_match=False,
++            env_marker_match=False,
++            env_marker_status="gone",
++            source=source,
++        )
++
++    marker = _read_env_marker_for_session(proc, record.session_id)
++    if marker.status == "matched":
++        env_marker_match = True
++        score += 4
++
++    return ProcessAttribution(
++        pid=pid,
++        pgid=pgid,
++        score=score,
++        verdict=_verdict_for_score(score),
++        pid_create_time_match=pid_create_time_match,
++        pgid_match=pgid_match,
++        env_marker_match=env_marker_match,
++        env_marker_status=marker.status,
++        source=source,
++    )
++
++
++def find_cleanup_targets(record: ProcessRecord) -> tuple[CleanupTarget, ...]:
++    """Find candidate processes for a recorded process lease.
++
++    PID disappearance is not enough to skip cleanup: children can survive in
++    the old pgid or escape into a new session while retaining AGENT_SESSION_ID.
++    """
++
++    targets: dict[int, CleanupTarget] = {}
++
++    try:
++        proc = psutil.Process(record.pid)
++    except psutil.NoSuchProcess:
++        proc = None
++    if proc is not None:
++        _add_target(targets, proc, record, source="recorded_pid")
++
++    for proc in psutil.process_iter(["pid", "status"]):
++        if proc.info.get("status") == psutil.STATUS_ZOMBIE:
++            continue
++        try:
++            pid = int(proc.info["pid"])
++        except (TypeError, ValueError):
++            continue
++        if pid == os.getpid():
++            continue
++        source = _scan_source(proc, record)
++        if source is None:
++            continue
++        _add_target(targets, proc, record, source=source)
++
++    return tuple(sorted(targets.values(), key=lambda target: target.pid))
++
++
++def cleanup_process_lease(
++    layout: NamespaceLayout,
++    lease: ProcessLease,
++    *,
++    force_suspected: bool = False,
++    sig: int = signal.SIGTERM,
++    kill_timeout_seconds: float = 2.0,
++) -> ProcessCleanupResult:
++    targets = find_cleanup_targets(lease.record)
++    if not targets:
++        updated = mark_process_unknown(
++            layout,
++            lease,
++            cleanup_attempts=lease.cleanup_attempts + 1,
++        )
++        return ProcessCleanupResult(
++            lease=lease,
++            action="unknown",
++            updated_lease=updated,
++            targets=(),
++            killed_pgids=(),
++            reason="no matching live process found",
++        )
++
++    if any(target.attribution.verdict == "owned" for target in targets):
++        killable = targets
++    elif force_suspected and any(
++        target.attribution.verdict == "suspected" for target in targets
++    ):
++        killable = targets
++    else:
++        updated = mark_process_unsafe_skip(
++            layout,
++            lease,
++            cleanup_attempts=lease.cleanup_attempts + 1,
++        )
++        return ProcessCleanupResult(
++            lease=lease,
++            action="unsafe_skip",
++            updated_lease=updated,
++            targets=targets,
++            killed_pgids=(),
++            reason="ownership score below kill threshold",
++        )
++
++    killed_pgids = _kill_target_process_groups(
++        killable,
++        sig=sig,
++        timeout_seconds=kill_timeout_seconds,
++    )
++    updated = mark_process_killed(
++        layout,
++        lease,
++        signal=sig,
++        cleanup_attempts=lease.cleanup_attempts + 1,
++    )
++    return ProcessCleanupResult(
++        lease=lease,
++        action="killed",
++        updated_lease=updated,
++        targets=targets,
++        killed_pgids=killed_pgids,
++    )
++
++
++def garbage_collect_process_leases(layout: NamespaceLayout) -> LeaseGcResult:
++    deleted: list[str] = []
++    kept: list[str] = []
++    for lease in load_process_leases(layout):
++        path = process_lease_path(
++            layout,
++            session_id=lease.session_id,
++            trial_id=lease.trial_id,
++            role=lease.role,
++            pid=lease.record.pid,
++        )
++        targets = find_cleanup_targets(lease.record)
++        if not targets:
++            try:
++                path.unlink()
++            except FileNotFoundError:
++                pass
++            deleted.append(str(path))
++        else:
++            kept.append(str(path))
++    return LeaseGcResult(deleted_paths=tuple(deleted), kept_paths=tuple(kept))
++
++
++def _read_env_marker_for_session(
++    proc: psutil.Process,
++    session_id: str,
++) -> EnvMarkerRead:
++    marker = read_env_marker(proc)
++    if marker.value is None:
++        return marker
++    if marker.value == session_id:
++        return EnvMarkerRead(value=marker.value, status="matched")
++    return EnvMarkerRead(value=marker.value, status="mismatch")
++
++
++def _verdict_for_score(score: int) -> OwnershipVerdict:
++    if score >= OWNED_SCORE_THRESHOLD:
++        return "owned"
++    if score >= SUSPECTED_SCORE_THRESHOLD:
++        return "suspected"
++    return "not_ours"
++
++
++def _scan_source(proc: psutil.Process, record: ProcessRecord) -> str | None:
++    sources: list[str] = []
++    try:
++        if os.getpgid(proc.pid) == record.pgid:
++            sources.append("pgid_scan")
++    except (ProcessLookupError, psutil.NoSuchProcess, psutil.AccessDenied):
++        pass
++    marker = _read_env_marker_for_session(proc, record.session_id)
++    if marker.status == "matched":
++        sources.append("env_scan")
++    if not sources:
++        return None
++    return "+".join(sources)
++
++
++def _add_target(
++    targets: dict[int, CleanupTarget],
++    proc: psutil.Process,
++    record: ProcessRecord,
++    *,
++    source: str,
++) -> None:
++    attribution = attribute_process(proc, record, source=source)
++    if attribution.pgid is None:
++        return
++    existing = targets.get(attribution.pid)
++    if existing is not None and existing.attribution.score >= attribution.score:
++        return
++    targets[attribution.pid] = CleanupTarget(
++        pid=attribution.pid,
++        pgid=attribution.pgid,
++        attribution=attribution,
++    )
++
++
++def _kill_target_process_groups(
++    targets: tuple[CleanupTarget, ...],
++    *,
++    sig: int,
++    timeout_seconds: float,
++) -> tuple[int, ...]:
++    current_pgid = os.getpgrp()
++    pgids = tuple(
++        sorted({target.pgid for target in targets if target.pgid > 0 and target.pgid != current_pgid})
++    )
++    for pgid in pgids:
++        try:
++            os.killpg(pgid, sig)
++        except ProcessLookupError:
++            continue
++    _wait_for_pgids_to_exit(pgids, timeout_seconds=timeout_seconds)
++    for pgid in pgids:
++        if _pgid_has_members(pgid):
++            try:
++                os.killpg(pgid, signal.SIGKILL)
++            except ProcessLookupError:
++                continue
++    _wait_for_pgids_to_exit(pgids, timeout_seconds=timeout_seconds)
++    return pgids
++
++
++def _wait_for_pgids_to_exit(pgids: tuple[int, ...], *, timeout_seconds: float) -> None:
++    deadline = time.monotonic() + timeout_seconds
++    while time.monotonic() < deadline:
++        if all(not _pgid_has_members(pgid) for pgid in pgids):
++            return
++        time.sleep(0.02)
++
++
++def _pgid_has_members(pgid: int) -> bool:
++    for proc in psutil.process_iter(["pid", "status"]):
++        try:
++            if proc.info.get("status") == psutil.STATUS_ZOMBIE:
++                continue
++            if os.getpgid(proc.info["pid"]) == pgid:
++                return True
++        except (ProcessLookupError, psutil.NoSuchProcess, psutil.AccessDenied):
++            continue
++    return False
+diff --git a/tests/test_errors.py b/tests/test_errors.py
+index 5e5e143..942c493 100644
+--- a/tests/test_errors.py
++++ b/tests/test_errors.py
+@@ -30,6 +30,7 @@ from agent import (
+     Mode,
+     NamespaceMismatchError,
+     Option,
++    ProcessCleanerError,
+     ProcessRegistryError,
+     ProcessRunnerError,
+     RegistryLoadError,
+@@ -95,6 +96,7 @@ def test_known_agent_errors_share_base_class() -> None:
+         NamespaceMismatchError,
+         ProcessRegistryError,
+         ProcessRunnerError,
++        ProcessCleanerError,
+     )
+ 
+     assert issubclass(AgentError, RuntimeError)
+@@ -121,6 +123,7 @@ def test_agent_error_exit_codes_are_class_attributes() -> None:
+         InitAborted: EXIT_EXECUTION_REFUSED,
+         ProcessRegistryError: EXIT_VALIDATION,
+         ProcessRunnerError: EXIT_GENERIC,
++        ProcessCleanerError: EXIT_GENERIC,
+     }
+ 
+     for error_class, exit_code in expected_codes.items():
+diff --git a/tests/test_process_cleaner.py b/tests/test_process_cleaner.py
+new file mode 100644
+index 0000000..94ab5ac
+--- /dev/null
++++ b/tests/test_process_cleaner.py
+@@ -0,0 +1,311 @@
++from __future__ import annotations
++
++import os
++import signal
++import time
++
++import psutil
++import pytest
++
++from agent import (
++    OWNED_SCORE_THRESHOLD,
++    SUSPECTED_SCORE_THRESHOLD,
++    ProcessRecord,
++    attribute_process,
++    cleanup_process_lease,
++    find_cleanup_targets,
++    garbage_collect_process_leases,
++    load_process_leases,
++    mark_process_exited,
++    read_env_marker,
++    register_process_lease,
++)
++from tests.fixtures.fake_workspace import create_fake_workspace
++from tests.fixtures.process_lab import create_process_lab
++
++
++pytestmark = pytest.mark.skipif(os.name != "posix", reason="process cleaner is POSIX-only")
++
++
++def test_read_env_marker_is_single_read_without_retry() -> None:
++    class FakeProc:
++        pid = 123
++
++        def __init__(self) -> None:
++            self.calls = 0
++
++        def environ(self) -> dict[str, str]:
++            self.calls += 1
++            return {}
++
++    proc = FakeProc()
++
++    marker = read_env_marker(proc)  # type: ignore[arg-type]
++
++    assert marker.value is None
++    assert marker.status == "missing"
++    assert proc.calls == 1
++
++
++def test_read_env_marker_handles_access_denied_without_retry() -> None:
++    class FakeProc:
++        pid = 123
++
++        def __init__(self) -> None:
++            self.calls = 0
++
++        def environ(self) -> dict[str, str]:
++            self.calls += 1
++            raise psutil.AccessDenied(pid=self.pid)
++
++    proc = FakeProc()
++
++    marker = read_env_marker(proc)  # type: ignore[arg-type]
++
++    assert marker.value is None
++    assert marker.status == "unavailable"
++    assert proc.calls == 1
++
++
++def test_attribute_process_scores_owned_and_suspected(tmp_path) -> None:
++    lab = create_process_lab(tmp_path)
++    try:
++        owned = lab.spawn_live(session_id="sess_clean_owned")
++        owned_attr = attribute_process(psutil.Process(owned.pid), owned.record)
++
++        assert owned_attr.score >= OWNED_SCORE_THRESHOLD
++        assert owned_attr.verdict == "owned"
++        assert owned_attr.pid_create_time_match is True
++        assert owned_attr.pgid_match is True
++        assert owned_attr.env_marker_match is True
++
++        no_marker = lab.spawn_live(
++            session_id="sess_clean_nomarker",
++            include_env_marker=False,
++        )
++        suspected_attr = attribute_process(
++            psutil.Process(no_marker.pid),
++            no_marker.record,
++        )
++
++        assert suspected_attr.score == 6
++        assert suspected_attr.score >= SUSPECTED_SCORE_THRESHOLD
++        assert suspected_attr.verdict == "suspected"
++        assert suspected_attr.env_marker_status == "missing"
++    finally:
++        lab.cleanup()
++
++
++def test_cleanup_kills_owned_process_group_and_marks_lease(tmp_path) -> None:
++    fake = create_fake_workspace(tmp_path)
++    lab = create_process_lab(tmp_path)
++    try:
++        process = lab.spawn_live(session_id="sess_clean_kill")
++        lease = register_process_lease(
++            fake.layout,
++            record=process.record,
++            trial_id="trial_kill",
++            role="compile",
++        )
++
++        result = cleanup_process_lease(fake.layout, lease)
++
++        assert result.action == "killed"
++        assert process.pgid in result.killed_pgids
++        assert result.updated_lease is not None
++        assert result.updated_lease.status == "killed"
++        assert result.updated_lease.signal == signal.SIGTERM
++        _wait_until(lambda: not _pid_alive(process.pid))
++    finally:
++        lab.cleanup()
++
++
++def test_suspected_process_is_skipped_by_default_and_force_killed(tmp_path) -> None:
++    fake = create_fake_workspace(tmp_path)
++    lab = create_process_lab(tmp_path)
++    try:
++        process = lab.spawn_live(
++            session_id="sess_clean_suspected",
++            include_env_marker=False,
++        )
++        lease = register_process_lease(
++            fake.layout,
++            record=process.record,
++            trial_id="trial_skip",
++            role="compile",
++        )
++
++        skipped = cleanup_process_lease(fake.layout, lease)
++
++        assert skipped.action == "unsafe_skip"
++        assert skipped.updated_lease is not None
++        assert skipped.updated_lease.status == "unsafe_skip"
++        assert _pid_alive(process.pid)
++    finally:
++        lab.cleanup()
++
++    lab_force = create_process_lab(tmp_path)
++    try:
++        process = lab_force.spawn_live(
++            session_id="sess_clean_suspected_force",
++            include_env_marker=False,
++        )
++        lease = register_process_lease(
++            fake.layout,
++            record=process.record,
++            trial_id="trial_force",
++            role="compile",
++        )
++
++        killed = cleanup_process_lease(fake.layout, lease, force_suspected=True)
++
++        assert killed.action == "killed"
++        assert process.pgid in killed.killed_pgids
++        _wait_until(lambda: not _pid_alive(process.pid))
++    finally:
++        lab_force.cleanup()
++
++
++def test_leader_dead_children_alive_is_found_by_pgid_scan(tmp_path) -> None:
++    fake = create_fake_workspace(tmp_path)
++    lab = create_process_lab(tmp_path)
++    try:
++        process = lab.spawn_leader_dead_children_alive(
++            session_id="sess_clean_leader_dead"
++        )
++        lease = register_process_lease(
++            fake.layout,
++            record=process.record,
++            trial_id="trial_leader_dead",
++            role="compile",
++        )
++
++        targets = find_cleanup_targets(process.record)
++        result = cleanup_process_lease(fake.layout, lease)
++
++        assert any(target.attribution.source == "pgid_scan+env_scan" for target in targets)
++        assert result.action == "killed"
++        assert process.pgid in result.killed_pgids
++        assert process.child_pids
++        _wait_until(lambda: not _pid_alive(process.child_pids[0]))
++    finally:
++        lab.cleanup()
++
++
++def test_double_fork_escape_requires_env_marker_and_force(tmp_path) -> None:
++    fake = create_fake_workspace(tmp_path)
++    lab = create_process_lab(tmp_path)
++    try:
++        process = lab.spawn_double_fork_escape(session_id="sess_clean_escape")
++        lease = register_process_lease(
++            fake.layout,
++            record=process.record,
++            trial_id="trial_escape_skip",
++            role="compile",
++        )
++
++        targets = find_cleanup_targets(process.record)
++        skipped = cleanup_process_lease(fake.layout, lease)
++
++        assert process.child_pids
++        assert process.child_pgids[0] != process.pgid
++        assert any(target.attribution.source == "env_scan" for target in targets)
++        assert all(target.attribution.verdict == "suspected" for target in targets)
++        assert skipped.action == "unsafe_skip"
++        assert _pid_alive(process.child_pids[0])
++    finally:
++        lab.cleanup()
++
++    lab_force = create_process_lab(tmp_path)
++    try:
++        process = lab_force.spawn_double_fork_escape(
++            session_id="sess_clean_escape_force"
++        )
++        lease = register_process_lease(
++            fake.layout,
++            record=process.record,
++            trial_id="trial_escape_force",
++            role="compile",
++        )
++
++        killed = cleanup_process_lease(fake.layout, lease, force_suspected=True)
++
++        assert killed.action == "killed"
++        assert process.child_pgids[0] in killed.killed_pgids
++        _wait_until(lambda: not _pid_alive(process.child_pids[0]))
++    finally:
++        lab_force.cleanup()
++
++
++def test_garbage_collect_process_leases_deletes_only_orphans(tmp_path) -> None:
++    fake = create_fake_workspace(tmp_path)
++    lab = create_process_lab(tmp_path)
++    try:
++        live = lab.spawn_live(session_id="sess_clean_gc_live")
++        live_lease = register_process_lease(
++            fake.layout,
++            record=live.record,
++            trial_id="trial_live",
++            role="compile",
++        )
++
++        gone_record = lab.make_pid_gone_record()
++        register_process_lease(
++            fake.layout,
++            record=gone_record,
++            trial_id="trial_gone",
++            role="compile",
++        )
++
++        terminal = mark_process_exited(
++            fake.layout,
++            register_process_lease(
++                fake.layout,
++                record=_dead_record(pid=999_991),
++                trial_id="trial_terminal",
++                role="compile",
++            ),
++            exit_code=0,
++        )
++
++        gc = garbage_collect_process_leases(fake.layout)
++
++        assert any("trial_gone" in path for path in gc.deleted_paths)
++        assert any("trial_terminal" in path for path in gc.deleted_paths)
++        assert any("trial_live" in path for path in gc.kept_paths)
++        remaining = load_process_leases(fake.layout)
++        assert tuple(lease.trial_id for lease in remaining) == (live_lease.trial_id,)
++        assert terminal.trial_id == "trial_terminal"
++    finally:
++        lab.cleanup()
++
++
++def _dead_record(*, pid: int) -> ProcessRecord:
++    return ProcessRecord(
++        pid=pid,
++        pgid=pid,
++        create_time=1.0,
++        session_id="sess_dead",
++        cmdline_hash="sha256:" + "0" * 64,
++        env_marker_visible_at_spawn=False,
++    )
++
++
++def _pid_alive(pid: int) -> bool:
++    try:
++        proc = psutil.Process(pid)
++    except psutil.NoSuchProcess:
++        return False
++    try:
++        return proc.status() != psutil.STATUS_ZOMBIE
++    except psutil.NoSuchProcess:
++        return False
++
++
++def _wait_until(predicate, *, timeout: float = 3.0) -> None:
++    deadline = time.monotonic() + timeout
++    while time.monotonic() < deadline:
++        if predicate():
++            return
++        time.sleep(0.02)
++    raise AssertionError("condition did not become true before timeout")

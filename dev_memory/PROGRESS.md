@@ -1872,3 +1872,39 @@ Next action: update Subtask 6.2 patch artifacts, commit/push the hardening fix, 
     scanned processes.
 
 Next action: begin Subtask 6.3 process_cleaner.py.
+
+## 2026-06-01T10:07:24Z - Phase 06 / Subtask 6.3 implemented
+
+- Added `src/agent/process_cleaner.py`.
+- Implemented single-shot env marker probing for cleaner scans; this
+  intentionally does not reuse the runner's spawn retry helper.
+- Implemented graded process attribution:
+  - pid + create_time: +3
+  - pgid: +3
+  - env marker: +4
+  - score >= 7: owned
+  - score >= 4: suspected
+  - score < 4: not ours
+- Implemented cleanup target discovery through recorded pid, pgid scan, and
+  env-marker scan.
+- Implemented `cleanup_process_lease()`:
+  - owned targets -> killpg + `killed` lease,
+  - suspected targets -> `unsafe_skip` by default,
+  - `force_suspected=True` -> kill suspected targets,
+  - no live targets -> `unknown` lease.
+- Implemented `garbage_collect_process_leases()` for orphan lease deletion
+  when no live cleanup target remains.
+- Added tests for:
+  - single-read env marker behavior,
+  - score thresholds,
+  - owned killpg cleanup,
+  - suspected skip/force kill,
+  - leader-dead child cleanup via pgid scan,
+  - double-fork escape discovery via env marker,
+  - lease GC.
+- Validation:
+  - `.venv/bin/python -m pytest tests/test_process_cleaner.py -q` -> 8 passed.
+  - `.venv/bin/python -m pytest tests/test_process_cleaner.py tests/test_process_registry.py tests/test_process_runner.py tests/test_process_lab.py tests/test_errors.py -q` -> 31 passed.
+  - `.venv/bin/python -m pytest tests/ -q` -> 492 passed.
+
+Next action: generate patch artifacts, commit/push Subtask 6.3, then request Claude review.

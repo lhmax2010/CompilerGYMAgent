@@ -885,3 +885,16 @@ Decision records must include:
   - Store leases only in checkpoint. Rejected because multi-process roles and status transitions would bloat checkpoint and couple process liveness to canonical state writes.
   - Add integrity hashes to leases. Rejected because leases are derived operational state and can be rebuilt or discarded by doctor/cleanup.
   - Let a process continue running if lease registration fails. Rejected because an untracked child process group is worse than failing the spawn loudly.
+
+## 2026-06-01T10:07:24Z - Cleaner env-marker reads are single-shot, not spawn retries
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 06
+  - REQUIREMENTS.md section 3.3.5
+  - REQUIREMENTS.md section 4.11.x
+- decision: `process_cleaner` uses a single-read env marker probe for scanned processes and does not reuse `process_runner._env_marker_visible()`, which has retry semantics reserved for the just-spawned child process window.
+- rationale: Spawn and cleanup answer different questions. Spawn knows the agent just injected `AGENT_SESSION_ID` and may briefly wait for `/proc/<pid>/environ` to expose it. Cleaner scans arbitrary processes; most external processes legitimately lack the marker, so retrying would turn every non-agent process into a one-second timeout and make pgid/env scans unusably slow. A single read keeps cleanup conservative and bounded.
+- alternatives_considered:
+  - Reuse the runner retry helper in cleaner. Rejected because bulk process scans would stall on every process without a marker.
+  - Add a `retry` flag to one shared helper. Rejected because the two semantics are different enough that separate helpers are clearer and harder to misuse.
+  - Treat missing env marker as an error. Rejected because external processes and env-stripped toolchains are normal cases; missing marker simply contributes no score.
