@@ -153,3 +153,13 @@ Notes:
 - Targeted tests cover legacy checkpoint migration, operation ledger acceptance,
   required `current_trial_start_line`, YAML round-trip, unsafe process refs,
   session/trial mismatch, duplicate refs, and JSON-only operation details.
+
+Review / validation sync:
+
+- Claude review verdict: Approve
+- Review range: `eef6b02..4bde11a`
+- Re-run checkpoint/identifier targeted tests: 164 passed
+- Re-run process_lab/process_cleaner targeted tests after flaky hardening: 15 passed
+- Re-run full suite: 508 passed
+- Low-1 flaky resolved by polling escaped child readiness before returning
+  from the process_lab fixture.

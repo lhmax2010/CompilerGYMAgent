@@ -171,3 +171,16 @@ Residual risks / follow-up:
   operation replay policies remain Phase 09/10 scope.
 - 6.7 still wires `current_trial_start_line` into clean trace Layer D
   protection.
+
+External review:
+
+- Verdict: Approve
+- Range: `eef6b02..4bde11a`
+- Notes: operation ledger is backward-compatible, `process_refs` validation
+  covers path/session/trial boundaries, `current_trial_start_line` is required
+  for non-empty operations, and checkpoint has no integrity hash by design.
+- Low finding resolved: the 6.3 double-fork escape test was hardened by waiting
+  for escaped child pgid/env readiness in `process_lab` before cleaner probes
+  run.
+- Validation re-run: checkpoint/identifier targeted set 164 passed,
+  process_lab/process_cleaner targeted set 15 passed, full suite 508 passed.

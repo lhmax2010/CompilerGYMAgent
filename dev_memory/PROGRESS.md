@@ -1983,3 +1983,24 @@ Next action: begin Subtask 6.5 TrialState operation ledger.
   - `.venv/bin/python -m pytest tests/ -q` -> 508 passed.
 
 Next action: generate patch artifacts, commit/push Subtask 6.5, then request Claude review.
+
+## 2026-06-01T12:37:50Z - Phase 06 / Subtask 6.5 approved and double-fork flaky hardened
+
+- Claude review verdict: Approve.
+- Review range: `eef6b02..4bde11a`.
+- Review confirmed:
+  - legacy checkpoints without `operations` are backward-compatible,
+  - operation ledgers round-trip through checkpoint YAML,
+  - process refs validate path/session/trial boundaries,
+  - checkpoint has no integrity hash by design, so 6.5 requires no hash recomputation.
+- Addressed Low-1 from review:
+  - process_lab now waits for child pid/pgid/env readiness before returning
+    double-fork and child-process scenarios.
+  - This removes the timing window where cleaner probes could run before the
+    escaped child process was fully visible through `/proc`.
+- Validation:
+  - `.venv/bin/python -m pytest tests/test_fs_memory.py tests/test_identifiers.py -q` -> 164 passed.
+  - `.venv/bin/python -m pytest tests/test_process_lab.py tests/test_process_cleaner.py -q` -> 15 passed.
+  - `.venv/bin/python -m pytest tests/ -q` -> 508 passed.
+
+Next action: begin Subtask 6.6 doctor/state_consistency.py.

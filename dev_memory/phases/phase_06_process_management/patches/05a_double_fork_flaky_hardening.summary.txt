@@ -1,0 +1,16 @@
+Phase 06 / Subtask 6.5 review hardening - double-fork process_lab readiness
+
+Resolved the Low-1 flaky finding from the 6.5 review.
+
+Changes:
+- process_lab now waits for child process readiness before returning child-mode
+  fixtures.
+- Readiness checks confirm the child pid is visible, non-zombie, has the
+  expected pgid, and exposes the expected AGENT_SESSION_ID marker when required.
+- This removes the timing window where process_cleaner could scan before a
+  double-fork escaped child had fully established pgid/env state.
+
+Validation:
+- .venv/bin/python -m pytest tests/test_process_lab.py tests/test_process_cleaner.py -q -> 15 passed
+- .venv/bin/python -m pytest tests/test_fs_memory.py tests/test_identifiers.py -q -> 164 passed
+- .venv/bin/python -m pytest tests/ -q -> 508 passed

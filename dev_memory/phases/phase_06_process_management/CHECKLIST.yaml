@@ -38,10 +38,10 @@ subtasks:
         status: done
   - id: "6.5"
     title: "TrialState operation ledger checkpoint schema extension"
-    status: implementation_complete
-    implementation_commit: pending
-    review_status: pending
-    ubuntu_validation_status: pending
+    status: done
+    implementation_commit: 4bde11a
+    review_status: approve
+    ubuntu_validation_status: passed
     checklist:
       - item: "Add CheckpointTrialOperation model"
         status: done
@@ -64,9 +64,11 @@ subtasks:
       - item: "Generate patch artifacts"
         status: done
       - item: "Claude review"
-        status: pending
+        status: done
       - item: "Ubuntu/Linux validation"
-        status: pending
+        status: done
+      - item: "Harden double-fork process_lab readiness after flaky review finding"
+        status: done
   - id: "6.4"
     title: "workspace lock hardening (probe flock + LockStatus unknown)"
     status: done

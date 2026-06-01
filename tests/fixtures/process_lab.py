@@ -328,6 +328,12 @@ class ProcessLab:
         )
         self._tracked_pgids.add(record.pgid)
         self._tracked_pgids.update(child_pgids)
+        _wait_for_child_processes_ready(
+            child_pids=child_pids,
+            child_pgids=child_pgids,
+            session_id=session_id,
+            require_env_marker=include_env_marker,
+        )
         return LabProcess(
             popen=popen,
             record=record,
@@ -394,6 +400,63 @@ def _child_identity(payload: dict[str, Any]) -> tuple[tuple[int, ...], tuple[int
     if "child_pid" not in payload:
         return (), ()
     return (int(payload["child_pid"]),), (int(payload["child_pgid"]),)
+
+
+def _wait_for_child_processes_ready(
+    *,
+    child_pids: tuple[int, ...],
+    child_pgids: tuple[int, ...],
+    session_id: str,
+    require_env_marker: bool,
+    timeout: float = 5.0,
+) -> None:
+    for child_pid, child_pgid in zip(child_pids, child_pgids, strict=True):
+        _wait_for_child_process_ready(
+            child_pid=child_pid,
+            child_pgid=child_pgid,
+            session_id=session_id,
+            require_env_marker=require_env_marker,
+            timeout=timeout,
+        )
+
+
+def _wait_for_child_process_ready(
+    *,
+    child_pid: int,
+    child_pgid: int,
+    session_id: str,
+    require_env_marker: bool,
+    timeout: float,
+) -> None:
+    deadline = time.monotonic() + timeout
+    last_error = "not checked"
+    while time.monotonic() < deadline:
+        try:
+            proc = psutil.Process(child_pid)
+            if proc.status() == psutil.STATUS_ZOMBIE:
+                last_error = "child is zombie"
+                time.sleep(0.01)
+                continue
+            actual_pgid = os.getpgid(child_pid)
+            if actual_pgid != child_pgid:
+                last_error = f"pgid {actual_pgid} != expected {child_pgid}"
+                time.sleep(0.01)
+                continue
+            if require_env_marker:
+                marker = proc.environ().get(AGENT_SESSION_ID_ENV)
+                if marker != session_id:
+                    last_error = f"env marker {marker!r} != {session_id!r}"
+                    time.sleep(0.01)
+                    continue
+            return
+        except (ProcessLookupError, psutil.NoSuchProcess) as exc:
+            last_error = f"child not visible yet: {exc}"
+        except psutil.AccessDenied as exc:
+            last_error = f"child env/metadata access denied: {exc}"
+        time.sleep(0.01)
+    raise RuntimeError(
+        f"timed out waiting for child process {child_pid} readiness: {last_error}"
+    )
 
 
 def _env_marker_visible(

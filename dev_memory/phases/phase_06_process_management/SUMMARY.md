@@ -216,3 +216,19 @@ Layer D work will use.
 - `tests/test_fs_memory.py tests/test_identifiers.py`: 164 passed
 - `tests/test_errors.py`: 3 passed
 - Full suite: 508 passed
+
+### Review
+
+- Claude review verdict: Approve
+- Review range: `eef6b02..4bde11a`
+- Validation re-run:
+  - checkpoint/identifier targeted set 164 passed
+  - process_lab/process_cleaner targeted set 15 passed
+  - full suite 508 passed
+- Reviewer independently verified:
+  - legacy checkpoints without `operations` load cleanly,
+  - operation ledgers round-trip through YAML,
+  - process refs cannot traverse paths or point at another session/trial,
+  - non-empty operations require `current_trial_start_line`.
+- Low finding resolved: process_lab now waits for escaped child readiness before
+  double-fork cleaner tests probe env/pgid state.

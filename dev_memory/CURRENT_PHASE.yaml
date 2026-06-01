@@ -1,7 +1,7 @@
 phase_id: phase_06_process_management
 phase_title: "Process Management (runner + cleaner + monitor)"
 started_at: 2026-06-01T15:30:36+08:00
-last_updated: 2026-06-01T20:17:10+08:00
+last_updated: 2026-06-01T20:37:50+08:00
 target_milestone: "M3 (advanced)"
 related_requirements:
   - REQUIREMENTS.md section 3.3.5
@@ -206,7 +206,7 @@ subtasks:
       full: "496 passed"
   - id: "6.5"
     title: "TrialState operation ledger checkpoint schema extension"
-    status: implementation_complete
+    status: done
     related_requirements:
       - ROADMAP.yaml Phase 06 deliverable TrialState operation ledger
       - REQUIREMENTS.md section 3.3.3
@@ -239,5 +239,19 @@ subtasks:
     patch_file: dev_memory/phases/phase_06_process_management/patches/05_trial_operation_ledger.patch
     patch_generated: true
     commit_required: true
-    commit_pending: true
-next_action: "Push Phase 06 Subtask 6.5 implementation for Claude review."
+    commit_pending: false
+    implementation_commit: 4bde11a
+    external_review_verdict: approve
+    external_reviewed_at: 2026-06-01T20:37:50+08:00
+    external_review_tests: "508 passed; targeted checkpoint tests 164 passed"
+    external_review_notes:
+      - "Legacy checkpoints without operations load with empty operations and no current_trial_start_line."
+      - "process_refs path/session/trial validation passed independent review."
+      - "Checkpoint has no integrity hash by design; operation ledger does not require hash recomputation."
+      - "Low-1 process_lab double-fork flaky was resolved by waiting for child pgid/env readiness before returning from the fixture."
+    review_hardening_commit_pending: true
+    ubuntu_validation_status: passed
+    ubuntu_validation_tests:
+      targeted: "164 passed; process_lab/process_cleaner 15 passed"
+      full: "508 passed"
+next_action: "Commit/push 6.5 review sync plus double-fork flaky hardening, then begin Phase 06 Subtask 6.6 doctor/state_consistency.py."
