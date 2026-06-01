@@ -1,5 +1,25 @@
 # Development Progress
 
+## 2026-06-01T21:41:31+08:00 - Phase 06 / Subtask 6.6 implementation completed
+
+- Added `src/agent/doctor/state_consistency.py` as the read-only
+  checkpoint/trace/process lease consistency validator.
+- Reused `inspect_trace_checkpoint_alignment()` and
+  `inspect_trace_session_spans()` instead of duplicating trace inspection.
+- Added structured findings with severity, code, message, details, and repair
+  suggestions.
+- Added diagnostics for trace alignment issues, current trial start-line
+  mismatch, missing process refs, operation/lease status mismatches, orphan
+  process leases, and malformed lease YAML.
+- Added `tests/test_state_consistency.py`.
+- Targeted UT passed: `tests/test_state_consistency.py` -> 7 passed.
+- Adjacent targeted UT passed: state consistency / trace session / process
+  registry / fs_memory / errors -> 203 passed.
+- Full UT passed: `.venv/bin/python -m pytest tests/ -q` -> 515 passed.
+
+Next action: generate Subtask 6.6 patch artifacts, commit, push, and send the
+range for Claude review.
+
 ## 2026-06-01T21:26:23+08:00 - Phase 06 / 6.5 double-fork flaky hardening completed
 
 - Fixed the remaining process_lab double-fork flaky root cause: worker/grandchild

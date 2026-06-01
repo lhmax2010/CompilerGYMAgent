@@ -1,0 +1,32 @@
+Phase 06 / Subtask 6.6 - doctor/state_consistency.py
+
+Implemented the read-only checkpoint/trace/process lease consistency validator.
+
+Changes:
+- Added src/agent/doctor package.
+- Added StateConsistencyIssue, StateConsistencyReport, StateConsistencyError,
+  and inspect_state_consistency().
+- Reused inspect_trace_checkpoint_alignment() for trace/checkpoint line-count
+  relationships.
+- Reused inspect_trace_session_spans() for conservative session span facts.
+- Added diagnostics for:
+  - trace_line_count missing / trace_ahead / checkpoint_ahead,
+  - checkpoint session missing from trace spans,
+  - current_trial_start_line outside trace or pointing at the wrong trial,
+  - missing operation process_refs,
+  - operation/lease status mismatches,
+  - unreferenced process leases,
+  - malformed process lease YAML.
+- Exported doctor symbols from agent.__init__.
+
+Guardrails:
+- Read-only only: no checkpoint reconcile, no lease deletion, no process scan
+  or kill.
+- Process leases remain derived state; findings include repair suggestions
+  instead of applying repairs.
+
+Validation:
+- .venv/bin/python -m pytest tests/test_state_consistency.py -q -> 7 passed
+- .venv/bin/python -m pytest tests/test_errors.py -q -> 3 passed
+- Adjacent targeted set -> 203 passed
+- .venv/bin/python -m pytest tests/ -q -> 515 passed

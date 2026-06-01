@@ -37,6 +37,7 @@ from agent import (
     RegistryValidationError,
     ScheduleSlot,
     SessionId,
+    StateConsistencyError,
     StaleCleanPlanError,
     TraceCleanupError,
     TraceError,
@@ -97,6 +98,7 @@ def test_known_agent_errors_share_base_class() -> None:
         ProcessRegistryError,
         ProcessRunnerError,
         ProcessCleanerError,
+        StateConsistencyError,
     )
 
     assert issubclass(AgentError, RuntimeError)
@@ -124,6 +126,7 @@ def test_agent_error_exit_codes_are_class_attributes() -> None:
         ProcessRegistryError: EXIT_VALIDATION,
         ProcessRunnerError: EXIT_GENERIC,
         ProcessCleanerError: EXIT_GENERIC,
+        StateConsistencyError: EXIT_VALIDATION,
     }
 
     for error_class, exit_code in expected_codes.items():

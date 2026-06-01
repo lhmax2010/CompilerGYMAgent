@@ -1,0 +1,356 @@
+diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index c555db4..18d2207 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -1,7 +1,7 @@
+ phase_id: phase_06_process_management
+ phase_title: "Process Management (runner + cleaner + monitor)"
+ started_at: 2026-06-01T15:30:36+08:00
+-last_updated: 2026-06-01T21:26:23+08:00
++last_updated: 2026-06-01T21:41:31+08:00
+ target_milestone: "M3 (advanced)"
+ related_requirements:
+   - REQUIREMENTS.md section 3.3.5
+@@ -250,9 +250,52 @@ subtasks:
+       - "Checkpoint has no integrity hash by design; operation ledger does not require hash recomputation."
+       - "Low-1 process_lab double-fork flaky was resolved in follow-up hardening: worker/grandchild JSON IPC now uses atomic temp+replace writes, JSON readers wait until payload parsing succeeds, and escaped child pgid/env readiness is polled before returning from the fixture."
+       - "The earlier timeout-only hardening was not sufficient under process-suite load; the final fix removes the half-written JSON window."
+-    review_hardening_commit_pending: true
++    review_hardening_commit: a196c52
++    review_hardening_commit_pending: false
+     ubuntu_validation_status: passed
+     ubuntu_validation_tests:
+       targeted: "164 passed; process_lab/process_cleaner 15 passed; process suite stress 20/20 passed; double-fork stress 50/50 passed"
+       full: "508 passed"
+-next_action: "Commit/push 6.5 review sync plus atomic double-fork flaky hardening, then begin Phase 06 Subtask 6.6 doctor/state_consistency.py."
++  - id: "6.6"
++    title: "doctor/state_consistency.py checkpoint-trace-process validator"
++    status: implementation_complete
++    related_requirements:
++      - ROADMAP.yaml Phase 06 deliverable doctor/state_consistency.py
++      - REQUIREMENTS.md section 3.3.3
++      - REQUIREMENTS.md section 3.3.5
++      - REQUIREMENTS.md section 4.11.x
++    files_created:
++      - src/agent/doctor/__init__.py
++      - src/agent/doctor/state_consistency.py
++      - tests/test_state_consistency.py
++    files_modified:
++      - src/agent/__init__.py
++      - tests/test_errors.py
++      - dev_memory/CURRENT_PHASE.yaml
++      - dev_memory/DECISIONS.md
++      - dev_memory/PROGRESS.md
++      - dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
++      - dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
++      - dev_memory/phases/phase_06_process_management/SUMMARY.md
++      - dev_memory/phases/phase_06_process_management/UT_RESULTS.md
++    behavior_notes:
++      - "inspect_state_consistency is read-only and does not reconcile, delete leases, or inspect/kill live processes."
++      - "Trace/checkpoint alignment uses the existing inspect_trace_checkpoint_alignment helper from 3.8."
++      - "Trace session coverage uses the existing inspect_trace_session_spans helper from 3.9."
++      - "Operation process_refs are checked against the derived process lease registry for existence and status consistency."
++      - "Unreferenced process leases are reported as orphan_process_lease findings, with running leases warning and terminal leases info."
++    ut_required: true
++    ut_passed: true
++    targeted_ut: "203 tests passed, 0 failed (state_consistency/trace_session/process_registry/fs_memory/errors)"
++    production_regression_ut: "515 tests passed, 0 failed"
++    self_review_required: true
++    self_reviewed: true
++    patch_required: true
++    patch_file: dev_memory/phases/phase_06_process_management/patches/06_state_consistency.patch
++    patch_generated: true
++    commit_required: true
++    commit_pending: true
++    implementation_commit: pending
++    external_review_verdict: pending
++    ubuntu_validation_status: pending
++next_action: "Commit/push Phase 06 Subtask 6.6 doctor/state_consistency.py, then send range for Claude review."
+diff --git a/dev_memory/DECISIONS.md b/dev_memory/DECISIONS.md
+index b8f9628..3764be0 100644
+--- a/dev_memory/DECISIONS.md
++++ b/dev_memory/DECISIONS.md
+@@ -925,3 +925,17 @@ Decision records must include:
+   - Replace `current_stage` immediately with only an operation ledger. Rejected because existing checkpoint producers, tests, and review contracts still depend on the legacy fields.
+   - Store process refs as unchecked strings. Rejected because a typo or path traversal would break process cleanup authority; refs must point at the lease registry and match checkpoint session/trial.
+   - Defer the schema extension until resume/doctor. Rejected because process leases already exist and later state-consistency work needs a stable canonical reference shape.
++
++## 2026-06-01T13:41:31Z - State consistency doctor is read-only and reuses trace inspectors
++
++- affected_requirement:
++  - ROADMAP.yaml Phase 06
++  - REQUIREMENTS.md section 3.3.3
++  - REQUIREMENTS.md section 3.3.5
++  - REQUIREMENTS.md section 4.11.x
++- decision: Subtask 6.6 introduces `inspect_state_consistency()` as a read-only validator over checkpoint, trace, and process lease state. It reuses `inspect_trace_checkpoint_alignment()` and `inspect_trace_session_spans()` for trace facts, reads process leases from the derived registry, and returns structured findings with repair suggestions instead of mutating state.
++- rationale: Doctor/status paths need a single place to explain checkpoint/trace/process drift, but repair actions have different safety requirements and belong to later explicit commands. Reusing the 3.8 and 3.9 trace inspectors keeps line-count and session-span semantics consistent with clean trace and resume, while a read-only report is safe to render even when state is already inconsistent.
++- alternatives_considered:
++  - Make state consistency automatically reconcile trace counts or garbage-collect orphan leases. Rejected because 6.6 is a diagnostic layer; mutation requires lock acquisition, confirmation, and command-specific policy.
++  - Re-scan trace with new local logic. Rejected because 3.8/3.9 already define the canonical trace/checkpoint and session-span contracts.
++  - Treat process lease registry as authoritative. Rejected because leases are derived state; checkpoint + trace remain the canonical recovery/audit sources, and leases are only cross-checked for existence/status consistency.
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index c13743f..00f602c 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -1,5 +1,25 @@
+ # Development Progress
+
++## 2026-06-01T21:41:31+08:00 - Phase 06 / Subtask 6.6 implementation completed
++
++- Added `src/agent/doctor/state_consistency.py` as the read-only
++  checkpoint/trace/process lease consistency validator.
++- Reused `inspect_trace_checkpoint_alignment()` and
++  `inspect_trace_session_spans()` instead of duplicating trace inspection.
++- Added structured findings with severity, code, message, details, and repair
++  suggestions.
++- Added diagnostics for trace alignment issues, current trial start-line
++  mismatch, missing process refs, operation/lease status mismatches, orphan
++  process leases, and malformed lease YAML.
++- Added `tests/test_state_consistency.py`.
++- Targeted UT passed: `tests/test_state_consistency.py` -> 7 passed.
++- Adjacent targeted UT passed: state consistency / trace session / process
++  registry / fs_memory / errors -> 203 passed.
++- Full UT passed: `.venv/bin/python -m pytest tests/ -q` -> 515 passed.
++
++Next action: generate Subtask 6.6 patch artifacts, commit, push, and send the
++range for Claude review.
++
+ ## 2026-06-01T21:26:23+08:00 - Phase 06 / 6.5 double-fork flaky hardening completed
+
+ - Fixed the remaining process_lab double-fork flaky root cause: worker/grandchild
+diff --git a/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml b/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
+index 29258d3..aa1eeb2 100644
+--- a/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
+@@ -69,6 +69,37 @@ subtasks:
+         status: done
+       - item: "Harden double-fork process_lab readiness and JSON IPC atomicity after flaky review finding"
+         status: done
++  - id: "6.6"
++    title: "doctor/state_consistency.py checkpoint-trace-process validator"
++    status: implementation_complete
++    implementation_commit: pending
++    review_status: pending
++    ubuntu_validation_status: pending
++    checklist:
++      - item: "Add src/agent/doctor package"
++        status: done
++      - item: "Add read-only inspect_state_consistency report API"
++        status: done
++      - item: "Reuse inspect_trace_checkpoint_alignment for checkpoint/trace line-count status"
++        status: done
++      - item: "Reuse inspect_trace_session_spans for session-span coverage"
++        status: done
++      - item: "Validate current_trial_start_line against trace trial_start event"
++        status: done
++      - item: "Validate operation process_refs exist in process lease registry"
++        status: done
++      - item: "Validate operation status versus process lease status"
++        status: done
++      - item: "Report unreferenced process leases as orphan diagnostics"
++        status: done
++      - item: "Keep the validator read-only: no reconcile, no lease deletion, no process kill"
++        status: done
++      - item: "Export doctor/state_consistency symbols"
++        status: done
++      - item: "Run targeted tests and full production suite"
++        status: done
++      - item: "Generate patch artifacts"
++        status: done
+   - id: "6.4"
+     title: "workspace lock hardening (probe flock + LockStatus unknown)"
+     status: done
+diff --git a/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md b/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
+index e727ede..6299ebb 100644
+--- a/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
++++ b/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
+@@ -186,3 +186,39 @@ External review:
+ - Validation re-run: checkpoint/identifier targeted set 164 passed,
+   process_lab/process_cleaner targeted set 15 passed, process-suite stress
+   20/20 passed, double-fork stress 50/50 passed, full suite 508 passed.
++
++## Subtask 6.6 - doctor/state_consistency.py
++
++Self-review checklist:
++
++- [x] `inspect_state_consistency()` is read-only and does not perform
++  reconciliation, lease deletion, or process cleanup.
++- [x] Trace/checkpoint alignment is delegated to
++  `inspect_trace_checkpoint_alignment()`.
++- [x] Trace session span coverage is delegated to `inspect_trace_session_spans()`.
++- [x] Checkpoint load failures become structured error findings instead of
++  hard crashes.
++- [x] Malformed process leases become structured error findings while valid
++  leases continue to be inspected.
++- [x] `current_trial_start_line` is checked against actual trace bounds and
++  trial id.
++- [x] Operation `process_refs` are checked for missing lease files.
++- [x] Operation status and lease status mismatches are reported.
++- [x] Unreferenced process leases are reported as orphan diagnostics with
++  severity based on lease status.
++- [x] New public symbols are exported through `agent.__init__`.
++- [x] Targeted and full test suites pass.
++
++Residual risks / follow-up:
++
++- This subtask only diagnoses. Actual repair/reconcile/GC commands remain
++  Phase 10 doctor/CLI scope.
++- 6.7 will consume `current_trial_start_line` for clean trace Layer D
++  protection; 6.6 only validates the anchor.
++
++Self-review result:
++
++- No known Critical / High / Medium / Low findings.
++- Primary review focus for Claude: ensure diagnostics are useful and the
++  implementation really reuses 3.8/3.9 helpers instead of duplicating trace
++  logic.
+diff --git a/dev_memory/phases/phase_06_process_management/SUMMARY.md b/dev_memory/phases/phase_06_process_management/SUMMARY.md
+index a5518d8..9977b03 100644
+--- a/dev_memory/phases/phase_06_process_management/SUMMARY.md
++++ b/dev_memory/phases/phase_06_process_management/SUMMARY.md
+@@ -235,3 +235,45 @@ Layer D work will use.
+   wait until JSON parsing succeeds. This removes the half-written JSON window
+   that remained after the timeout-only hardening. The fixture still waits for
+   escaped child readiness before cleaner tests probe env/pgid state.
++
++## Subtask 6.6 - doctor/state_consistency.py
++
++Added the read-only checkpoint/trace/process lease consistency validator that
++Phase 10 doctor commands will render later.
++
++### Changes
++
++- Added `src/agent/doctor/`.
++- Added `StateConsistencyIssue`, `StateConsistencyReport`, and
++  `inspect_state_consistency()`.
++- Reused `inspect_trace_checkpoint_alignment()` for checkpoint/trace line-count
++  status.
++- Reused `inspect_trace_session_spans()` for trace session coverage.
++- Added current-trial trace anchor validation:
++  - `current_trial_start_line` must be within trace bounds,
++  - the event at that line must match `current_trial.trial_id`,
++  - non-`trial_start` anchors are reported as warnings.
++- Added operation `process_refs` checks:
++  - missing lease refs are errors,
++  - running operations with terminal leases are warnings,
++  - terminal operations with running leases are warnings,
++  - pending operations with process refs are warnings.
++- Added orphan lease diagnostics:
++  - running unreferenced leases are warnings,
++  - terminal unreferenced leases are info findings.
++- Exported state-consistency symbols from `agent.__init__`.
++
++### Guardrails
++
++- The validator is read-only: it does not reconcile trace/checkpoint state,
++  delete or GC leases, or inspect/kill live processes.
++- Process leases remain derived state; the validator only reports consistency
++  findings and repair suggestions.
++
++### Validation
++
++- `tests/test_state_consistency.py`: 7 passed
++- Adjacent targeted set
++  (`state_consistency`, `trace_session`, `process_registry`, `fs_memory`,
++  `errors`): 203 passed
++- Full suite: 515 passed
+diff --git a/dev_memory/phases/phase_06_process_management/UT_RESULTS.md b/dev_memory/phases/phase_06_process_management/UT_RESULTS.md
+index ee4617b..e33539f 100644
+--- a/dev_memory/phases/phase_06_process_management/UT_RESULTS.md
++++ b/dev_memory/phases/phase_06_process_management/UT_RESULTS.md
+@@ -169,3 +169,30 @@ Review / validation sync:
+   successfully before reading them. The earlier timeout-only hardening was not
+   sufficient under process-suite load because it still allowed a reader to see
+   a half-written JSON file.
++
++## Subtask 6.6 - doctor/state_consistency.py
++
++Commands:
++
++```bash
++.venv/bin/python -m pytest tests/test_state_consistency.py -q
++.venv/bin/python -m pytest tests/test_errors.py -q
++.venv/bin/python -m pytest tests/test_state_consistency.py tests/test_trace_session.py tests/test_process_registry.py tests/test_fs_memory.py tests/test_errors.py -q
++.venv/bin/python -m pytest tests/ -q
++```
++
++Results:
++
++- `tests/test_state_consistency.py`: 7 passed
++- `tests/test_errors.py`: 3 passed
++- Adjacent targeted set: 203 passed
++- Full suite: 515 passed
++
++Notes:
++
++- Targeted tests cover a healthy checkpoint/trace/lease state, trace-ahead and
++  checkpoint-ahead alignment findings, missing process refs, operation/lease
++  status mismatch, orphan leases, current-trial trace mismatch, and malformed
++  lease diagnostics.
++- The validator is read-only and does not mutate checkpoint, trace, leases, or
++  processes.
+diff --git a/src/agent/__init__.py b/src/agent/__init__.py
+index a0b9261..4e57b64 100644
+--- a/src/agent/__init__.py
++++ b/src/agent/__init__.py
+@@ -10,6 +10,13 @@ from .errors import (
+     EXIT_VALIDATION,
+     AgentError,
+ )
++from .doctor import (
++    StateConsistencyError,
++    StateConsistencyIssue,
++    StateConsistencyReport,
++    StateConsistencySeverity,
++    inspect_state_consistency,
++)
+ from .fs_memory import (
+     AtomicWriteError,
+     CanaryRecord,
+@@ -329,6 +336,10 @@ __all__ = [
+     "SpecBackupResult",
+     "SpecInjectResult",
+     "SpecRestoreResult",
++    "StateConsistencyError",
++    "StateConsistencyIssue",
++    "StateConsistencyReport",
++    "StateConsistencySeverity",
+     "StaleCleanPlanError",
+     "SUSPECTED_SCORE_THRESHOLD",
+     "TraceAppendResult",
+@@ -399,6 +410,7 @@ __all__ = [
+     "iter_trace_events",
+     "inspect_trace_checkpoint_alignment",
+     "inspect_trace_session_spans",
++    "inspect_state_consistency",
+     "learned_rule_path",
+     "learned_rule_payload",
+     "load_config",
+diff --git a/tests/test_errors.py b/tests/test_errors.py
+index 942c493..b7a7bcc 100644
+--- a/tests/test_errors.py
++++ b/tests/test_errors.py
+@@ -37,6 +37,7 @@ from agent import (
+     RegistryValidationError,
+     ScheduleSlot,
+     SessionId,
++    StateConsistencyError,
+     StaleCleanPlanError,
+     TraceCleanupError,
+     TraceError,
+@@ -97,6 +98,7 @@ def test_known_agent_errors_share_base_class() -> None:
+         ProcessRegistryError,
+         ProcessRunnerError,
+         ProcessCleanerError,
++        StateConsistencyError,
+     )
+
+     assert issubclass(AgentError, RuntimeError)
+@@ -124,6 +126,7 @@ def test_agent_error_exit_codes_are_class_attributes() -> None:
+         ProcessRegistryError: EXIT_VALIDATION,
+         ProcessRunnerError: EXIT_GENERIC,
+         ProcessCleanerError: EXIT_GENERIC,
++        StateConsistencyError: EXIT_VALIDATION,
+     }
+
+     for error_class, exit_code in expected_codes.items():

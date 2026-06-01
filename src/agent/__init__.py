@@ -10,6 +10,13 @@ from .errors import (
     EXIT_VALIDATION,
     AgentError,
 )
+from .doctor import (
+    StateConsistencyError,
+    StateConsistencyIssue,
+    StateConsistencyReport,
+    StateConsistencySeverity,
+    inspect_state_consistency,
+)
 from .fs_memory import (
     AtomicWriteError,
     CanaryRecord,
@@ -329,6 +336,10 @@ __all__ = [
     "SpecBackupResult",
     "SpecInjectResult",
     "SpecRestoreResult",
+    "StateConsistencyError",
+    "StateConsistencyIssue",
+    "StateConsistencyReport",
+    "StateConsistencySeverity",
     "StaleCleanPlanError",
     "SUSPECTED_SCORE_THRESHOLD",
     "TraceAppendResult",
@@ -399,6 +410,7 @@ __all__ = [
     "iter_trace_events",
     "inspect_trace_checkpoint_alignment",
     "inspect_trace_session_spans",
+    "inspect_state_consistency",
     "learned_rule_path",
     "learned_rule_payload",
     "load_config",

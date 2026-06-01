@@ -69,6 +69,37 @@ subtasks:
         status: done
       - item: "Harden double-fork process_lab readiness and JSON IPC atomicity after flaky review finding"
         status: done
+  - id: "6.6"
+    title: "doctor/state_consistency.py checkpoint-trace-process validator"
+    status: implementation_complete
+    implementation_commit: pending
+    review_status: pending
+    ubuntu_validation_status: pending
+    checklist:
+      - item: "Add src/agent/doctor package"
+        status: done
+      - item: "Add read-only inspect_state_consistency report API"
+        status: done
+      - item: "Reuse inspect_trace_checkpoint_alignment for checkpoint/trace line-count status"
+        status: done
+      - item: "Reuse inspect_trace_session_spans for session-span coverage"
+        status: done
+      - item: "Validate current_trial_start_line against trace trial_start event"
+        status: done
+      - item: "Validate operation process_refs exist in process lease registry"
+        status: done
+      - item: "Validate operation status versus process lease status"
+        status: done
+      - item: "Report unreferenced process leases as orphan diagnostics"
+        status: done
+      - item: "Keep the validator read-only: no reconcile, no lease deletion, no process kill"
+        status: done
+      - item: "Export doctor/state_consistency symbols"
+        status: done
+      - item: "Run targeted tests and full production suite"
+        status: done
+      - item: "Generate patch artifacts"
+        status: done
   - id: "6.4"
     title: "workspace lock hardening (probe flock + LockStatus unknown)"
     status: done

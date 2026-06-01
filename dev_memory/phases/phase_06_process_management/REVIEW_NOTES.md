@@ -186,3 +186,39 @@ External review:
 - Validation re-run: checkpoint/identifier targeted set 164 passed,
   process_lab/process_cleaner targeted set 15 passed, process-suite stress
   20/20 passed, double-fork stress 50/50 passed, full suite 508 passed.
+
+## Subtask 6.6 - doctor/state_consistency.py
+
+Self-review checklist:
+
+- [x] `inspect_state_consistency()` is read-only and does not perform
+  reconciliation, lease deletion, or process cleanup.
+- [x] Trace/checkpoint alignment is delegated to
+  `inspect_trace_checkpoint_alignment()`.
+- [x] Trace session span coverage is delegated to `inspect_trace_session_spans()`.
+- [x] Checkpoint load failures become structured error findings instead of
+  hard crashes.
+- [x] Malformed process leases become structured error findings while valid
+  leases continue to be inspected.
+- [x] `current_trial_start_line` is checked against actual trace bounds and
+  trial id.
+- [x] Operation `process_refs` are checked for missing lease files.
+- [x] Operation status and lease status mismatches are reported.
+- [x] Unreferenced process leases are reported as orphan diagnostics with
+  severity based on lease status.
+- [x] New public symbols are exported through `agent.__init__`.
+- [x] Targeted and full test suites pass.
+
+Residual risks / follow-up:
+
+- This subtask only diagnoses. Actual repair/reconcile/GC commands remain
+  Phase 10 doctor/CLI scope.
+- 6.7 will consume `current_trial_start_line` for clean trace Layer D
+  protection; 6.6 only validates the anchor.
+
+Self-review result:
+
+- No known Critical / High / Medium / Low findings.
+- Primary review focus for Claude: ensure diagnostics are useful and the
+  implementation really reuses 3.8/3.9 helpers instead of duplicating trace
+  logic.

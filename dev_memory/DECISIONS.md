@@ -925,3 +925,17 @@ Decision records must include:
   - Replace `current_stage` immediately with only an operation ledger. Rejected because existing checkpoint producers, tests, and review contracts still depend on the legacy fields.
   - Store process refs as unchecked strings. Rejected because a typo or path traversal would break process cleanup authority; refs must point at the lease registry and match checkpoint session/trial.
   - Defer the schema extension until resume/doctor. Rejected because process leases already exist and later state-consistency work needs a stable canonical reference shape.
+
+## 2026-06-01T13:41:31Z - State consistency doctor is read-only and reuses trace inspectors
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 06
+  - REQUIREMENTS.md section 3.3.3
+  - REQUIREMENTS.md section 3.3.5
+  - REQUIREMENTS.md section 4.11.x
+- decision: Subtask 6.6 introduces `inspect_state_consistency()` as a read-only validator over checkpoint, trace, and process lease state. It reuses `inspect_trace_checkpoint_alignment()` and `inspect_trace_session_spans()` for trace facts, reads process leases from the derived registry, and returns structured findings with repair suggestions instead of mutating state.
+- rationale: Doctor/status paths need a single place to explain checkpoint/trace/process drift, but repair actions have different safety requirements and belong to later explicit commands. Reusing the 3.8 and 3.9 trace inspectors keeps line-count and session-span semantics consistent with clean trace and resume, while a read-only report is safe to render even when state is already inconsistent.
+- alternatives_considered:
+  - Make state consistency automatically reconcile trace counts or garbage-collect orphan leases. Rejected because 6.6 is a diagnostic layer; mutation requires lock acquisition, confirmation, and command-specific policy.
+  - Re-scan trace with new local logic. Rejected because 3.8/3.9 already define the canonical trace/checkpoint and session-span contracts.
+  - Treat process lease registry as authoritative. Rejected because leases are derived state; checkpoint + trace remain the canonical recovery/audit sources, and leases are only cross-checked for existence/status consistency.

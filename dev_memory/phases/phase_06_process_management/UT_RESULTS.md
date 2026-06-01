@@ -169,3 +169,30 @@ Review / validation sync:
   successfully before reading them. The earlier timeout-only hardening was not
   sufficient under process-suite load because it still allowed a reader to see
   a half-written JSON file.
+
+## Subtask 6.6 - doctor/state_consistency.py
+
+Commands:
+
+```bash
+.venv/bin/python -m pytest tests/test_state_consistency.py -q
+.venv/bin/python -m pytest tests/test_errors.py -q
+.venv/bin/python -m pytest tests/test_state_consistency.py tests/test_trace_session.py tests/test_process_registry.py tests/test_fs_memory.py tests/test_errors.py -q
+.venv/bin/python -m pytest tests/ -q
+```
+
+Results:
+
+- `tests/test_state_consistency.py`: 7 passed
+- `tests/test_errors.py`: 3 passed
+- Adjacent targeted set: 203 passed
+- Full suite: 515 passed
+
+Notes:
+
+- Targeted tests cover a healthy checkpoint/trace/lease state, trace-ahead and
+  checkpoint-ahead alignment findings, missing process refs, operation/lease
+  status mismatch, orphan leases, current-trial trace mismatch, and malformed
+  lease diagnostics.
+- The validator is read-only and does not mutate checkpoint, trace, leases, or
+  processes.

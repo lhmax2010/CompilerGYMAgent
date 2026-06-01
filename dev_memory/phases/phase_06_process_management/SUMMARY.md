@@ -235,3 +235,45 @@ Layer D work will use.
   wait until JSON parsing succeeds. This removes the half-written JSON window
   that remained after the timeout-only hardening. The fixture still waits for
   escaped child readiness before cleaner tests probe env/pgid state.
+
+## Subtask 6.6 - doctor/state_consistency.py
+
+Added the read-only checkpoint/trace/process lease consistency validator that
+Phase 10 doctor commands will render later.
+
+### Changes
+
+- Added `src/agent/doctor/`.
+- Added `StateConsistencyIssue`, `StateConsistencyReport`, and
+  `inspect_state_consistency()`.
+- Reused `inspect_trace_checkpoint_alignment()` for checkpoint/trace line-count
+  status.
+- Reused `inspect_trace_session_spans()` for trace session coverage.
+- Added current-trial trace anchor validation:
+  - `current_trial_start_line` must be within trace bounds,
+  - the event at that line must match `current_trial.trial_id`,
+  - non-`trial_start` anchors are reported as warnings.
+- Added operation `process_refs` checks:
+  - missing lease refs are errors,
+  - running operations with terminal leases are warnings,
+  - terminal operations with running leases are warnings,
+  - pending operations with process refs are warnings.
+- Added orphan lease diagnostics:
+  - running unreferenced leases are warnings,
+  - terminal unreferenced leases are info findings.
+- Exported state-consistency symbols from `agent.__init__`.
+
+### Guardrails
+
+- The validator is read-only: it does not reconcile trace/checkpoint state,
+  delete or GC leases, or inspect/kill live processes.
+- Process leases remain derived state; the validator only reports consistency
+  findings and repair suggestions.
+
+### Validation
+
+- `tests/test_state_consistency.py`: 7 passed
+- Adjacent targeted set
+  (`state_consistency`, `trace_session`, `process_registry`, `fs_memory`,
+  `errors`): 203 passed
+- Full suite: 515 passed
