@@ -1857,3 +1857,18 @@ Next action: generate patch artifacts, commit/push Subtask 6.2, then request Cla
   - `.venv/bin/python -m pytest tests/ -q` -> 484 passed.
 
 Next action: update Subtask 6.2 patch artifacts, commit/push the hardening fix, then continue review sync / 6.3.
+
+## 2026-06-01T10:01:36Z - Phase 06 / Subtask 6.2 approved and validated
+
+- Claude review verdict: Approve.
+- Review range: `7a6a6f9..e55a79d`.
+- Hardening range: `e55a79d..d38567e`.
+- Re-ran validation:
+  - `.venv/bin/python -m pytest tests/test_process_registry.py tests/test_process_runner.py tests/test_errors.py tests/test_process_identity.py -q` -> 29 passed.
+  - `.venv/bin/python -m pytest tests/ -q` -> 484 passed.
+- Follow-up carried into 6.3:
+  - `process_runner._env_marker_visible()` has spawn-only retry semantics.
+  - process cleaner must use a single-read env marker probe for arbitrary
+    scanned processes.
+
+Next action: begin Subtask 6.3 process_cleaner.py.

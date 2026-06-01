@@ -56,3 +56,12 @@ Notes:
 - A concurrent validation run exposed a spawn-time env visibility race; after
   adding a short retry in `process_runner`, targeted runner tests and the full
   suite passed consistently.
+
+Review / validation sync:
+
+- Claude review verdict: Approve
+- Review range: `7a6a6f9..e55a79d`
+- Hardening range: `e55a79d..d38567e`
+- Re-run targeted tests: 29 passed
+- Re-run full suite: 484 passed
+- Follow-up: 6.3 cleaner must use single-read env marker probing.

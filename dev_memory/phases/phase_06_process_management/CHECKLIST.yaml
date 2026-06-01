@@ -38,10 +38,11 @@ subtasks:
         status: done
   - id: "6.2"
     title: "process_runner.py + Process Lease Registry"
-    status: implementation_complete
-    implementation_commit: pending
-    review_status: pending
-    ubuntu_validation_status: pending
+    status: done
+    implementation_commit: e55a79d
+    hardening_commit: d38567e
+    review_status: approve
+    ubuntu_validation_status: passed
     checklist:
       - item: "Add Process Lease Registry model and safe YAML loader"
         status: done
@@ -68,6 +69,6 @@ subtasks:
       - item: "Generate patch artifacts"
         status: done
       - item: "Claude review"
-        status: pending
+        status: done
       - item: "Ubuntu/Linux validation"
-        status: pending
+        status: done

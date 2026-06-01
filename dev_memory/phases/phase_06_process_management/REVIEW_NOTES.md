@@ -63,3 +63,14 @@ Residual risks / follow-up:
 - Ownership scoring and cleanup decisions remain 6.3 scope.
 - Lease GC remains 6.3 scope.
 - TrialState operation ledger remains 6.5 scope.
+
+External review:
+
+- Verdict: Approve
+- Range: `7a6a6f9..e55a79d`
+- Hardening range: `e55a79d..d38567e`
+- Notes: lease status transitions, derived-state shape, spawn lease writes,
+  failed-lease cleanup, and 0 residual process behavior all passed review.
+- Follow-up for 6.3: cleaner must use single-read env-marker probing and must
+  not reuse `process_runner._env_marker_visible()` because that helper has
+  spawn-only retry semantics.

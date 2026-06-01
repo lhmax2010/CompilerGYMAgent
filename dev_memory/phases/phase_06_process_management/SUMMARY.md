@@ -92,3 +92,14 @@ foundation.
 - `tests/test_process_runner.py`: 6 passed
 - Adjacent targeted tests: 16 passed
 - Full suite: 484 passed
+
+### Review
+
+- Claude review verdict: Approve
+- Review range: `7a6a6f9..e55a79d`
+- Hardening range: `e55a79d..d38567e`
+- Validation re-run:
+  - targeted 29 passed
+  - full suite 484 passed
+- Follow-up carried into 6.3: process cleaner env-marker reads must be
+  single-shot and must not reuse the runner's retry helper.
