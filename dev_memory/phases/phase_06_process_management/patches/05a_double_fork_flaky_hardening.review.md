@@ -12,6 +12,8 @@
 - [x] Child-mode fixtures wait until child pgid matches the worker-reported pgid.
 - [x] Child-mode fixtures wait until the child env marker is readable when the
   fixture requested one.
+- [x] Worker/child-info JSON readiness uses a 20s timeout with diagnostics.
+- [x] Double-fork cleaner test passed 50 consecutive runs.
 - [x] process_cleaner double-fork tests pass after hardening.
 - [x] Full suite passes.
 

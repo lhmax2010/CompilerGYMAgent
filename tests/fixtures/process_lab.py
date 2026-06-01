@@ -43,7 +43,7 @@ def write_info(path: Path, **extra: object) -> None:
     path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
 
 
-def wait_for_file(path: Path, timeout: float = 5.0) -> None:
+def wait_for_file(path: Path, timeout: float = 20.0) -> None:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         if path.exists():
@@ -318,7 +318,7 @@ class ProcessLab:
             env=env,
         )
         self._tracked_popen.append(popen)
-        payload = _wait_for_json(info_path)
+        payload = _wait_for_json(info_path, process=popen)
         child_pids, child_pgids = _child_identity(payload)
         record = self._build_record(
             pid=popen.pid,
@@ -381,7 +381,12 @@ def process_lab(tmp_path: Path) -> ProcessLab:
         lab.cleanup()
 
 
-def _wait_for_json(path: Path, *, timeout: float = 5.0) -> dict[str, Any]:
+def _wait_for_json(
+    path: Path,
+    *,
+    timeout: float = 20.0,
+    process: subprocess.Popen[bytes] | None = None,
+) -> dict[str, Any]:
     deadline = time.monotonic() + timeout
     last_error: Exception | None = None
     while time.monotonic() < deadline:
@@ -391,9 +396,30 @@ def _wait_for_json(path: Path, *, timeout: float = 5.0) -> dict[str, Any]:
             except (json.JSONDecodeError, OSError) as exc:
                 last_error = exc
         time.sleep(0.01)
+    process_detail = _process_timeout_detail(process)
     if last_error is not None:
-        raise RuntimeError(f"timed out reading process lab info {path}") from last_error
-    raise RuntimeError(f"timed out waiting for process lab info {path}")
+        raise RuntimeError(
+            f"timed out reading process lab info {path}; {process_detail}"
+        ) from last_error
+    raise RuntimeError(f"timed out waiting for process lab info {path}; {process_detail}")
+
+
+def _process_timeout_detail(process: subprocess.Popen[bytes] | None) -> str:
+    if process is None:
+        return "worker process unavailable"
+    returncode = process.poll()
+    if returncode is None:
+        return f"worker pid={process.pid} still running"
+    try:
+        stdout, stderr = process.communicate(timeout=1)
+    except subprocess.TimeoutExpired:
+        return f"worker pid={process.pid} exited with {returncode}; output unavailable"
+    stdout_text = stdout.decode("utf-8", errors="replace").strip()
+    stderr_text = stderr.decode("utf-8", errors="replace").strip()
+    return (
+        f"worker pid={process.pid} exited with {returncode}; "
+        f"stdout={stdout_text!r}; stderr={stderr_text!r}"
+    )
 
 
 def _child_identity(payload: dict[str, Any]) -> tuple[tuple[int, ...], tuple[int, ...]]:

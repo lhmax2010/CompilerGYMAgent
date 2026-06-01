@@ -160,6 +160,7 @@ Review / validation sync:
 - Review range: `eef6b02..4bde11a`
 - Re-run checkpoint/identifier targeted tests: 164 passed
 - Re-run process_lab/process_cleaner targeted tests after flaky hardening: 15 passed
+- Re-run double-fork stress loop after second hardening: 50/50 passed
 - Re-run full suite: 508 passed
-- Low-1 flaky resolved by polling escaped child readiness before returning
-  from the process_lab fixture.
+- Low-1 flaky resolved by extending the double-fork JSON readiness timeout and
+  polling escaped child readiness before returning from the process_lab fixture.

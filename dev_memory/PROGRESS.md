@@ -1993,14 +1993,17 @@ Next action: generate patch artifacts, commit/push Subtask 6.5, then request Cla
   - operation ledgers round-trip through checkpoint YAML,
   - process refs validate path/session/trial boundaries,
   - checkpoint has no integrity hash by design, so 6.5 requires no hash recomputation.
-- Addressed Low-1 from review:
+- Addressed Low-1 from review in two passes:
   - process_lab now waits for child pid/pgid/env readiness before returning
     double-fork and child-process scenarios.
-  - This removes the timing window where cleaner probes could run before the
-    escaped child process was fully visible through `/proc`.
+  - The double-fork worker/child-info JSON readiness timeout is now 20s and
+    timeout errors include worker returncode/stdout/stderr diagnostics.
+  - This removes both timing windows: worker info JSON not yet written and
+    cleaner probes running before escaped child `/proc` state is ready.
 - Validation:
   - `.venv/bin/python -m pytest tests/test_fs_memory.py tests/test_identifiers.py -q` -> 164 passed.
   - `.venv/bin/python -m pytest tests/test_process_lab.py tests/test_process_cleaner.py -q` -> 15 passed.
+  - `for i in $(seq 1 50); do .venv/bin/python -m pytest tests/test_process_cleaner.py::test_double_fork_escape_requires_env_marker_and_force -q || exit 1; done` -> 50/50 passed.
   - `.venv/bin/python -m pytest tests/ -q` -> 508 passed.
 
 Next action: begin Subtask 6.6 doctor/state_consistency.py.

@@ -1,7 +1,7 @@
 phase_id: phase_06_process_management
 phase_title: "Process Management (runner + cleaner + monitor)"
 started_at: 2026-06-01T15:30:36+08:00
-last_updated: 2026-06-01T20:37:50+08:00
+last_updated: 2026-06-01T21:01:30+08:00
 target_milestone: "M3 (advanced)"
 related_requirements:
   - REQUIREMENTS.md section 3.3.5
@@ -248,10 +248,10 @@ subtasks:
       - "Legacy checkpoints without operations load with empty operations and no current_trial_start_line."
       - "process_refs path/session/trial validation passed independent review."
       - "Checkpoint has no integrity hash by design; operation ledger does not require hash recomputation."
-      - "Low-1 process_lab double-fork flaky was resolved by waiting for child pgid/env readiness before returning from the fixture."
+      - "Low-1 process_lab double-fork flaky was resolved in a second hardening pass: worker/fixture JSON waits now use a 20s timeout with diagnostics, and child pgid/env readiness is polled before returning from the fixture."
     review_hardening_commit_pending: true
     ubuntu_validation_status: passed
     ubuntu_validation_tests:
-      targeted: "164 passed; process_lab/process_cleaner 15 passed"
+      targeted: "164 passed; process_lab/process_cleaner 15 passed; double-fork stress 50/50 passed"
       full: "508 passed"
-next_action: "Commit/push 6.5 review sync plus double-fork flaky hardening, then begin Phase 06 Subtask 6.6 doctor/state_consistency.py."
+next_action: "Commit/push 6.5 review sync plus second double-fork flaky hardening, then begin Phase 06 Subtask 6.6 doctor/state_consistency.py."

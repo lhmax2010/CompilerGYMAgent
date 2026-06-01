@@ -179,8 +179,10 @@ External review:
 - Notes: operation ledger is backward-compatible, `process_refs` validation
   covers path/session/trial boundaries, `current_trial_start_line` is required
   for non-empty operations, and checkpoint has no integrity hash by design.
-- Low finding resolved: the 6.3 double-fork escape test was hardened by waiting
-  for escaped child pgid/env readiness in `process_lab` before cleaner probes
-  run.
+- Low finding resolved in a second hardening pass: `process_lab` now gives the
+  double-fork worker/child-info JSON path a 20s readiness window with
+  returncode/stdout/stderr diagnostics, then waits for escaped child pgid/env
+  readiness before cleaner probes run.
 - Validation re-run: checkpoint/identifier targeted set 164 passed,
-  process_lab/process_cleaner targeted set 15 passed, full suite 508 passed.
+  process_lab/process_cleaner targeted set 15 passed, double-fork stress 50/50
+  passed, full suite 508 passed.
