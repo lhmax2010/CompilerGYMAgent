@@ -898,3 +898,16 @@ Decision records must include:
   - Reuse the runner retry helper in cleaner. Rejected because bulk process scans would stall on every process without a marker.
   - Add a `retry` flag to one shared helper. Rejected because the two semantics are different enough that separate helpers are clearer and harder to misuse.
   - Treat missing env marker as an error. Rejected because external processes and env-stripped toolchains are normal cases; missing marker simply contributes no score.
+
+## 2026-06-01T11:56:54Z - Trace clean lock status uses real flock probe
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 06
+  - REQUIREMENTS.md section 4.14.7a
+  - REQUIREMENTS.md section 4.15
+- decision: Subtask 6.4 adds `WorkspaceLock.probe_lock()` and makes trace cleanup use a real nonblocking flock probe as the source of truth for `run.lock` free/busy state. Holder YAML remains diagnostic metadata: it explains the holder when the flock is busy and readable, but it no longer decides whether the lock is active. Unreadable holder metadata is surfaced as `LockStatus="unknown"` and both normal and force clean execution reject it.
+- rationale: The old planner could misclassify released-but-live metadata as `held_by_other` because it inferred lock ownership from pid/create_time alone. The kernel flock is the actual mutual-exclusion state, so a readable old holder should not block clean planning once the flock is free. Conversely, unreadable holder metadata should not be rendered as `free`; callers and doctor output need to see uncertainty explicitly.
+- alternatives_considered:
+  - Keep metadata-only classification. Rejected because it reports false busy when a previous holder process is alive but no longer owns the flock.
+  - Treat unreadable holder metadata as free with only a refusal reason. Rejected because status and refusal would disagree semantically.
+  - Replace or split `run.lock` to make holder metadata atomic. Rejected per the existing "never os.replace run.lock" decision: flock binds to the inode, and the current in-place holder write remains the safe v1 design.

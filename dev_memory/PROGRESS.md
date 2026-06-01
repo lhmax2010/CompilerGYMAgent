@@ -1927,3 +1927,22 @@ Next action: generate patch artifacts, commit/push Subtask 6.3, then request Cla
   tighten it.
 
 Next action: begin Subtask 6.4 workspace lock hardening.
+
+## 2026-06-01T11:56:54Z - Phase 06 / Subtask 6.4 implemented
+
+- Added read-only `WorkspaceLock.probe_lock()` with nonblocking flock probing.
+- Kept `_write_holder()` unchanged: holder metadata is still written in place
+  through the already-flocked fd, preserving the `run.lock` inode.
+- Updated trace cleanup lock classification:
+  - real flock probe determines free vs busy,
+  - holder metadata explains who holds the lock,
+  - unreadable holder metadata returns `lock_status=unknown`,
+  - released-but-live holder metadata is free when the kernel flock is free.
+- Updated tests so held_by_self and held_by_other are backed by real active
+  locks rather than metadata-only simulation.
+- Validation:
+  - `.venv/bin/python -m pytest tests/test_workspace_lock.py tests/test_trace_cleanup.py tests/test_trace_cleanup_execute.py -q` -> 68 passed.
+  - `.venv/bin/python -m pytest tests/test_cli_clean_trace.py -q` -> 10 passed.
+  - `.venv/bin/python -m pytest tests/ -q` -> 496 passed.
+
+Next action: generate patch artifacts, commit/push Subtask 6.4, then request Claude review.

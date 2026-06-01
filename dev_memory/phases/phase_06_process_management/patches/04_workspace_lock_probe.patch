@@ -1,0 +1,692 @@
+diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index c549fed..dea4e20 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -1,7 +1,7 @@
+ phase_id: phase_06_process_management
+ phase_title: "Process Management (runner + cleaner + monitor)"
+ started_at: 2026-06-01T15:30:36+08:00
+-last_updated: 2026-06-01T19:51:24+08:00
++last_updated: 2026-06-01T19:56:54+08:00
+ target_milestone: "M3 (advanced)"
+ related_requirements:
+   - REQUIREMENTS.md section 3.3.5
+@@ -154,4 +154,41 @@ subtasks:
+     ubuntu_validation_tests:
+       targeted: "31 passed"
+       full: "492 passed"
+-next_action: "Begin Phase 06 Subtask 6.4 workspace lock hardening (probe flock + LockStatus unknown)."
++  - id: "6.4"
++    title: "workspace lock hardening (probe flock + LockStatus unknown)"
++    status: implementation_complete
++    related_requirements:
++      - ROADMAP.yaml Phase 06 deliverable workspace lock hardening
++      - REQUIREMENTS.md section 4.14.7a
++      - REQUIREMENTS.md section 4.15
++    files_created: []
++    files_modified:
++      - src/agent/workspace_lock.py
++      - src/agent/trace_cleanup.py
++      - src/agent/__init__.py
++      - tests/test_workspace_lock.py
++      - tests/test_trace_cleanup.py
++      - dev_memory/CURRENT_PHASE.yaml
++      - dev_memory/DECISIONS.md
++      - dev_memory/PROGRESS.md
++      - dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
++      - dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
++      - dev_memory/phases/phase_06_process_management/SUMMARY.md
++      - dev_memory/phases/phase_06_process_management/UT_RESULTS.md
++    behavior_notes:
++      - "WorkspaceLock.probe_lock performs a read-only nonblocking flock probe and does not alter holder metadata."
++      - "trace cleanup uses the probe as the source of truth for free vs busy; holder metadata only explains the holder."
++      - "Unreadable holder metadata now yields lock_status=unknown and clean execution remains refused."
++      - "Released-but-live holder metadata is no longer misclassified as held_by_other when the real flock is free."
++    ut_required: true
++    ut_passed: true
++    targeted_ut: "78 tests passed, 0 failed (workspace_lock/trace_cleanup/trace_cleanup_execute/cli_clean_trace)"
++    production_regression_ut: "496 tests passed, 0 failed"
++    self_review_required: true
++    self_reviewed: true
++    patch_required: true
++    patch_file: dev_memory/phases/phase_06_process_management/patches/04_workspace_lock_probe.patch
++    patch_generated: true
++    commit_required: true
++    commit_pending: true
++next_action: "Push Phase 06 Subtask 6.4 implementation for Claude review."
+diff --git a/dev_memory/DECISIONS.md b/dev_memory/DECISIONS.md
+index a4e8423..c8d2d9f 100644
+--- a/dev_memory/DECISIONS.md
++++ b/dev_memory/DECISIONS.md
+@@ -898,3 +898,16 @@ Decision records must include:
+   - Reuse the runner retry helper in cleaner. Rejected because bulk process scans would stall on every process without a marker.
+   - Add a `retry` flag to one shared helper. Rejected because the two semantics are different enough that separate helpers are clearer and harder to misuse.
+   - Treat missing env marker as an error. Rejected because external processes and env-stripped toolchains are normal cases; missing marker simply contributes no score.
++
++## 2026-06-01T11:56:54Z - Trace clean lock status uses real flock probe
++
++- affected_requirement:
++  - ROADMAP.yaml Phase 06
++  - REQUIREMENTS.md section 4.14.7a
++  - REQUIREMENTS.md section 4.15
++- decision: Subtask 6.4 adds `WorkspaceLock.probe_lock()` and makes trace cleanup use a real nonblocking flock probe as the source of truth for `run.lock` free/busy state. Holder YAML remains diagnostic metadata: it explains the holder when the flock is busy and readable, but it no longer decides whether the lock is active. Unreadable holder metadata is surfaced as `LockStatus="unknown"` and both normal and force clean execution reject it.
++- rationale: The old planner could misclassify released-but-live metadata as `held_by_other` because it inferred lock ownership from pid/create_time alone. The kernel flock is the actual mutual-exclusion state, so a readable old holder should not block clean planning once the flock is free. Conversely, unreadable holder metadata should not be rendered as `free`; callers and doctor output need to see uncertainty explicitly.
++- alternatives_considered:
++  - Keep metadata-only classification. Rejected because it reports false busy when a previous holder process is alive but no longer owns the flock.
++  - Treat unreadable holder metadata as free with only a refusal reason. Rejected because status and refusal would disagree semantically.
++  - Replace or split `run.lock` to make holder metadata atomic. Rejected per the existing "never os.replace run.lock" decision: flock binds to the inode, and the current in-place holder write remains the safe v1 design.
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index e658935..493795f 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -1927,3 +1927,22 @@ Next action: generate patch artifacts, commit/push Subtask 6.3, then request Cla
+   tighten it.
+ 
+ Next action: begin Subtask 6.4 workspace lock hardening.
++
++## 2026-06-01T11:56:54Z - Phase 06 / Subtask 6.4 implemented
++
++- Added read-only `WorkspaceLock.probe_lock()` with nonblocking flock probing.
++- Kept `_write_holder()` unchanged: holder metadata is still written in place
++  through the already-flocked fd, preserving the `run.lock` inode.
++- Updated trace cleanup lock classification:
++  - real flock probe determines free vs busy,
++  - holder metadata explains who holds the lock,
++  - unreadable holder metadata returns `lock_status=unknown`,
++  - released-but-live holder metadata is free when the kernel flock is free.
++- Updated tests so held_by_self and held_by_other are backed by real active
++  locks rather than metadata-only simulation.
++- Validation:
++  - `.venv/bin/python -m pytest tests/test_workspace_lock.py tests/test_trace_cleanup.py tests/test_trace_cleanup_execute.py -q` -> 68 passed.
++  - `.venv/bin/python -m pytest tests/test_cli_clean_trace.py -q` -> 10 passed.
++  - `.venv/bin/python -m pytest tests/ -q` -> 496 passed.
++
++Next action: generate patch artifacts, commit/push Subtask 6.4, then request Claude review.
+diff --git a/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml b/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
+index b78bc25..cc26e83 100644
+--- a/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
+@@ -36,6 +36,35 @@ subtasks:
+         status: done
+       - item: "Ubuntu/Linux validation"
+         status: done
++  - id: "6.4"
++    title: "workspace lock hardening (probe flock + LockStatus unknown)"
++    status: implementation_complete
++    implementation_commit: pending
++    review_status: pending
++    ubuntu_validation_status: pending
++    checklist:
++      - item: "Add read-only nonblocking flock probe to WorkspaceLock"
++        status: done
++      - item: "Keep _write_holder inode-safe in-place write unchanged"
++        status: done
++      - item: "Make trace cleanup use real flock probe for free vs busy"
++        status: done
++      - item: "Treat unreadable holder metadata as LockStatus unknown"
++        status: done
++      - item: "Reject unknown lock status through can_execute and force mode"
++        status: done
++      - item: "Ensure released-but-live holder metadata is classified free when real flock is free"
++        status: done
++      - item: "Use real active locks for held_by_self / held_by_other tests"
++        status: done
++      - item: "Run targeted tests and full production suite"
++        status: done
++      - item: "Generate patch artifacts"
++        status: done
++      - item: "Claude review"
++        status: pending
++      - item: "Ubuntu/Linux validation"
++        status: pending
+   - id: "6.2"
+     title: "process_runner.py + Process Lease Registry"
+     status: done
+diff --git a/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md b/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
+index 2569973..318fc87 100644
+--- a/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
++++ b/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
+@@ -109,3 +109,32 @@ External review:
+ - Low follow-up: lease GC can conservatively retain an orphan under rare
+   pid/pgid reuse; the error direction is safe and can be tightened in later
+   doctor/state-consistency work.
++
++## Subtask 6.4 - Workspace Lock Probe + LockStatus unknown
++
++Self-review checklist:
++
++- [x] `WorkspaceLock.probe_lock()` opens the existing lock file and attempts
++  `LOCK_EX | LOCK_NB` without creating, truncating, or replacing `run.lock`.
++- [x] `_write_holder()` remains unchanged and still writes through the
++  already-flocked fd in place.
++- [x] `trace_cleanup._read_workspace_lock()` uses the flock probe as the
++  source of truth for free vs busy.
++- [x] Holder YAML is used only to explain a busy holder or provide a protected
++  session id.
++- [x] Unreadable holder YAML returns `lock_status="unknown"` and a refusal
++  reason.
++- [x] `can_execute` and `can_execute_with_force_inactive_only` reject
++  `unknown`.
++- [x] Released-but-live holder metadata is no longer treated as a held lock
++  when the probe can acquire the flock.
++- [x] Tests use real active locks for held_by_self / held_by_other instead of
++  metadata-only simulation.
++- [x] Full suite passes.
++
++Residual risks / follow-up:
++
++- Busy flock with stale-but-readable holder metadata becomes `unknown`; doctor
++  state-consistency can later provide richer remediation text.
++- Phase 6.7 still owns CleanPlan checkpoint/session hash hardening and Layer D
++  active-trial protection.
+diff --git a/dev_memory/phases/phase_06_process_management/SUMMARY.md b/dev_memory/phases/phase_06_process_management/SUMMARY.md
+index ed53799..1a6f12b 100644
+--- a/dev_memory/phases/phase_06_process_management/SUMMARY.md
++++ b/dev_memory/phases/phase_06_process_management/SUMMARY.md
+@@ -152,3 +152,28 @@ Implemented Phase 06's core process ownership and cleanup logic.
+   - leader-dead children-alive is discovered through pgid scanning,
+   - double-fork escape is discovered through env-marker scanning,
+   - owned cleanup kills the process group and updates the lease to `killed`.
++
++## Subtask 6.4 - Workspace Lock Probe + LockStatus unknown
++
++Hardened read-only workspace lock classification for trace cleanup.
++
++### Changes
++
++- Added `LockProbeResult` and `WorkspaceLock.probe_lock()`.
++- `probe_lock()` performs a nonblocking flock probe on the existing
++  `state/run.lock` file and immediately unlocks if the probe succeeds.
++- Kept `_write_holder()` unchanged; holder metadata is still written in place
++  through the already-flocked fd.
++- Changed trace cleanup lock classification so the flock probe determines
++  free vs busy.
++- Changed unreadable holder metadata from `lock_status="free"` to
++  `lock_status="unknown"` with a refusal reason.
++- Preserved held_by_self / held_by_other behavior when an actual flock is busy
++  and holder metadata is readable.
++- Exported `LockProbeResult` from `agent.__init__`.
++
++### Validation
++
++- `tests/test_workspace_lock.py tests/test_trace_cleanup.py tests/test_trace_cleanup_execute.py`: 68 passed
++- `tests/test_cli_clean_trace.py`: 10 passed
++- Full suite: 496 passed
+diff --git a/dev_memory/phases/phase_06_process_management/UT_RESULTS.md b/dev_memory/phases/phase_06_process_management/UT_RESULTS.md
+index 385b1a2..448a38e 100644
+--- a/dev_memory/phases/phase_06_process_management/UT_RESULTS.md
++++ b/dev_memory/phases/phase_06_process_management/UT_RESULTS.md
+@@ -98,3 +98,26 @@ Review / validation sync:
+ - Independent reviewer probe: graded scoring, leader-dead pgid scan,
+   double-fork env scan, conservative env-missing behavior, owned killpg, and
+   lease GC all matched the Phase 06 design.
++
++## Subtask 6.4 - Workspace Lock Probe + LockStatus unknown
++
++Commands:
++
++```bash
++.venv/bin/python -m pytest tests/test_workspace_lock.py tests/test_trace_cleanup.py tests/test_trace_cleanup_execute.py -q
++.venv/bin/python -m pytest tests/test_cli_clean_trace.py -q
++.venv/bin/python -m pytest tests/ -q
++```
++
++Results:
++
++- Lock / trace cleanup targeted tests: 68 passed
++- CLI clean trace smoke/regression tests: 10 passed
++- Full suite: 496 passed
++
++Notes:
++
++- Targeted tests cover free probe, busy probe, unknown lock metadata,
++  released-but-live holder metadata, held_by_self, and held_by_other using real
++  active flock state.
++- `run.lock` is never atomic-replaced; `_write_holder()` remains unchanged.
+diff --git a/src/agent/__init__.py b/src/agent/__init__.py
+index 1df9a5c..e8b8e8b 100644
+--- a/src/agent/__init__.py
++++ b/src/agent/__init__.py
+@@ -229,6 +229,7 @@ from .trace_cleanup import (
+ )
+ from .types import Combo, Mode, Option, ScheduleSlot, SessionId, TrustLevel
+ from .workspace_lock import (
++    LockProbeResult,
+     LockReadResult,
+     WorkspaceBusyError,
+     WorkspaceLock,
+diff --git a/src/agent/trace_cleanup.py b/src/agent/trace_cleanup.py
+index 600db73..8f4a1fe 100644
+--- a/src/agent/trace_cleanup.py
++++ b/src/agent/trace_cleanup.py
+@@ -26,7 +26,7 @@ from .trace import inspect_trace_session_spans
+ from .workspace_lock import WorkspaceBusyError, WorkspaceLock, WorkspaceLockHolder
+ 
+ 
+-LockStatus = Literal["free", "held_by_self", "held_by_other"]
++LockStatus = Literal["free", "held_by_self", "held_by_other", "unknown"]
+ _LOCK_CREATE_TIME_TOLERANCE_SECONDS = 0.5
+ 
+ 
+@@ -483,25 +483,45 @@ def _read_workspace_lock(layout: NamespaceLayout) -> _LockSnapshot:
+             refusal_reason=None,
+         )
+ 
++    probe = lock.probe_lock()
++    if probe.error is not None:
++        return _LockSnapshot(
++            status="unknown",
++            active_holder=None,
++            blocking_holder=None,
++            refusal_reason=f"workspace lock state could not be probed: {probe.error}",
++        )
++
+     holder_result = lock.read_holder()
+     holder = holder_result.holder
+     if holder is None:
+         reason = holder_result.error or "workspace lock holder is unavailable"
+         return _LockSnapshot(
+-            status="free",
++            status="unknown",
+             active_holder=None,
+             blocking_holder=None,
+             refusal_reason=f"workspace lock metadata could not be read: {reason}",
+         )
+ 
+-    status = _classify_lock_holder(holder)
+-    if status == "free":
++    if not probe.is_locked:
+         return _LockSnapshot(
+             status="free",
+             active_holder=None,
+             blocking_holder=None,
+             refusal_reason=None,
+         )
++
++    status = _classify_lock_holder(holder)
++    if status == "free":
++        return _LockSnapshot(
++            status="unknown",
++            active_holder=None,
++            blocking_holder=None,
++            refusal_reason=(
++                "workspace lock is held but holder metadata does not match "
++                "a live agent process"
++            ),
++        )
+     if status == "held_by_self":
+         return _LockSnapshot(
+             status="held_by_self",
+diff --git a/src/agent/workspace_lock.py b/src/agent/workspace_lock.py
+index 85ac2ae..6a5132c 100644
+--- a/src/agent/workspace_lock.py
++++ b/src/agent/workspace_lock.py
+@@ -136,6 +136,14 @@ class LockReadResult:
+     error: str | None = None
+ 
+ 
++@dataclass(frozen=True)
++class LockProbeResult:
++    """Read-only flock probe result for an existing workspace lock file."""
++
++    is_locked: bool
++    error: str | None = None
++
++
+ def lock_path_for_workspace(
+     workspace: str | Path,
+     lock_file: str | Path = Path("state/run.lock"),
+@@ -295,6 +303,48 @@ class WorkspaceLock:
+         except ValidationError as exc:
+             return LockReadResult(holder=None, error=f"invalid lock holder:\n{exc}")
+ 
++    def probe_lock(self) -> LockProbeResult:
++        """Probe the real flock state without changing holder metadata."""
++
++        if self._fcntl is None:
++            return LockProbeResult(
++                is_locked=False,
++                error="WorkspaceLock requires fcntl.flock on Linux/Ubuntu",
++            )
++        try:
++            fd = os.open(str(self.lock_path), os.O_RDWR)
++        except FileNotFoundError:
++            return LockProbeResult(is_locked=False)
++        except OSError as exc:
++            return LockProbeResult(
++                is_locked=False,
++                error=f"failed to open lock file for flock probe: {exc}",
++            )
++
++        try:
++            try:
++                self._fcntl.flock(  # type: ignore[union-attr]
++                    fd,
++                    self._fcntl.LOCK_EX | self._fcntl.LOCK_NB,  # type: ignore[union-attr]
++                )
++            except BlockingIOError:
++                return LockProbeResult(is_locked=True)
++            except OSError as exc:
++                return LockProbeResult(
++                    is_locked=False,
++                    error=f"failed to probe workspace lock flock state: {exc}",
++                )
++            try:
++                self._fcntl.flock(fd, self._fcntl.LOCK_UN)  # type: ignore[union-attr]
++            except OSError as exc:
++                return LockProbeResult(
++                    is_locked=False,
++                    error=f"failed to release workspace lock probe: {exc}",
++                )
++            return LockProbeResult(is_locked=False)
++        finally:
++            os.close(fd)
++
+     def _build_holder(self, *, command: str, session_id: str) -> WorkspaceLockHolder:
+         started_at = self._now_provider().astimezone(UTC).isoformat()
+         return WorkspaceLockHolder(
+diff --git a/tests/test_trace_cleanup.py b/tests/test_trace_cleanup.py
+index f65f438..999c13e 100644
+--- a/tests/test_trace_cleanup.py
++++ b/tests/test_trace_cleanup.py
+@@ -1,6 +1,8 @@
+ from __future__ import annotations
+ 
++import multiprocessing as mp
+ import os
++import sys
+ from datetime import UTC, datetime
+ from pathlib import Path
+ 
+@@ -23,7 +25,7 @@ from agent.trace_cleanup import (
+     TraceCleanupError,
+     compute_clean_plan,
+ )
+-from agent.workspace_lock import WorkspaceLockHolder
++from agent.workspace_lock import WorkspaceLock, WorkspaceLockHolder
+ 
+ 
+ def namespace() -> ProjectNamespace:
+@@ -111,19 +113,62 @@ def write_lock_holder(
+     )
+ 
+ 
+-class FakeProcess:
+-    def __init__(self, create_time: float) -> None:
+-        self._create_time = create_time
+-
+-    def create_time(self) -> float:
+-        return self._create_time
+-
+-
+-def fake_process_provider(create_time: float):
+-    def fake_process(pid: int) -> FakeProcess:
+-        return FakeProcess(create_time)
+-
+-    return fake_process
++def hold_workspace_lock(
++    workspace: str,
++    session_id: str,
++    ready: mp.Event,
++    release_now: mp.Event,
++    result_queue: mp.Queue,
++) -> None:
++    lock: WorkspaceLock | None = None
++    try:
++        lock = WorkspaceLock(Path(workspace)).acquire("agent run", session_id)
++        ready.set()
++        release_now.wait(5)
++        result_queue.put("released")
++    except Exception as exc:  # pragma: no cover - surfaced in parent assertion.
++        result_queue.put(f"error:{type(exc).__name__}:{exc}")
++    finally:
++        if lock is not None:
++            lock.release()
++
++
++def start_lock_holder_process(
++    workspace: Path,
++    session_id: str,
++) -> tuple[mp.Process, mp.Event, mp.Queue]:
++    ready = mp.Event()
++    release_now = mp.Event()
++    result_queue: mp.Queue = mp.Queue()
++    process = mp.Process(
++        target=hold_workspace_lock,
++        args=(str(workspace), session_id, ready, release_now, result_queue),
++    )
++    process.start()
++    if not ready.wait(5):
++        process.join(1)
++        detail = "no child result"
++        if not result_queue.empty():
++            detail = str(result_queue.get_nowait())
++        if process.is_alive():
++            process.terminate()
++            process.join(5)
++        pytest.fail(f"lock holder process did not become ready: {detail}")
++    return process, release_now, result_queue
++
++
++def stop_lock_holder_process(
++    process: mp.Process,
++    release_now: mp.Event,
++    result_queue: mp.Queue,
++) -> None:
++    release_now.set()
++    process.join(5)
++    if process.is_alive():
++        process.terminate()
++        process.join(5)
++    assert process.exitcode == 0
++    assert result_queue.get(timeout=1) == "released"
+ 
+ 
+ def fixed_now() -> datetime:
+@@ -202,32 +247,49 @@ def test_compute_clean_plan_refuses_legacy_checkpoint_missing_trace_line_count(
+     assert plan.can_execute_with_force_inactive_only is False
+ 
+ 
++@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="requires Linux fcntl")
+ def test_compute_clean_plan_reports_held_by_other_without_hiding_removable_lines(
+     tmp_path: Path,
+-    monkeypatch: pytest.MonkeyPatch,
+ ) -> None:
+     current_layout = layout(tmp_path)
+     append_event(current_layout, 1, ts="2026-04-01T00:00:00Z", session_id="sess_old")
+-    monkeypatch.setattr(
+-        "agent.trace_cleanup.psutil.Process",
+-        fake_process_provider(123.0),
++    process, release_now, result_queue = start_lock_holder_process(
++        tmp_path,
++        "sess_active_elsewhere",
+     )
++    try:
++        plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
++
++        assert plan.lock_status == "held_by_other"
++        assert plan.blocking_lock_holder is not None
++        assert plan.blocking_lock_holder.session_id == "sess_active_elsewhere"
++        assert plan.refusal_reason == "workspace lock is held by another agent process"
++        assert plan.removable_line_ranges == (LineRange(1, 1),)
++        assert plan.can_execute is False
++        assert plan.can_execute_with_force_inactive_only is False
++    finally:
++        stop_lock_holder_process(process, release_now, result_queue)
++
++
++def test_compute_clean_plan_released_but_live_holder_metadata_is_free(
++    tmp_path: Path,
++) -> None:
++    current_layout = layout(tmp_path)
++    append_event(current_layout, 1, ts="2026-04-01T00:00:00Z", session_id="sess_old")
++    current_process = psutil.Process()
+     write_lock_holder(
+         tmp_path,
+-        session_id="sess_active_elsewhere",
+-        pid=90001,
+-        create_time=123.0,
++        session_id="sess_released_but_live",
++        pid=os.getpid(),
++        create_time=current_process.create_time(),
+     )
+ 
+     plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
+ 
+-    assert plan.lock_status == "held_by_other"
+-    assert plan.blocking_lock_holder is not None
+-    assert plan.blocking_lock_holder.session_id == "sess_active_elsewhere"
+-    assert plan.refusal_reason == "workspace lock is held by another agent process"
+-    assert plan.removable_line_ranges == (LineRange(1, 1),)
+-    assert plan.can_execute is False
+-    assert plan.can_execute_with_force_inactive_only is False
++    assert plan.lock_status == "free"
++    assert plan.blocking_lock_holder is None
++    assert plan.refusal_reason is None
++    assert plan.can_execute is True
+ 
+ 
+ @pytest.mark.parametrize(
+@@ -252,12 +314,13 @@ def test_compute_clean_plan_bad_lock_metadata_returns_graceful_refusal(
+ 
+     plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
+ 
+-    assert plan.lock_status == "free"
++    assert plan.lock_status == "unknown"
+     assert plan.blocking_lock_holder is None
+     assert "workspace lock metadata could not be read" in str(plan.refusal_reason)
+     assert expected_error in str(plan.refusal_reason)
+     assert plan.removable_line_ranges == (LineRange(1, 1),)
+     assert plan.can_execute is False
++    assert plan.can_execute_with_force_inactive_only is False
+ 
+ 
+ def test_compute_clean_plan_merges_layer_one_and_two_overlap(
+@@ -314,7 +377,6 @@ def test_compute_clean_plan_can_remove_all_when_no_protection_and_old(
+ 
+ def test_compute_clean_plan_all_layers_trigger_without_removable_events(
+     tmp_path: Path,
+-    monkeypatch: pytest.MonkeyPatch,
+ ) -> None:
+     current_layout = layout(tmp_path)
+     append_event(current_layout, 1, ts="2026-04-01T00:00:00Z", session_id="sess_active")
+@@ -327,15 +389,11 @@ def test_compute_clean_plan_all_layers_trigger_without_removable_events(
+     append_event(current_layout, 3, ts="2026-04-01T00:02:00Z", session_id="sess_other")
+     append_event(current_layout, 4, ts="2026-05-09T00:00:00Z", session_id="sess_recent")
+     write_checkpoint(current_layout, trace_line_count=2)
+-    monkeypatch.setattr(
+-        "agent.trace_cleanup.psutil.Process",
+-        fake_process_provider(456.0),
+-    )
+-    write_lock_holder(tmp_path, session_id="sess_active", pid=90002, create_time=456.0)
+ 
+-    plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
++    with WorkspaceLock(current_layout.workspace).acquire("agent run", "sess_active"):
++        plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
+ 
+-    assert plan.lock_status == "held_by_other"
++    assert plan.lock_status == "held_by_self"
+     assert plan.protected_session_ids == frozenset({"sess_active", "sess_checkpoint"})
+     assert plan.protected_line_ranges == (LineRange(1, 2),)
+     assert plan.removable_line_ranges == ()
+@@ -370,7 +428,6 @@ def test_compute_clean_plan_large_keep_days_keeps_everything(tmp_path: Path) ->
+ 
+ def test_compute_clean_plan_lock_status_execute_matrix(
+     tmp_path: Path,
+-    monkeypatch: pytest.MonkeyPatch,
+ ) -> None:
+     current_layout = layout(tmp_path / "free")
+     append_event(current_layout, 1, ts="2026-04-01T00:00:00Z")
+@@ -378,28 +435,19 @@ def test_compute_clean_plan_lock_status_execute_matrix(
+ 
+     self_layout = layout(tmp_path / "self")
+     append_event(self_layout, 1, ts="2026-04-01T00:00:00Z")
+-    current_process = psutil.Process()
+-    write_lock_holder(
+-        self_layout.workspace,
+-        session_id="sess_self",
+-        pid=os.getpid(),
+-        create_time=current_process.create_time(),
+-    )
+-    self_plan = compute_clean_plan(self_layout, keep_days=0, now=fixed_now())
++    with WorkspaceLock(self_layout.workspace).acquire("agent run", "sess_self"):
++        self_plan = compute_clean_plan(self_layout, keep_days=0, now=fixed_now())
+ 
+     other_layout = layout(tmp_path / "other")
+     append_event(other_layout, 1, ts="2026-04-01T00:00:00Z")
+-    monkeypatch.setattr(
+-        "agent.trace_cleanup.psutil.Process",
+-        fake_process_provider(789.0),
+-    )
+-    write_lock_holder(
++    process, release_now, result_queue = start_lock_holder_process(
+         other_layout.workspace,
+-        session_id="sess_other",
+-        pid=90003,
+-        create_time=789.0,
++        "sess_other",
+     )
+-    other_plan = compute_clean_plan(other_layout, keep_days=0, now=fixed_now())
++    try:
++        other_plan = compute_clean_plan(other_layout, keep_days=0, now=fixed_now())
++    finally:
++        stop_lock_holder_process(process, release_now, result_queue)
+ 
+     assert (free_plan.lock_status, free_plan.can_execute) == ("free", True)
+     assert free_plan.can_execute_with_force_inactive_only is True
+diff --git a/tests/test_workspace_lock.py b/tests/test_workspace_lock.py
+index 1167285..b996a1b 100644
+--- a/tests/test_workspace_lock.py
++++ b/tests/test_workspace_lock.py
+@@ -12,6 +12,7 @@ import yaml
+ 
+ from agent.config import AgentConfig
+ from agent.workspace_lock import (
++    LockProbeResult,
+     LockReadResult,
+     WorkspaceBusyError,
+     WorkspaceLock,
+@@ -277,6 +278,43 @@ def test_busy_lock_with_stale_metadata_does_not_bypass_active_fcntl(
+     assert lock_path.exists()
+ 
+ 
++def test_probe_lock_reports_missing_lock_file_as_free(tmp_path: Path) -> None:
++    lock = make_lock(tmp_path)
++
++    result = lock.probe_lock()
++
++    assert result == LockProbeResult(is_locked=False)
++
++
++def test_probe_lock_reports_free_and_unlocks_probe_fd(tmp_path: Path) -> None:
++    fake_fcntl = FakeFcntl()
++    lock_path = tmp_path / "state" / "run.lock"
++    write_holder(lock_path, lock_holder_data())
++    lock = make_lock(tmp_path, fcntl=fake_fcntl)
++
++    result = lock.probe_lock()
++
++    assert result == LockProbeResult(is_locked=False)
++    assert fake_fcntl.calls == [
++        fake_fcntl.LOCK_EX | fake_fcntl.LOCK_NB,
++        fake_fcntl.LOCK_UN,
++    ]
++    assert fake_fcntl.held is False
++
++
++def test_probe_lock_reports_busy_without_reading_holder(tmp_path: Path) -> None:
++    fake_fcntl = FakeFcntl()
++    fake_fcntl.held = True
++    lock_path = tmp_path / "state" / "run.lock"
++    lock_path.parent.mkdir(parents=True)
++    lock_path.write_text("not: [valid\n", encoding="utf-8")
++    lock = make_lock(tmp_path, fcntl=fake_fcntl)
++
++    result = lock.probe_lock()
++
++    assert result == LockProbeResult(is_locked=True)
++
++
+ @pytest.mark.skipif(not sys.platform.startswith("linux"), reason="requires Linux fcntl")
+ def test_real_fcntl_release_keeps_path_locked_for_preopened_waiter(
+     tmp_path: Path,

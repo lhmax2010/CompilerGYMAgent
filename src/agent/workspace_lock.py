@@ -136,6 +136,14 @@ class LockReadResult:
     error: str | None = None
 
 
+@dataclass(frozen=True)
+class LockProbeResult:
+    """Read-only flock probe result for an existing workspace lock file."""
+
+    is_locked: bool
+    error: str | None = None
+
+
 def lock_path_for_workspace(
     workspace: str | Path,
     lock_file: str | Path = Path("state/run.lock"),
@@ -294,6 +302,48 @@ class WorkspaceLock:
             return LockReadResult(holder=WorkspaceLockHolder.model_validate(data))
         except ValidationError as exc:
             return LockReadResult(holder=None, error=f"invalid lock holder:\n{exc}")
+
+    def probe_lock(self) -> LockProbeResult:
+        """Probe the real flock state without changing holder metadata."""
+
+        if self._fcntl is None:
+            return LockProbeResult(
+                is_locked=False,
+                error="WorkspaceLock requires fcntl.flock on Linux/Ubuntu",
+            )
+        try:
+            fd = os.open(str(self.lock_path), os.O_RDWR)
+        except FileNotFoundError:
+            return LockProbeResult(is_locked=False)
+        except OSError as exc:
+            return LockProbeResult(
+                is_locked=False,
+                error=f"failed to open lock file for flock probe: {exc}",
+            )
+
+        try:
+            try:
+                self._fcntl.flock(  # type: ignore[union-attr]
+                    fd,
+                    self._fcntl.LOCK_EX | self._fcntl.LOCK_NB,  # type: ignore[union-attr]
+                )
+            except BlockingIOError:
+                return LockProbeResult(is_locked=True)
+            except OSError as exc:
+                return LockProbeResult(
+                    is_locked=False,
+                    error=f"failed to probe workspace lock flock state: {exc}",
+                )
+            try:
+                self._fcntl.flock(fd, self._fcntl.LOCK_UN)  # type: ignore[union-attr]
+            except OSError as exc:
+                return LockProbeResult(
+                    is_locked=False,
+                    error=f"failed to release workspace lock probe: {exc}",
+                )
+            return LockProbeResult(is_locked=False)
+        finally:
+            os.close(fd)
 
     def _build_holder(self, *, command: str, session_id: str) -> WorkspaceLockHolder:
         started_at = self._now_provider().astimezone(UTC).isoformat()

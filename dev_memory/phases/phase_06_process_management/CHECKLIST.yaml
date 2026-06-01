@@ -36,6 +36,35 @@ subtasks:
         status: done
       - item: "Ubuntu/Linux validation"
         status: done
+  - id: "6.4"
+    title: "workspace lock hardening (probe flock + LockStatus unknown)"
+    status: implementation_complete
+    implementation_commit: pending
+    review_status: pending
+    ubuntu_validation_status: pending
+    checklist:
+      - item: "Add read-only nonblocking flock probe to WorkspaceLock"
+        status: done
+      - item: "Keep _write_holder inode-safe in-place write unchanged"
+        status: done
+      - item: "Make trace cleanup use real flock probe for free vs busy"
+        status: done
+      - item: "Treat unreadable holder metadata as LockStatus unknown"
+        status: done
+      - item: "Reject unknown lock status through can_execute and force mode"
+        status: done
+      - item: "Ensure released-but-live holder metadata is classified free when real flock is free"
+        status: done
+      - item: "Use real active locks for held_by_self / held_by_other tests"
+        status: done
+      - item: "Run targeted tests and full production suite"
+        status: done
+      - item: "Generate patch artifacts"
+        status: done
+      - item: "Claude review"
+        status: pending
+      - item: "Ubuntu/Linux validation"
+        status: pending
   - id: "6.2"
     title: "process_runner.py + Process Lease Registry"
     status: done

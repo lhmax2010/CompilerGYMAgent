@@ -229,6 +229,7 @@ from .trace_cleanup import (
 )
 from .types import Combo, Mode, Option, ScheduleSlot, SessionId, TrustLevel
 from .workspace_lock import (
+    LockProbeResult,
     LockReadResult,
     WorkspaceBusyError,
     WorkspaceLock,

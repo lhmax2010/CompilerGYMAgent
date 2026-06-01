@@ -152,3 +152,28 @@ Implemented Phase 06's core process ownership and cleanup logic.
   - leader-dead children-alive is discovered through pgid scanning,
   - double-fork escape is discovered through env-marker scanning,
   - owned cleanup kills the process group and updates the lease to `killed`.
+
+## Subtask 6.4 - Workspace Lock Probe + LockStatus unknown
+
+Hardened read-only workspace lock classification for trace cleanup.
+
+### Changes
+
+- Added `LockProbeResult` and `WorkspaceLock.probe_lock()`.
+- `probe_lock()` performs a nonblocking flock probe on the existing
+  `state/run.lock` file and immediately unlocks if the probe succeeds.
+- Kept `_write_holder()` unchanged; holder metadata is still written in place
+  through the already-flocked fd.
+- Changed trace cleanup lock classification so the flock probe determines
+  free vs busy.
+- Changed unreadable holder metadata from `lock_status="free"` to
+  `lock_status="unknown"` with a refusal reason.
+- Preserved held_by_self / held_by_other behavior when an actual flock is busy
+  and holder metadata is readable.
+- Exported `LockProbeResult` from `agent.__init__`.
+
+### Validation
+
+- `tests/test_workspace_lock.py tests/test_trace_cleanup.py tests/test_trace_cleanup_execute.py`: 68 passed
+- `tests/test_cli_clean_trace.py`: 10 passed
+- Full suite: 496 passed

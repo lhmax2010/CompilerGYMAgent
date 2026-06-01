@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import multiprocessing as mp
 import os
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -23,7 +25,7 @@ from agent.trace_cleanup import (
     TraceCleanupError,
     compute_clean_plan,
 )
-from agent.workspace_lock import WorkspaceLockHolder
+from agent.workspace_lock import WorkspaceLock, WorkspaceLockHolder
 
 
 def namespace() -> ProjectNamespace:
@@ -111,19 +113,62 @@ def write_lock_holder(
     )
 
 
-class FakeProcess:
-    def __init__(self, create_time: float) -> None:
-        self._create_time = create_time
+def hold_workspace_lock(
+    workspace: str,
+    session_id: str,
+    ready: mp.Event,
+    release_now: mp.Event,
+    result_queue: mp.Queue,
+) -> None:
+    lock: WorkspaceLock | None = None
+    try:
+        lock = WorkspaceLock(Path(workspace)).acquire("agent run", session_id)
+        ready.set()
+        release_now.wait(5)
+        result_queue.put("released")
+    except Exception as exc:  # pragma: no cover - surfaced in parent assertion.
+        result_queue.put(f"error:{type(exc).__name__}:{exc}")
+    finally:
+        if lock is not None:
+            lock.release()
 
-    def create_time(self) -> float:
-        return self._create_time
+
+def start_lock_holder_process(
+    workspace: Path,
+    session_id: str,
+) -> tuple[mp.Process, mp.Event, mp.Queue]:
+    ready = mp.Event()
+    release_now = mp.Event()
+    result_queue: mp.Queue = mp.Queue()
+    process = mp.Process(
+        target=hold_workspace_lock,
+        args=(str(workspace), session_id, ready, release_now, result_queue),
+    )
+    process.start()
+    if not ready.wait(5):
+        process.join(1)
+        detail = "no child result"
+        if not result_queue.empty():
+            detail = str(result_queue.get_nowait())
+        if process.is_alive():
+            process.terminate()
+            process.join(5)
+        pytest.fail(f"lock holder process did not become ready: {detail}")
+    return process, release_now, result_queue
 
 
-def fake_process_provider(create_time: float):
-    def fake_process(pid: int) -> FakeProcess:
-        return FakeProcess(create_time)
-
-    return fake_process
+def stop_lock_holder_process(
+    process: mp.Process,
+    release_now: mp.Event,
+    result_queue: mp.Queue,
+) -> None:
+    release_now.set()
+    process.join(5)
+    if process.is_alive():
+        process.terminate()
+        process.join(5)
+    assert process.exitcode == 0
+    assert result_queue.get(timeout=1) == "released"
 
 
 def fixed_now() -> datetime:
@@ -202,32 +247,49 @@ def test_compute_clean_plan_refuses_legacy_checkpoint_missing_trace_line_count(
     assert plan.can_execute_with_force_inactive_only is False
 
 
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="requires Linux fcntl")
 def test_compute_clean_plan_reports_held_by_other_without_hiding_removable_lines(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     current_layout = layout(tmp_path)
     append_event(current_layout, 1, ts="2026-04-01T00:00:00Z", session_id="sess_old")
-    monkeypatch.setattr(
-        "agent.trace_cleanup.psutil.Process",
-        fake_process_provider(123.0),
+    process, release_now, result_queue = start_lock_holder_process(
+        tmp_path,
+        "sess_active_elsewhere",
     )
+    try:
+        plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
+
+        assert plan.lock_status == "held_by_other"
+        assert plan.blocking_lock_holder is not None
+        assert plan.blocking_lock_holder.session_id == "sess_active_elsewhere"
+        assert plan.refusal_reason == "workspace lock is held by another agent process"
+        assert plan.removable_line_ranges == (LineRange(1, 1),)
+        assert plan.can_execute is False
+        assert plan.can_execute_with_force_inactive_only is False
+    finally:
+        stop_lock_holder_process(process, release_now, result_queue)
+
+
+def test_compute_clean_plan_released_but_live_holder_metadata_is_free(
+    tmp_path: Path,
+) -> None:
+    current_layout = layout(tmp_path)
+    append_event(current_layout, 1, ts="2026-04-01T00:00:00Z", session_id="sess_old")
+    current_process = psutil.Process()
     write_lock_holder(
         tmp_path,
-        session_id="sess_active_elsewhere",
-        pid=90001,
-        create_time=123.0,
+        session_id="sess_released_but_live",
+        pid=os.getpid(),
+        create_time=current_process.create_time(),
     )
 
     plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
 
-    assert plan.lock_status == "held_by_other"
-    assert plan.blocking_lock_holder is not None
-    assert plan.blocking_lock_holder.session_id == "sess_active_elsewhere"
-    assert plan.refusal_reason == "workspace lock is held by another agent process"
-    assert plan.removable_line_ranges == (LineRange(1, 1),)
-    assert plan.can_execute is False
-    assert plan.can_execute_with_force_inactive_only is False
+    assert plan.lock_status == "free"
+    assert plan.blocking_lock_holder is None
+    assert plan.refusal_reason is None
+    assert plan.can_execute is True
 
 
 @pytest.mark.parametrize(
@@ -252,12 +314,13 @@ def test_compute_clean_plan_bad_lock_metadata_returns_graceful_refusal(
 
     plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
 
-    assert plan.lock_status == "free"
+    assert plan.lock_status == "unknown"
     assert plan.blocking_lock_holder is None
     assert "workspace lock metadata could not be read" in str(plan.refusal_reason)
     assert expected_error in str(plan.refusal_reason)
     assert plan.removable_line_ranges == (LineRange(1, 1),)
     assert plan.can_execute is False
+    assert plan.can_execute_with_force_inactive_only is False
 
 
 def test_compute_clean_plan_merges_layer_one_and_two_overlap(
@@ -314,7 +377,6 @@ def test_compute_clean_plan_can_remove_all_when_no_protection_and_old(
 
 def test_compute_clean_plan_all_layers_trigger_without_removable_events(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     current_layout = layout(tmp_path)
     append_event(current_layout, 1, ts="2026-04-01T00:00:00Z", session_id="sess_active")
@@ -327,15 +389,11 @@ def test_compute_clean_plan_all_layers_trigger_without_removable_events(
     append_event(current_layout, 3, ts="2026-04-01T00:02:00Z", session_id="sess_other")
     append_event(current_layout, 4, ts="2026-05-09T00:00:00Z", session_id="sess_recent")
     write_checkpoint(current_layout, trace_line_count=2)
-    monkeypatch.setattr(
-        "agent.trace_cleanup.psutil.Process",
-        fake_process_provider(456.0),
-    )
-    write_lock_holder(tmp_path, session_id="sess_active", pid=90002, create_time=456.0)
 
-    plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
+    with WorkspaceLock(current_layout.workspace).acquire("agent run", "sess_active"):
+        plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
 
-    assert plan.lock_status == "held_by_other"
+    assert plan.lock_status == "held_by_self"
     assert plan.protected_session_ids == frozenset({"sess_active", "sess_checkpoint"})
     assert plan.protected_line_ranges == (LineRange(1, 2),)
     assert plan.removable_line_ranges == ()
@@ -370,7 +428,6 @@ def test_compute_clean_plan_large_keep_days_keeps_everything(tmp_path: Path) -> 
 
 def test_compute_clean_plan_lock_status_execute_matrix(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     current_layout = layout(tmp_path / "free")
     append_event(current_layout, 1, ts="2026-04-01T00:00:00Z")
@@ -378,28 +435,19 @@ def test_compute_clean_plan_lock_status_execute_matrix(
 
     self_layout = layout(tmp_path / "self")
     append_event(self_layout, 1, ts="2026-04-01T00:00:00Z")
-    current_process = psutil.Process()
-    write_lock_holder(
-        self_layout.workspace,
-        session_id="sess_self",
-        pid=os.getpid(),
-        create_time=current_process.create_time(),
-    )
-    self_plan = compute_clean_plan(self_layout, keep_days=0, now=fixed_now())
+    with WorkspaceLock(self_layout.workspace).acquire("agent run", "sess_self"):
+        self_plan = compute_clean_plan(self_layout, keep_days=0, now=fixed_now())
 
     other_layout = layout(tmp_path / "other")
     append_event(other_layout, 1, ts="2026-04-01T00:00:00Z")
-    monkeypatch.setattr(
-        "agent.trace_cleanup.psutil.Process",
-        fake_process_provider(789.0),
-    )
-    write_lock_holder(
+    process, release_now, result_queue = start_lock_holder_process(
         other_layout.workspace,
-        session_id="sess_other",
-        pid=90003,
-        create_time=789.0,
+        "sess_other",
     )
-    other_plan = compute_clean_plan(other_layout, keep_days=0, now=fixed_now())
+    try:
+        other_plan = compute_clean_plan(other_layout, keep_days=0, now=fixed_now())
+    finally:
+        stop_lock_holder_process(process, release_now, result_queue)
 
     assert (free_plan.lock_status, free_plan.can_execute) == ("free", True)
     assert free_plan.can_execute_with_force_inactive_only is True

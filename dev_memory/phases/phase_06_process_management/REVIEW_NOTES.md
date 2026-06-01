@@ -109,3 +109,32 @@ External review:
 - Low follow-up: lease GC can conservatively retain an orphan under rare
   pid/pgid reuse; the error direction is safe and can be tightened in later
   doctor/state-consistency work.
+
+## Subtask 6.4 - Workspace Lock Probe + LockStatus unknown
+
+Self-review checklist:
+
+- [x] `WorkspaceLock.probe_lock()` opens the existing lock file and attempts
+  `LOCK_EX | LOCK_NB` without creating, truncating, or replacing `run.lock`.
+- [x] `_write_holder()` remains unchanged and still writes through the
+  already-flocked fd in place.
+- [x] `trace_cleanup._read_workspace_lock()` uses the flock probe as the
+  source of truth for free vs busy.
+- [x] Holder YAML is used only to explain a busy holder or provide a protected
+  session id.
+- [x] Unreadable holder YAML returns `lock_status="unknown"` and a refusal
+  reason.
+- [x] `can_execute` and `can_execute_with_force_inactive_only` reject
+  `unknown`.
+- [x] Released-but-live holder metadata is no longer treated as a held lock
+  when the probe can acquire the flock.
+- [x] Tests use real active locks for held_by_self / held_by_other instead of
+  metadata-only simulation.
+- [x] Full suite passes.
+
+Residual risks / follow-up:
+
+- Busy flock with stale-but-readable holder metadata becomes `unknown`; doctor
+  state-consistency can later provide richer remediation text.
+- Phase 6.7 still owns CleanPlan checkpoint/session hash hardening and Layer D
+  active-trial protection.

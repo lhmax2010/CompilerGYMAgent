@@ -26,7 +26,7 @@ from .trace import inspect_trace_session_spans
 from .workspace_lock import WorkspaceBusyError, WorkspaceLock, WorkspaceLockHolder
 
 
-LockStatus = Literal["free", "held_by_self", "held_by_other"]
+LockStatus = Literal["free", "held_by_self", "held_by_other", "unknown"]
 _LOCK_CREATE_TIME_TOLERANCE_SECONDS = 0.5
 
 
@@ -483,24 +483,44 @@ def _read_workspace_lock(layout: NamespaceLayout) -> _LockSnapshot:
             refusal_reason=None,
         )
 
+    probe = lock.probe_lock()
+    if probe.error is not None:
+        return _LockSnapshot(
+            status="unknown",
+            active_holder=None,
+            blocking_holder=None,
+            refusal_reason=f"workspace lock state could not be probed: {probe.error}",
+        )
+
     holder_result = lock.read_holder()
     holder = holder_result.holder
     if holder is None:
         reason = holder_result.error or "workspace lock holder is unavailable"
         return _LockSnapshot(
-            status="free",
+            status="unknown",
             active_holder=None,
             blocking_holder=None,
             refusal_reason=f"workspace lock metadata could not be read: {reason}",
         )
 
-    status = _classify_lock_holder(holder)
-    if status == "free":
+    if not probe.is_locked:
         return _LockSnapshot(
             status="free",
             active_holder=None,
             blocking_holder=None,
             refusal_reason=None,
+        )
+
+    status = _classify_lock_holder(holder)
+    if status == "free":
+        return _LockSnapshot(
+            status="unknown",
+            active_holder=None,
+            blocking_holder=None,
+            refusal_reason=(
+                "workspace lock is held but holder metadata does not match "
+                "a live agent process"
+            ),
         )
     if status == "held_by_self":
         return _LockSnapshot(

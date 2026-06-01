@@ -1,0 +1,21 @@
+Phase 06 / Subtask 6.4 - Workspace lock probe + LockStatus unknown
+
+Implemented read-only workspace lock hardening for trace cleanup.
+
+Changes:
+- Added LockProbeResult and WorkspaceLock.probe_lock().
+- probe_lock performs a nonblocking flock probe on the existing run.lock file
+  and immediately unlocks if the probe succeeds.
+- Kept WorkspaceLock._write_holder unchanged; run.lock is never
+  atomic-replaced and holder metadata is still written through the held fd.
+- Updated trace cleanup lock classification so the kernel flock decides
+  free vs busy, while holder metadata only explains the holder.
+- Added LockStatus="unknown" for unreadable holder metadata and stale metadata
+  while the real flock is busy.
+- Updated tests to use real active locks for held_by_self / held_by_other
+  instead of metadata-only simulation.
+
+Validation:
+- .venv/bin/python -m pytest tests/test_workspace_lock.py tests/test_trace_cleanup.py tests/test_trace_cleanup_execute.py -q -> 68 passed
+- .venv/bin/python -m pytest tests/test_cli_clean_trace.py -q -> 10 passed
+- .venv/bin/python -m pytest tests/ -q -> 496 passed

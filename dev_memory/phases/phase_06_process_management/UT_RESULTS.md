@@ -98,3 +98,26 @@ Review / validation sync:
 - Independent reviewer probe: graded scoring, leader-dead pgid scan,
   double-fork env scan, conservative env-missing behavior, owned killpg, and
   lease GC all matched the Phase 06 design.
+
+## Subtask 6.4 - Workspace Lock Probe + LockStatus unknown
+
+Commands:
+
+```bash
+.venv/bin/python -m pytest tests/test_workspace_lock.py tests/test_trace_cleanup.py tests/test_trace_cleanup_execute.py -q
+.venv/bin/python -m pytest tests/test_cli_clean_trace.py -q
+.venv/bin/python -m pytest tests/ -q
+```
+
+Results:
+
+- Lock / trace cleanup targeted tests: 68 passed
+- CLI clean trace smoke/regression tests: 10 passed
+- Full suite: 496 passed
+
+Notes:
+
+- Targeted tests cover free probe, busy probe, unknown lock metadata,
+  released-but-live holder metadata, held_by_self, and held_by_other using real
+  active flock state.
+- `run.lock` is never atomic-replaced; `_write_holder()` remains unchanged.

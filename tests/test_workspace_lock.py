@@ -12,6 +12,7 @@ import yaml
 
 from agent.config import AgentConfig
 from agent.workspace_lock import (
+    LockProbeResult,
     LockReadResult,
     WorkspaceBusyError,
     WorkspaceLock,
@@ -275,6 +276,43 @@ def test_busy_lock_with_stale_metadata_does_not_bypass_active_fcntl(
     assert exc_info.value.holder is not None
     assert exc_info.value.holder.pid == 99999
     assert lock_path.exists()
+
+
+def test_probe_lock_reports_missing_lock_file_as_free(tmp_path: Path) -> None:
+    lock = make_lock(tmp_path)
+
+    result = lock.probe_lock()
+
+    assert result == LockProbeResult(is_locked=False)
+
+
+def test_probe_lock_reports_free_and_unlocks_probe_fd(tmp_path: Path) -> None:
+    fake_fcntl = FakeFcntl()
+    lock_path = tmp_path / "state" / "run.lock"
+    write_holder(lock_path, lock_holder_data())
+    lock = make_lock(tmp_path, fcntl=fake_fcntl)
+
+    result = lock.probe_lock()
+
+    assert result == LockProbeResult(is_locked=False)
+    assert fake_fcntl.calls == [
+        fake_fcntl.LOCK_EX | fake_fcntl.LOCK_NB,
+        fake_fcntl.LOCK_UN,
+    ]
+    assert fake_fcntl.held is False
+
+
+def test_probe_lock_reports_busy_without_reading_holder(tmp_path: Path) -> None:
+    fake_fcntl = FakeFcntl()
+    fake_fcntl.held = True
+    lock_path = tmp_path / "state" / "run.lock"
+    lock_path.parent.mkdir(parents=True)
+    lock_path.write_text("not: [valid\n", encoding="utf-8")
+    lock = make_lock(tmp_path, fcntl=fake_fcntl)
+
+    result = lock.probe_lock()
+
+    assert result == LockProbeResult(is_locked=True)
 
 
 @pytest.mark.skipif(not sys.platform.startswith("linux"), reason="requires Linux fcntl")
