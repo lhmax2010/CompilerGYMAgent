@@ -1946,3 +1946,19 @@ Next action: begin Subtask 6.4 workspace lock hardening.
   - `.venv/bin/python -m pytest tests/ -q` -> 496 passed.
 
 Next action: generate patch artifacts, commit/push Subtask 6.4, then request Claude review.
+
+## 2026-06-01T12:12:12Z - Phase 06 / Subtask 6.4 approved and validated
+
+- Claude review verdict: Approve.
+- Review range: `2b07a88..03ca715`.
+- Re-ran validation:
+  - `.venv/bin/python -m pytest tests/test_workspace_lock.py tests/test_trace_cleanup.py tests/test_trace_cleanup_execute.py tests/test_cli_clean_trace.py -q` -> 78 passed.
+  - `.venv/bin/python -m pytest tests/ -q` -> 496 passed.
+- Reviewer independently verified:
+  - real `LOCK_NB` probe distinguishes free/busy,
+  - released-but-live holder metadata no longer misclassifies as held_by_other,
+  - corrupted holder metadata reports `lock_status=unknown`,
+  - normal and force clean reject unknown status,
+  - `_write_holder()` remains unchanged and `run.lock` is never replaced.
+
+Next action: begin Subtask 6.5 TrialState operation ledger.

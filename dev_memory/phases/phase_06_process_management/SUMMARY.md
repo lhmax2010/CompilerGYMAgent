@@ -177,3 +177,17 @@ Hardened read-only workspace lock classification for trace cleanup.
 - `tests/test_workspace_lock.py tests/test_trace_cleanup.py tests/test_trace_cleanup_execute.py`: 68 passed
 - `tests/test_cli_clean_trace.py`: 10 passed
 - Full suite: 496 passed
+
+### Review
+
+- Claude review verdict: Approve
+- Review range: `2b07a88..03ca715`
+- Validation re-run:
+  - lock/cleanup/CLI targeted set 78 passed
+  - full suite 496 passed
+- Reviewer independently verified:
+  - real flock probe distinguishes free/busy,
+  - released-but-live holder metadata no longer reports held_by_other,
+  - corrupted holder metadata reports `unknown`,
+  - normal and force clean reject `unknown`,
+  - `_write_holder()` remains unchanged and `run.lock` is never replaced.

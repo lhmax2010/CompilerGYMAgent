@@ -121,3 +121,13 @@ Notes:
   released-but-live holder metadata, held_by_self, and held_by_other using real
   active flock state.
 - `run.lock` is never atomic-replaced; `_write_holder()` remains unchanged.
+
+Review / validation sync:
+
+- Claude review verdict: Approve
+- Review range: `2b07a88..03ca715`
+- Re-run targeted lock/cleanup/CLI tests: 78 passed
+- Re-run full suite: 496 passed
+- Independent reviewer probe: free/busy flock probing, released-but-live
+  metadata, unknown refusal, and never-`os.replace(run.lock)` all matched the
+  Phase 06 design.

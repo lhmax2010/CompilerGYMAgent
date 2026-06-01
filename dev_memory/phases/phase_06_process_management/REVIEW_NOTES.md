@@ -138,3 +138,13 @@ Residual risks / follow-up:
   state-consistency can later provide richer remediation text.
 - Phase 6.7 still owns CleanPlan checkpoint/session hash hardening and Layer D
   active-trial protection.
+
+External review:
+
+- Verdict: Approve
+- Range: `2b07a88..03ca715`
+- Notes: real `LOCK_NB` probing fixed the released-but-live metadata false
+  busy case; `unknown` lock status refuses normal and force clean; `_write_holder`
+  and the never-`os.replace(run.lock)` red line were not touched.
+- Validation re-run: targeted lock/cleanup/CLI set 78 passed; full suite 496
+  passed.

@@ -38,10 +38,10 @@ subtasks:
         status: done
   - id: "6.4"
     title: "workspace lock hardening (probe flock + LockStatus unknown)"
-    status: implementation_complete
-    implementation_commit: pending
-    review_status: pending
-    ubuntu_validation_status: pending
+    status: done
+    implementation_commit: 03ca715
+    review_status: approve
+    ubuntu_validation_status: passed
     checklist:
       - item: "Add read-only nonblocking flock probe to WorkspaceLock"
         status: done
@@ -62,9 +62,9 @@ subtasks:
       - item: "Generate patch artifacts"
         status: done
       - item: "Claude review"
-        status: pending
+        status: done
       - item: "Ubuntu/Linux validation"
-        status: pending
+        status: done
   - id: "6.2"
     title: "process_runner.py + Process Lease Registry"
     status: done

@@ -1,7 +1,7 @@
 phase_id: phase_06_process_management
 phase_title: "Process Management (runner + cleaner + monitor)"
 started_at: 2026-06-01T15:30:36+08:00
-last_updated: 2026-06-01T19:56:54+08:00
+last_updated: 2026-06-01T20:12:12+08:00
 target_milestone: "M3 (advanced)"
 related_requirements:
   - REQUIREMENTS.md section 3.3.5
@@ -156,7 +156,7 @@ subtasks:
       full: "492 passed"
   - id: "6.4"
     title: "workspace lock hardening (probe flock + LockStatus unknown)"
-    status: implementation_complete
+    status: done
     related_requirements:
       - ROADMAP.yaml Phase 06 deliverable workspace lock hardening
       - REQUIREMENTS.md section 4.14.7a
@@ -190,5 +190,18 @@ subtasks:
     patch_file: dev_memory/phases/phase_06_process_management/patches/04_workspace_lock_probe.patch
     patch_generated: true
     commit_required: true
-    commit_pending: true
-next_action: "Push Phase 06 Subtask 6.4 implementation for Claude review."
+    commit_pending: false
+    implementation_commit: 03ca715
+    external_review_verdict: approve
+    external_reviewed_at: 2026-06-01T20:12:12+08:00
+    external_review_tests: "496 passed; lock/cleanup/cli targeted set 78 passed"
+    external_review_notes:
+      - "probe_lock correctly distinguishes free/busy with real flock."
+      - "released-but-live holder metadata now reports free when the flock is free."
+      - "holder metadata corruption reports lock_status=unknown and refuses normal/force clean."
+      - "never os.replace run.lock red line remains intact; _write_holder unchanged."
+    ubuntu_validation_status: passed
+    ubuntu_validation_tests:
+      targeted: "78 passed"
+      full: "496 passed"
+next_action: "Begin Phase 06 Subtask 6.5 TrialState operation ledger."
