@@ -230,6 +230,8 @@ Layer D work will use.
   - operation ledgers round-trip through YAML,
   - process refs cannot traverse paths or point at another session/trial,
   - non-empty operations require `current_trial_start_line`.
-- Low finding resolved in a second hardening pass: process_lab now gives the
-  double-fork JSON readiness path a 20s timeout with diagnostics, then waits for
+- Low finding resolved in follow-up hardening: process_lab worker/grandchild
+  JSON IPC now writes payloads atomically (`temp` + `os.replace`) and readers
+  wait until JSON parsing succeeds. This removes the half-written JSON window
+  that remained after the timeout-only hardening. The fixture still waits for
   escaped child readiness before cleaner tests probe env/pgid state.

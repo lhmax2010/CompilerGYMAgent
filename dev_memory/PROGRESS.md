@@ -1,5 +1,23 @@
 # Development Progress
 
+## 2026-06-01T21:26:23+08:00 - Phase 06 / 6.5 double-fork flaky hardening completed
+
+- Fixed the remaining process_lab double-fork flaky root cause: worker/grandchild
+  JSON IPC now uses atomic temp-file writes plus `os.replace`.
+- Worker-side JSON readers now wait until payload parsing succeeds rather than
+  treating file existence as readiness.
+- Kept the previous diagnostics and escaped-child readiness polling because
+  they cover separate real timing windows.
+- Targeted process_lab/process_cleaner tests passed: 15 passed.
+- Process-management suite stress passed: 20/20 iterations of
+  `test_process_lab.py`, `test_process_cleaner.py`, `test_process_runner.py`,
+  and `test_process_registry.py`.
+- Double-fork stress passed: 50/50 runs.
+- Full suite passed: 508 passed.
+
+Next action: commit and push the atomic flaky hardening, then continue Phase 06
+Subtask 6.6 doctor/state_consistency.py.
+
 ## 2026-05-30T00:59:41Z - Phase 04 / Subtask 4.1 implementation completed
 
 - Started Phase 04 per `dev_memory/ROADMAP.yaml` and marked Phase 04 `in_progress`.

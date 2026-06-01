@@ -67,7 +67,7 @@ subtasks:
         status: done
       - item: "Ubuntu/Linux validation"
         status: done
-      - item: "Harden double-fork process_lab readiness after flaky review finding"
+      - item: "Harden double-fork process_lab readiness and JSON IPC atomicity after flaky review finding"
         status: done
   - id: "6.4"
     title: "workspace lock hardening (probe flock + LockStatus unknown)"

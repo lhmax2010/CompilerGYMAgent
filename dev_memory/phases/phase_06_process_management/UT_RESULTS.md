@@ -160,7 +160,12 @@ Review / validation sync:
 - Review range: `eef6b02..4bde11a`
 - Re-run checkpoint/identifier targeted tests: 164 passed
 - Re-run process_lab/process_cleaner targeted tests after flaky hardening: 15 passed
-- Re-run double-fork stress loop after second hardening: 50/50 passed
+- Re-run process suite stress loop after atomic JSON IPC hardening:
+  20/20 iterations passed
+- Re-run double-fork stress loop after atomic JSON IPC hardening: 50/50 passed
 - Re-run full suite: 508 passed
-- Low-1 flaky resolved by extending the double-fork JSON readiness timeout and
-  polling escaped child readiness before returning from the process_lab fixture.
+- Low-1 flaky resolved by making process_lab worker/grandchild JSON IPC atomic
+  (`temp` + `os.replace`) and by waiting for JSON payloads to parse
+  successfully before reading them. The earlier timeout-only hardening was not
+  sufficient under process-suite load because it still allowed a reader to see
+  a half-written JSON file.

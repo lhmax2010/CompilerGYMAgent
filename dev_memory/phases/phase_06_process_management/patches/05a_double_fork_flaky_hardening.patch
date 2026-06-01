@@ -1,167 +1,275 @@
 diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
-index 33777e3..12cbed3 100644
+index 12cbed3..c555db4 100644
 --- a/dev_memory/CURRENT_PHASE.yaml
 +++ b/dev_memory/CURRENT_PHASE.yaml
 @@ -1,7 +1,7 @@
  phase_id: phase_06_process_management
  phase_title: "Process Management (runner + cleaner + monitor)"
  started_at: 2026-06-01T15:30:36+08:00
--last_updated: 2026-06-01T20:37:50+08:00
-+last_updated: 2026-06-01T21:01:30+08:00
+-last_updated: 2026-06-01T21:01:30+08:00
++last_updated: 2026-06-01T21:26:23+08:00
  target_milestone: "M3 (advanced)"
  related_requirements:
    - REQUIREMENTS.md section 3.3.5
-@@ -248,10 +248,10 @@ subtasks:
+@@ -248,10 +248,11 @@ subtasks:
        - "Legacy checkpoints without operations load with empty operations and no current_trial_start_line."
        - "process_refs path/session/trial validation passed independent review."
        - "Checkpoint has no integrity hash by design; operation ledger does not require hash recomputation."
--      - "Low-1 process_lab double-fork flaky was resolved by waiting for child pgid/env readiness before returning from the fixture."
-+      - "Low-1 process_lab double-fork flaky was resolved in a second hardening pass: worker/fixture JSON waits now use a 20s timeout with diagnostics, and child pgid/env readiness is polled before returning from the fixture."
+-      - "Low-1 process_lab double-fork flaky was resolved in a second hardening pass: worker/fixture JSON waits now use a 20s timeout with diagnostics, and child pgid/env readiness is polled before returning from the fixture."
++      - "Low-1 process_lab double-fork flaky was resolved in follow-up hardening: worker/grandchild JSON IPC now uses atomic temp+replace writes, JSON readers wait until payload parsing succeeds, and escaped child pgid/env readiness is polled before returning from the fixture."
++      - "The earlier timeout-only hardening was not sufficient under process-suite load; the final fix removes the half-written JSON window."
      review_hardening_commit_pending: true
      ubuntu_validation_status: passed
      ubuntu_validation_tests:
--      targeted: "164 passed; process_lab/process_cleaner 15 passed"
-+      targeted: "164 passed; process_lab/process_cleaner 15 passed; double-fork stress 50/50 passed"
+-      targeted: "164 passed; process_lab/process_cleaner 15 passed; double-fork stress 50/50 passed"
++      targeted: "164 passed; process_lab/process_cleaner 15 passed; process suite stress 20/20 passed; double-fork stress 50/50 passed"
        full: "508 passed"
--next_action: "Commit/push 6.5 review sync plus double-fork flaky hardening, then begin Phase 06 Subtask 6.6 doctor/state_consistency.py."
-+next_action: "Commit/push 6.5 review sync plus second double-fork flaky hardening, then begin Phase 06 Subtask 6.6 doctor/state_consistency.py."
+-next_action: "Commit/push 6.5 review sync plus second double-fork flaky hardening, then begin Phase 06 Subtask 6.6 doctor/state_consistency.py."
++next_action: "Commit/push 6.5 review sync plus atomic double-fork flaky hardening, then begin Phase 06 Subtask 6.6 doctor/state_consistency.py."
 diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
-index b2aa674..21dc25a 100644
+index 21dc25a..c13743f 100644
 --- a/dev_memory/PROGRESS.md
 +++ b/dev_memory/PROGRESS.md
-@@ -1993,14 +1993,17 @@ Next action: generate patch artifacts, commit/push Subtask 6.5, then request Cla
-   - operation ledgers round-trip through checkpoint YAML,
-   - process refs validate path/session/trial boundaries,
-   - checkpoint has no integrity hash by design, so 6.5 requires no hash recomputation.
--- Addressed Low-1 from review:
-+- Addressed Low-1 from review in two passes:
-   - process_lab now waits for child pid/pgid/env readiness before returning
-     double-fork and child-process scenarios.
--  - This removes the timing window where cleaner probes could run before the
--    escaped child process was fully visible through `/proc`.
-+  - The double-fork worker/child-info JSON readiness timeout is now 20s and
-+    timeout errors include worker returncode/stdout/stderr diagnostics.
-+  - This removes both timing windows: worker info JSON not yet written and
-+    cleaner probes running before escaped child `/proc` state is ready.
- - Validation:
-   - `.venv/bin/python -m pytest tests/test_fs_memory.py tests/test_identifiers.py -q` -> 164 passed.
-   - `.venv/bin/python -m pytest tests/test_process_lab.py tests/test_process_cleaner.py -q` -> 15 passed.
-+  - `for i in $(seq 1 50); do .venv/bin/python -m pytest tests/test_process_cleaner.py::test_double_fork_escape_requires_env_marker_and_force -q || exit 1; done` -> 50/50 passed.
-   - `.venv/bin/python -m pytest tests/ -q` -> 508 passed.
+@@ -1,5 +1,23 @@
+ # Development Progress
 
- Next action: begin Subtask 6.6 doctor/state_consistency.py.
++## 2026-06-01T21:26:23+08:00 - Phase 06 / 6.5 double-fork flaky hardening completed
++
++- Fixed the remaining process_lab double-fork flaky root cause: worker/grandchild
++  JSON IPC now uses atomic temp-file writes plus `os.replace`.
++- Worker-side JSON readers now wait until payload parsing succeeds rather than
++  treating file existence as readiness.
++- Kept the previous diagnostics and escaped-child readiness polling because
++  they cover separate real timing windows.
++- Targeted process_lab/process_cleaner tests passed: 15 passed.
++- Process-management suite stress passed: 20/20 iterations of
++  `test_process_lab.py`, `test_process_cleaner.py`, `test_process_runner.py`,
++  and `test_process_registry.py`.
++- Double-fork stress passed: 50/50 runs.
++- Full suite passed: 508 passed.
++
++Next action: commit and push the atomic flaky hardening, then continue Phase 06
++Subtask 6.6 doctor/state_consistency.py.
++
+ ## 2026-05-30T00:59:41Z - Phase 04 / Subtask 4.1 implementation completed
+
+ - Started Phase 04 per `dev_memory/ROADMAP.yaml` and marked Phase 04 `in_progress`.
+diff --git a/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml b/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
+index b58cb3d..29258d3 100644
+--- a/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
+@@ -67,7 +67,7 @@ subtasks:
+         status: done
+       - item: "Ubuntu/Linux validation"
+         status: done
+-      - item: "Harden double-fork process_lab readiness after flaky review finding"
++      - item: "Harden double-fork process_lab readiness and JSON IPC atomicity after flaky review finding"
+         status: done
+   - id: "6.4"
+     title: "workspace lock hardening (probe flock + LockStatus unknown)"
 diff --git a/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md b/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
-index b4eef77..1fc60ce 100644
+index 1fc60ce..e727ede 100644
 --- a/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
 +++ b/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
-@@ -179,8 +179,10 @@ External review:
+@@ -179,10 +179,10 @@ External review:
  - Notes: operation ledger is backward-compatible, `process_refs` validation
    covers path/session/trial boundaries, `current_trial_start_line` is required
    for non-empty operations, and checkpoint has no integrity hash by design.
--- Low finding resolved: the 6.3 double-fork escape test was hardened by waiting
--  for escaped child pgid/env readiness in `process_lab` before cleaner probes
--  run.
-+- Low finding resolved in a second hardening pass: `process_lab` now gives the
-+  double-fork worker/child-info JSON path a 20s readiness window with
-+  returncode/stdout/stderr diagnostics, then waits for escaped child pgid/env
-+  readiness before cleaner probes run.
+-- Low finding resolved in a second hardening pass: `process_lab` now gives the
+-  double-fork worker/child-info JSON path a 20s readiness window with
+-  returncode/stdout/stderr diagnostics, then waits for escaped child pgid/env
+-  readiness before cleaner probes run.
++- Low finding resolved after follow-up hardening: `process_lab` now writes
++  worker/grandchild JSON IPC payloads atomically (`temp` + `os.replace`) and
++  readers wait until JSON parsing succeeds. This fixes the half-written JSON
++  window that the timeout-only hardening did not remove.
  - Validation re-run: checkpoint/identifier targeted set 164 passed,
--  process_lab/process_cleaner targeted set 15 passed, full suite 508 passed.
-+  process_lab/process_cleaner targeted set 15 passed, double-fork stress 50/50
-+  passed, full suite 508 passed.
+-  process_lab/process_cleaner targeted set 15 passed, double-fork stress 50/50
+-  passed, full suite 508 passed.
++  process_lab/process_cleaner targeted set 15 passed, process-suite stress
++  20/20 passed, double-fork stress 50/50 passed, full suite 508 passed.
 diff --git a/dev_memory/phases/phase_06_process_management/SUMMARY.md b/dev_memory/phases/phase_06_process_management/SUMMARY.md
-index e529e99..92ce97c 100644
+index 92ce97c..a5518d8 100644
 --- a/dev_memory/phases/phase_06_process_management/SUMMARY.md
 +++ b/dev_memory/phases/phase_06_process_management/SUMMARY.md
-@@ -230,5 +230,6 @@ Layer D work will use.
+@@ -230,6 +230,8 @@ Layer D work will use.
    - operation ledgers round-trip through YAML,
    - process refs cannot traverse paths or point at another session/trial,
    - non-empty operations require `current_trial_start_line`.
--- Low finding resolved: process_lab now waits for escaped child readiness before
--  double-fork cleaner tests probe env/pgid state.
-+- Low finding resolved in a second hardening pass: process_lab now gives the
-+  double-fork JSON readiness path a 20s timeout with diagnostics, then waits for
-+  escaped child readiness before cleaner tests probe env/pgid state.
+-- Low finding resolved in a second hardening pass: process_lab now gives the
+-  double-fork JSON readiness path a 20s timeout with diagnostics, then waits for
++- Low finding resolved in follow-up hardening: process_lab worker/grandchild
++  JSON IPC now writes payloads atomically (`temp` + `os.replace`) and readers
++  wait until JSON parsing succeeds. This removes the half-written JSON window
++  that remained after the timeout-only hardening. The fixture still waits for
+   escaped child readiness before cleaner tests probe env/pgid state.
 diff --git a/dev_memory/phases/phase_06_process_management/UT_RESULTS.md b/dev_memory/phases/phase_06_process_management/UT_RESULTS.md
-index 751a246..e6d7947 100644
+index e6d7947..ee4617b 100644
 --- a/dev_memory/phases/phase_06_process_management/UT_RESULTS.md
 +++ b/dev_memory/phases/phase_06_process_management/UT_RESULTS.md
-@@ -160,6 +160,7 @@ Review / validation sync:
+@@ -160,7 +160,12 @@ Review / validation sync:
  - Review range: `eef6b02..4bde11a`
  - Re-run checkpoint/identifier targeted tests: 164 passed
  - Re-run process_lab/process_cleaner targeted tests after flaky hardening: 15 passed
-+- Re-run double-fork stress loop after second hardening: 50/50 passed
+-- Re-run double-fork stress loop after second hardening: 50/50 passed
++- Re-run process suite stress loop after atomic JSON IPC hardening:
++  20/20 iterations passed
++- Re-run double-fork stress loop after atomic JSON IPC hardening: 50/50 passed
  - Re-run full suite: 508 passed
--- Low-1 flaky resolved by polling escaped child readiness before returning
--  from the process_lab fixture.
-+- Low-1 flaky resolved by extending the double-fork JSON readiness timeout and
-+  polling escaped child readiness before returning from the process_lab fixture.
+-- Low-1 flaky resolved by extending the double-fork JSON readiness timeout and
+-  polling escaped child readiness before returning from the process_lab fixture.
++- Low-1 flaky resolved by making process_lab worker/grandchild JSON IPC atomic
++  (`temp` + `os.replace`) and by waiting for JSON payloads to parse
++  successfully before reading them. The earlier timeout-only hardening was not
++  sufficient under process-suite load because it still allowed a reader to see
++  a half-written JSON file.
+diff --git a/dev_memory/phases/phase_06_process_management/patches/05a_double_fork_flaky_hardening.review.md b/dev_memory/phases/phase_06_process_management/patches/05a_double_fork_flaky_hardening.review.md
+index 2e0e321..5010662 100644
+--- a/dev_memory/phases/phase_06_process_management/patches/05a_double_fork_flaky_hardening.review.md
++++ b/dev_memory/phases/phase_06_process_management/patches/05a_double_fork_flaky_hardening.review.md
+@@ -8,12 +8,17 @@
+
+ ## Checks
+
++- [x] Worker/grandchild JSON IPC writes use `temp` + `os.replace` atomic
++  replacement.
++- [x] Worker-side JSON readers wait for successful parse, not only file
++  existence.
+ - [x] Child-mode process_lab fixtures wait for child pid visibility.
+ - [x] Child-mode fixtures wait until child pgid matches the worker-reported pgid.
+ - [x] Child-mode fixtures wait until the child env marker is readable when the
+   fixture requested one.
+ - [x] Worker/child-info JSON readiness uses a 20s timeout with diagnostics.
+ - [x] Double-fork cleaner test passed 50 consecutive runs.
++- [x] Full process-management test suite passed 20 consecutive runs under load.
+ - [x] process_cleaner double-fork tests pass after hardening.
+ - [x] Full suite passes.
+
+diff --git a/dev_memory/phases/phase_06_process_management/patches/05a_double_fork_flaky_hardening.summary.txt b/dev_memory/phases/phase_06_process_management/patches/05a_double_fork_flaky_hardening.summary.txt
+index 297b248..e8c7516 100644
+--- a/dev_memory/phases/phase_06_process_management/patches/05a_double_fork_flaky_hardening.summary.txt
++++ b/dev_memory/phases/phase_06_process_management/patches/05a_double_fork_flaky_hardening.summary.txt
+@@ -1,8 +1,13 @@
+-Phase 06 / Subtask 6.5 review hardening - double-fork process_lab readiness
++Phase 06 / Subtask 6.5 review hardening - atomic double-fork process_lab IPC
+
+ Resolved the Low-1 flaky finding from the 6.5 review.
+
+ Changes:
++- process_lab worker/grandchild JSON IPC now uses atomic temp-file writes plus
++  `os.replace`, so readers never observe a created-but-empty or half-written
++  JSON payload.
++- Worker-side JSON reads now wait until the payload parses successfully instead
++  of treating file existence as readiness.
+ - process_lab now waits for child process readiness before returning child-mode
+   fixtures.
+ - process_lab now gives worker/child-info JSON readiness 20 seconds rather
+@@ -10,12 +15,14 @@ Changes:
+ - Timeout errors include worker returncode/stdout/stderr diagnostics.
+ - Readiness checks confirm the child pid is visible, non-zombie, has the
+   expected pgid, and exposes the expected AGENT_SESSION_ID marker when required.
+-- This removes the timing window where process_cleaner could scan before a
+-  double-fork escaped child had written JSON or fully established pgid/env
+-  state.
++- This removes both timing windows found during review: process_cleaner probing
++  before escaped child pgid/env readiness, and worker-side readers observing a
++  half-written JSON file.
+
+ Validation:
+ - .venv/bin/python -m pytest tests/test_process_lab.py tests/test_process_cleaner.py -q -> 15 passed
+ - .venv/bin/python -m pytest tests/test_fs_memory.py tests/test_identifiers.py -q -> 164 passed
++- 20x process suite stress (test_process_lab.py + test_process_cleaner.py +
++  test_process_runner.py + test_process_registry.py) -> 20/20 passed
+ - 50x tests/test_process_cleaner.py::test_double_fork_escape_requires_env_marker_and_force -> 50/50 passed
+ - .venv/bin/python -m pytest tests/ -q -> 508 passed
 diff --git a/tests/fixtures/process_lab.py b/tests/fixtures/process_lab.py
-index f0cade1..101f2a9 100644
+index 101f2a9..6aa4cb6 100644
 --- a/tests/fixtures/process_lab.py
 +++ b/tests/fixtures/process_lab.py
-@@ -43,7 +43,7 @@ def write_info(path: Path, **extra: object) -> None:
-     path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+@@ -32,6 +32,31 @@ import time
+ from pathlib import Path
 
 
--def wait_for_file(path: Path, timeout: float = 5.0) -> None:
-+def wait_for_file(path: Path, timeout: float = 20.0) -> None:
++def atomic_write_json(path: Path, payload: dict[str, object]) -> None:
++    path.parent.mkdir(parents=True, exist_ok=True)
++    temp_path = path.with_name(f".{path.name}.{os.getpid()}.tmp")
++    try:
++        with temp_path.open("w", encoding="utf-8") as handle:
++            handle.write(json.dumps(payload, sort_keys=True))
++            handle.flush()
++            os.fsync(handle.fileno())
++        os.replace(temp_path, path)
++        try:
++            dir_fd = os.open(path.parent, os.O_RDONLY)
++        except OSError:
++            return
++        try:
++            os.fsync(dir_fd)
++        finally:
++            os.close(dir_fd)
++    except Exception:
++        try:
++            temp_path.unlink()
++        except FileNotFoundError:
++            pass
++        raise
++
++
+ def write_info(path: Path, **extra: object) -> None:
+     payload = {
+         "pid": os.getpid(),
+@@ -40,15 +65,21 @@ def write_info(path: Path, **extra: object) -> None:
+         "env_marker": os.environ.get("AGENT_SESSION_ID"),
+     }
+     payload.update(extra)
+-    path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
++    atomic_write_json(path, payload)
+
+
+-def wait_for_file(path: Path, timeout: float = 20.0) -> None:
++def wait_for_json(path: Path, timeout: float = 20.0) -> dict[str, object]:
      deadline = time.monotonic() + timeout
++    last_error: Exception | None = None
      while time.monotonic() < deadline:
          if path.exists():
-@@ -318,7 +318,7 @@ class ProcessLab:
-             env=env,
-         )
-         self._tracked_popen.append(popen)
--        payload = _wait_for_json(info_path)
-+        payload = _wait_for_json(info_path, process=popen)
-         child_pids, child_pgids = _child_identity(payload)
-         record = self._build_record(
-             pid=popen.pid,
-@@ -381,7 +381,12 @@ def process_lab(tmp_path: Path) -> ProcessLab:
-         lab.cleanup()
-
-
--def _wait_for_json(path: Path, *, timeout: float = 5.0) -> dict[str, Any]:
-+def _wait_for_json(
-+    path: Path,
-+    *,
-+    timeout: float = 20.0,
-+    process: subprocess.Popen[bytes] | None = None,
-+) -> dict[str, Any]:
-     deadline = time.monotonic() + timeout
-     last_error: Exception | None = None
-     while time.monotonic() < deadline:
-@@ -391,9 +396,30 @@ def _wait_for_json(path: Path, *, timeout: float = 5.0) -> dict[str, Any]:
-             except (json.JSONDecodeError, OSError) as exc:
-                 last_error = exc
+-            return
++            try:
++                return json.loads(path.read_text(encoding="utf-8"))
++            except (json.JSONDecodeError, OSError) as exc:
++                last_error = exc
          time.sleep(0.01)
-+    process_detail = _process_timeout_detail(process)
-     if last_error is not None:
--        raise RuntimeError(f"timed out reading process lab info {path}") from last_error
--    raise RuntimeError(f"timed out waiting for process lab info {path}")
-+        raise RuntimeError(
-+            f"timed out reading process lab info {path}; {process_detail}"
-+        ) from last_error
-+    raise RuntimeError(f"timed out waiting for process lab info {path}; {process_detail}")
-+
-+
-+def _process_timeout_detail(process: subprocess.Popen[bytes] | None) -> str:
-+    if process is None:
-+        return "worker process unavailable"
-+    returncode = process.poll()
-+    if returncode is None:
-+        return f"worker pid={process.pid} still running"
-+    try:
-+        stdout, stderr = process.communicate(timeout=1)
-+    except subprocess.TimeoutExpired:
-+        return f"worker pid={process.pid} exited with {returncode}; output unavailable"
-+    stdout_text = stdout.decode("utf-8", errors="replace").strip()
-+    stderr_text = stderr.decode("utf-8", errors="replace").strip()
-+    return (
-+        f"worker pid={process.pid} exited with {returncode}; "
-+        f"stdout={stdout_text!r}; stderr={stderr_text!r}"
-+    )
++    if last_error is not None:
++        raise RuntimeError(f"timed out reading {path}") from last_error
+     raise RuntimeError(f"timed out waiting for {path}")
 
 
- def _child_identity(payload: dict[str, Any]) -> tuple[tuple[int, ...], tuple[int, ...]]:
+@@ -100,8 +131,7 @@ def main() -> int:
+
+     if args.mode == "child_same_pgid":
+         child = spawn_child(script, child_info, args.lifetime, start_new_session=False)
+-        wait_for_file(child_info)
+-        child_payload = json.loads(child_info.read_text(encoding="utf-8"))
++        child_payload = wait_for_json(child_info)
+         write_info(
+             info,
+             child_pid=child.pid,
+@@ -113,8 +143,7 @@ def main() -> int:
+
+     if args.mode == "leader_exit_child_alive":
+         child = spawn_child(script, child_info, args.lifetime, start_new_session=False)
+-        wait_for_file(child_info)
+-        child_payload = json.loads(child_info.read_text(encoding="utf-8"))
++        child_payload = wait_for_json(child_info)
+         write_info(
+             info,
+             child_pid=child.pid,
+@@ -124,8 +153,7 @@ def main() -> int:
+         return 0
+
+     child = spawn_child(script, child_info, args.lifetime, start_new_session=True)
+-    wait_for_file(child_info)
+-    child_payload = json.loads(child_info.read_text(encoding="utf-8"))
++    child_payload = wait_for_json(child_info)
+     write_info(
+         info,
+         child_pid=child.pid,

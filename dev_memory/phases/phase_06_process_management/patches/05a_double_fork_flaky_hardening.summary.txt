@@ -1,8 +1,13 @@
-Phase 06 / Subtask 6.5 review hardening - double-fork process_lab readiness
+Phase 06 / Subtask 6.5 review hardening - atomic double-fork process_lab IPC
 
 Resolved the Low-1 flaky finding from the 6.5 review.
 
 Changes:
+- process_lab worker/grandchild JSON IPC now uses atomic temp-file writes plus
+  `os.replace`, so readers never observe a created-but-empty or half-written
+  JSON payload.
+- Worker-side JSON reads now wait until the payload parses successfully instead
+  of treating file existence as readiness.
 - process_lab now waits for child process readiness before returning child-mode
   fixtures.
 - process_lab now gives worker/child-info JSON readiness 20 seconds rather
@@ -10,12 +15,14 @@ Changes:
 - Timeout errors include worker returncode/stdout/stderr diagnostics.
 - Readiness checks confirm the child pid is visible, non-zombie, has the
   expected pgid, and exposes the expected AGENT_SESSION_ID marker when required.
-- This removes the timing window where process_cleaner could scan before a
-  double-fork escaped child had written JSON or fully established pgid/env
-  state.
+- This removes both timing windows found during review: process_cleaner probing
+  before escaped child pgid/env readiness, and worker-side readers observing a
+  half-written JSON file.
 
 Validation:
 - .venv/bin/python -m pytest tests/test_process_lab.py tests/test_process_cleaner.py -q -> 15 passed
 - .venv/bin/python -m pytest tests/test_fs_memory.py tests/test_identifiers.py -q -> 164 passed
+- 20x process suite stress (test_process_lab.py + test_process_cleaner.py +
+  test_process_runner.py + test_process_registry.py) -> 20/20 passed
 - 50x tests/test_process_cleaner.py::test_double_fork_escape_requires_env_marker_and_force -> 50/50 passed
 - .venv/bin/python -m pytest tests/ -q -> 508 passed

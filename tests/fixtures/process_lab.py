@@ -32,6 +32,31 @@ import time
 from pathlib import Path
 
 
+def atomic_write_json(path: Path, payload: dict[str, object]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        with temp_path.open("w", encoding="utf-8") as handle:
+            handle.write(json.dumps(payload, sort_keys=True))
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_path, path)
+        try:
+            dir_fd = os.open(path.parent, os.O_RDONLY)
+        except OSError:
+            return
+        try:
+            os.fsync(dir_fd)
+        finally:
+            os.close(dir_fd)
+    except Exception:
+        try:
+            temp_path.unlink()
+        except FileNotFoundError:
+            pass
+        raise
+
+
 def write_info(path: Path, **extra: object) -> None:
     payload = {
         "pid": os.getpid(),
@@ -40,15 +65,21 @@ def write_info(path: Path, **extra: object) -> None:
         "env_marker": os.environ.get("AGENT_SESSION_ID"),
     }
     payload.update(extra)
-    path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+    atomic_write_json(path, payload)
 
 
-def wait_for_file(path: Path, timeout: float = 20.0) -> None:
+def wait_for_json(path: Path, timeout: float = 20.0) -> dict[str, object]:
     deadline = time.monotonic() + timeout
+    last_error: Exception | None = None
     while time.monotonic() < deadline:
         if path.exists():
-            return
+            try:
+                return json.loads(path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError) as exc:
+                last_error = exc
         time.sleep(0.01)
+    if last_error is not None:
+        raise RuntimeError(f"timed out reading {path}") from last_error
     raise RuntimeError(f"timed out waiting for {path}")
 
 
@@ -100,8 +131,7 @@ def main() -> int:
 
     if args.mode == "child_same_pgid":
         child = spawn_child(script, child_info, args.lifetime, start_new_session=False)
-        wait_for_file(child_info)
-        child_payload = json.loads(child_info.read_text(encoding="utf-8"))
+        child_payload = wait_for_json(child_info)
         write_info(
             info,
             child_pid=child.pid,
@@ -113,8 +143,7 @@ def main() -> int:
 
     if args.mode == "leader_exit_child_alive":
         child = spawn_child(script, child_info, args.lifetime, start_new_session=False)
-        wait_for_file(child_info)
-        child_payload = json.loads(child_info.read_text(encoding="utf-8"))
+        child_payload = wait_for_json(child_info)
         write_info(
             info,
             child_pid=child.pid,
@@ -124,8 +153,7 @@ def main() -> int:
         return 0
 
     child = spawn_child(script, child_info, args.lifetime, start_new_session=True)
-    wait_for_file(child_info)
-    child_payload = json.loads(child_info.read_text(encoding="utf-8"))
+    child_payload = wait_for_json(child_info)
     write_info(
         info,
         child_pid=child.pid,
