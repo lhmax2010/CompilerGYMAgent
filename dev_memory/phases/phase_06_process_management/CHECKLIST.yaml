@@ -5,10 +5,10 @@ started_at: 2026-06-01T15:30:36+08:00
 subtasks:
   - id: "6.1"
     title: "process_identity.py + process_lab fixture"
-    status: implementation_complete
-    implementation_commit: pending
-    review_status: pending
-    ubuntu_validation_status: pending
+    status: done
+    implementation_commit: 2ff1342
+    review_status: approve
+    ubuntu_validation_status: passed
     checklist:
       - item: "Add additive ProcessIdentity / ProcessRecord Pydantic models"
         status: done
@@ -33,6 +33,6 @@ subtasks:
       - item: "Generate patch artifacts"
         status: done
       - item: "Claude review"
-        status: pending
+        status: done
       - item: "Ubuntu/Linux validation"
-        status: pending
+        status: done

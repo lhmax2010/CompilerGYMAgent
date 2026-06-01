@@ -28,3 +28,11 @@ Residual risks / follow-up:
 - Actual ownership scoring is intentionally deferred to 6.3.
 - Lease persistence is intentionally deferred to 6.2.
 - Operation ledger and checkpoint migration are intentionally deferred to 6.5.
+
+External review:
+
+- Verdict: Approve
+- Range: `dce83d2..2ff1342`
+- Notes: model validation is clean, existing schemas were not touched,
+  process_lab reproduces the seven planned scenarios, and independent cleanup
+  probing found 0 residual processes.

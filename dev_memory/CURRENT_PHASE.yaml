@@ -1,7 +1,7 @@
 phase_id: phase_06_process_management
 phase_title: "Process Management (runner + cleaner + monitor)"
 started_at: 2026-06-01T15:30:36+08:00
-last_updated: 2026-06-01T15:30:36+08:00
+last_updated: 2026-06-01T16:00:35+08:00
 target_milestone: "M3 (advanced)"
 related_requirements:
   - REQUIREMENTS.md section 3.3.5
@@ -12,7 +12,7 @@ roadmap_reference: dev_memory/ROADMAP.yaml planned_phases[id=06]
 subtasks:
   - id: "6.1"
     title: "process_identity.py + process_lab fixture"
-    status: implementation_complete
+    status: done
     related_requirements:
       - ROADMAP.yaml Phase 06 deliverable process_identity.py
       - ROADMAP.yaml Phase 06 deliverable process_lab fixture
@@ -46,5 +46,13 @@ subtasks:
     patch_file: dev_memory/phases/phase_06_process_management/patches/01_process_identity_lab.patch
     patch_generated: true
     commit_required: true
-    commit_pending: true
-next_action: "Push Phase 06 Subtask 6.1 implementation for Claude review."
+    commit_pending: false
+    implementation_commit: 2ff1342
+    external_review_verdict: approve
+    external_reviewed_at: 2026-06-01T16:00:35+08:00
+    external_review_tests: "471 passed; targeted 20 passed; 0 residual process leak"
+    ubuntu_validation_status: passed
+    ubuntu_validation_tests:
+      targeted: "20 passed"
+      full: "471 passed"
+next_action: "Begin Phase 06 Subtask 6.2: process_runner.py + Process Lease Registry."

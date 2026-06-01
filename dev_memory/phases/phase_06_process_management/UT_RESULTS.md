@@ -21,3 +21,12 @@ Notes:
 - `test_process_lab.py` is marked POSIX-only because it exercises real process
   groups and `killpg`.
 - process_lab tests were run on Linux in the local environment.
+
+Review / validation sync:
+
+- Claude review verdict: Approve
+- Review range: `dce83d2..2ff1342`
+- Re-run targeted tests: 20 passed
+- Re-run full suite: 471 passed
+- Independent reviewer probe: seven process_lab scenarios reproducible; 0
+  residual processes after cleanup.
