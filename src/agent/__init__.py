@@ -127,6 +127,12 @@ from .init import (
     verify_initialized_for_startup,
     write_initialized_state,
 )
+from .process_identity import (
+    AGENT_SESSION_ID_ENV,
+    ProcessIdentity,
+    ProcessRecord,
+    compute_cmdline_hash,
+)
 from .registry import (
     ModulesRegistry,
     ProjectNamespace,
@@ -191,6 +197,7 @@ from .workspace_lock import (
 __all__ = [
     "AgentConfig",
     "AgentError",
+    "AGENT_SESSION_ID_ENV",
     "AtomicWriteError",
     "ByteRange",
     "CanaryRecord",
@@ -249,6 +256,8 @@ __all__ = [
     "NamespaceLayout",
     "Option",
     "ProjectNamespace",
+    "ProcessIdentity",
+    "ProcessRecord",
     "RegistryLoadError",
     "RegistryValidationError",
     "ScoreVsBest",
@@ -304,6 +313,7 @@ __all__ = [
     "collect_history_summary",
     "collect_trial_startup_validation_inputs",
     "compute_combo_hash",
+    "compute_cmdline_hash",
     "compute_clean_plan",
     "compute_experience_local_payload_hash",
     "compute_learned_rule_payload_hash",

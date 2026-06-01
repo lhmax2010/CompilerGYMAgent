@@ -1,0 +1,38 @@
+phase_id: phase_06_process_management
+phase_title: "Process Management (runner + cleaner + monitor)"
+status: in_progress
+started_at: 2026-06-01T15:30:36+08:00
+subtasks:
+  - id: "6.1"
+    title: "process_identity.py + process_lab fixture"
+    status: implementation_complete
+    implementation_commit: pending
+    review_status: pending
+    ubuntu_validation_status: pending
+    checklist:
+      - item: "Add additive ProcessIdentity / ProcessRecord Pydantic models"
+        status: done
+      - item: "Validate pid, pgid, create_time, session_id, cmdline_hash, env marker visibility, and cgroup_path"
+        status: done
+      - item: "Reuse validate_session_id_atom for session_id safety"
+        status: done
+      - item: "Keep CheckpointProcess and WorkspaceLockHolder schemas unchanged"
+        status: done
+      - item: "Add compute_cmdline_hash helper for diagnostic cmdline hashes"
+        status: done
+      - item: "Add process_lab controlled Python subprocess fixture"
+        status: done
+      - item: "Cover pid_gone / create_time_drift / pgid_mismatch / env_marker_missing / AccessDenied / leader_dead_children_alive / double_fork_escape scenarios"
+        status: done
+      - item: "Ensure process_lab cleanup uses killpg and avoids test process-group self-kill"
+        status: done
+      - item: "Export new process identity symbols from agent.__init__"
+        status: done
+      - item: "Run targeted tests and full production suite"
+        status: done
+      - item: "Generate patch artifacts"
+        status: done
+      - item: "Claude review"
+        status: pending
+      - item: "Ubuntu/Linux validation"
+        status: pending

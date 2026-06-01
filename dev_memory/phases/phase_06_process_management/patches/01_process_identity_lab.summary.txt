@@ -1,0 +1,23 @@
+Subtask 6.1 adds the Phase 06 process identity foundation and reusable
+process_lab fixture.
+
+Implemented:
+- src/agent/process_identity.py with ProcessIdentity / ProcessRecord,
+  AGENT_SESSION_ID_ENV, and compute_cmdline_hash().
+- Pydantic validation for pid, pgid, create_time, path-safe session_id,
+  sha256 cmdline_hash, env_marker_visible_at_spawn, and optional cgroup_path.
+- agent.__init__ exports for the new public symbols.
+- tests/fixtures/process_lab.py with controlled Python subprocess scenarios:
+  live process group, pid_gone, create_time_drift, pgid_mismatch,
+  env_marker_missing, simulated AccessDenied, leader_dead_children_alive, and
+  double_fork_escape.
+- tests/test_process_identity.py and tests/test_process_lab.py.
+
+Validation:
+- tests/test_process_identity.py: 13 passed
+- tests/test_process_lab.py: 7 passed
+- Full suite: 471 passed
+
+Guardrails:
+- No existing CheckpointProcess / WorkspaceLockHolder schema changes.
+- No process cleaner or lease persistence behavior yet.

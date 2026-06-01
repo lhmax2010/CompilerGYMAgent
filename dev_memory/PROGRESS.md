@@ -1778,3 +1778,30 @@ Next action: generate review-fix patch artifacts, commit/push, then request re-r
   - `.venv/bin/python -m pytest tests/ -q` -> 451 passed.
 
 Next action: generate final patch artifacts, commit/push, then request Claude final review.
+
+## 2026-06-01T07:30:36Z - Phase 06 / Subtask 6.1 implemented
+
+- Started Phase 06 Process Management after design review approval.
+- Added `src/agent/process_identity.py` with additive `ProcessIdentity` and
+  `ProcessRecord` models.
+- Added `AGENT_SESSION_ID_ENV` and `compute_cmdline_hash()` for future runner
+  and cleaner work.
+- Kept existing `CheckpointProcess` and `WorkspaceLockHolder` schemas
+  unchanged.
+- Added `tests/fixtures/process_lab.py`, a controlled Python-subprocess test
+  fixture for process-management scenarios:
+  - live process groups,
+  - pid_gone records,
+  - create_time_drift,
+  - pgid_mismatch,
+  - env_marker_missing,
+  - simulated AccessDenied,
+  - leader_dead_children_alive,
+  - double_fork_escape.
+- Added targeted tests for the process identity model and process_lab fixture.
+- Validation:
+  - `.venv/bin/python -m pytest tests/test_process_identity.py -q` -> 13 passed.
+  - `.venv/bin/python -m pytest tests/test_process_lab.py -q` -> 7 passed.
+  - `.venv/bin/python -m pytest tests/ -q` -> 471 passed.
+
+Next action: generate patch artifacts, commit/push Subtask 6.1, then request Claude review.

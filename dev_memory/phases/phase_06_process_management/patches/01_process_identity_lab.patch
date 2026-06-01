@@ -1,0 +1,1379 @@
+diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index fe7c6b7..5d1f625 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -1,267 +1,50 @@
+-phase_id: phase_05_5_integration_feasibility
+-phase_title: "Integration Feasibility Mock Spike"
+-started_at: 2026-05-30T09:17:16Z
+-last_updated: 2026-05-30T10:31:10Z
+-target_milestone: "M1.5 (integration gate)"
++phase_id: phase_06_process_management
++phase_title: "Process Management (runner + cleaner + monitor)"
++started_at: 2026-06-01T15:30:36+08:00
++last_updated: 2026-06-01T15:30:36+08:00
++target_milestone: "M3 (advanced)"
+ related_requirements:
+-  - REQUIREMENTS.md section 4.6
+-  - REQUIREMENTS.md section 4.10
+-status: done
+-spike: true
+-parallel_with: phase_06_process_management
+-roadmap_reference: dev_memory/ROADMAP.yaml planned_phases[id=05.5]
+-scope_guardrails:
+-  - "No production src/agent changes"
+-  - "No real gbs"
+-  - "No subprocess/process management"
+-  - "No workspace protection/spec mutation"
+-  - "No LangGraph"
+-  - "No real LLM API"
++  - REQUIREMENTS.md section 3.3.5
++  - REQUIREMENTS.md section 4.7.1 process_cleaner
++  - REQUIREMENTS.md section 4.11.x
++status: in_progress
++roadmap_reference: dev_memory/ROADMAP.yaml planned_phases[id=06]
+ subtasks:
+-  - id: "05.5.1"
+-    title: "Synthetic objective + OptionV0 IR + random runner baseline"
+-    status: done
++  - id: "6.1"
++    title: "process_identity.py + process_lab fixture"
++    status: implementation_complete
+     related_requirements:
+-      - ROADMAP.yaml Phase 05.5 synthetic objective goal
+-      - ROADMAP.yaml Phase 05.5 OptionV0 IR goal
+-      - ROADMAP.yaml Phase 05.5 baseline strategy goal
++      - ROADMAP.yaml Phase 06 deliverable process_identity.py
++      - ROADMAP.yaml Phase 06 deliverable process_lab fixture
+     files_created:
+-      - spikes/05.5_integration_feasibility/option_ir.py
+-      - spikes/05.5_integration_feasibility/objective.py
+-      - spikes/05.5_integration_feasibility/strategies.py
+-      - spikes/05.5_integration_feasibility/runner.py
+-      - spikes/05.5_integration_feasibility/tests/conftest.py
+-      - spikes/05.5_integration_feasibility/tests/test_objective_ir_runner.py
+-      - dev_memory/phases/phase_05_5_integration_feasibility/CHECKLIST.yaml
+-      - dev_memory/phases/phase_05_5_integration_feasibility/REVIEW_NOTES.md
+-      - dev_memory/phases/phase_05_5_integration_feasibility/SUMMARY.md
+-      - dev_memory/phases/phase_05_5_integration_feasibility/UT_RESULTS.md
++      - src/agent/process_identity.py
++      - tests/fixtures/process_lab.py
++      - tests/test_process_identity.py
++      - tests/test_process_lab.py
++      - dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
++      - dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
++      - dev_memory/phases/phase_06_process_management/SUMMARY.md
++      - dev_memory/phases/phase_06_process_management/UT_RESULTS.md
+     files_modified:
+-      - dev_memory/ROADMAP.yaml
+-      - dev_memory/ROADMAP.md
++      - src/agent/__init__.py
++      - dev_memory/CURRENT_PHASE.yaml
+       - dev_memory/DECISIONS.md
+       - dev_memory/PROGRESS.md
+-      - dev_memory/spikes/05.5_integration_feasibility_findings.md
+-      - spikes/05.5_integration_feasibility/README.md
+-    behavior_notes:
+-      - "SyntheticObjective has exact known optimum {-O3, -funroll-loops, -fA, -fB}."
+-      - "-fA and -fB are individually harmful but jointly worth +12, creating a real second-order interaction trap."
+-      - "The objective penalizes extra options so random supersets cannot tie the known optimum."
+-      - "RandomStrategy is intentionally naive and may propose conflicting options; this preserves a baseline for later constraint-layer comparisons."
+-      - "run_strategy records deterministic TrialOutcome history for seeded runs."
+-    ut_required: true
+-    ut_passed: true
+-    targeted_ut: "7 spike tests passed, 0 failed"
+-    production_regression_ut: "451 production tests passed, 0 failed"
+-    self_review_required: true
+-    self_reviewed: true
+-    patch_required: true
+-    patch_file: dev_memory/phases/phase_05_5_integration_feasibility/patches/01_objective_ir_runner.patch
+-    patch_generated: true
+-    commit_required: true
+-    commit_pending: false
+-    commit_hash: c75b150
+-    commit_message: "spike_05_5: add synthetic objective and random runner"
+-    external_review_verdict: approve
+-    external_reviewed_at: 2026-05-30T09:41:38Z
+-    external_review_tests: "spike 7 passed; production 451 passed; src/agent zero changes"
+-    external_review_findings:
+-      low:
+-        - "Low-1: -fA/-fB single-option penalty (-1) is within noise sigma=2.0. Keep for now; re-check local-mutation distinction in 05.5.2."
+-    target_environment_validation:
+-      os: Ubuntu/Linux
+-      python: ".venv/bin/python"
+-      spike_pytest: "7 passed in 0.01s"
+-      production_pytest: "451 passed in 1.63s"
+-      runner: "local .venv + pytest"
+-  - id: "05.5.2"
+-    title: "MockLLM + LLMOnlyStrategy + LocalMutationStrategy baselines"
+-    status: done
+-    related_requirements:
+-      - ROADMAP.yaml Phase 05.5 four-strategy comparison goal
+-      - ROADMAP.yaml Phase 05.5 MockLLM good/poor goal
+-      - ROADMAP.yaml Phase 05.5 second-order interaction exit criterion
+-    files_created:
+-      - spikes/05.5_integration_feasibility/mock_llm.py
+-      - spikes/05.5_integration_feasibility/tests/test_llm_local_baselines.py
+-    files_modified:
+-      - spikes/05.5_integration_feasibility/strategies.py
+-      - spikes/05.5_integration_feasibility/runner.py
+-      - dev_memory/phases/phase_05_5_integration_feasibility/CHECKLIST.yaml
+-      - dev_memory/phases/phase_05_5_integration_feasibility/REVIEW_NOTES.md
+-      - dev_memory/phases/phase_05_5_integration_feasibility/SUMMARY.md
+-      - dev_memory/phases/phase_05_5_integration_feasibility/UT_RESULTS.md
+-      - dev_memory/spikes/05.5_integration_feasibility_findings.md
+-      - dev_memory/PROGRESS.md
+-    behavior_notes:
+-      - "MockLLM quality=good emits catalog-bounded plausible proposals and can propose the known optimum."
+-      - "MockLLM quality=poor emits conflicts, unknown options, and repeats."
+-      - "LLMOnlyStrategy deliberately trusts MockLLM output without memory, constraints, or dedup."
+-      - "LocalMutationStrategy is a one-flip hill climber around the best successful combo."
+-      - "On the noiseless synthetic objective, LocalMutationStrategy gets stuck at {-O3, -funroll-loops} and never proposes the -fA/-fB pair."
+-    ut_required: true
+-    ut_passed: true
+-    targeted_ut: "14 spike tests passed, 0 failed"
+-    production_regression_ut: "451 production tests passed, 0 failed"
+-    self_review_required: true
+-    self_reviewed: true
+-    patch_required: true
+-    patch_file: dev_memory/phases/phase_05_5_integration_feasibility/patches/02_llm_local_baselines.patch
+-    patch_generated: true
+-    commit_required: true
+-    commit_pending: false
+-    commit_hash: 1e1fa12
+-    commit_message: "spike_05_5: add llm and local baselines"
+-    external_review_verdict: approve
+-    external_reviewed_at: 2026-05-30T09:59:34Z
+-    external_review_tests: "spike 14 passed; production 451 passed; src/agent zero changes"
+-    external_review_findings:
+-      low:
+-        - "Low-1: good-quality MockLLM proposal pool includes the known optimum. Treat full-agent-vs-LLMOnly comparison as poor-LLM robustness plus good-LLM trial-efficiency, not only best-score delta."
+-    target_environment_validation:
+-      os: Ubuntu/Linux
+-      python: ".venv/bin/python"
+-      spike_pytest: "14 passed in 0.02s"
+-      production_pytest: "451 passed in 1.62s"
+-      runner: "local .venv + pytest"
+-  - id: "05.5.3"
+-    title: "FullAgentStrategy core: constraints + memory + schedule"
+-    status: done
+-    related_requirements:
+-      - ROADMAP.yaml Phase 05.5 full-agent strategy goal
+-      - ROADMAP.yaml Phase 05.5 constraint layer goal
+-      - ROADMAP.yaml Phase 05.5 experience memory goal
+-      - ROADMAP.yaml Phase 05.5 good/poor LLM baseline exit criteria
+-    files_created:
+-      - spikes/05.5_integration_feasibility/full_agent.py
+-      - spikes/05.5_integration_feasibility/tests/test_full_agent_strategy.py
+-    files_modified:
+-      - dev_memory/phases/phase_05_5_integration_feasibility/CHECKLIST.yaml
+-      - dev_memory/phases/phase_05_5_integration_feasibility/REVIEW_NOTES.md
+-      - dev_memory/phases/phase_05_5_integration_feasibility/SUMMARY.md
+-      - dev_memory/phases/phase_05_5_integration_feasibility/UT_RESULTS.md
+-      - dev_memory/spikes/05.5_integration_feasibility_findings.md
+-      - dev_memory/PROGRESS.md
+-      - spikes/05.5_integration_feasibility/README.md
+-    behavior_notes:
+-      - "FullAgentStrategy combines warmup candidates, MockLLM proposals, pair-jump exploration, local mutation, random fallback, and deterministic enumeration."
+-      - "ConstraintLayer rejects empty, duplicate, unknown, conflicting, known-failed-subset, and soft-blocked candidates before spending mock trial budget."
+-      - "ExperienceMemory derives tried combos, successes, and known failed subsets from TrialOutcome history."
+-      - "Suspicion counter can force a soft-blocked combo after repeated rejection, modeling false-positive recovery."
+-      - "Poor LLM scenario: full agent reaches the second-order optimum while LLM-only misses it."
+-      - "Good LLM scenario: full agent and LLM-only both reach optimum, but full agent spends zero duplicate trial budget."
+-    ut_required: true
+-    ut_passed: true
+-    targeted_ut: "21 spike tests passed, 0 failed"
+-    production_regression_ut: "451 production tests passed, 0 failed"
+-    self_review_required: true
+-    self_reviewed: true
+-    patch_required: true
+-    patch_file: dev_memory/phases/phase_05_5_integration_feasibility/patches/03_full_agent_core.patch
+-    patch_generated: true
+-    commit_required: true
+-    commit_pending: false
+-    commit_hash: 0f2f5ea
+-    commit_message: "spike_05_5: add full agent core"
+-    external_review_verdict: approve_with_follow_up
+-    external_reviewed_at: 2026-05-30T10:14:24Z
+-    external_review_tests: "spike 21 passed; production 451 passed; src/agent zero changes"
+-    external_review_findings:
+-      medium:
+-        - "Med-1: full agent's second-order optimum discovery is primarily driven by deterministic enumeration fallback, not pair-jump/interaction learning. Findings must record the ablation, and next subtask should remove or shrink brute enumeration to test scalable interaction discovery."
+-      low:
+-        - "Low-1: pair-jump currently enumerates all missing option pairs, which is also brute-force at larger option counts; future Phase 07 should make interaction exploration experience-guided."
+-    target_environment_validation:
+-      os: Ubuntu/Linux
+-      python: ".venv/bin/python"
+-      spike_pytest: "21 passed in 0.04s"
+-      production_pytest: "451 passed in 1.60s"
+-      runner: "local .venv + pytest"
+-  - id: "05.5.4"
+-    title: "Replace brute enumeration with near-miss guided interaction exploration"
+-    status: done
+-    related_requirements:
+-      - ROADMAP.yaml Phase 05.5 second-order interaction exit criterion
+-      - ROADMAP.yaml Phase 05.5 against-baseline exit criterion
+-      - "05.5.3 Med-1 follow-up"
+-    files_modified:
+-      - spikes/05.5_integration_feasibility/full_agent.py
+-      - spikes/05.5_integration_feasibility/tests/test_full_agent_strategy.py
+-      - spikes/05.5_integration_feasibility/README.md
+-      - dev_memory/phases/phase_05_5_integration_feasibility/CHECKLIST.yaml
+-      - dev_memory/phases/phase_05_5_integration_feasibility/REVIEW_NOTES.md
+-      - dev_memory/phases/phase_05_5_integration_feasibility/SUMMARY.md
+-      - dev_memory/phases/phase_05_5_integration_feasibility/UT_RESULTS.md
+-      - dev_memory/spikes/05.5_integration_feasibility_findings.md
+-      - dev_memory/PROGRESS.md
++      - dev_memory/ROADMAP.yaml
+     behavior_notes:
+-      - "Removed deterministic size-1..4 enumeration fallback from FullAgentStrategy."
+-      - "Random fallback is no longer allowed to brute-force combinations; it only samples single options and cannot independently find the second-order optimum."
+-      - "Interaction exploration now uses observed mildly harmful near-miss single-option additions around the current best combo."
+-      - "Neutral noise options are excluded from near-miss suspects via min/max score-drop bounds."
+-      - "2x2 ablation now isolates the mechanism: guided ON finds optimum with random ON or OFF; guided OFF finds 0/20 with random ON or OFF."
+-      - "Candidate exhaustion is represented by RunResult.exhausted instead of masking already-found optima as run failures."
++      - "ProcessIdentity and ProcessRecord are additive Pydantic models; existing CheckpointProcess and WorkspaceLockHolder schemas are unchanged."
++      - "cmdline_hash is validated but diagnostic-only per Phase 06 design."
++      - "process_lab uses controlled Python subprocesses with start_new_session=True, not raw fork."
++      - "process_lab covers live process groups, pid_gone records, create_time drift, pgid mismatch, env_marker_missing, simulated AccessDenied, leader-dead child survival, and double-fork-style escaped child sessions."
+     ut_required: true
+     ut_passed: true
+-    targeted_ut: "25 spike tests passed, 0 failed"
+-    production_regression_ut: "451 production tests passed, 0 failed"
++    targeted_ut: "20 tests passed, 0 failed (test_process_identity.py + test_process_lab.py)"
++    production_regression_ut: "471 tests passed, 0 failed"
+     self_review_required: true
+     self_reviewed: true
+     patch_required: true
+-    patch_file: dev_memory/phases/phase_05_5_integration_feasibility/patches/04_guided_interaction.patch
+-    patch_generated: true
+-    review_fix_patch_file: dev_memory/phases/phase_05_5_integration_feasibility/patches/05_guided_interaction_review_fix.patch
+-    review_fix_patch_generated: true
+-    commit_required: true
+-    commit_pending: false
+-    commit_hash: 9aa1646
+-    commit_message: "spike_05_5: fix guided interaction ablation"
+-    implementation_commit: d7648d5
+-    external_review_verdict: request_changes
+-    external_reviewed_at: 2026-05-30T10:31:10Z
+-    external_review_findings:
+-      high:
+-        - "High-1: first guided-interaction follow-up still found the second-order optimum via random fallback, not guided interaction. Reviewer 2x2 ablation showed guided ON/random OFF = 0/20 and guided OFF/random ON = 20/20."
+-      medium:
+-        - "Med-1: near-miss threshold admitted neutral noise options because extra-option penalty drop=0.5 was inside the old 0..1.25 range."
+-    review_fix_notes:
+-      - "Random fallback changed from combination sampling to single-option sampling, so it cannot independently construct the second-order optimum."
+-      - "Near-miss selection now requires score drop in [0.75, 1.25], keeping -fA/-fB and excluding neutral -fno-plt/-flto drops."
+-      - "RunResult records exhausted=True when a strategy runs out of candidates, preserving already-found best trials."
+-      - "Added explicit 2x2 isolation tests: guided ON/random OFF succeeds; guided OFF/random ON fails."
+-    review_fix_tests:
+-      spike_pytest: "25 passed in 0.04s"
+-      production_pytest: "451 passed in 1.61s"
+-  - id: "05.5.5"
+-    title: "Final test matrix closure + findings handoff"
+-    status: implementation_complete
+-    related_requirements:
+-      - ROADMAP.yaml Phase 05.5 test matrix
+-      - ROADMAP.yaml Phase 7.0 handoff
+-      - ROADMAP.yaml Phase 08 handoff
+-    files_modified:
+-      - spikes/05.5_integration_feasibility/tests/test_full_agent_strategy.py
+-      - dev_memory/spikes/05.5_integration_feasibility_findings.md
+-      - dev_memory/ROADMAP.yaml
+-      - dev_memory/DECISIONS.md
+-      - dev_memory/CURRENT_PHASE.yaml
+-      - dev_memory/phases/phase_05_5_integration_feasibility/CHECKLIST.yaml
+-      - dev_memory/phases/phase_05_5_integration_feasibility/REVIEW_NOTES.md
+-      - dev_memory/phases/phase_05_5_integration_feasibility/SUMMARY.md
+-      - dev_memory/phases/phase_05_5_integration_feasibility/UT_RESULTS.md
+-      - dev_memory/PROGRESS.md
+-    behavior_notes:
+-      - "Completed remaining non-interaction-dependent test matrix items under default noisy objective."
+-      - "Recorded that noiseless guided interaction works, but noisy near-miss discovery is limited by noise_sigma=2.0."
+-      - "Updated ROADMAP 05.5 to done and handed noise-robust interaction discovery to Phase 7.0 + Phase 08."
+-      - "Added DECISIONS entry for the spike finding and handoff."
+-    ut_required: true
+-    ut_passed: true
+-    targeted_ut: "31 spike tests passed, 0 failed"
+-    production_regression_ut: "451 production tests passed, 0 failed"
+-    patch_required: true
+-    patch_file: dev_memory/phases/phase_05_5_integration_feasibility/patches/06_final_findings_matrix.patch
++    patch_file: dev_memory/phases/phase_06_process_management/patches/01_process_identity_lab.patch
+     patch_generated: true
+     commit_required: true
+     commit_pending: true
+-next_action: "Push final Phase 05.5 closure range for Claude review, then begin Phase 06 Process Management."
++next_action: "Push Phase 06 Subtask 6.1 implementation for Claude review."
+diff --git a/dev_memory/DECISIONS.md b/dev_memory/DECISIONS.md
+index 2088006..993e6aa 100644
+--- a/dev_memory/DECISIONS.md
++++ b/dev_memory/DECISIONS.md
+@@ -859,3 +859,16 @@ Decision records must include:
+   - Keep iterating Phase 05.5 until noisy interaction discovery passes. Rejected because it would prematurely implement Phase 08-style statistics or overfit the mock objective.
+   - Accept full-agent success under random/brute fallback as proof of candidate-engine intelligence. Rejected because those mechanisms do not scale to real option spaces.
+   - Leave interaction discovery as an implicit Phase 07 concern. Rejected because it is now the clearest cross-phase risk and needs explicit Phase 7.0/08 handoff.
++
++## 2026-06-01T07:30:36Z - Phase 06 starts with additive ProcessIdentity and reusable process_lab
++
++- affected_requirement:
++  - ROADMAP.yaml Phase 06
++  - REQUIREMENTS.md section 3.3.5
++  - REQUIREMENTS.md section 4.11.x
++- decision: Subtask 6.1 adds `ProcessIdentity` / `ProcessRecord` as new shared process identity models and a reusable `process_lab` test fixture, without changing `CheckpointProcess`, `WorkspaceLockHolder`, process cleanup behavior, or existing checkpoint/lock schemas.
++- rationale: Phase 06 needs a common vocabulary before runner, lease registry, cleaner, doctor, and checkpoint operation ledger work can proceed. Keeping 6.1 additive avoids coupling model introduction to high-risk cleanup behavior. A real Python-subprocess lab gives later subtasks reproducible process-group scenarios while preserving the "no raw fork" test design.
++- alternatives_considered:
++  - Migrate `CheckpointProcess` and `WorkspaceLockHolder` immediately to the new model. Rejected because schema migration and lock/checkpoint compatibility belong to later Phase 06 subtasks.
++  - Start with `process_runner` before the fixture. Rejected because runner/cleaner tests need the process_lab substrate first.
++  - Mock all process behavior. Rejected because Phase 06 correctness depends on real `start_new_session`, pgid, env-marker, and `killpg` behavior on Linux.
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index 52bb2e6..5fe876d 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -1778,3 +1778,30 @@ Next action: generate review-fix patch artifacts, commit/push, then request re-r
+   - `.venv/bin/python -m pytest tests/ -q` -> 451 passed.
+ 
+ Next action: generate final patch artifacts, commit/push, then request Claude final review.
++
++## 2026-06-01T07:30:36Z - Phase 06 / Subtask 6.1 implemented
++
++- Started Phase 06 Process Management after design review approval.
++- Added `src/agent/process_identity.py` with additive `ProcessIdentity` and
++  `ProcessRecord` models.
++- Added `AGENT_SESSION_ID_ENV` and `compute_cmdline_hash()` for future runner
++  and cleaner work.
++- Kept existing `CheckpointProcess` and `WorkspaceLockHolder` schemas
++  unchanged.
++- Added `tests/fixtures/process_lab.py`, a controlled Python-subprocess test
++  fixture for process-management scenarios:
++  - live process groups,
++  - pid_gone records,
++  - create_time_drift,
++  - pgid_mismatch,
++  - env_marker_missing,
++  - simulated AccessDenied,
++  - leader_dead_children_alive,
++  - double_fork_escape.
++- Added targeted tests for the process identity model and process_lab fixture.
++- Validation:
++  - `.venv/bin/python -m pytest tests/test_process_identity.py -q` -> 13 passed.
++  - `.venv/bin/python -m pytest tests/test_process_lab.py -q` -> 7 passed.
++  - `.venv/bin/python -m pytest tests/ -q` -> 471 passed.
++
++Next action: generate patch artifacts, commit/push Subtask 6.1, then request Claude review.
+diff --git a/dev_memory/ROADMAP.yaml b/dev_memory/ROADMAP.yaml
+index f55ab49..f5c4649 100644
+--- a/dev_memory/ROADMAP.yaml
++++ b/dev_memory/ROADMAP.yaml
+@@ -1,6 +1,6 @@
+ # dev_memory/ROADMAP.yaml
+ roadmap_version: 1
+-last_updated: 2026-05-30T11:00:31Z
++last_updated: 2026-06-01T07:30:36Z
+ status: active
+ 
+ # ============================================================
+@@ -80,7 +80,8 @@ planned_phases:
+ 
+   - id: "06"
+     title: "Process Management (runner + cleaner + monitor)"
+-    status: planned
++    status: in_progress
++    started_at: "2026-06-01T15:30:36+08:00"
+     milestone: "M3 (advanced)"
+     requirement_sections: ["3.3.5", "4.7.1 (process_cleaner)", "4.11.x"]
+     dependencies: ["01", "03"]
+diff --git a/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml b/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
+new file mode 100644
+index 0000000..4d532ef
+--- /dev/null
++++ b/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
+@@ -0,0 +1,38 @@
++phase_id: phase_06_process_management
++phase_title: "Process Management (runner + cleaner + monitor)"
++status: in_progress
++started_at: 2026-06-01T15:30:36+08:00
++subtasks:
++  - id: "6.1"
++    title: "process_identity.py + process_lab fixture"
++    status: implementation_complete
++    implementation_commit: pending
++    review_status: pending
++    ubuntu_validation_status: pending
++    checklist:
++      - item: "Add additive ProcessIdentity / ProcessRecord Pydantic models"
++        status: done
++      - item: "Validate pid, pgid, create_time, session_id, cmdline_hash, env marker visibility, and cgroup_path"
++        status: done
++      - item: "Reuse validate_session_id_atom for session_id safety"
++        status: done
++      - item: "Keep CheckpointProcess and WorkspaceLockHolder schemas unchanged"
++        status: done
++      - item: "Add compute_cmdline_hash helper for diagnostic cmdline hashes"
++        status: done
++      - item: "Add process_lab controlled Python subprocess fixture"
++        status: done
++      - item: "Cover pid_gone / create_time_drift / pgid_mismatch / env_marker_missing / AccessDenied / leader_dead_children_alive / double_fork_escape scenarios"
++        status: done
++      - item: "Ensure process_lab cleanup uses killpg and avoids test process-group self-kill"
++        status: done
++      - item: "Export new process identity symbols from agent.__init__"
++        status: done
++      - item: "Run targeted tests and full production suite"
++        status: done
++      - item: "Generate patch artifacts"
++        status: done
++      - item: "Claude review"
++        status: pending
++      - item: "Ubuntu/Linux validation"
++        status: pending
+diff --git a/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md b/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
+new file mode 100644
+index 0000000..5716d74
+--- /dev/null
++++ b/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
+@@ -0,0 +1,30 @@
++# Phase 06 Review Notes
++
++## Subtask 6.1 - Process Identity + process_lab
++
++Self-review checklist:
++
++- [x] `ProcessIdentity` / `ProcessRecord` are additive and do not mutate
++  existing checkpoint or workspace-lock schemas.
++- [x] `session_id` validation reuses `validate_session_id_atom()`.
++- [x] `cmdline_hash` is modeled as diagnostic-only; no ownership scoring is
++  implemented in 6.1.
++- [x] `cgroup_path` is optional and reserved for v2 without introducing cgroup
++  behavior.
++- [x] `process_lab` uses controlled Python subprocess scripts, not raw fork.
++- [x] Each process_lab child starts in a dedicated process group unless the
++  scenario intentionally creates same-pgid children or escaped child sessions.
++- [x] Cleanup uses `killpg` and skips the current test runner process group.
++- [x] leader-dead / children-alive and escaped-child scenarios expose child
++  pids and pgids for later cleaner tests.
++- [x] AccessDenied is explicitly modeled as a simulation hook for later psutil
++  monkeypatch tests.
++- [x] Targeted tests cover model validation, hash stability, env marker
++  visibility, pid-gone records, pgid mismatch, and process-group scenarios.
++- [x] Full test suite passes after exports.
++
++Residual risks / follow-up:
++
++- Actual ownership scoring is intentionally deferred to 6.3.
++- Lease persistence is intentionally deferred to 6.2.
++- Operation ledger and checkpoint migration are intentionally deferred to 6.5.
+diff --git a/dev_memory/phases/phase_06_process_management/SUMMARY.md b/dev_memory/phases/phase_06_process_management/SUMMARY.md
+new file mode 100644
+index 0000000..3f04025
+--- /dev/null
++++ b/dev_memory/phases/phase_06_process_management/SUMMARY.md
+@@ -0,0 +1,44 @@
++# Phase 06 - Process Management
++
++## Subtask 6.1 - Process Identity + process_lab
++
++Started Phase 06 with the shared model and test substrate that later runner,
++lease registry, cleaner, and doctor work will depend on.
++
++### Changes
++
++- Added `src/agent/process_identity.py`.
++- Added `ProcessIdentity` and `ProcessRecord` Pydantic models with:
++  - `pid`
++  - `pgid`
++  - `create_time`
++  - `session_id`
++  - `cmdline_hash`
++  - `env_marker_visible_at_spawn`
++  - `cgroup_path`
++- Reused `validate_session_id_atom()` for process session id validation.
++- Added `compute_cmdline_hash()` for stable diagnostic command-line hashes.
++- Exported the new process identity symbols from `agent.__init__`.
++- Added `tests/fixtures/process_lab.py` as a reusable real-subprocess fixture.
++- Added process_lab support for:
++  - live process groups,
++  - pid-gone records,
++  - create-time drift records,
++  - pgid mismatch records,
++  - missing env marker at spawn,
++  - simulated `psutil.AccessDenied`,
++  - leader-dead / children-alive process groups,
++  - double-fork-style escaped child sessions.
++
++### Guardrails
++
++- Existing `CheckpointProcess` and `WorkspaceLockHolder` schemas were not
++  changed.
++- No process cleanup behavior was introduced in this subtask.
++- process_lab uses controlled Python subprocesses rather than raw fork.
++
++### Validation
++
++- `tests/test_process_identity.py`: 13 passed
++- `tests/test_process_lab.py`: 7 passed
++- Full suite: 471 passed
+diff --git a/dev_memory/phases/phase_06_process_management/UT_RESULTS.md b/dev_memory/phases/phase_06_process_management/UT_RESULTS.md
+new file mode 100644
+index 0000000..75a4d67
+--- /dev/null
++++ b/dev_memory/phases/phase_06_process_management/UT_RESULTS.md
+@@ -0,0 +1,23 @@
++# Phase 06 UT Results
++
++## Subtask 6.1 - Process Identity + process_lab
++
++Commands:
++
++```bash
++.venv/bin/python -m pytest tests/test_process_identity.py -q
++.venv/bin/python -m pytest tests/test_process_lab.py -q
++.venv/bin/python -m pytest tests/ -q
++```
++
++Results:
++
++- `tests/test_process_identity.py`: 13 passed
++- `tests/test_process_lab.py`: 7 passed
++- Full suite: 471 passed
++
++Notes:
++
++- `test_process_lab.py` is marked POSIX-only because it exercises real process
++  groups and `killpg`.
++- process_lab tests were run on Linux in the local environment.
+diff --git a/dev_memory/phases/phase_06_process_management/patches/01_process_identity_lab.review.md b/dev_memory/phases/phase_06_process_management/patches/01_process_identity_lab.review.md
+new file mode 100644
+index 0000000..631d4c0
+--- /dev/null
++++ b/dev_memory/phases/phase_06_process_management/patches/01_process_identity_lab.review.md
+@@ -0,0 +1,36 @@
++# Self Review - Phase 06 / Subtask 6.1
++
++## Scope
++
++Additive foundation only:
++
++- shared process identity models,
++- reusable process_lab test fixture,
++- targeted tests,
++- dev_memory tracking.
++
++No process cleanup, runner, lease registry, checkpoint migration, or lock
++behavior changes were introduced.
++
++## Checks
++
++- `ProcessRecord` validates the fields required by ROADMAP Phase 06.
++- `session_id` validation uses the existing `validate_session_id_atom()`.
++- `cmdline_hash` is validated but remains diagnostic-only.
++- `process_lab` uses Python subprocess scripts and `start_new_session=True`.
++- `process_lab` exposes the seven planned scenario families for later tests.
++- Cleanup uses `killpg` and avoids the current pytest process group.
++- Full suite passes.
++
++## Test Results
++
++```bash
++.venv/bin/python -m pytest tests/test_process_identity.py -q  # 13 passed
++.venv/bin/python -m pytest tests/test_process_lab.py -q       # 7 passed
++.venv/bin/python -m pytest tests/ -q                          # 471 passed
++```
++
++## Residual Risk
++
++The fixture starts real Linux process groups, so Ubuntu validation should run it
++on the target host before considering 6.1 fully synced.
+diff --git a/dev_memory/phases/phase_06_process_management/patches/01_process_identity_lab.summary.txt b/dev_memory/phases/phase_06_process_management/patches/01_process_identity_lab.summary.txt
+new file mode 100644
+index 0000000..5252025
+--- /dev/null
++++ b/dev_memory/phases/phase_06_process_management/patches/01_process_identity_lab.summary.txt
+@@ -0,0 +1,23 @@
++Subtask 6.1 adds the Phase 06 process identity foundation and reusable
++process_lab fixture.
++
++Implemented:
++- src/agent/process_identity.py with ProcessIdentity / ProcessRecord,
++  AGENT_SESSION_ID_ENV, and compute_cmdline_hash().
++- Pydantic validation for pid, pgid, create_time, path-safe session_id,
++  sha256 cmdline_hash, env_marker_visible_at_spawn, and optional cgroup_path.
++- agent.__init__ exports for the new public symbols.
++- tests/fixtures/process_lab.py with controlled Python subprocess scenarios:
++  live process group, pid_gone, create_time_drift, pgid_mismatch,
++  env_marker_missing, simulated AccessDenied, leader_dead_children_alive, and
++  double_fork_escape.
++- tests/test_process_identity.py and tests/test_process_lab.py.
++
++Validation:
++- tests/test_process_identity.py: 13 passed
++- tests/test_process_lab.py: 7 passed
++- Full suite: 471 passed
++
++Guardrails:
++- No existing CheckpointProcess / WorkspaceLockHolder schema changes.
++- No process cleaner or lease persistence behavior yet.
+diff --git a/src/agent/__init__.py b/src/agent/__init__.py
+index 4521078..c9a4477 100644
+--- a/src/agent/__init__.py
++++ b/src/agent/__init__.py
+@@ -127,6 +127,12 @@ from .init import (
+     verify_initialized_for_startup,
+     write_initialized_state,
+ )
++from .process_identity import (
++    AGENT_SESSION_ID_ENV,
++    ProcessIdentity,
++    ProcessRecord,
++    compute_cmdline_hash,
++)
+ from .registry import (
+     ModulesRegistry,
+     ProjectNamespace,
+@@ -191,6 +197,7 @@ from .workspace_lock import (
+ __all__ = [
+     "AgentConfig",
+     "AgentError",
++    "AGENT_SESSION_ID_ENV",
+     "AtomicWriteError",
+     "ByteRange",
+     "CanaryRecord",
+@@ -249,6 +256,8 @@ __all__ = [
+     "NamespaceLayout",
+     "Option",
+     "ProjectNamespace",
++    "ProcessIdentity",
++    "ProcessRecord",
+     "RegistryLoadError",
+     "RegistryValidationError",
+     "ScoreVsBest",
+@@ -304,6 +313,7 @@ __all__ = [
+     "collect_history_summary",
+     "collect_trial_startup_validation_inputs",
+     "compute_combo_hash",
++    "compute_cmdline_hash",
+     "compute_clean_plan",
+     "compute_experience_local_payload_hash",
+     "compute_learned_rule_payload_hash",
+diff --git a/src/agent/process_identity.py b/src/agent/process_identity.py
+new file mode 100644
+index 0000000..1e8f2de
+--- /dev/null
++++ b/src/agent/process_identity.py
+@@ -0,0 +1,87 @@
++"""Shared process identity models for Phase 06 process management."""
++
++from __future__ import annotations
++
++import hashlib
++from collections.abc import Sequence
++from typing import Any
++
++from pydantic import BaseModel, ConfigDict, Field
++from pydantic import field_validator
++
++from .config import NonEmptyStr
++from .identifiers import validate_session_id_atom
++
++
++AGENT_SESSION_ID_ENV = "AGENT_SESSION_ID"
++
++
++class StrictProcessIdentityModel(BaseModel):
++    model_config = ConfigDict(extra="forbid", validate_assignment=True)
++
++
++class ProcessIdentity(StrictProcessIdentityModel):
++    """Identity evidence for an agent-managed process group.
++
++    `cmdline_hash` is diagnostic only. Cleanup attribution must not use it as
++    a safety score because command lines are too brittle across wrappers and
++    workspace moves.
++    """
++
++    pid: int = Field(gt=0)
++    pgid: int = Field(ge=0)
++    create_time: float = Field(ge=0)
++    session_id: NonEmptyStr
++    cmdline_hash: NonEmptyStr
++    env_marker_visible_at_spawn: bool
++    cgroup_path: str | None = None
++
++    @field_validator("session_id", mode="before")
++    @classmethod
++    def session_id_must_not_be_trimmed(cls, value: Any) -> Any:
++        if isinstance(value, str) and value != value.strip():
++            raise ValueError("session_id cannot contain surrounding whitespace")
++        return value
++
++    @field_validator("session_id")
++    @classmethod
++    def session_id_must_be_safe(cls, value: str) -> str:
++        validate_session_id_atom(value, "session_id")
++        return value
++
++    @field_validator("cmdline_hash")
++    @classmethod
++    def cmdline_hash_must_be_sha256(cls, value: str) -> str:
++        _validate_sha256_digest(value, "cmdline_hash")
++        return value
++
++    @field_validator("cgroup_path")
++    @classmethod
++    def cgroup_path_must_be_non_empty(cls, value: str | None) -> str | None:
++        if value is not None and not value:
++            raise ValueError("cgroup_path cannot be empty")
++        return value
++
++
++class ProcessRecord(ProcessIdentity):
++    """Concrete process lease/checkpoint identity record."""
++
++
++def compute_cmdline_hash(cmdline: Sequence[str]) -> str:
++    """Return a stable diagnostic hash for a process command line."""
++
++    payload = "\0".join(cmdline).encode("utf-8", errors="surrogateescape")
++    return "sha256:" + hashlib.sha256(payload).hexdigest()
++
++
++def _validate_sha256_digest(value: str, label: str) -> None:
++    prefix = "sha256:"
++    if not value.startswith(prefix):
++        raise ValueError(f"{label} must start with 'sha256:'")
++    hexdigest = value[len(prefix) :]
++    if len(hexdigest) != 64:
++        raise ValueError(f"{label} must contain a 64-character sha256 digest")
++    try:
++        int(hexdigest, 16)
++    except ValueError as exc:
++        raise ValueError(f"{label} must be hexadecimal") from exc
+diff --git a/tests/fixtures/process_lab.py b/tests/fixtures/process_lab.py
+new file mode 100644
+index 0000000..9a1c944
+--- /dev/null
++++ b/tests/fixtures/process_lab.py
+@@ -0,0 +1,417 @@
++from __future__ import annotations
++
++import json
++import os
++import signal
++import subprocess
++import sys
++import time
++from dataclasses import dataclass
++from pathlib import Path
++from typing import Any
++
++import psutil
++import pytest
++
++from agent.process_identity import (
++    AGENT_SESSION_ID_ENV,
++    ProcessRecord,
++    compute_cmdline_hash,
++)
++
++
++_WORKER_SOURCE = r'''
++from __future__ import annotations
++
++import argparse
++import json
++import os
++import subprocess
++import sys
++import time
++from pathlib import Path
++
++
++def write_info(path: Path, **extra: object) -> None:
++    payload = {
++        "pid": os.getpid(),
++        "pgid": os.getpgid(0),
++        "ppid": os.getppid(),
++        "env_marker": os.environ.get("AGENT_SESSION_ID"),
++    }
++    payload.update(extra)
++    path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
++
++
++def wait_for_file(path: Path, timeout: float = 5.0) -> None:
++    deadline = time.monotonic() + timeout
++    while time.monotonic() < deadline:
++        if path.exists():
++            return
++        time.sleep(0.01)
++    raise RuntimeError(f"timed out waiting for {path}")
++
++
++def sleep_loop(lifetime: float) -> None:
++    deadline = time.monotonic() + lifetime
++    while time.monotonic() < deadline:
++        time.sleep(0.1)
++
++
++def spawn_child(script: Path, info: Path, lifetime: float, *, start_new_session: bool) -> subprocess.Popen[bytes]:
++    return subprocess.Popen(
++        [
++            sys.executable,
++            str(script),
++            "--mode",
++            "sleep",
++            "--info",
++            str(info),
++            "--lifetime",
++            str(lifetime),
++        ],
++        stdin=subprocess.DEVNULL,
++        stdout=subprocess.DEVNULL,
++        stderr=subprocess.DEVNULL,
++        start_new_session=start_new_session,
++        env=os.environ.copy(),
++    )
++
++
++def main() -> int:
++    parser = argparse.ArgumentParser()
++    parser.add_argument("--mode", choices=["sleep", "child_same_pgid", "leader_exit_child_alive", "double_fork_escape"], required=True)
++    parser.add_argument("--info", required=True)
++    parser.add_argument("--child-info")
++    parser.add_argument("--lifetime", type=float, default=60.0)
++    args = parser.parse_args()
++
++    info = Path(args.info)
++    child_info = Path(args.child_info) if args.child_info else None
++    script = Path(__file__).resolve()
++
++    if args.mode == "sleep":
++        write_info(info)
++        sleep_loop(args.lifetime)
++        return 0
++
++    if child_info is None:
++        raise RuntimeError("--child-info is required for child modes")
++
++    if args.mode == "child_same_pgid":
++        child = spawn_child(script, child_info, args.lifetime, start_new_session=False)
++        wait_for_file(child_info)
++        child_payload = json.loads(child_info.read_text(encoding="utf-8"))
++        write_info(
++            info,
++            child_pid=child.pid,
++            child_pgid=child_payload["pgid"],
++            child_info=str(child_info),
++        )
++        sleep_loop(args.lifetime)
++        return 0
++
++    if args.mode == "leader_exit_child_alive":
++        child = spawn_child(script, child_info, args.lifetime, start_new_session=False)
++        wait_for_file(child_info)
++        child_payload = json.loads(child_info.read_text(encoding="utf-8"))
++        write_info(
++            info,
++            child_pid=child.pid,
++            child_pgid=child_payload["pgid"],
++            child_info=str(child_info),
++        )
++        return 0
++
++    child = spawn_child(script, child_info, args.lifetime, start_new_session=True)
++    wait_for_file(child_info)
++    child_payload = json.loads(child_info.read_text(encoding="utf-8"))
++    write_info(
++        info,
++        child_pid=child.pid,
++        child_pgid=child_payload["pgid"],
++        child_info=str(child_info),
++    )
++    return 0
++
++
++if __name__ == "__main__":
++    raise SystemExit(main())
++'''
++
++
++@dataclass(frozen=True)
++class LabProcess:
++    popen: subprocess.Popen[bytes]
++    record: ProcessRecord
++    info_path: Path
++    child_pids: tuple[int, ...] = ()
++    child_pgids: tuple[int, ...] = ()
++
++    @property
++    def pid(self) -> int:
++        return self.record.pid
++
++    @property
++    def pgid(self) -> int:
++        return self.record.pgid
++
++
++class ProcessLab:
++    """Reusable process fixture for Phase 06 process-management tests."""
++
++    def __init__(self, root: Path) -> None:
++        self.root = root
++        self.root.mkdir(parents=True, exist_ok=True)
++        self.script_path = self.root / "_process_lab_worker.py"
++        self.script_path.write_text(_WORKER_SOURCE, encoding="utf-8")
++        self._tracked_popen: list[subprocess.Popen[bytes]] = []
++        self._tracked_pgids: set[int] = set()
++
++    def spawn_live(
++        self,
++        *,
++        session_id: str = "sess_process_lab",
++        role: str = "worker",
++        include_env_marker: bool = True,
++        lifetime: float = 60.0,
++    ) -> LabProcess:
++        return self._spawn(
++            mode="sleep",
++            session_id=session_id,
++            role=role,
++            include_env_marker=include_env_marker,
++            lifetime=lifetime,
++        )
++
++    def spawn_with_same_pgid_child(
++        self,
++        *,
++        session_id: str = "sess_process_lab",
++        role: str = "worker",
++        lifetime: float = 60.0,
++    ) -> LabProcess:
++        return self._spawn(
++            mode="child_same_pgid",
++            session_id=session_id,
++            role=role,
++            include_env_marker=True,
++            lifetime=lifetime,
++        )
++
++    def spawn_leader_dead_children_alive(
++        self,
++        *,
++        session_id: str = "sess_process_lab",
++        role: str = "worker",
++        lifetime: float = 60.0,
++    ) -> LabProcess:
++        process = self._spawn(
++            mode="leader_exit_child_alive",
++            session_id=session_id,
++            role=role,
++            include_env_marker=True,
++            lifetime=lifetime,
++        )
++        process.popen.wait(timeout=5)
++        return process
++
++    def spawn_double_fork_escape(
++        self,
++        *,
++        session_id: str = "sess_process_lab",
++        role: str = "worker",
++        lifetime: float = 60.0,
++    ) -> LabProcess:
++        process = self._spawn(
++            mode="double_fork_escape",
++            session_id=session_id,
++            role=role,
++            include_env_marker=True,
++            lifetime=lifetime,
++        )
++        process.popen.wait(timeout=5)
++        return process
++
++    def make_pid_gone_record(self) -> ProcessRecord:
++        process = self.spawn_live(lifetime=60.0)
++        self.terminate_process_group(process.pgid)
++        process.popen.wait(timeout=5)
++        return process.record
++
++    def with_create_time_drift(
++        self, record: ProcessRecord, *, drift_seconds: float = 3600.0
++    ) -> ProcessRecord:
++        return record.model_copy(
++            update={"create_time": record.create_time + drift_seconds}
++        )
++
++    def with_pgid_mismatch(self, record: ProcessRecord, *, pgid: int = 0) -> ProcessRecord:
++        return record.model_copy(update={"pgid": pgid})
++
++    def access_denied_for(self, pid: int) -> psutil.AccessDenied:
++        return psutil.AccessDenied(pid=pid, name="process_lab")
++
++    def terminate_process_group(self, pgid: int) -> None:
++        if pgid <= 0 or pgid == os.getpgrp():
++            return
++        try:
++            os.killpg(pgid, signal.SIGTERM)
++        except ProcessLookupError:
++            return
++        deadline = time.monotonic() + 2.0
++        while time.monotonic() < deadline:
++            if not _pgid_has_members(pgid):
++                return
++            time.sleep(0.02)
++        try:
++            os.killpg(pgid, signal.SIGKILL)
++        except ProcessLookupError:
++            return
++
++    def cleanup(self) -> None:
++        for pgid in sorted(self._tracked_pgids, reverse=True):
++            self.terminate_process_group(pgid)
++        for popen in self._tracked_popen:
++            try:
++                popen.wait(timeout=2)
++            except subprocess.TimeoutExpired:
++                popen.kill()
++                popen.wait(timeout=2)
++
++    def _spawn(
++        self,
++        *,
++        mode: str,
++        session_id: str,
++        role: str,
++        include_env_marker: bool,
++        lifetime: float,
++    ) -> LabProcess:
++        info_path = self.root / f"{role}-{mode}-{time.monotonic_ns()}.json"
++        child_info_path = self.root / f"{role}-{mode}-{time.monotonic_ns()}-child.json"
++        args = [
++            sys.executable,
++            str(self.script_path),
++            "--mode",
++            mode,
++            "--info",
++            str(info_path),
++            "--lifetime",
++            str(lifetime),
++        ]
++        if mode != "sleep":
++            args.extend(["--child-info", str(child_info_path)])
++
++        env = os.environ.copy()
++        if include_env_marker:
++            env[AGENT_SESSION_ID_ENV] = session_id
++        else:
++            env.pop(AGENT_SESSION_ID_ENV, None)
++
++        popen = subprocess.Popen(
++            args,
++            stdin=subprocess.DEVNULL,
++            stdout=subprocess.PIPE,
++            stderr=subprocess.PIPE,
++            start_new_session=True,
++            env=env,
++        )
++        self._tracked_popen.append(popen)
++        payload = _wait_for_json(info_path)
++        child_pids, child_pgids = _child_identity(payload)
++        record = self._build_record(
++            pid=popen.pid,
++            session_id=session_id,
++            fallback_cmdline=args,
++            fallback_env_marker=payload.get("env_marker") == session_id,
++        )
++        self._tracked_pgids.add(record.pgid)
++        self._tracked_pgids.update(child_pgids)
++        return LabProcess(
++            popen=popen,
++            record=record,
++            info_path=info_path,
++            child_pids=child_pids,
++            child_pgids=child_pgids,
++        )
++
++    def _build_record(
++        self,
++        *,
++        pid: int,
++        session_id: str,
++        fallback_cmdline: list[str],
++        fallback_env_marker: bool,
++    ) -> ProcessRecord:
++        proc = psutil.Process(pid)
++        try:
++            cmdline = proc.cmdline()
++        except (psutil.AccessDenied, psutil.NoSuchProcess):
++            cmdline = fallback_cmdline
++        return ProcessRecord(
++            pid=pid,
++            pgid=os.getpgid(pid),
++            create_time=proc.create_time(),
++            session_id=session_id,
++            cmdline_hash=compute_cmdline_hash(cmdline),
++            env_marker_visible_at_spawn=_env_marker_visible(
++                proc, session_id, fallback=fallback_env_marker
++            ),
++            cgroup_path=None,
++        )
++
++
++def create_process_lab(tmp_path: Path) -> ProcessLab:
++    return ProcessLab(tmp_path / "process_lab")
++
++
++@pytest.fixture
++def process_lab(tmp_path: Path) -> ProcessLab:
++    lab = create_process_lab(tmp_path)
++    try:
++        yield lab
++    finally:
++        lab.cleanup()
++
++
++def _wait_for_json(path: Path, *, timeout: float = 5.0) -> dict[str, Any]:
++    deadline = time.monotonic() + timeout
++    last_error: Exception | None = None
++    while time.monotonic() < deadline:
++        if path.exists():
++            try:
++                return json.loads(path.read_text(encoding="utf-8"))
++            except (json.JSONDecodeError, OSError) as exc:
++                last_error = exc
++        time.sleep(0.01)
++    if last_error is not None:
++        raise RuntimeError(f"timed out reading process lab info {path}") from last_error
++    raise RuntimeError(f"timed out waiting for process lab info {path}")
++
++
++def _child_identity(payload: dict[str, Any]) -> tuple[tuple[int, ...], tuple[int, ...]]:
++    if "child_pid" not in payload:
++        return (), ()
++    return (int(payload["child_pid"]),), (int(payload["child_pgid"]),)
++
++
++def _env_marker_visible(
++    proc: psutil.Process, session_id: str, *, fallback: bool
++) -> bool:
++    try:
++        return proc.environ().get(AGENT_SESSION_ID_ENV) == session_id
++    except (psutil.AccessDenied, psutil.NoSuchProcess):
++        return fallback
++
++
++def _pgid_has_members(pgid: int) -> bool:
++    for proc in psutil.process_iter(["pid", "status"]):
++        try:
++            if proc.info.get("status") == psutil.STATUS_ZOMBIE:
++                continue
++            if os.getpgid(proc.info["pid"]) == pgid:
++                return True
++        except (ProcessLookupError, psutil.NoSuchProcess, psutil.AccessDenied):
++            continue
++    return False
+diff --git a/tests/test_process_identity.py b/tests/test_process_identity.py
+new file mode 100644
+index 0000000..6529cc9
+--- /dev/null
++++ b/tests/test_process_identity.py
+@@ -0,0 +1,81 @@
++from __future__ import annotations
++
++import pytest
++from pydantic import ValidationError
++
++from agent import (
++    AGENT_SESSION_ID_ENV,
++    ProcessIdentity,
++    ProcessRecord,
++    compute_cmdline_hash,
++)
++
++
++def test_process_record_accepts_expected_fields() -> None:
++    record = ProcessRecord(
++        pid=123,
++        pgid=456,
++        create_time=1.25,
++        session_id="sess_process_1",
++        cmdline_hash=compute_cmdline_hash(["python", "-m", "worker"]),
++        env_marker_visible_at_spawn=True,
++        cgroup_path=None,
++    )
++
++    assert record.pid == 123
++    assert record.pgid == 456
++    assert record.session_id == "sess_process_1"
++    assert record.env_marker_visible_at_spawn is True
++    assert ProcessIdentity.model_validate(record.model_dump()).model_dump() == (
++        record.model_dump()
++    )
++    assert AGENT_SESSION_ID_ENV == "AGENT_SESSION_ID"
++
++
++@pytest.mark.parametrize(
++    ("field", "value"),
++    [
++        ("pid", 0),
++        ("pgid", -1),
++        ("create_time", -0.1),
++        ("cmdline_hash", "not-a-sha"),
++        ("cgroup_path", ""),
++    ],
++)
++def test_process_record_rejects_invalid_field_values(
++    field: str, value: object
++) -> None:
++    data = {
++        "pid": 123,
++        "pgid": 456,
++        "create_time": 1.25,
++        "session_id": "sess_process_1",
++        "cmdline_hash": compute_cmdline_hash(["python"]),
++        "env_marker_visible_at_spawn": True,
++        "cgroup_path": None,
++    }
++    data[field] = value
++
++    with pytest.raises(ValidationError):
++        ProcessRecord.model_validate(data)
++
++
++@pytest.mark.parametrize(
++    "session_id",
++    ["../escape", "bad/slash", "bad space", " trimmed", ".", ""],
++)
++def test_process_record_reuses_safe_session_id_contract(session_id: str) -> None:
++    with pytest.raises(ValidationError):
++        ProcessRecord(
++            pid=123,
++            pgid=456,
++            create_time=1.25,
++            session_id=session_id,
++            cmdline_hash=compute_cmdline_hash(["python"]),
++            env_marker_visible_at_spawn=True,
++        )
++
++
++def test_compute_cmdline_hash_is_stable_and_boundary_sensitive() -> None:
++    assert compute_cmdline_hash(["ab", "c"]) == compute_cmdline_hash(["ab", "c"])
++    assert compute_cmdline_hash(["ab", "c"]) != compute_cmdline_hash(["a", "bc"])
+diff --git a/tests/test_process_lab.py b/tests/test_process_lab.py
+new file mode 100644
+index 0000000..61fc40e
+--- /dev/null
++++ b/tests/test_process_lab.py
+@@ -0,0 +1,114 @@
++from __future__ import annotations
++
++import os
++
++import psutil
++import pytest
++
++from agent import ProcessRecord
++from tests.fixtures.process_lab import create_process_lab
++
++
++pytestmark = pytest.mark.skipif(os.name != "posix", reason="process_lab is POSIX-only")
++
++
++def test_process_lab_spawns_live_process_group(tmp_path) -> None:
++    lab = create_process_lab(tmp_path)
++    try:
++        process = lab.spawn_live(session_id="sess_lab_live")
++
++        assert process.pid == process.record.pid
++        assert os.getpgid(process.pid) == process.pgid
++        assert process.record.session_id == "sess_lab_live"
++        assert process.record.env_marker_visible_at_spawn is True
++        assert process.record.cmdline_hash.startswith("sha256:")
++    finally:
++        lab.cleanup()
++
++
++def test_process_lab_can_create_pid_gone_record(tmp_path) -> None:
++    lab = create_process_lab(tmp_path)
++    try:
++        record = lab.make_pid_gone_record()
++
++        assert isinstance(record, ProcessRecord)
++        assert not _same_process_is_alive(record)
++    finally:
++        lab.cleanup()
++
++
++def test_process_lab_record_mutators_cover_drift_and_pgid_mismatch(tmp_path) -> None:
++    lab = create_process_lab(tmp_path)
++    try:
++        process = lab.spawn_live()
++
++        drifted = lab.with_create_time_drift(process.record, drift_seconds=99.0)
++        mismatched = lab.with_pgid_mismatch(process.record, pgid=0)
++
++        assert drifted.create_time == process.record.create_time + 99.0
++        assert drifted.pid == process.record.pid
++        assert mismatched.pgid == 0
++        assert mismatched.pid == process.record.pid
++    finally:
++        lab.cleanup()
++
++
++def test_process_lab_can_spawn_without_env_marker(tmp_path) -> None:
++    lab = create_process_lab(tmp_path)
++    try:
++        process = lab.spawn_live(
++            session_id="sess_lab_no_marker",
++            include_env_marker=False,
++        )
++
++        assert process.record.session_id == "sess_lab_no_marker"
++        assert process.record.env_marker_visible_at_spawn is False
++    finally:
++        lab.cleanup()
++
++
++def test_process_lab_exposes_access_denied_exception(tmp_path) -> None:
++    lab = create_process_lab(tmp_path)
++    error = lab.access_denied_for(12345)
++
++    assert isinstance(error, psutil.AccessDenied)
++    assert error.pid == 12345
++
++
++def test_process_lab_leader_dead_children_alive_scenario(tmp_path) -> None:
++    lab = create_process_lab(tmp_path)
++    try:
++        process = lab.spawn_leader_dead_children_alive(
++            session_id="sess_lab_leader_dead"
++        )
++
++        assert process.popen.poll() == 0
++        assert process.child_pids
++        assert process.child_pgids == (process.pgid,)
++        assert psutil.pid_exists(process.child_pids[0])
++    finally:
++        lab.cleanup()
++
++
++def test_process_lab_double_fork_escape_scenario(tmp_path) -> None:
++    lab = create_process_lab(tmp_path)
++    try:
++        process = lab.spawn_double_fork_escape(session_id="sess_lab_escape")
++
++        assert process.popen.poll() == 0
++        assert process.child_pids
++        assert process.child_pgids[0] != process.pgid
++        assert psutil.pid_exists(process.child_pids[0])
++    finally:
++        lab.cleanup()
++
++
++def _same_process_is_alive(record: ProcessRecord) -> bool:
++    try:
++        proc = psutil.Process(record.pid)
++    except psutil.NoSuchProcess:
++        return False
++    try:
++        return abs(proc.create_time() - record.create_time) < 0.001
++    except psutil.NoSuchProcess:
++        return False

@@ -1,267 +1,50 @@
-phase_id: phase_05_5_integration_feasibility
-phase_title: "Integration Feasibility Mock Spike"
-started_at: 2026-05-30T09:17:16Z
-last_updated: 2026-05-30T10:31:10Z
-target_milestone: "M1.5 (integration gate)"
+phase_id: phase_06_process_management
+phase_title: "Process Management (runner + cleaner + monitor)"
+started_at: 2026-06-01T15:30:36+08:00
+last_updated: 2026-06-01T15:30:36+08:00
+target_milestone: "M3 (advanced)"
 related_requirements:
-  - REQUIREMENTS.md section 4.6
-  - REQUIREMENTS.md section 4.10
-status: done
-spike: true
-parallel_with: phase_06_process_management
-roadmap_reference: dev_memory/ROADMAP.yaml planned_phases[id=05.5]
-scope_guardrails:
-  - "No production src/agent changes"
-  - "No real gbs"
-  - "No subprocess/process management"
-  - "No workspace protection/spec mutation"
-  - "No LangGraph"
-  - "No real LLM API"
+  - REQUIREMENTS.md section 3.3.5
+  - REQUIREMENTS.md section 4.7.1 process_cleaner
+  - REQUIREMENTS.md section 4.11.x
+status: in_progress
+roadmap_reference: dev_memory/ROADMAP.yaml planned_phases[id=06]
 subtasks:
-  - id: "05.5.1"
-    title: "Synthetic objective + OptionV0 IR + random runner baseline"
-    status: done
-    related_requirements:
-      - ROADMAP.yaml Phase 05.5 synthetic objective goal
-      - ROADMAP.yaml Phase 05.5 OptionV0 IR goal
-      - ROADMAP.yaml Phase 05.5 baseline strategy goal
-    files_created:
-      - spikes/05.5_integration_feasibility/option_ir.py
-      - spikes/05.5_integration_feasibility/objective.py
-      - spikes/05.5_integration_feasibility/strategies.py
-      - spikes/05.5_integration_feasibility/runner.py
-      - spikes/05.5_integration_feasibility/tests/conftest.py
-      - spikes/05.5_integration_feasibility/tests/test_objective_ir_runner.py
-      - dev_memory/phases/phase_05_5_integration_feasibility/CHECKLIST.yaml
-      - dev_memory/phases/phase_05_5_integration_feasibility/REVIEW_NOTES.md
-      - dev_memory/phases/phase_05_5_integration_feasibility/SUMMARY.md
-      - dev_memory/phases/phase_05_5_integration_feasibility/UT_RESULTS.md
-    files_modified:
-      - dev_memory/ROADMAP.yaml
-      - dev_memory/ROADMAP.md
-      - dev_memory/DECISIONS.md
-      - dev_memory/PROGRESS.md
-      - dev_memory/spikes/05.5_integration_feasibility_findings.md
-      - spikes/05.5_integration_feasibility/README.md
-    behavior_notes:
-      - "SyntheticObjective has exact known optimum {-O3, -funroll-loops, -fA, -fB}."
-      - "-fA and -fB are individually harmful but jointly worth +12, creating a real second-order interaction trap."
-      - "The objective penalizes extra options so random supersets cannot tie the known optimum."
-      - "RandomStrategy is intentionally naive and may propose conflicting options; this preserves a baseline for later constraint-layer comparisons."
-      - "run_strategy records deterministic TrialOutcome history for seeded runs."
-    ut_required: true
-    ut_passed: true
-    targeted_ut: "7 spike tests passed, 0 failed"
-    production_regression_ut: "451 production tests passed, 0 failed"
-    self_review_required: true
-    self_reviewed: true
-    patch_required: true
-    patch_file: dev_memory/phases/phase_05_5_integration_feasibility/patches/01_objective_ir_runner.patch
-    patch_generated: true
-    commit_required: true
-    commit_pending: false
-    commit_hash: c75b150
-    commit_message: "spike_05_5: add synthetic objective and random runner"
-    external_review_verdict: approve
-    external_reviewed_at: 2026-05-30T09:41:38Z
-    external_review_tests: "spike 7 passed; production 451 passed; src/agent zero changes"
-    external_review_findings:
-      low:
-        - "Low-1: -fA/-fB single-option penalty (-1) is within noise sigma=2.0. Keep for now; re-check local-mutation distinction in 05.5.2."
-    target_environment_validation:
-      os: Ubuntu/Linux
-      python: ".venv/bin/python"
-      spike_pytest: "7 passed in 0.01s"
-      production_pytest: "451 passed in 1.63s"
-      runner: "local .venv + pytest"
-  - id: "05.5.2"
-    title: "MockLLM + LLMOnlyStrategy + LocalMutationStrategy baselines"
-    status: done
-    related_requirements:
-      - ROADMAP.yaml Phase 05.5 four-strategy comparison goal
-      - ROADMAP.yaml Phase 05.5 MockLLM good/poor goal
-      - ROADMAP.yaml Phase 05.5 second-order interaction exit criterion
-    files_created:
-      - spikes/05.5_integration_feasibility/mock_llm.py
-      - spikes/05.5_integration_feasibility/tests/test_llm_local_baselines.py
-    files_modified:
-      - spikes/05.5_integration_feasibility/strategies.py
-      - spikes/05.5_integration_feasibility/runner.py
-      - dev_memory/phases/phase_05_5_integration_feasibility/CHECKLIST.yaml
-      - dev_memory/phases/phase_05_5_integration_feasibility/REVIEW_NOTES.md
-      - dev_memory/phases/phase_05_5_integration_feasibility/SUMMARY.md
-      - dev_memory/phases/phase_05_5_integration_feasibility/UT_RESULTS.md
-      - dev_memory/spikes/05.5_integration_feasibility_findings.md
-      - dev_memory/PROGRESS.md
-    behavior_notes:
-      - "MockLLM quality=good emits catalog-bounded plausible proposals and can propose the known optimum."
-      - "MockLLM quality=poor emits conflicts, unknown options, and repeats."
-      - "LLMOnlyStrategy deliberately trusts MockLLM output without memory, constraints, or dedup."
-      - "LocalMutationStrategy is a one-flip hill climber around the best successful combo."
-      - "On the noiseless synthetic objective, LocalMutationStrategy gets stuck at {-O3, -funroll-loops} and never proposes the -fA/-fB pair."
-    ut_required: true
-    ut_passed: true
-    targeted_ut: "14 spike tests passed, 0 failed"
-    production_regression_ut: "451 production tests passed, 0 failed"
-    self_review_required: true
-    self_reviewed: true
-    patch_required: true
-    patch_file: dev_memory/phases/phase_05_5_integration_feasibility/patches/02_llm_local_baselines.patch
-    patch_generated: true
-    commit_required: true
-    commit_pending: false
-    commit_hash: 1e1fa12
-    commit_message: "spike_05_5: add llm and local baselines"
-    external_review_verdict: approve
-    external_reviewed_at: 2026-05-30T09:59:34Z
-    external_review_tests: "spike 14 passed; production 451 passed; src/agent zero changes"
-    external_review_findings:
-      low:
-        - "Low-1: good-quality MockLLM proposal pool includes the known optimum. Treat full-agent-vs-LLMOnly comparison as poor-LLM robustness plus good-LLM trial-efficiency, not only best-score delta."
-    target_environment_validation:
-      os: Ubuntu/Linux
-      python: ".venv/bin/python"
-      spike_pytest: "14 passed in 0.02s"
-      production_pytest: "451 passed in 1.62s"
-      runner: "local .venv + pytest"
-  - id: "05.5.3"
-    title: "FullAgentStrategy core: constraints + memory + schedule"
-    status: done
-    related_requirements:
-      - ROADMAP.yaml Phase 05.5 full-agent strategy goal
-      - ROADMAP.yaml Phase 05.5 constraint layer goal
-      - ROADMAP.yaml Phase 05.5 experience memory goal
-      - ROADMAP.yaml Phase 05.5 good/poor LLM baseline exit criteria
-    files_created:
-      - spikes/05.5_integration_feasibility/full_agent.py
-      - spikes/05.5_integration_feasibility/tests/test_full_agent_strategy.py
-    files_modified:
-      - dev_memory/phases/phase_05_5_integration_feasibility/CHECKLIST.yaml
-      - dev_memory/phases/phase_05_5_integration_feasibility/REVIEW_NOTES.md
-      - dev_memory/phases/phase_05_5_integration_feasibility/SUMMARY.md
-      - dev_memory/phases/phase_05_5_integration_feasibility/UT_RESULTS.md
-      - dev_memory/spikes/05.5_integration_feasibility_findings.md
-      - dev_memory/PROGRESS.md
-      - spikes/05.5_integration_feasibility/README.md
-    behavior_notes:
-      - "FullAgentStrategy combines warmup candidates, MockLLM proposals, pair-jump exploration, local mutation, random fallback, and deterministic enumeration."
-      - "ConstraintLayer rejects empty, duplicate, unknown, conflicting, known-failed-subset, and soft-blocked candidates before spending mock trial budget."
-      - "ExperienceMemory derives tried combos, successes, and known failed subsets from TrialOutcome history."
-      - "Suspicion counter can force a soft-blocked combo after repeated rejection, modeling false-positive recovery."
-      - "Poor LLM scenario: full agent reaches the second-order optimum while LLM-only misses it."
-      - "Good LLM scenario: full agent and LLM-only both reach optimum, but full agent spends zero duplicate trial budget."
-    ut_required: true
-    ut_passed: true
-    targeted_ut: "21 spike tests passed, 0 failed"
-    production_regression_ut: "451 production tests passed, 0 failed"
-    self_review_required: true
-    self_reviewed: true
-    patch_required: true
-    patch_file: dev_memory/phases/phase_05_5_integration_feasibility/patches/03_full_agent_core.patch
-    patch_generated: true
-    commit_required: true
-    commit_pending: false
-    commit_hash: 0f2f5ea
-    commit_message: "spike_05_5: add full agent core"
-    external_review_verdict: approve_with_follow_up
-    external_reviewed_at: 2026-05-30T10:14:24Z
-    external_review_tests: "spike 21 passed; production 451 passed; src/agent zero changes"
-    external_review_findings:
-      medium:
-        - "Med-1: full agent's second-order optimum discovery is primarily driven by deterministic enumeration fallback, not pair-jump/interaction learning. Findings must record the ablation, and next subtask should remove or shrink brute enumeration to test scalable interaction discovery."
-      low:
-        - "Low-1: pair-jump currently enumerates all missing option pairs, which is also brute-force at larger option counts; future Phase 07 should make interaction exploration experience-guided."
-    target_environment_validation:
-      os: Ubuntu/Linux
-      python: ".venv/bin/python"
-      spike_pytest: "21 passed in 0.04s"
-      production_pytest: "451 passed in 1.60s"
-      runner: "local .venv + pytest"
-  - id: "05.5.4"
-    title: "Replace brute enumeration with near-miss guided interaction exploration"
-    status: done
-    related_requirements:
-      - ROADMAP.yaml Phase 05.5 second-order interaction exit criterion
-      - ROADMAP.yaml Phase 05.5 against-baseline exit criterion
-      - "05.5.3 Med-1 follow-up"
-    files_modified:
-      - spikes/05.5_integration_feasibility/full_agent.py
-      - spikes/05.5_integration_feasibility/tests/test_full_agent_strategy.py
-      - spikes/05.5_integration_feasibility/README.md
-      - dev_memory/phases/phase_05_5_integration_feasibility/CHECKLIST.yaml
-      - dev_memory/phases/phase_05_5_integration_feasibility/REVIEW_NOTES.md
-      - dev_memory/phases/phase_05_5_integration_feasibility/SUMMARY.md
-      - dev_memory/phases/phase_05_5_integration_feasibility/UT_RESULTS.md
-      - dev_memory/spikes/05.5_integration_feasibility_findings.md
-      - dev_memory/PROGRESS.md
-    behavior_notes:
-      - "Removed deterministic size-1..4 enumeration fallback from FullAgentStrategy."
-      - "Random fallback is no longer allowed to brute-force combinations; it only samples single options and cannot independently find the second-order optimum."
-      - "Interaction exploration now uses observed mildly harmful near-miss single-option additions around the current best combo."
-      - "Neutral noise options are excluded from near-miss suspects via min/max score-drop bounds."
-      - "2x2 ablation now isolates the mechanism: guided ON finds optimum with random ON or OFF; guided OFF finds 0/20 with random ON or OFF."
-      - "Candidate exhaustion is represented by RunResult.exhausted instead of masking already-found optima as run failures."
-    ut_required: true
-    ut_passed: true
-    targeted_ut: "25 spike tests passed, 0 failed"
-    production_regression_ut: "451 production tests passed, 0 failed"
-    self_review_required: true
-    self_reviewed: true
-    patch_required: true
-    patch_file: dev_memory/phases/phase_05_5_integration_feasibility/patches/04_guided_interaction.patch
-    patch_generated: true
-    review_fix_patch_file: dev_memory/phases/phase_05_5_integration_feasibility/patches/05_guided_interaction_review_fix.patch
-    review_fix_patch_generated: true
-    commit_required: true
-    commit_pending: false
-    commit_hash: 9aa1646
-    commit_message: "spike_05_5: fix guided interaction ablation"
-    implementation_commit: d7648d5
-    external_review_verdict: request_changes
-    external_reviewed_at: 2026-05-30T10:31:10Z
-    external_review_findings:
-      high:
-        - "High-1: first guided-interaction follow-up still found the second-order optimum via random fallback, not guided interaction. Reviewer 2x2 ablation showed guided ON/random OFF = 0/20 and guided OFF/random ON = 20/20."
-      medium:
-        - "Med-1: near-miss threshold admitted neutral noise options because extra-option penalty drop=0.5 was inside the old 0..1.25 range."
-    review_fix_notes:
-      - "Random fallback changed from combination sampling to single-option sampling, so it cannot independently construct the second-order optimum."
-      - "Near-miss selection now requires score drop in [0.75, 1.25], keeping -fA/-fB and excluding neutral -fno-plt/-flto drops."
-      - "RunResult records exhausted=True when a strategy runs out of candidates, preserving already-found best trials."
-      - "Added explicit 2x2 isolation tests: guided ON/random OFF succeeds; guided OFF/random ON fails."
-    review_fix_tests:
-      spike_pytest: "25 passed in 0.04s"
-      production_pytest: "451 passed in 1.61s"
-  - id: "05.5.5"
-    title: "Final test matrix closure + findings handoff"
+  - id: "6.1"
+    title: "process_identity.py + process_lab fixture"
     status: implementation_complete
     related_requirements:
-      - ROADMAP.yaml Phase 05.5 test matrix
-      - ROADMAP.yaml Phase 7.0 handoff
-      - ROADMAP.yaml Phase 08 handoff
+      - ROADMAP.yaml Phase 06 deliverable process_identity.py
+      - ROADMAP.yaml Phase 06 deliverable process_lab fixture
+    files_created:
+      - src/agent/process_identity.py
+      - tests/fixtures/process_lab.py
+      - tests/test_process_identity.py
+      - tests/test_process_lab.py
+      - dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
+      - dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
+      - dev_memory/phases/phase_06_process_management/SUMMARY.md
+      - dev_memory/phases/phase_06_process_management/UT_RESULTS.md
     files_modified:
-      - spikes/05.5_integration_feasibility/tests/test_full_agent_strategy.py
-      - dev_memory/spikes/05.5_integration_feasibility_findings.md
-      - dev_memory/ROADMAP.yaml
-      - dev_memory/DECISIONS.md
+      - src/agent/__init__.py
       - dev_memory/CURRENT_PHASE.yaml
-      - dev_memory/phases/phase_05_5_integration_feasibility/CHECKLIST.yaml
-      - dev_memory/phases/phase_05_5_integration_feasibility/REVIEW_NOTES.md
-      - dev_memory/phases/phase_05_5_integration_feasibility/SUMMARY.md
-      - dev_memory/phases/phase_05_5_integration_feasibility/UT_RESULTS.md
+      - dev_memory/DECISIONS.md
       - dev_memory/PROGRESS.md
+      - dev_memory/ROADMAP.yaml
     behavior_notes:
-      - "Completed remaining non-interaction-dependent test matrix items under default noisy objective."
-      - "Recorded that noiseless guided interaction works, but noisy near-miss discovery is limited by noise_sigma=2.0."
-      - "Updated ROADMAP 05.5 to done and handed noise-robust interaction discovery to Phase 7.0 + Phase 08."
-      - "Added DECISIONS entry for the spike finding and handoff."
+      - "ProcessIdentity and ProcessRecord are additive Pydantic models; existing CheckpointProcess and WorkspaceLockHolder schemas are unchanged."
+      - "cmdline_hash is validated but diagnostic-only per Phase 06 design."
+      - "process_lab uses controlled Python subprocesses with start_new_session=True, not raw fork."
+      - "process_lab covers live process groups, pid_gone records, create_time drift, pgid mismatch, env_marker_missing, simulated AccessDenied, leader-dead child survival, and double-fork-style escaped child sessions."
     ut_required: true
     ut_passed: true
-    targeted_ut: "31 spike tests passed, 0 failed"
-    production_regression_ut: "451 production tests passed, 0 failed"
+    targeted_ut: "20 tests passed, 0 failed (test_process_identity.py + test_process_lab.py)"
+    production_regression_ut: "471 tests passed, 0 failed"
+    self_review_required: true
+    self_reviewed: true
     patch_required: true
-    patch_file: dev_memory/phases/phase_05_5_integration_feasibility/patches/06_final_findings_matrix.patch
+    patch_file: dev_memory/phases/phase_06_process_management/patches/01_process_identity_lab.patch
     patch_generated: true
     commit_required: true
     commit_pending: true
-next_action: "Push final Phase 05.5 closure range for Claude review, then begin Phase 06 Process Management."
+next_action: "Push Phase 06 Subtask 6.1 implementation for Claude review."

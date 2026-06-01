@@ -1,6 +1,6 @@
 # dev_memory/ROADMAP.yaml
 roadmap_version: 1
-last_updated: 2026-05-30T11:00:31Z
+last_updated: 2026-06-01T07:30:36Z
 status: active
 
 # ============================================================
@@ -80,7 +80,8 @@ planned_phases:
 
   - id: "06"
     title: "Process Management (runner + cleaner + monitor)"
-    status: planned
+    status: in_progress
+    started_at: "2026-06-01T15:30:36+08:00"
     milestone: "M3 (advanced)"
     requirement_sections: ["3.3.5", "4.7.1 (process_cleaner)", "4.11.x"]
     dependencies: ["01", "03"]

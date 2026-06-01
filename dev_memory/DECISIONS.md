@@ -859,3 +859,16 @@ Decision records must include:
   - Keep iterating Phase 05.5 until noisy interaction discovery passes. Rejected because it would prematurely implement Phase 08-style statistics or overfit the mock objective.
   - Accept full-agent success under random/brute fallback as proof of candidate-engine intelligence. Rejected because those mechanisms do not scale to real option spaces.
   - Leave interaction discovery as an implicit Phase 07 concern. Rejected because it is now the clearest cross-phase risk and needs explicit Phase 7.0/08 handoff.
+
+## 2026-06-01T07:30:36Z - Phase 06 starts with additive ProcessIdentity and reusable process_lab
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 06
+  - REQUIREMENTS.md section 3.3.5
+  - REQUIREMENTS.md section 4.11.x
+- decision: Subtask 6.1 adds `ProcessIdentity` / `ProcessRecord` as new shared process identity models and a reusable `process_lab` test fixture, without changing `CheckpointProcess`, `WorkspaceLockHolder`, process cleanup behavior, or existing checkpoint/lock schemas.
+- rationale: Phase 06 needs a common vocabulary before runner, lease registry, cleaner, doctor, and checkpoint operation ledger work can proceed. Keeping 6.1 additive avoids coupling model introduction to high-risk cleanup behavior. A real Python-subprocess lab gives later subtasks reproducible process-group scenarios while preserving the "no raw fork" test design.
+- alternatives_considered:
+  - Migrate `CheckpointProcess` and `WorkspaceLockHolder` immediately to the new model. Rejected because schema migration and lock/checkpoint compatibility belong to later Phase 06 subtasks.
+  - Start with `process_runner` before the fixture. Rejected because runner/cleaner tests need the process_lab substrate first.
+  - Mock all process behavior. Rejected because Phase 06 correctness depends on real `start_new_session`, pgid, env-marker, and `killpg` behavior on Linux.
