@@ -148,3 +148,26 @@ External review:
   and the never-`os.replace(run.lock)` red line were not touched.
 - Validation re-run: targeted lock/cleanup/CLI set 78 passed; full suite 496
   passed.
+
+## Subtask 6.5 - TrialState Operation Ledger
+
+Self-review checklist:
+
+- [x] `CheckpointTrialOperation` is additive and does not remove existing
+  `current_stage` compatibility fields.
+- [x] Legacy checkpoints missing `operations` still load.
+- [x] New ledgers require `current_trial_start_line`.
+- [x] `process_refs` must use `state/processes/<session>/<trial>/<lease>.yaml`.
+- [x] `process_refs` session segment must match checkpoint `session_id`.
+- [x] `process_refs` trial segment must match `current_trial.trial_id`.
+- [x] `output_ref` rejects absolute, parent, backslash, and denormalized paths.
+- [x] Operation `details` accepts only JSON-compatible values.
+- [x] Round-trip checkpoint write/load preserves operations.
+- [x] Full suite passes.
+
+Residual risks / follow-up:
+
+- 6.5 introduces the canonical ledger shape only; resume semantics and
+  operation replay policies remain Phase 09/10 scope.
+- 6.7 still wires `current_trial_start_line` into clean trace Layer D
+  protection.

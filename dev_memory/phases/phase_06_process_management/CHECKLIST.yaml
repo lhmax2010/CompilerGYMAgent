@@ -36,6 +36,37 @@ subtasks:
         status: done
       - item: "Ubuntu/Linux validation"
         status: done
+  - id: "6.5"
+    title: "TrialState operation ledger checkpoint schema extension"
+    status: implementation_complete
+    implementation_commit: pending
+    review_status: pending
+    ubuntu_validation_status: pending
+    checklist:
+      - item: "Add CheckpointTrialOperation model"
+        status: done
+      - item: "Add operation op/status/output_ref/process_refs/details fields"
+        status: done
+      - item: "Add operations ledger to CheckpointCurrentTrial"
+        status: done
+      - item: "Add current_trial_start_line for later Layer D trace protection"
+        status: done
+      - item: "Keep legacy checkpoints without operations loadable"
+        status: done
+      - item: "Validate output_ref as safe relative checkpoint reference"
+        status: done
+      - item: "Validate process_refs shape and session/trial alignment"
+        status: done
+      - item: "Export operation ledger symbols"
+        status: done
+      - item: "Run targeted tests and full production suite"
+        status: done
+      - item: "Generate patch artifacts"
+        status: done
+      - item: "Claude review"
+        status: pending
+      - item: "Ubuntu/Linux validation"
+        status: pending
   - id: "6.4"
     title: "workspace lock hardening (probe flock + LockStatus unknown)"
     status: done

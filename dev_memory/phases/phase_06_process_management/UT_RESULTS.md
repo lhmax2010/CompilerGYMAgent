@@ -131,3 +131,25 @@ Review / validation sync:
 - Independent reviewer probe: free/busy flock probing, released-but-live
   metadata, unknown refusal, and never-`os.replace(run.lock)` all matched the
   Phase 06 design.
+
+## Subtask 6.5 - TrialState Operation Ledger
+
+Commands:
+
+```bash
+.venv/bin/python -m pytest tests/test_fs_memory.py tests/test_identifiers.py -q
+.venv/bin/python -m pytest tests/test_errors.py -q
+.venv/bin/python -m pytest tests/ -q
+```
+
+Results:
+
+- Checkpoint / identifier targeted tests: 164 passed
+- Error framework smoke: 3 passed
+- Full suite: 508 passed
+
+Notes:
+
+- Targeted tests cover legacy checkpoint migration, operation ledger acceptance,
+  required `current_trial_start_line`, YAML round-trip, unsafe process refs,
+  session/trial mismatch, duplicate refs, and JSON-only operation details.

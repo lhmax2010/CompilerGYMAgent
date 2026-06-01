@@ -911,3 +911,17 @@ Decision records must include:
   - Keep metadata-only classification. Rejected because it reports false busy when a previous holder process is alive but no longer owns the flock.
   - Treat unreadable holder metadata as free with only a refusal reason. Rejected because status and refusal would disagree semantically.
   - Replace or split `run.lock` to make holder metadata atomic. Rejected per the existing "never os.replace run.lock" decision: flock binds to the inode, and the current in-place holder write remains the safe v1 design.
+
+## 2026-06-01T12:17:10Z - Checkpoint current_trial gets additive operation ledger
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 06
+  - REQUIREMENTS.md section 3.3.3
+  - REQUIREMENTS.md section 3.3.5
+  - REQUIREMENTS.md section 4.11.x
+- decision: Subtask 6.5 adds `CheckpointTrialOperation` and an additive `current_trial.operations` ledger plus `current_trial.current_trial_start_line`. Existing checkpoint fields (`current_stage`, `stage_started_at`, `process`) remain for backward compatibility. Old checkpoints without `operations` load with an empty ledger, while new ledgers require `current_trial_start_line` and validate `process_refs` against `state/processes/<session>/<trial>/<lease>.yaml`.
+- rationale: Resume and doctor need operation-level evidence without guessing from a coarse stage string, but replacing the existing checkpoint shape in one step would force broad migrations. An additive ledger gives future replay/cleanup code explicit operation status and process lease references while preserving existing loaders, tests, and trace/checkpoint reconcile behavior. Requiring `current_trial_start_line` when operations exist prepares the Layer D clean trace boundary without implementing Layer D in this subtask.
+- alternatives_considered:
+  - Replace `current_stage` immediately with only an operation ledger. Rejected because existing checkpoint producers, tests, and review contracts still depend on the legacy fields.
+  - Store process refs as unchecked strings. Rejected because a typo or path traversal would break process cleanup authority; refs must point at the lease registry and match checkpoint session/trial.
+  - Defer the schema extension until resume/doctor. Rejected because process leases already exist and later state-consistency work needs a stable canonical reference shape.

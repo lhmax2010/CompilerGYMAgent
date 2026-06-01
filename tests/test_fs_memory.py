@@ -15,6 +15,7 @@ from agent.fs_memory import (
     CheckpointError,
     CheckpointLoadError,
     CheckpointState,
+    CheckpointTrialOperation,
     Experience,
     ExperienceExistsError,
     ExperienceIntegrityError,
@@ -261,6 +262,19 @@ def checkpoint_data() -> dict:
         "total_tokens_consumed": 152400,
         "last_updated": "2026-04-30T10:30:22Z",
     }
+
+
+def checkpoint_operation_data(**overrides: object) -> dict:
+    data: dict[str, object] = {
+        "op": "compile",
+        "status": "running",
+        "process_refs": [
+            "state/processes/sess_20260430_abc/r12_t3/compile-12345.yaml",
+        ],
+        "details": {"attempt": 1},
+    }
+    data.update(overrides)
+    return data
 
 
 def test_namespace_layout_for_config_matches_requirements_paths(tmp_path: Path) -> None:
@@ -1324,11 +1338,141 @@ def test_checkpoint_state_schema_accepts_documented_running_state() -> None:
     assert checkpoint.namespace == str(namespace())
     assert checkpoint.trace_line_count is None
     assert checkpoint.current_trial is not None
+    assert checkpoint.current_trial.operations == ()
+    assert checkpoint.current_trial.current_trial_start_line is None
     assert checkpoint.current_trial.current_stage == "compiling"
     assert checkpoint.current_trial.process is not None
     assert checkpoint.current_trial.process.cmdline_hash == "sha256:" + ("d" * 64)
     assert checkpoint.current_best is not None
     assert checkpoint.current_best.score == 1.231
+
+
+def test_checkpoint_state_accepts_operation_ledger() -> None:
+    data = checkpoint_data()
+    data["current_trial"]["current_trial_start_line"] = 42
+    data["current_trial"]["operations"] = [
+        {
+            "op": "workspace_snapshot_pre",
+            "status": "completed",
+            "output_ref": "workspace_snapshots/r12_t3_pre.yaml",
+        },
+        checkpoint_operation_data(),
+    ]
+
+    checkpoint = CheckpointState.model_validate(data)
+
+    assert checkpoint.current_trial is not None
+    assert checkpoint.current_trial.current_trial_start_line == 42
+    assert [operation.op for operation in checkpoint.current_trial.operations] == [
+        "workspace_snapshot_pre",
+        "compile",
+    ]
+    assert checkpoint.current_trial.operations[1].process_refs == (
+        "state/processes/sess_20260430_abc/r12_t3/compile-12345.yaml",
+    )
+    assert checkpoint.current_trial.operations[1].details == {"attempt": 1}
+
+
+def test_checkpoint_payload_migrates_operation_ledger_defaults() -> None:
+    payload = checkpoint_payload(checkpoint_data())
+
+    assert payload["current_trial"]["operations"] == []
+    assert "current_trial_start_line" not in payload["current_trial"]
+
+
+def test_checkpoint_operation_ledger_requires_trial_start_line() -> None:
+    data = checkpoint_data()
+    data["current_trial"]["operations"] = [checkpoint_operation_data()]
+
+    with pytest.raises(ValidationError, match="current_trial_start_line"):
+        CheckpointState.model_validate(data)
+
+
+def test_checkpoint_operation_payload_round_trips_through_yaml(tmp_path: Path) -> None:
+    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
+    data = checkpoint_data()
+    data["current_trial"]["current_trial_start_line"] = 42
+    data["current_trial"]["operations"] = [checkpoint_operation_data()]
+
+    path = write_checkpoint_state(layout, data)
+    loaded = load_checkpoint_for_layout(layout)
+    raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+
+    assert loaded.current_trial is not None
+    assert loaded.current_trial.current_trial_start_line == 42
+    assert loaded.current_trial.operations[0].status == "running"
+    assert raw["current_trial"]["operations"][0]["process_refs"] == [
+        "state/processes/sess_20260430_abc/r12_t3/compile-12345.yaml",
+    ]
+
+
+@pytest.mark.parametrize(
+    ("ref", "message"),
+    [
+        ("/state/processes/sess_20260430_abc/r12_t3/compile-12345.yaml", "absolute"),
+        ("state/processes/sess_20260430_abc/../r12_t3/compile-12345.yaml", "parent"),
+        ("state/processes/sess_20260430_abc/r12_t3/compile-12345.txt", "end with .yaml"),
+        ("processes/sess_20260430_abc/r12_t3/compile-12345.yaml", "state/processes"),
+    ],
+)
+def test_checkpoint_operation_rejects_unsafe_process_refs(
+    ref: str,
+    message: str,
+) -> None:
+    data = checkpoint_data()
+    data["current_trial"]["current_trial_start_line"] = 42
+    data["current_trial"]["operations"] = [checkpoint_operation_data(process_refs=[ref])]
+
+    with pytest.raises(ValidationError, match=message):
+        CheckpointState.model_validate(data)
+
+
+@pytest.mark.parametrize(
+    ("ref", "message"),
+    [
+        (
+            "state/processes/sess_other/r12_t3/compile-12345.yaml",
+            "session_id",
+        ),
+        (
+            "state/processes/sess_20260430_abc/r12_t4/compile-12345.yaml",
+            "trial_id",
+        ),
+    ],
+)
+def test_checkpoint_operation_process_refs_must_match_current_trial(
+    ref: str,
+    message: str,
+) -> None:
+    data = checkpoint_data()
+    data["current_trial"]["current_trial_start_line"] = 42
+    data["current_trial"]["operations"] = [checkpoint_operation_data(process_refs=[ref])]
+
+    with pytest.raises(ValidationError, match=message):
+        CheckpointState.model_validate(data)
+
+
+def test_checkpoint_operation_rejects_duplicate_process_refs() -> None:
+    ref = "state/processes/sess_20260430_abc/r12_t3/compile-12345.yaml"
+    data = checkpoint_data()
+    data["current_trial"]["current_trial_start_line"] = 42
+    data["current_trial"]["operations"] = [
+        checkpoint_operation_data(process_refs=[ref, ref]),
+    ]
+
+    with pytest.raises(ValidationError, match="duplicates"):
+        CheckpointState.model_validate(data)
+
+
+def test_checkpoint_operation_details_must_be_json() -> None:
+    with pytest.raises(ValidationError, match="non-JSON"):
+        CheckpointTrialOperation.model_validate(
+            {
+                "op": "compile",
+                "status": "running",
+                "details": {"bad": object()},
+            }
+        )
 
 
 def test_checkpoint_state_accepts_trace_line_count_for_resume_counter() -> None:

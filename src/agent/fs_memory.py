@@ -243,6 +243,26 @@ CheckpointStage = Literal[
     "build_dir_cleanup",
 ]
 CHECKPOINT_PROCESS_STAGES = frozenset({"compiling", "benchmarking"})
+CheckpointOperationName = Literal[
+    "workspace_snapshot_pre",
+    "spec_backup",
+    "spec_inject",
+    "compile",
+    "benchmark",
+    "spec_restore",
+    "workspace_snapshot_post",
+    "trial_record_write",
+    "memory_write",
+    "cleanup",
+]
+CheckpointOperationStatus = Literal[
+    "pending",
+    "running",
+    "completed",
+    "failed",
+    "cleaned",
+    "skipped",
+]
 
 
 class TrialIntegrity(StrictFsModel):
@@ -696,6 +716,47 @@ class CheckpointProcess(StrictFsModel):
         return value
 
 
+class CheckpointTrialOperation(StrictFsModel):
+    op: CheckpointOperationName
+    status: CheckpointOperationStatus
+    output_ref: NonEmptyStr | None = None
+    process_refs: tuple[NonEmptyStr, ...] = Field(default_factory=tuple)
+    details: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("output_ref")
+    @classmethod
+    def output_ref_must_be_relative(cls, value: str | None) -> str | None:
+        if value is not None:
+            _validate_checkpoint_relative_ref(
+                value,
+                "current_trial.operations.output_ref",
+            )
+        return value
+
+    @field_validator("process_refs")
+    @classmethod
+    def process_refs_must_point_to_leases(
+        cls,
+        value: tuple[str, ...],
+    ) -> tuple[str, ...]:
+        if len(set(value)) != len(value):
+            raise ValueError(
+                "current_trial.operations.process_refs cannot contain duplicates"
+            )
+        for ref in value:
+            _validate_checkpoint_process_ref(
+                ref,
+                "current_trial.operations.process_refs",
+            )
+        return value
+
+    @field_validator("details")
+    @classmethod
+    def details_must_be_json(cls, value: dict[str, Any]) -> dict[str, Any]:
+        _validate_json_value(value, "current_trial.operations.details")
+        return value
+
+
 class CheckpointCurrentTrial(StrictFsModel):
     trial_id: NonEmptyStr
     started_at: NonEmptyStr
@@ -706,6 +767,8 @@ class CheckpointCurrentTrial(StrictFsModel):
     build_dir: NonEmptyStr
     artifact_staging: NonEmptyStr | None = None
     process: CheckpointProcess | None = None
+    operations: tuple[CheckpointTrialOperation, ...] = Field(default_factory=tuple)
+    current_trial_start_line: int | None = Field(default=None, ge=1)
 
     @field_validator("trial_id")
     @classmethod
@@ -735,6 +798,8 @@ class CheckpointCurrentTrial(StrictFsModel):
             raise ValueError("stage_started_at cannot be before started_at")
         if self.current_stage in CHECKPOINT_PROCESS_STAGES and self.process is None:
             raise ValueError("active process stages must include process details")
+        if self.operations and self.current_trial_start_line is None:
+            raise ValueError("current_trial_start_line is required when operations exist")
         return self
 
 
@@ -807,7 +872,10 @@ class CheckpointState(StrictFsModel):
 
     @model_validator(mode="after")
     def process_marker_must_match_session(self) -> CheckpointState:
-        if self.current_trial is None or self.current_trial.process is None:
+        if self.current_trial is None:
+            return self
+        self._operation_process_refs_must_match_current_trial()
+        if self.current_trial.process is None:
             return self
         expected_marker = f"AGENT_SESSION_ID={self.session_id}"
         actual_marker = self.current_trial.process.session_marker
@@ -816,6 +884,25 @@ class CheckpointState(StrictFsModel):
                 "current_trial.process.session_marker must match checkpoint session_id"
             )
         return self
+
+    def _operation_process_refs_must_match_current_trial(self) -> None:
+        if self.current_trial is None:
+            return
+        for operation in self.current_trial.operations:
+            for ref in operation.process_refs:
+                path = PurePosixPath(ref)
+                session_id = path.parts[2]
+                trial_id = path.parts[3]
+                if session_id != self.session_id:
+                    raise ValueError(
+                        "current_trial.operations.process_refs session_id "
+                        "must match checkpoint session_id"
+                    )
+                if trial_id != self.current_trial.trial_id:
+                    raise ValueError(
+                        "current_trial.operations.process_refs trial_id "
+                        "must match current_trial.trial_id"
+                    )
 
 
 class TraceEvent(BaseModel):
@@ -2119,6 +2206,34 @@ def _validate_experience_item_file(value: str, label: str) -> None:
     if any(char.isspace() for char in path.name):
         raise ValueError(f"{label} cannot contain whitespace")
     _validate_file_atom(path.name, label)
+
+
+def _validate_checkpoint_relative_ref(value: str, label: str) -> None:
+    if "\\" in value:
+        raise ValueError(f"{label} must use POSIX separators")
+    path = PurePosixPath(value)
+    if path.is_absolute():
+        raise ValueError(f"{label} cannot be absolute")
+    if ".." in path.parts:
+        raise ValueError(f"{label} cannot contain parent segments")
+    if path.as_posix() != value:
+        raise ValueError(f"{label} must be normalized")
+    for index, part in enumerate(path.parts, start=1):
+        _validate_untrimmed_non_control_string(part, f"{label} segment {index}")
+
+
+def _validate_checkpoint_process_ref(value: str, label: str) -> None:
+    _validate_checkpoint_relative_ref(value, label)
+    path = PurePosixPath(value)
+    if len(path.parts) != 5 or path.parts[:2] != ("state", "processes"):
+        raise ValueError(
+            f"{label} must match state/processes/<session>/<trial>/<lease>.yaml"
+        )
+    if path.suffix != ".yaml":
+        raise ValueError(f"{label} must end with .yaml")
+    _validate_file_atom(path.parts[2], f"{label} session_id")
+    _validate_file_atom(path.parts[3], f"{label} trial_id")
+    _validate_file_atom(path.name, f"{label} lease file")
 
 
 def _validate_namespace_string(value: str, label: str) -> None:

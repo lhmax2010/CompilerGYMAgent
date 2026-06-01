@@ -1,0 +1,604 @@
+diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index ecab7d0..8b5ed4d 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -1,7 +1,7 @@
+ phase_id: phase_06_process_management
+ phase_title: "Process Management (runner + cleaner + monitor)"
+ started_at: 2026-06-01T15:30:36+08:00
+-last_updated: 2026-06-01T20:12:12+08:00
++last_updated: 2026-06-01T20:17:10+08:00
+ target_milestone: "M3 (advanced)"
+ related_requirements:
+   - REQUIREMENTS.md section 3.3.5
+@@ -204,4 +204,40 @@ subtasks:
+     ubuntu_validation_tests:
+       targeted: "78 passed"
+       full: "496 passed"
+-next_action: "Begin Phase 06 Subtask 6.5 TrialState operation ledger."
++  - id: "6.5"
++    title: "TrialState operation ledger checkpoint schema extension"
++    status: implementation_complete
++    related_requirements:
++      - ROADMAP.yaml Phase 06 deliverable TrialState operation ledger
++      - REQUIREMENTS.md section 3.3.3
++      - REQUIREMENTS.md section 3.3.5
++      - REQUIREMENTS.md section 4.11.x
++    files_created: []
++    files_modified:
++      - src/agent/fs_memory.py
++      - src/agent/__init__.py
++      - tests/test_fs_memory.py
++      - dev_memory/CURRENT_PHASE.yaml
++      - dev_memory/DECISIONS.md
++      - dev_memory/PROGRESS.md
++      - dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
++      - dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
++      - dev_memory/phases/phase_06_process_management/SUMMARY.md
++      - dev_memory/phases/phase_06_process_management/UT_RESULTS.md
++    behavior_notes:
++      - "CheckpointCurrentTrial now supports an additive operations ledger with op/status/output_ref/process_refs/details."
++      - "Legacy checkpoints without operations load with operations=() and current_trial_start_line=None."
++      - "Operation ledgers require current_trial_start_line so later Layer D trace protection has a boundary."
++      - "process_refs must point to state/processes/<session>/<trial>/<lease>.yaml and must match checkpoint session_id/current_trial.trial_id."
++    ut_required: true
++    ut_passed: true
++    targeted_ut: "164 tests passed, 0 failed (test_fs_memory.py + test_identifiers.py); 3 error framework tests passed"
++    production_regression_ut: "508 tests passed, 0 failed"
++    self_review_required: true
++    self_reviewed: true
++    patch_required: true
++    patch_file: dev_memory/phases/phase_06_process_management/patches/05_trial_operation_ledger.patch
++    patch_generated: true
++    commit_required: true
++    commit_pending: true
++next_action: "Push Phase 06 Subtask 6.5 implementation for Claude review."
+diff --git a/dev_memory/DECISIONS.md b/dev_memory/DECISIONS.md
+index c8d2d9f..b8f9628 100644
+--- a/dev_memory/DECISIONS.md
++++ b/dev_memory/DECISIONS.md
+@@ -911,3 +911,17 @@ Decision records must include:
+   - Keep metadata-only classification. Rejected because it reports false busy when a previous holder process is alive but no longer owns the flock.
+   - Treat unreadable holder metadata as free with only a refusal reason. Rejected because status and refusal would disagree semantically.
+   - Replace or split `run.lock` to make holder metadata atomic. Rejected per the existing "never os.replace run.lock" decision: flock binds to the inode, and the current in-place holder write remains the safe v1 design.
++
++## 2026-06-01T12:17:10Z - Checkpoint current_trial gets additive operation ledger
++
++- affected_requirement:
++  - ROADMAP.yaml Phase 06
++  - REQUIREMENTS.md section 3.3.3
++  - REQUIREMENTS.md section 3.3.5
++  - REQUIREMENTS.md section 4.11.x
++- decision: Subtask 6.5 adds `CheckpointTrialOperation` and an additive `current_trial.operations` ledger plus `current_trial.current_trial_start_line`. Existing checkpoint fields (`current_stage`, `stage_started_at`, `process`) remain for backward compatibility. Old checkpoints without `operations` load with an empty ledger, while new ledgers require `current_trial_start_line` and validate `process_refs` against `state/processes/<session>/<trial>/<lease>.yaml`.
++- rationale: Resume and doctor need operation-level evidence without guessing from a coarse stage string, but replacing the existing checkpoint shape in one step would force broad migrations. An additive ledger gives future replay/cleanup code explicit operation status and process lease references while preserving existing loaders, tests, and trace/checkpoint reconcile behavior. Requiring `current_trial_start_line` when operations exist prepares the Layer D clean trace boundary without implementing Layer D in this subtask.
++- alternatives_considered:
++  - Replace `current_stage` immediately with only an operation ledger. Rejected because existing checkpoint producers, tests, and review contracts still depend on the legacy fields.
++  - Store process refs as unchecked strings. Rejected because a typo or path traversal would break process cleanup authority; refs must point at the lease registry and match checkpoint session/trial.
++  - Defer the schema extension until resume/doctor. Rejected because process leases already exist and later state-consistency work needs a stable canonical reference shape.
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index 7e7c326..73f6361 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -1962,3 +1962,24 @@ Next action: generate patch artifacts, commit/push Subtask 6.4, then request Cla
+   - `_write_holder()` remains unchanged and `run.lock` is never replaced.
+ 
+ Next action: begin Subtask 6.5 TrialState operation ledger.
++
++## 2026-06-01T12:17:10Z - Phase 06 / Subtask 6.5 implemented
++
++- Added `CheckpointTrialOperation` and operation ledger types.
++- Extended `CheckpointCurrentTrial` with:
++  - `operations`,
++  - `current_trial_start_line`.
++- Kept legacy checkpoint compatibility:
++  - old checkpoints without `operations` still load,
++  - existing `current_stage` / `process` fields remain.
++- Added process lease reference validation:
++  - refs must match `state/processes/<session>/<trial>/<lease>.yaml`,
++  - session segment must match checkpoint `session_id`,
++  - trial segment must match `current_trial.trial_id`.
++- Added safe relative `output_ref` validation and JSON-only operation details.
++- Validation:
++  - `.venv/bin/python -m pytest tests/test_fs_memory.py tests/test_identifiers.py -q` -> 164 passed.
++  - `.venv/bin/python -m pytest tests/test_errors.py -q` -> 3 passed.
++  - `.venv/bin/python -m pytest tests/ -q` -> 508 passed.
++
++Next action: generate patch artifacts, commit/push Subtask 6.5, then request Claude review.
+diff --git a/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml b/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
+index 80fe72d..4b0ca31 100644
+--- a/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
+@@ -36,6 +36,37 @@ subtasks:
+         status: done
+       - item: "Ubuntu/Linux validation"
+         status: done
++  - id: "6.5"
++    title: "TrialState operation ledger checkpoint schema extension"
++    status: implementation_complete
++    implementation_commit: pending
++    review_status: pending
++    ubuntu_validation_status: pending
++    checklist:
++      - item: "Add CheckpointTrialOperation model"
++        status: done
++      - item: "Add operation op/status/output_ref/process_refs/details fields"
++        status: done
++      - item: "Add operations ledger to CheckpointCurrentTrial"
++        status: done
++      - item: "Add current_trial_start_line for later Layer D trace protection"
++        status: done
++      - item: "Keep legacy checkpoints without operations loadable"
++        status: done
++      - item: "Validate output_ref as safe relative checkpoint reference"
++        status: done
++      - item: "Validate process_refs shape and session/trial alignment"
++        status: done
++      - item: "Export operation ledger symbols"
++        status: done
++      - item: "Run targeted tests and full production suite"
++        status: done
++      - item: "Generate patch artifacts"
++        status: done
++      - item: "Claude review"
++        status: pending
++      - item: "Ubuntu/Linux validation"
++        status: pending
+   - id: "6.4"
+     title: "workspace lock hardening (probe flock + LockStatus unknown)"
+     status: done
+diff --git a/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md b/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
+index 26255f8..86a6c39 100644
+--- a/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
++++ b/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
+@@ -148,3 +148,26 @@ External review:
+   and the never-`os.replace(run.lock)` red line were not touched.
+ - Validation re-run: targeted lock/cleanup/CLI set 78 passed; full suite 496
+   passed.
++
++## Subtask 6.5 - TrialState Operation Ledger
++
++Self-review checklist:
++
++- [x] `CheckpointTrialOperation` is additive and does not remove existing
++  `current_stage` compatibility fields.
++- [x] Legacy checkpoints missing `operations` still load.
++- [x] New ledgers require `current_trial_start_line`.
++- [x] `process_refs` must use `state/processes/<session>/<trial>/<lease>.yaml`.
++- [x] `process_refs` session segment must match checkpoint `session_id`.
++- [x] `process_refs` trial segment must match `current_trial.trial_id`.
++- [x] `output_ref` rejects absolute, parent, backslash, and denormalized paths.
++- [x] Operation `details` accepts only JSON-compatible values.
++- [x] Round-trip checkpoint write/load preserves operations.
++- [x] Full suite passes.
++
++Residual risks / follow-up:
++
++- 6.5 introduces the canonical ledger shape only; resume semantics and
++  operation replay policies remain Phase 09/10 scope.
++- 6.7 still wires `current_trial_start_line` into clean trace Layer D
++  protection.
+diff --git a/dev_memory/phases/phase_06_process_management/SUMMARY.md b/dev_memory/phases/phase_06_process_management/SUMMARY.md
+index d8b2dff..887a867 100644
+--- a/dev_memory/phases/phase_06_process_management/SUMMARY.md
++++ b/dev_memory/phases/phase_06_process_management/SUMMARY.md
+@@ -191,3 +191,28 @@ Hardened read-only workspace lock classification for trace cleanup.
+   - corrupted holder metadata reports `unknown`,
+   - normal and force clean reject `unknown`,
+   - `_write_holder()` remains unchanged and `run.lock` is never replaced.
++
++## Subtask 6.5 - TrialState Operation Ledger
++
++Added the checkpoint schema extension that later resume, doctor, and clean trace
++Layer D work will use.
++
++### Changes
++
++- Added `CheckpointTrialOperation`.
++- Added operation names and statuses for workspace/spec/compile/benchmark/
++  restore/memory/cleanup operations.
++- Added `current_trial.operations`.
++- Added `current_trial.current_trial_start_line`.
++- Kept existing `current_stage`, `stage_started_at`, and `process` fields for
++  backward compatibility.
++- Added validation for safe relative `output_ref` values.
++- Added validation for `process_refs` lease registry paths.
++- Added session/trial alignment checks for operation `process_refs`.
++- Exported checkpoint operation symbols from `agent.__init__`.
++
++### Validation
++
++- `tests/test_fs_memory.py tests/test_identifiers.py`: 164 passed
++- `tests/test_errors.py`: 3 passed
++- Full suite: 508 passed
+diff --git a/dev_memory/phases/phase_06_process_management/UT_RESULTS.md b/dev_memory/phases/phase_06_process_management/UT_RESULTS.md
+index ba82162..dc0c080 100644
+--- a/dev_memory/phases/phase_06_process_management/UT_RESULTS.md
++++ b/dev_memory/phases/phase_06_process_management/UT_RESULTS.md
+@@ -131,3 +131,25 @@ Review / validation sync:
+ - Independent reviewer probe: free/busy flock probing, released-but-live
+   metadata, unknown refusal, and never-`os.replace(run.lock)` all matched the
+   Phase 06 design.
++
++## Subtask 6.5 - TrialState Operation Ledger
++
++Commands:
++
++```bash
++.venv/bin/python -m pytest tests/test_fs_memory.py tests/test_identifiers.py -q
++.venv/bin/python -m pytest tests/test_errors.py -q
++.venv/bin/python -m pytest tests/ -q
++```
++
++Results:
++
++- Checkpoint / identifier targeted tests: 164 passed
++- Error framework smoke: 3 passed
++- Full suite: 508 passed
++
++Notes:
++
++- Targeted tests cover legacy checkpoint migration, operation ledger acceptance,
++  required `current_trial_start_line`, YAML round-trip, unsafe process refs,
++  session/trial mismatch, duplicate refs, and JSON-only operation details.
+diff --git a/src/agent/__init__.py b/src/agent/__init__.py
+index e8b8e8b..a0b9261 100644
+--- a/src/agent/__init__.py
++++ b/src/agent/__init__.py
+@@ -17,8 +17,11 @@ from .fs_memory import (
+     CheckpointCurrentTrial,
+     CheckpointError,
+     CheckpointLoadError,
++    CheckpointOperationName,
++    CheckpointOperationStatus,
+     CheckpointProcess,
+     CheckpointState,
++    CheckpointTrialOperation,
+     DiscoveredTrialRecord,
+     Experience,
+     ExperienceAuditEvent,
+diff --git a/src/agent/fs_memory.py b/src/agent/fs_memory.py
+index 72cfd77..e117cb6 100644
+--- a/src/agent/fs_memory.py
++++ b/src/agent/fs_memory.py
+@@ -243,6 +243,26 @@ CheckpointStage = Literal[
+     "build_dir_cleanup",
+ ]
+ CHECKPOINT_PROCESS_STAGES = frozenset({"compiling", "benchmarking"})
++CheckpointOperationName = Literal[
++    "workspace_snapshot_pre",
++    "spec_backup",
++    "spec_inject",
++    "compile",
++    "benchmark",
++    "spec_restore",
++    "workspace_snapshot_post",
++    "trial_record_write",
++    "memory_write",
++    "cleanup",
++]
++CheckpointOperationStatus = Literal[
++    "pending",
++    "running",
++    "completed",
++    "failed",
++    "cleaned",
++    "skipped",
++]
+ 
+ 
+ class TrialIntegrity(StrictFsModel):
+@@ -696,6 +716,47 @@ class CheckpointProcess(StrictFsModel):
+         return value
+ 
+ 
++class CheckpointTrialOperation(StrictFsModel):
++    op: CheckpointOperationName
++    status: CheckpointOperationStatus
++    output_ref: NonEmptyStr | None = None
++    process_refs: tuple[NonEmptyStr, ...] = Field(default_factory=tuple)
++    details: dict[str, Any] = Field(default_factory=dict)
++
++    @field_validator("output_ref")
++    @classmethod
++    def output_ref_must_be_relative(cls, value: str | None) -> str | None:
++        if value is not None:
++            _validate_checkpoint_relative_ref(
++                value,
++                "current_trial.operations.output_ref",
++            )
++        return value
++
++    @field_validator("process_refs")
++    @classmethod
++    def process_refs_must_point_to_leases(
++        cls,
++        value: tuple[str, ...],
++    ) -> tuple[str, ...]:
++        if len(set(value)) != len(value):
++            raise ValueError(
++                "current_trial.operations.process_refs cannot contain duplicates"
++            )
++        for ref in value:
++            _validate_checkpoint_process_ref(
++                ref,
++                "current_trial.operations.process_refs",
++            )
++        return value
++
++    @field_validator("details")
++    @classmethod
++    def details_must_be_json(cls, value: dict[str, Any]) -> dict[str, Any]:
++        _validate_json_value(value, "current_trial.operations.details")
++        return value
++
++
+ class CheckpointCurrentTrial(StrictFsModel):
+     trial_id: NonEmptyStr
+     started_at: NonEmptyStr
+@@ -706,6 +767,8 @@ class CheckpointCurrentTrial(StrictFsModel):
+     build_dir: NonEmptyStr
+     artifact_staging: NonEmptyStr | None = None
+     process: CheckpointProcess | None = None
++    operations: tuple[CheckpointTrialOperation, ...] = Field(default_factory=tuple)
++    current_trial_start_line: int | None = Field(default=None, ge=1)
+ 
+     @field_validator("trial_id")
+     @classmethod
+@@ -735,6 +798,8 @@ class CheckpointCurrentTrial(StrictFsModel):
+             raise ValueError("stage_started_at cannot be before started_at")
+         if self.current_stage in CHECKPOINT_PROCESS_STAGES and self.process is None:
+             raise ValueError("active process stages must include process details")
++        if self.operations and self.current_trial_start_line is None:
++            raise ValueError("current_trial_start_line is required when operations exist")
+         return self
+ 
+ 
+@@ -807,7 +872,10 @@ class CheckpointState(StrictFsModel):
+ 
+     @model_validator(mode="after")
+     def process_marker_must_match_session(self) -> CheckpointState:
+-        if self.current_trial is None or self.current_trial.process is None:
++        if self.current_trial is None:
++            return self
++        self._operation_process_refs_must_match_current_trial()
++        if self.current_trial.process is None:
+             return self
+         expected_marker = f"AGENT_SESSION_ID={self.session_id}"
+         actual_marker = self.current_trial.process.session_marker
+@@ -817,6 +885,25 @@ class CheckpointState(StrictFsModel):
+             )
+         return self
+ 
++    def _operation_process_refs_must_match_current_trial(self) -> None:
++        if self.current_trial is None:
++            return
++        for operation in self.current_trial.operations:
++            for ref in operation.process_refs:
++                path = PurePosixPath(ref)
++                session_id = path.parts[2]
++                trial_id = path.parts[3]
++                if session_id != self.session_id:
++                    raise ValueError(
++                        "current_trial.operations.process_refs session_id "
++                        "must match checkpoint session_id"
++                    )
++                if trial_id != self.current_trial.trial_id:
++                    raise ValueError(
++                        "current_trial.operations.process_refs trial_id "
++                        "must match current_trial.trial_id"
++                    )
++
+ 
+ class TraceEvent(BaseModel):
+     """One canonical JSONL trace event.
+@@ -2121,6 +2208,34 @@ def _validate_experience_item_file(value: str, label: str) -> None:
+     _validate_file_atom(path.name, label)
+ 
+ 
++def _validate_checkpoint_relative_ref(value: str, label: str) -> None:
++    if "\\" in value:
++        raise ValueError(f"{label} must use POSIX separators")
++    path = PurePosixPath(value)
++    if path.is_absolute():
++        raise ValueError(f"{label} cannot be absolute")
++    if ".." in path.parts:
++        raise ValueError(f"{label} cannot contain parent segments")
++    if path.as_posix() != value:
++        raise ValueError(f"{label} must be normalized")
++    for index, part in enumerate(path.parts, start=1):
++        _validate_untrimmed_non_control_string(part, f"{label} segment {index}")
++
++
++def _validate_checkpoint_process_ref(value: str, label: str) -> None:
++    _validate_checkpoint_relative_ref(value, label)
++    path = PurePosixPath(value)
++    if len(path.parts) != 5 or path.parts[:2] != ("state", "processes"):
++        raise ValueError(
++            f"{label} must match state/processes/<session>/<trial>/<lease>.yaml"
++        )
++    if path.suffix != ".yaml":
++        raise ValueError(f"{label} must end with .yaml")
++    _validate_file_atom(path.parts[2], f"{label} session_id")
++    _validate_file_atom(path.parts[3], f"{label} trial_id")
++    _validate_file_atom(path.name, f"{label} lease file")
++
++
+ def _validate_namespace_string(value: str, label: str) -> None:
+     parts = value.split("/")
+     if len(parts) != 5:
+diff --git a/tests/test_fs_memory.py b/tests/test_fs_memory.py
+index 5849cb0..a8e44cc 100644
+--- a/tests/test_fs_memory.py
++++ b/tests/test_fs_memory.py
+@@ -15,6 +15,7 @@ from agent.fs_memory import (
+     CheckpointError,
+     CheckpointLoadError,
+     CheckpointState,
++    CheckpointTrialOperation,
+     Experience,
+     ExperienceExistsError,
+     ExperienceIntegrityError,
+@@ -263,6 +264,19 @@ def checkpoint_data() -> dict:
+     }
+ 
+ 
++def checkpoint_operation_data(**overrides: object) -> dict:
++    data: dict[str, object] = {
++        "op": "compile",
++        "status": "running",
++        "process_refs": [
++            "state/processes/sess_20260430_abc/r12_t3/compile-12345.yaml",
++        ],
++        "details": {"attempt": 1},
++    }
++    data.update(overrides)
++    return data
++
++
+ def test_namespace_layout_for_config_matches_requirements_paths(tmp_path: Path) -> None:
+     config = AgentConfig.model_validate(config_data(tmp_path / "workspace"))
+ 
+@@ -1324,6 +1338,8 @@ def test_checkpoint_state_schema_accepts_documented_running_state() -> None:
+     assert checkpoint.namespace == str(namespace())
+     assert checkpoint.trace_line_count is None
+     assert checkpoint.current_trial is not None
++    assert checkpoint.current_trial.operations == ()
++    assert checkpoint.current_trial.current_trial_start_line is None
+     assert checkpoint.current_trial.current_stage == "compiling"
+     assert checkpoint.current_trial.process is not None
+     assert checkpoint.current_trial.process.cmdline_hash == "sha256:" + ("d" * 64)
+@@ -1331,6 +1347,134 @@ def test_checkpoint_state_schema_accepts_documented_running_state() -> None:
+     assert checkpoint.current_best.score == 1.231
+ 
+ 
++def test_checkpoint_state_accepts_operation_ledger() -> None:
++    data = checkpoint_data()
++    data["current_trial"]["current_trial_start_line"] = 42
++    data["current_trial"]["operations"] = [
++        {
++            "op": "workspace_snapshot_pre",
++            "status": "completed",
++            "output_ref": "workspace_snapshots/r12_t3_pre.yaml",
++        },
++        checkpoint_operation_data(),
++    ]
++
++    checkpoint = CheckpointState.model_validate(data)
++
++    assert checkpoint.current_trial is not None
++    assert checkpoint.current_trial.current_trial_start_line == 42
++    assert [operation.op for operation in checkpoint.current_trial.operations] == [
++        "workspace_snapshot_pre",
++        "compile",
++    ]
++    assert checkpoint.current_trial.operations[1].process_refs == (
++        "state/processes/sess_20260430_abc/r12_t3/compile-12345.yaml",
++    )
++    assert checkpoint.current_trial.operations[1].details == {"attempt": 1}
++
++
++def test_checkpoint_payload_migrates_operation_ledger_defaults() -> None:
++    payload = checkpoint_payload(checkpoint_data())
++
++    assert payload["current_trial"]["operations"] == []
++    assert "current_trial_start_line" not in payload["current_trial"]
++
++
++def test_checkpoint_operation_ledger_requires_trial_start_line() -> None:
++    data = checkpoint_data()
++    data["current_trial"]["operations"] = [checkpoint_operation_data()]
++
++    with pytest.raises(ValidationError, match="current_trial_start_line"):
++        CheckpointState.model_validate(data)
++
++
++def test_checkpoint_operation_payload_round_trips_through_yaml(tmp_path: Path) -> None:
++    layout = NamespaceLayout(workspace=tmp_path / "workspace", namespace=namespace())
++    data = checkpoint_data()
++    data["current_trial"]["current_trial_start_line"] = 42
++    data["current_trial"]["operations"] = [checkpoint_operation_data()]
++
++    path = write_checkpoint_state(layout, data)
++    loaded = load_checkpoint_for_layout(layout)
++    raw = yaml.safe_load(path.read_text(encoding="utf-8"))
++
++    assert loaded.current_trial is not None
++    assert loaded.current_trial.current_trial_start_line == 42
++    assert loaded.current_trial.operations[0].status == "running"
++    assert raw["current_trial"]["operations"][0]["process_refs"] == [
++        "state/processes/sess_20260430_abc/r12_t3/compile-12345.yaml",
++    ]
++
++
++@pytest.mark.parametrize(
++    ("ref", "message"),
++    [
++        ("/state/processes/sess_20260430_abc/r12_t3/compile-12345.yaml", "absolute"),
++        ("state/processes/sess_20260430_abc/../r12_t3/compile-12345.yaml", "parent"),
++        ("state/processes/sess_20260430_abc/r12_t3/compile-12345.txt", "end with .yaml"),
++        ("processes/sess_20260430_abc/r12_t3/compile-12345.yaml", "state/processes"),
++    ],
++)
++def test_checkpoint_operation_rejects_unsafe_process_refs(
++    ref: str,
++    message: str,
++) -> None:
++    data = checkpoint_data()
++    data["current_trial"]["current_trial_start_line"] = 42
++    data["current_trial"]["operations"] = [checkpoint_operation_data(process_refs=[ref])]
++
++    with pytest.raises(ValidationError, match=message):
++        CheckpointState.model_validate(data)
++
++
++@pytest.mark.parametrize(
++    ("ref", "message"),
++    [
++        (
++            "state/processes/sess_other/r12_t3/compile-12345.yaml",
++            "session_id",
++        ),
++        (
++            "state/processes/sess_20260430_abc/r12_t4/compile-12345.yaml",
++            "trial_id",
++        ),
++    ],
++)
++def test_checkpoint_operation_process_refs_must_match_current_trial(
++    ref: str,
++    message: str,
++) -> None:
++    data = checkpoint_data()
++    data["current_trial"]["current_trial_start_line"] = 42
++    data["current_trial"]["operations"] = [checkpoint_operation_data(process_refs=[ref])]
++
++    with pytest.raises(ValidationError, match=message):
++        CheckpointState.model_validate(data)
++
++
++def test_checkpoint_operation_rejects_duplicate_process_refs() -> None:
++    ref = "state/processes/sess_20260430_abc/r12_t3/compile-12345.yaml"
++    data = checkpoint_data()
++    data["current_trial"]["current_trial_start_line"] = 42
++    data["current_trial"]["operations"] = [
++        checkpoint_operation_data(process_refs=[ref, ref]),
++    ]
++
++    with pytest.raises(ValidationError, match="duplicates"):
++        CheckpointState.model_validate(data)
++
++
++def test_checkpoint_operation_details_must_be_json() -> None:
++    with pytest.raises(ValidationError, match="non-JSON"):
++        CheckpointTrialOperation.model_validate(
++            {
++                "op": "compile",
++                "status": "running",
++                "details": {"bad": object()},
++            }
++        )
++
++
+ def test_checkpoint_state_accepts_trace_line_count_for_resume_counter() -> None:
+     data = checkpoint_data()
+     data["trace_line_count"] = 123

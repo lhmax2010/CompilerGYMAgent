@@ -1962,3 +1962,24 @@ Next action: generate patch artifacts, commit/push Subtask 6.4, then request Cla
   - `_write_holder()` remains unchanged and `run.lock` is never replaced.
 
 Next action: begin Subtask 6.5 TrialState operation ledger.
+
+## 2026-06-01T12:17:10Z - Phase 06 / Subtask 6.5 implemented
+
+- Added `CheckpointTrialOperation` and operation ledger types.
+- Extended `CheckpointCurrentTrial` with:
+  - `operations`,
+  - `current_trial_start_line`.
+- Kept legacy checkpoint compatibility:
+  - old checkpoints without `operations` still load,
+  - existing `current_stage` / `process` fields remain.
+- Added process lease reference validation:
+  - refs must match `state/processes/<session>/<trial>/<lease>.yaml`,
+  - session segment must match checkpoint `session_id`,
+  - trial segment must match `current_trial.trial_id`.
+- Added safe relative `output_ref` validation and JSON-only operation details.
+- Validation:
+  - `.venv/bin/python -m pytest tests/test_fs_memory.py tests/test_identifiers.py -q` -> 164 passed.
+  - `.venv/bin/python -m pytest tests/test_errors.py -q` -> 3 passed.
+  - `.venv/bin/python -m pytest tests/ -q` -> 508 passed.
+
+Next action: generate patch artifacts, commit/push Subtask 6.5, then request Claude review.

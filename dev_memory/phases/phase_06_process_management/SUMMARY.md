@@ -191,3 +191,28 @@ Hardened read-only workspace lock classification for trace cleanup.
   - corrupted holder metadata reports `unknown`,
   - normal and force clean reject `unknown`,
   - `_write_holder()` remains unchanged and `run.lock` is never replaced.
+
+## Subtask 6.5 - TrialState Operation Ledger
+
+Added the checkpoint schema extension that later resume, doctor, and clean trace
+Layer D work will use.
+
+### Changes
+
+- Added `CheckpointTrialOperation`.
+- Added operation names and statuses for workspace/spec/compile/benchmark/
+  restore/memory/cleanup operations.
+- Added `current_trial.operations`.
+- Added `current_trial.current_trial_start_line`.
+- Kept existing `current_stage`, `stage_started_at`, and `process` fields for
+  backward compatibility.
+- Added validation for safe relative `output_ref` values.
+- Added validation for `process_refs` lease registry paths.
+- Added session/trial alignment checks for operation `process_refs`.
+- Exported checkpoint operation symbols from `agent.__init__`.
+
+### Validation
+
+- `tests/test_fs_memory.py tests/test_identifiers.py`: 164 passed
+- `tests/test_errors.py`: 3 passed
+- Full suite: 508 passed

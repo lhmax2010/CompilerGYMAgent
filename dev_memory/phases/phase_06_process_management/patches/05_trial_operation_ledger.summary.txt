@@ -1,0 +1,22 @@
+Phase 06 / Subtask 6.5 - TrialState operation ledger
+
+Implemented an additive checkpoint schema extension for operation-level trial
+state.
+
+Changes:
+- Added CheckpointTrialOperation and operation name/status type aliases.
+- Added current_trial.operations to the checkpoint model.
+- Added current_trial.current_trial_start_line for later clean trace Layer D
+  protection.
+- Preserved legacy current_stage/stage_started_at/process fields and backward
+  compatibility for checkpoints that omit operations.
+- Validated operation output_ref as a safe relative path.
+- Validated process_refs as state/processes/<session>/<trial>/<lease>.yaml and
+  required the session/trial path segments to match checkpoint session_id and
+  current_trial.trial_id.
+- Exported the new operation ledger symbols.
+
+Validation:
+- .venv/bin/python -m pytest tests/test_fs_memory.py tests/test_identifiers.py -q -> 164 passed
+- .venv/bin/python -m pytest tests/test_errors.py -q -> 3 passed
+- .venv/bin/python -m pytest tests/ -q -> 508 passed
