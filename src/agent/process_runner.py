@@ -159,11 +159,22 @@ def refresh_process_lease_from_popen(
     )
 
 
-def _env_marker_visible(proc: psutil.Process, session_id: str) -> bool:
-    try:
-        return proc.environ().get(AGENT_SESSION_ID_ENV) == session_id
-    except (psutil.AccessDenied, psutil.NoSuchProcess):
-        return False
+def _env_marker_visible(
+    proc: psutil.Process,
+    session_id: str,
+    *,
+    timeout_seconds: float = 1.0,
+) -> bool:
+    deadline = time.monotonic() + timeout_seconds
+    while True:
+        try:
+            if proc.environ().get(AGENT_SESSION_ID_ENV) == session_id:
+                return True
+        except (psutil.AccessDenied, psutil.NoSuchProcess):
+            return False
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.02)
 
 
 def _terminate_started_process_group(popen: subprocess.Popen[bytes]) -> None:

@@ -73,6 +73,9 @@ foundation.
 - Added `src/agent/process_runner.py`.
 - Added `spawn_process()` using `subprocess.Popen(start_new_session=True)` and
   injected `AGENT_SESSION_ID`.
+- Hardened spawn-time env-marker visibility probing with a short retry loop to
+  avoid the `Popen`/`exec` race where `/proc/<pid>/environ` is read before the
+  child environment is visible.
 - Added `refresh_process_lease_from_popen()` to mark completed processes as
   `exited` or `killed`.
 - Exported process registry and runner symbols from `agent.__init__`.

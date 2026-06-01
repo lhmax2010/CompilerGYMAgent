@@ -51,6 +51,8 @@ Self-review checklist:
 - [x] Terminal status transitions reject attempts to move from a terminal state.
 - [x] Runner injects `AGENT_SESSION_ID` and records
   `env_marker_visible_at_spawn`.
+- [x] Runner retries spawn-time env-marker visibility briefly to avoid reading
+  `/proc/<pid>/environ` before child exec/env is visible.
 - [x] Runner uses `start_new_session=True`; spawned child `pgid == pid` in
   tests.
 - [x] Runner can refresh leases to `exited` or `killed` from `Popen.returncode`.

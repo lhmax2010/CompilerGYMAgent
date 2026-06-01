@@ -20,6 +20,8 @@ ledger was implemented in this subtask.
 - Runner uses `start_new_session=True`.
 - Runner injects `AGENT_SESSION_ID` even when caller env tries to override it.
 - Runner records `env_marker_visible_at_spawn`.
+- Runner retries env-marker visibility briefly so `Popen`/`exec` timing does
+  not produce false negatives.
 - Runner refresh marks process exits and signals.
 
 ## Test Results

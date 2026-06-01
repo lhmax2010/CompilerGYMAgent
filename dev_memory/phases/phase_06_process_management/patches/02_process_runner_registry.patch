@@ -77,10 +77,10 @@ index 993e6aa..f559055 100644
 +  - Add integrity hashes to leases. Rejected because leases are derived operational state and can be rebuilt or discarded by doctor/cleanup.
 +  - Let a process continue running if lease registration fails. Rejected because an untracked child process group is worse than failing the spawn loudly.
 diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
-index 4b46739..cb5ab5b 100644
+index 4b46739..b01dbf8 100644
 --- a/dev_memory/PROGRESS.md
 +++ b/dev_memory/PROGRESS.md
-@@ -1817,3 +1817,30 @@ Next action: generate patch artifacts, commit/push Subtask 6.1, then request Cla
+@@ -1817,3 +1817,43 @@ Next action: generate patch artifacts, commit/push Subtask 6.1, then request Cla
    0 residual processes after cleanup.
  
  Next action: begin Subtask 6.2 process_runner.py + Process Lease Registry.
@@ -111,6 +111,19 @@ index 4b46739..cb5ab5b 100644
 +  - `.venv/bin/python -m pytest tests/ -q` -> 484 passed.
 +
 +Next action: generate patch artifacts, commit/push Subtask 6.2, then request Claude review.
++
++## 2026-06-01T08:34:28Z - Phase 06 / Subtask 6.2 env-marker probe hardened
++
++- During review-sync validation, running targeted runner tests concurrently
++  with the full suite exposed a race: `Popen` can return before the child
++  process environment is visible through `/proc/<pid>/environ`.
++- Hardened `process_runner._env_marker_visible()` with a short retry loop.
++- Validation after fix:
++  - `.venv/bin/python -m pytest tests/test_process_runner.py -q` -> 6 passed.
++  - `.venv/bin/python -m pytest tests/test_process_registry.py tests/test_errors.py tests/test_process_identity.py -q` -> 23 passed.
++  - `.venv/bin/python -m pytest tests/ -q` -> 484 passed.
++
++Next action: update Subtask 6.2 patch artifacts, commit/push the hardening fix, then continue review sync / 6.3.
 diff --git a/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml b/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
 index 5db3c8e..e22ce74 100644
 --- a/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
@@ -155,10 +168,10 @@ index 5db3c8e..e22ce74 100644
 +      - item: "Ubuntu/Linux validation"
 +        status: pending
 diff --git a/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md b/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
-index 1380964..24895ea 100644
+index 1380964..94a9d81 100644
 --- a/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
 +++ b/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
-@@ -36,3 +36,28 @@ External review:
+@@ -36,3 +36,30 @@ External review:
  - Notes: model validation is clean, existing schemas were not touched,
    process_lab reproduces the seven planned scenarios, and independent cleanup
    probing found 0 residual processes.
@@ -177,6 +190,8 @@ index 1380964..24895ea 100644
 +- [x] Terminal status transitions reject attempts to move from a terminal state.
 +- [x] Runner injects `AGENT_SESSION_ID` and records
 +  `env_marker_visible_at_spawn`.
++- [x] Runner retries spawn-time env-marker visibility briefly to avoid reading
++  `/proc/<pid>/environ` before child exec/env is visible.
 +- [x] Runner uses `start_new_session=True`; spawned child `pgid == pid` in
 +  tests.
 +- [x] Runner can refresh leases to `exited` or `killed` from `Popen.returncode`.
@@ -188,10 +203,10 @@ index 1380964..24895ea 100644
 +- Lease GC remains 6.3 scope.
 +- TrialState operation ledger remains 6.5 scope.
 diff --git a/dev_memory/phases/phase_06_process_management/SUMMARY.md b/dev_memory/phases/phase_06_process_management/SUMMARY.md
-index af9a2f5..2d814ea 100644
+index af9a2f5..095139d 100644
 --- a/dev_memory/phases/phase_06_process_management/SUMMARY.md
 +++ b/dev_memory/phases/phase_06_process_management/SUMMARY.md
-@@ -50,3 +50,42 @@ lease registry, cleaner, and doctor work will depend on.
+@@ -50,3 +50,45 @@ lease registry, cleaner, and doctor work will depend on.
  - Ubuntu/Linux validation re-run:
    - targeted 20 passed
    - full suite 471 passed
@@ -218,6 +233,9 @@ index af9a2f5..2d814ea 100644
 +- Added `src/agent/process_runner.py`.
 +- Added `spawn_process()` using `subprocess.Popen(start_new_session=True)` and
 +  injected `AGENT_SESSION_ID`.
++- Hardened spawn-time env-marker visibility probing with a short retry loop to
++  avoid the `Popen`/`exec` race where `/proc/<pid>/environ` is read before the
++  child environment is visible.
 +- Added `refresh_process_lease_from_popen()` to mark completed processes as
 +  `exited` or `killed`.
 +- Exported process registry and runner symbols from `agent.__init__`.
@@ -235,10 +253,10 @@ index af9a2f5..2d814ea 100644
 +- Adjacent targeted tests: 16 passed
 +- Full suite: 484 passed
 diff --git a/dev_memory/phases/phase_06_process_management/UT_RESULTS.md b/dev_memory/phases/phase_06_process_management/UT_RESULTS.md
-index 500b1b5..264f323 100644
+index 500b1b5..7978f92 100644
 --- a/dev_memory/phases/phase_06_process_management/UT_RESULTS.md
 +++ b/dev_memory/phases/phase_06_process_management/UT_RESULTS.md
-@@ -30,3 +30,26 @@ Review / validation sync:
+@@ -30,3 +30,29 @@ Review / validation sync:
  - Re-run full suite: 471 passed
  - Independent reviewer probe: seven process_lab scenarios reproducible; 0
    residual processes after cleanup.
@@ -265,12 +283,15 @@ index 500b1b5..264f323 100644
 +
 +- `test_process_runner.py` is POSIX-only because it checks real
 +  `start_new_session` / process-group behavior.
++- A concurrent validation run exposed a spawn-time env visibility race; after
++  adding a short retry in `process_runner`, targeted runner tests and the full
++  suite passed consistently.
 diff --git a/dev_memory/phases/phase_06_process_management/patches/02_process_runner_registry.review.md b/dev_memory/phases/phase_06_process_management/patches/02_process_runner_registry.review.md
 new file mode 100644
-index 0000000..63bb3c4
+index 0000000..9a7606a
 --- /dev/null
 +++ b/dev_memory/phases/phase_06_process_management/patches/02_process_runner_registry.review.md
-@@ -0,0 +1,36 @@
+@@ -0,0 +1,38 @@
 +# Self Review - Phase 06 / Subtask 6.2
 +
 +## Scope
@@ -293,6 +314,8 @@ index 0000000..63bb3c4
 +- Runner uses `start_new_session=True`.
 +- Runner injects `AGENT_SESSION_ID` even when caller env tries to override it.
 +- Runner records `env_marker_visible_at_spawn`.
++- Runner retries env-marker visibility briefly so `Popen`/`exec` timing does
++  not produce false negatives.
 +- Runner refresh marks process exits and signals.
 +
 +## Test Results
@@ -309,10 +332,10 @@ index 0000000..63bb3c4
 +scanning, env-marker downgrade, suspected ownership, and lease GC.
 diff --git a/dev_memory/phases/phase_06_process_management/patches/02_process_runner_registry.summary.txt b/dev_memory/phases/phase_06_process_management/patches/02_process_runner_registry.summary.txt
 new file mode 100644
-index 0000000..6c6b4d4
+index 0000000..be94f86
 --- /dev/null
 +++ b/dev_memory/phases/phase_06_process_management/patches/02_process_runner_registry.summary.txt
-@@ -0,0 +1,29 @@
+@@ -0,0 +1,30 @@
 +Subtask 6.2 adds Process Lease Registry and controlled process runner support.
 +
 +Implemented:
@@ -326,6 +349,7 @@ index 0000000..6c6b4d4
 +  - spawn_process() with start_new_session=True
 +  - AGENT_SESSION_ID env injection
 +  - ProcessRecord capture at spawn
++  - short retry around spawn-time env-marker visibility probing
 +  - running lease registration
 +  - refresh_process_lease_from_popen() for exited/killed updates
 +  - best-effort process-group termination if lease registration fails
@@ -858,10 +882,10 @@ index 0000000..43e1bd5
 +    return parsed
 diff --git a/src/agent/process_runner.py b/src/agent/process_runner.py
 new file mode 100644
-index 0000000..ca32690
+index 0000000..86112e0
 --- /dev/null
 +++ b/src/agent/process_runner.py
-@@ -0,0 +1,190 @@
+@@ -0,0 +1,201 @@
 +"""Controlled subprocess runner with Phase 06 process lease registration."""
 +
 +from __future__ import annotations
@@ -1023,11 +1047,22 @@ index 0000000..ca32690
 +    )
 +
 +
-+def _env_marker_visible(proc: psutil.Process, session_id: str) -> bool:
-+    try:
-+        return proc.environ().get(AGENT_SESSION_ID_ENV) == session_id
-+    except (psutil.AccessDenied, psutil.NoSuchProcess):
-+        return False
++def _env_marker_visible(
++    proc: psutil.Process,
++    session_id: str,
++    *,
++    timeout_seconds: float = 1.0,
++) -> bool:
++    deadline = time.monotonic() + timeout_seconds
++    while True:
++        try:
++            if proc.environ().get(AGENT_SESSION_ID_ENV) == session_id:
++                return True
++        except (psutil.AccessDenied, psutil.NoSuchProcess):
++            return False
++        if time.monotonic() >= deadline:
++            return False
++        time.sleep(0.02)
 +
 +
 +def _terminate_started_process_group(popen: subprocess.Popen[bytes]) -> None:

@@ -53,3 +53,6 @@ Notes:
 
 - `test_process_runner.py` is POSIX-only because it checks real
   `start_new_session` / process-group behavior.
+- A concurrent validation run exposed a spawn-time env visibility race; after
+  adding a short retry in `process_runner`, targeted runner tests and the full
+  suite passed consistently.

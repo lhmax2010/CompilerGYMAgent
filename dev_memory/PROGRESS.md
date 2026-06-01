@@ -1844,3 +1844,16 @@ Next action: begin Subtask 6.2 process_runner.py + Process Lease Registry.
   - `.venv/bin/python -m pytest tests/ -q` -> 484 passed.
 
 Next action: generate patch artifacts, commit/push Subtask 6.2, then request Claude review.
+
+## 2026-06-01T08:34:28Z - Phase 06 / Subtask 6.2 env-marker probe hardened
+
+- During review-sync validation, running targeted runner tests concurrently
+  with the full suite exposed a race: `Popen` can return before the child
+  process environment is visible through `/proc/<pid>/environ`.
+- Hardened `process_runner._env_marker_visible()` with a short retry loop.
+- Validation after fix:
+  - `.venv/bin/python -m pytest tests/test_process_runner.py -q` -> 6 passed.
+  - `.venv/bin/python -m pytest tests/test_process_registry.py tests/test_errors.py tests/test_process_identity.py -q` -> 23 passed.
+  - `.venv/bin/python -m pytest tests/ -q` -> 484 passed.
+
+Next action: update Subtask 6.2 patch artifacts, commit/push the hardening fix, then continue review sync / 6.3.
