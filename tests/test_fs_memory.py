@@ -1574,12 +1574,39 @@ def test_checkpoint_current_trial_rejects_stage_before_start() -> None:
         CheckpointState.model_validate(data)
 
 
-def test_checkpoint_current_trial_requires_process_for_active_stage() -> None:
+def test_checkpoint_current_trial_allows_deprecated_process_absent_for_active_stage() -> None:
     data = checkpoint_data()
     data["current_trial"]["process"] = None
 
-    with pytest.raises(ValidationError, match="active process stages"):
-        CheckpointState.model_validate(data)
+    checkpoint = CheckpointState.model_validate(data)
+
+    assert checkpoint.current_trial is not None
+    assert checkpoint.current_trial.current_stage == "compiling"
+    assert checkpoint.current_trial.process is None
+    assert checkpoint.current_trial.running_process_refs == ()
+
+
+def test_checkpoint_current_trial_uses_running_operation_refs_for_active_process() -> None:
+    data = checkpoint_data()
+    data["current_trial"]["process"] = None
+    data["current_trial"]["current_trial_start_line"] = 42
+    data["current_trial"]["operations"] = [
+        checkpoint_operation_data(),
+        checkpoint_operation_data(
+            status="completed",
+            process_refs=[
+                "state/processes/sess_20260430_abc/r12_t3/benchmark-54321.yaml",
+            ],
+        ),
+    ]
+
+    checkpoint = CheckpointState.model_validate(data)
+
+    assert checkpoint.current_trial is not None
+    assert checkpoint.current_trial.process is None
+    assert checkpoint.current_trial.running_process_refs == (
+        "state/processes/sess_20260430_abc/r12_t3/compile-12345.yaml",
+    )
 
 
 def test_checkpoint_current_trial_allows_process_absent_for_non_process_stage() -> None:

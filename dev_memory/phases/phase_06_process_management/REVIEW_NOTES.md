@@ -318,8 +318,36 @@ External review:
 ## Phase 06 Closure
 
 - Verdict: all Phase 06 subtasks approved.
-- Final full suite: 538 passed.
-- Actual patch-count subtasks: 9.
+- Final full suite: 540 passed.
+- Actual patch-count subtasks: 10.
 - Residual follow-ups are intentionally deferred to later phases:
   process-cleanup trace event kind whitelist, full doctor/CLI rendering, and
   Phase 09/10 replay semantics.
+
+## Post-Close Blocker Fix - pre-Phase 05
+
+Self-review checklist:
+
+- [x] Mixed cleanup target sets are filtered by verdict before killing.
+- [x] One owned target no longer causes suspected targets in the same cleanup
+  result to be killed.
+- [x] Suspected-only force cleanup remains covered by existing tests.
+- [x] Deprecated `current_trial.process` can be absent even when
+  `current_stage` is `compiling` or `benchmarking`.
+- [x] Running process authority is exposed through operation
+  `status="running"` `process_refs`.
+- [x] Old checkpoint shape with `process` and no operations remains loadable.
+- [x] Targeted and full test suites pass.
+
+Residual risks / follow-up:
+
+- `current_trial.process` remains for compatibility and should not become a
+  second source of active process truth in Phase 05.
+- Phase 05 compile/benchmark skills should attach process leases through
+  operation `process_refs`.
+
+Self-review result:
+
+- No known Critical / High / Medium / Low findings.
+- Primary review focus for Claude: confirm mixed verdict cleanup filtering and
+  checkpoint operation-ledger authority before Phase 05 starts.

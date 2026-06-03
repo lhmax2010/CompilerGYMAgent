@@ -1,0 +1,154 @@
+diff --git a/src/agent/fs_memory.py b/src/agent/fs_memory.py
+index 5a4f798..047dd7b 100644
+--- a/src/agent/fs_memory.py
++++ b/src/agent/fs_memory.py
+@@ -242,7 +242,6 @@ CheckpointStage = Literal[
+     "memory_write",
+     "build_dir_cleanup",
+ ]
+-CHECKPOINT_PROCESS_STAGES = frozenset({"compiling", "benchmarking"})
+ CheckpointOperationName = Literal[
+     "workspace_snapshot_pre",
+     "spec_backup",
+@@ -766,6 +765,8 @@ class CheckpointCurrentTrial(StrictFsModel):
+     workspace_snapshot_pre: NonEmptyStr | None = None
+     build_dir: NonEmptyStr
+     artifact_staging: NonEmptyStr | None = None
++    # Deprecated compatibility field for pre-operation-ledger checkpoints.
++    # Active process ownership now comes from running operations.process_refs.
+     process: CheckpointProcess | None = None
+     operations: tuple[CheckpointTrialOperation, ...] = Field(default_factory=tuple)
+     current_trial_start_line: int | None = Field(default=None, ge=1)
+@@ -796,12 +797,20 @@ class CheckpointCurrentTrial(StrictFsModel):
+         )
+         if stage_started_at < started_at:
+             raise ValueError("stage_started_at cannot be before started_at")
+-        if self.current_stage in CHECKPOINT_PROCESS_STAGES and self.process is None:
+-            raise ValueError("active process stages must include process details")
+         if self.operations and self.current_trial_start_line is None:
+             raise ValueError("current_trial_start_line is required when operations exist")
+         return self
+ 
++    @property
++    def running_process_refs(self) -> tuple[str, ...]:
++        """Process leases for running operations in the new operation ledger."""
++
++        refs: list[str] = []
++        for operation in self.operations:
++            if operation.status == "running":
++                refs.extend(operation.process_refs)
++        return tuple(refs)
++
+ 
+ class CheckpointBest(StrictFsModel):
+     trial_id: NonEmptyStr
+diff --git a/src/agent/process_cleaner.py b/src/agent/process_cleaner.py
+index 4ada448..1dc9c45 100644
+--- a/src/agent/process_cleaner.py
++++ b/src/agent/process_cleaner.py
+@@ -209,12 +209,14 @@ def cleanup_process_lease(
+             reason="no matching live process found",
+         )
+ 
+-    if any(target.attribution.verdict == "owned" for target in targets):
+-        killable = targets
+-    elif force_suspected and any(
+-        target.attribution.verdict == "suspected" for target in targets
+-    ):
+-        killable = targets
++    owned = tuple(target for target in targets if target.attribution.verdict == "owned")
++    suspected = tuple(
++        target for target in targets if target.attribution.verdict == "suspected"
++    )
++    if owned:
++        killable = owned
++    elif force_suspected and suspected:
++        killable = suspected
+     else:
+         updated = mark_process_unsafe_skip(
+             layout,
+diff --git a/tests/test_fs_memory.py b/tests/test_fs_memory.py
+index 6986579..3457cca 100644
+--- a/tests/test_fs_memory.py
++++ b/tests/test_fs_memory.py
+@@ -1574,12 +1574,39 @@ def test_checkpoint_current_trial_rejects_stage_before_start() -> None:
+         CheckpointState.model_validate(data)
+ 
+ 
+-def test_checkpoint_current_trial_requires_process_for_active_stage() -> None:
++def test_checkpoint_current_trial_allows_deprecated_process_absent_for_active_stage() -> None:
+     data = checkpoint_data()
+     data["current_trial"]["process"] = None
+ 
+-    with pytest.raises(ValidationError, match="active process stages"):
+-        CheckpointState.model_validate(data)
++    checkpoint = CheckpointState.model_validate(data)
++
++    assert checkpoint.current_trial is not None
++    assert checkpoint.current_trial.current_stage == "compiling"
++    assert checkpoint.current_trial.process is None
++    assert checkpoint.current_trial.running_process_refs == ()
++
++
++def test_checkpoint_current_trial_uses_running_operation_refs_for_active_process() -> None:
++    data = checkpoint_data()
++    data["current_trial"]["process"] = None
++    data["current_trial"]["current_trial_start_line"] = 42
++    data["current_trial"]["operations"] = [
++        checkpoint_operation_data(),
++        checkpoint_operation_data(
++            status="completed",
++            process_refs=[
++                "state/processes/sess_20260430_abc/r12_t3/benchmark-54321.yaml",
++            ],
++        ),
++    ]
++
++    checkpoint = CheckpointState.model_validate(data)
++
++    assert checkpoint.current_trial is not None
++    assert checkpoint.current_trial.process is None
++    assert checkpoint.current_trial.running_process_refs == (
++        "state/processes/sess_20260430_abc/r12_t3/compile-12345.yaml",
++    )
+ 
+ 
+ def test_checkpoint_current_trial_allows_process_absent_for_non_process_stage() -> None:
+diff --git a/tests/test_process_cleaner.py b/tests/test_process_cleaner.py
+index 94ab5ac..a9920c7 100644
+--- a/tests/test_process_cleaner.py
++++ b/tests/test_process_cleaner.py
+@@ -120,6 +120,33 @@ def test_cleanup_kills_owned_process_group_and_marks_lease(tmp_path) -> None:
+         lab.cleanup()
+ 
+ 
++def test_cleanup_mixed_targets_kills_only_owned_process_group(tmp_path) -> None:
++    fake = create_fake_workspace(tmp_path)
++    lab = create_process_lab(tmp_path)
++    try:
++        owned = lab.spawn_live(session_id="sess_clean_mixed")
++        same_session_suspected = lab.spawn_live(session_id="sess_clean_mixed")
++        lease = register_process_lease(
++            fake.layout,
++            record=owned.record,
++            trial_id="trial_mixed",
++            role="compile",
++        )
++
++        result = cleanup_process_lease(fake.layout, lease)
++
++        by_pid = {target.pid: target for target in result.targets}
++        assert by_pid[owned.pid].attribution.verdict == "owned"
++        assert by_pid[same_session_suspected.pid].attribution.verdict == "suspected"
++        assert result.action == "killed"
++        assert owned.pgid in result.killed_pgids
++        assert same_session_suspected.pgid not in result.killed_pgids
++        _wait_until(lambda: not _pid_alive(owned.pid))
++        assert _pid_alive(same_session_suspected.pid)
++    finally:
++        lab.cleanup()
++
++
+ def test_suspected_process_is_skipped_by_default_and_force_killed(tmp_path) -> None:
+     fake = create_fake_workspace(tmp_path)
+     lab = create_process_lab(tmp_path)

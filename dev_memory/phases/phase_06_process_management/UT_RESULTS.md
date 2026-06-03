@@ -277,6 +277,31 @@ Review / validation sync:
 
 ## Phase 06 Closure
 
-- Final full suite: 538 passed
-- Actual patch-count subtasks: 9
+- Final full suite: 540 passed
+- Actual patch-count subtasks: 10
 - Ubuntu/Linux validation: passed
+
+## Post-Close Blocker Fix - pre-Phase 05
+
+Commands:
+
+```bash
+.venv/bin/python -m pytest tests/test_process_cleaner.py -q
+.venv/bin/python -m pytest tests/test_fs_memory.py -q
+.venv/bin/python -m pytest tests/ -q
+```
+
+Results:
+
+- `tests/test_process_cleaner.py`: 9 passed
+- `tests/test_fs_memory.py`: 144 passed
+- Full suite: 540 passed
+
+Notes:
+
+- Process cleaner regression covers a mixed target set containing one owned
+  target plus one same-session suspected target. The cleanup kills only the
+  owned pgid; the suspected process remains alive until fixture cleanup.
+- Checkpoint regression covers deprecated `current_trial.process` absence for
+  an active `current_stage` and verifies running process refs are sourced from
+  operation ledger entries.

@@ -242,7 +242,6 @@ CheckpointStage = Literal[
     "memory_write",
     "build_dir_cleanup",
 ]
-CHECKPOINT_PROCESS_STAGES = frozenset({"compiling", "benchmarking"})
 CheckpointOperationName = Literal[
     "workspace_snapshot_pre",
     "spec_backup",
@@ -766,6 +765,8 @@ class CheckpointCurrentTrial(StrictFsModel):
     workspace_snapshot_pre: NonEmptyStr | None = None
     build_dir: NonEmptyStr
     artifact_staging: NonEmptyStr | None = None
+    # Deprecated compatibility field for pre-operation-ledger checkpoints.
+    # Active process ownership now comes from running operations.process_refs.
     process: CheckpointProcess | None = None
     operations: tuple[CheckpointTrialOperation, ...] = Field(default_factory=tuple)
     current_trial_start_line: int | None = Field(default=None, ge=1)
@@ -796,11 +797,19 @@ class CheckpointCurrentTrial(StrictFsModel):
         )
         if stage_started_at < started_at:
             raise ValueError("stage_started_at cannot be before started_at")
-        if self.current_stage in CHECKPOINT_PROCESS_STAGES and self.process is None:
-            raise ValueError("active process stages must include process details")
         if self.operations and self.current_trial_start_line is None:
             raise ValueError("current_trial_start_line is required when operations exist")
         return self
+
+    @property
+    def running_process_refs(self) -> tuple[str, ...]:
+        """Process leases for running operations in the new operation ledger."""
+
+        refs: list[str] = []
+        for operation in self.operations:
+            if operation.status == "running":
+                refs.extend(operation.process_refs)
+        return tuple(refs)
 
 
 class CheckpointBest(StrictFsModel):

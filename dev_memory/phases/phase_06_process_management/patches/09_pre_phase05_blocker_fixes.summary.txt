@@ -1,0 +1,25 @@
+Phase 06 / Post-Close Fix - pre-Phase 05 blockers
+
+Scope:
+- Fix cleanup_process_lease mixed verdict target handling.
+- Relax checkpoint's deprecated single-process field invariant now that the
+  operation ledger owns running process references.
+
+Changed:
+- `cleanup_process_lease()` now filters targets into owned and suspected
+  groups before deciding what to kill.
+- Mixed target sets with at least one owned target now kill only owned targets,
+  not suspected targets discovered in the same scan.
+- `CheckpointCurrentTrial.process` is documented as a deprecated
+  compatibility field.
+- Removed the old `current_stage in {compiling, benchmarking} requires
+  process` validation.
+- Added `CheckpointCurrentTrial.running_process_refs`, sourced from running
+  operation ledger entries.
+- Added regression tests for mixed owned/suspected cleanup targets and
+  operation-ledger process authority.
+
+Validation:
+- `tests/test_process_cleaner.py` -> 9 passed.
+- `tests/test_fs_memory.py` -> 144 passed.
+- `tests/` -> 540 passed.

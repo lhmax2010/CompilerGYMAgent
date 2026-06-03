@@ -120,6 +120,33 @@ def test_cleanup_kills_owned_process_group_and_marks_lease(tmp_path) -> None:
         lab.cleanup()
 
 
+def test_cleanup_mixed_targets_kills_only_owned_process_group(tmp_path) -> None:
+    fake = create_fake_workspace(tmp_path)
+    lab = create_process_lab(tmp_path)
+    try:
+        owned = lab.spawn_live(session_id="sess_clean_mixed")
+        same_session_suspected = lab.spawn_live(session_id="sess_clean_mixed")
+        lease = register_process_lease(
+            fake.layout,
+            record=owned.record,
+            trial_id="trial_mixed",
+            role="compile",
+        )
+
+        result = cleanup_process_lease(fake.layout, lease)
+
+        by_pid = {target.pid: target for target in result.targets}
+        assert by_pid[owned.pid].attribution.verdict == "owned"
+        assert by_pid[same_session_suspected.pid].attribution.verdict == "suspected"
+        assert result.action == "killed"
+        assert owned.pgid in result.killed_pgids
+        assert same_session_suspected.pgid not in result.killed_pgids
+        _wait_until(lambda: not _pid_alive(owned.pid))
+        assert _pid_alive(same_session_suspected.pid)
+    finally:
+        lab.cleanup()
+
+
 def test_suspected_process_is_skipped_by_default_and_force_killed(tmp_path) -> None:
     fake = create_fake_workspace(tmp_path)
     lab = create_process_lab(tmp_path)

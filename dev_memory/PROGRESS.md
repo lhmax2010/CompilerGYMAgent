@@ -1,5 +1,26 @@
 # Development Progress
 
+## 2026-06-03T17:05:00+08:00 - Phase 06 pre-Phase 05 blockers fixed
+
+- Fixed `cleanup_process_lease()` mixed-target behavior: owned targets are
+  killed without carrying along suspected targets from the same cleanup target
+  set.
+- Added a real-process regression with one owned target and one same-session /
+  different-pgid suspected target; the suspected process remains alive until
+  fixture cleanup.
+- Relaxed the deprecated checkpoint `current_trial.process` invariant so
+  `current_stage=compiling|benchmarking` no longer forces the old single-process
+  field to exist.
+- Added `running_process_refs` on `CheckpointCurrentTrial`, sourced from
+  operation ledger entries with `status="running"`.
+- Targeted UT passed: `tests/test_process_cleaner.py` -> 9 passed,
+  `tests/test_fs_memory.py` -> 144 passed.
+- Full UT passed: `.venv/bin/python -m pytest tests/ -q` -> 540 passed.
+- Phase 06 patch-count subtasks updated to 10.
+
+Next action: push blocker fix and send Claude the review range, then begin
+Phase 05 after approval.
+
 ## 2026-06-03T15:44:39+08:00 - Phase 06 approved, validated, and closed
 
 - Claude review verdict for Subtask 6.8: Approve, with no Critical / High /

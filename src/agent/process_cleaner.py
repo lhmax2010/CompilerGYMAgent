@@ -209,12 +209,14 @@ def cleanup_process_lease(
             reason="no matching live process found",
         )
 
-    if any(target.attribution.verdict == "owned" for target in targets):
-        killable = targets
-    elif force_suspected and any(
-        target.attribution.verdict == "suspected" for target in targets
-    ):
-        killable = targets
+    owned = tuple(target for target in targets if target.attribution.verdict == "owned")
+    suspected = tuple(
+        target for target in targets if target.attribution.verdict == "suspected"
+    )
+    if owned:
+        killable = owned
+    elif force_suspected and suspected:
+        killable = suspected
     else:
         updated = mark_process_unsafe_skip(
             layout,

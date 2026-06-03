@@ -259,9 +259,30 @@ subtasks:
         status: done
       - item: "Ubuntu/Linux validation"
         status: done
+  - id: "6.9"
+    title: "pre-Phase 05 blocker fixes"
+    status: done
+    implementation_commit: pending
+    review_status: pending
+    ubuntu_validation_status: passed
+    checklist:
+      - item: "Fix cleanup_process_lease mixed owned/suspected target filtering"
+        status: done
+      - item: "Add regression test with one owned target and one same-session suspected target"
+        status: done
+      - item: "Allow deprecated current_trial.process to be absent for active current_stage values"
+        status: done
+      - item: "Add running_process_refs helper sourced from operation ledger refs"
+        status: done
+      - item: "Add checkpoint tests for deprecated process absence and running operation refs"
+        status: done
+      - item: "Run targeted tests and full production suite"
+        status: done
+      - item: "Generate patch artifacts"
+        status: done
 phase_closure:
   status: done
-  actual_subtasks_done: 9
+  actual_subtasks_done: 10
   closed_at: 2026-06-03T15:44:39+08:00
-  final_full_suite: "538 passed"
+  final_full_suite: "540 passed"
   next_phase: "05 - Compile / Benchmark Skills"

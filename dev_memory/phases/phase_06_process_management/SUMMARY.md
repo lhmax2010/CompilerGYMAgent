@@ -380,6 +380,35 @@ Completed the final Phase 06 planned deliverable.
 
 - Status: done
 - Closed at: 2026-06-03T15:44:39+08:00
-- Actual patch-count subtasks: 9
-- Final full suite: 538 passed
+- Actual patch-count subtasks: 10
+- Final full suite: 540 passed
 - Next phase: Phase 05 - Compile / Benchmark Skills
+
+## Post-Close Blocker Fix - pre-Phase 05
+
+Fixed two externally reviewed blockers before Phase 05 starts.
+
+### Changes
+
+- `cleanup_process_lease()` now filters mixed target sets by verdict before
+  killing:
+  - owned targets are killed when any owned target exists,
+  - suspected targets are only killable through the suspected-only
+    `force_suspected` path,
+  - suspected targets are no longer killed just because another target in the
+    same lease cleanup is owned.
+- Added a real-process regression test with one owned recorded pid target and
+  one same-session/different-pgid suspected target. The owned pgid is killed;
+  the suspected process remains alive until fixture cleanup.
+- Removed the old checkpoint invariant that forced
+  `current_trial.process != None` for `compiling` / `benchmarking` stages.
+- Kept `current_trial.process` as a deprecated compatibility field for old
+  checkpoints.
+- Added `CheckpointCurrentTrial.running_process_refs`, sourced from
+  `operations` entries with `status="running"`.
+
+### Validation
+
+- `tests/test_process_cleaner.py`: 9 passed
+- `tests/test_fs_memory.py`: 144 passed
+- Full suite: 540 passed
