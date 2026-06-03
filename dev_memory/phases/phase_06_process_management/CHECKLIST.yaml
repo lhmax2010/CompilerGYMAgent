@@ -135,25 +135,25 @@ subtasks:
         status: done
   - id: "6.8"
     title: "NFS/FUSE runtime warning + CheckpointState LangGraph comment reservation"
-    status: in_progress
+    status: implementation_complete
     implementation_commit: pending
     review_status: pending
     ubuntu_validation_status: pending
     checklist:
       - item: "Add runtime filesystem type detection for workspace paths"
-        status: pending
+        status: done
       - item: "Warn for NFS/FUSE/remote-like filesystems during workspace lock acquisition"
-        status: pending
+        status: done
       - item: "Warn for NFS/FUSE/remote-like filesystems during agent init context preparation"
-        status: pending
+        status: done
       - item: "Keep warnings nonblocking"
-        status: pending
+        status: done
       - item: "Add CheckpointState comment-only LangGraph state reservation without adding schema fields"
-        status: pending
+        status: done
       - item: "Run targeted tests and full production suite"
-        status: pending
+        status: done
       - item: "Generate patch artifacts"
-        status: pending
+        status: done
   - id: "6.4"
     title: "workspace lock hardening (probe flock + LockStatus unknown)"
     status: done

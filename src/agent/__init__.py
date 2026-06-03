@@ -10,6 +10,14 @@ from .errors import (
     EXIT_VALIDATION,
     AgentError,
 )
+from .filesystem import (
+    FilesystemInspection,
+    FilesystemMount,
+    RemoteFilesystemWarning,
+    inspect_filesystem,
+    is_remote_filesystem_type,
+    warn_if_remote_filesystem,
+)
 from .doctor import (
     StateConsistencyError,
     StateConsistencyIssue,
@@ -289,6 +297,8 @@ __all__ = [
     "ExperienceSourceIntegrity",
     "ExperienceValidation",
     "EnvMarkerRead",
+    "FilesystemInspection",
+    "FilesystemMount",
     "FsMemoryError",
     "HistorySummary",
     "InitAborted",
@@ -329,6 +339,7 @@ __all__ = [
     "ProcessSpawnResult",
     "RegistryLoadError",
     "RegistryValidationError",
+    "RemoteFilesystemWarning",
     "ScoreVsBest",
     "ScheduleSlot",
     "SessionId",
@@ -411,6 +422,8 @@ __all__ = [
     "inspect_trace_checkpoint_alignment",
     "inspect_trace_session_spans",
     "inspect_state_consistency",
+    "inspect_filesystem",
+    "is_remote_filesystem_type",
     "learned_rule_path",
     "learned_rule_payload",
     "load_config",
@@ -464,6 +477,7 @@ __all__ = [
     "verify_initialized_for_startup",
     "verify_learned_rule_integrity",
     "verify_trial_integrity",
+    "warn_if_remote_filesystem",
     "with_experience_local_integrity",
     "with_learned_rule_integrity",
     "with_trial_integrity",

@@ -273,3 +273,36 @@ External review:
 - Notes: reviewer independently verified checkpoint hash staleness, Layer D
   current-trial line protection, conservative start-line-ahead refusal, and
   compatibility with existing clean trace behavior.
+
+## Subtask 6.8 - NFS/FUSE Warning + LangGraph Reservation
+
+Self-review checklist:
+
+- [x] Filesystem inspection is read-only and parses Linux mountinfo.
+- [x] Longest mount-point match is used when multiple mount points can contain
+  the workspace path.
+- [x] NFS/FUSE/remote-like filesystem types emit `RemoteFilesystemWarning`.
+- [x] Local-like filesystem types such as ext4/xfs/btrfs/overlay/tmpfs do not
+  warn.
+- [x] `agent init` emits the warning during context preparation but continues.
+- [x] `WorkspaceLock.acquire()` emits the warning before lock acquisition but
+  continues.
+- [x] `_write_holder()` remains unchanged; no `os.replace(run.lock)` path is
+  introduced.
+- [x] `CheckpointState` only contains a comment reservation for LangGraph state.
+- [x] `langgraph_state_snapshot` remains rejected as an extra checkpoint field.
+- [x] Public filesystem warning helpers are exported from `agent.__init__`.
+- [x] Targeted and full test suites pass.
+
+Residual risks / follow-up:
+
+- The detector is intentionally heuristic. It warns on known remote-like and
+  FUSE types but does not try to prove a filesystem's lock/fsync semantics.
+- Richer user-facing rendering of the warning belongs to future CLI/doctor
+  layers.
+
+Self-review result:
+
+- No known Critical / High / Medium / Low findings.
+- Primary review focus for Claude: confirm warning-only behavior, mount parsing
+  coverage, and that the LangGraph reservation does not add a checkpoint field.

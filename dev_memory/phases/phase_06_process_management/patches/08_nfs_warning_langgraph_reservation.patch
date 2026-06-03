@@ -1,0 +1,744 @@
+diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index 42fcba1..f5349ad 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -359,28 +359,46 @@ subtasks:
+       full: "519 passed"
+   - id: "6.8"
+     title: "NFS/FUSE runtime warning + CheckpointState LangGraph comment reservation"
+-    status: in_progress
++    status: implementation_complete
+     related_requirements:
+       - ROADMAP.yaml Phase 06 deliverable NFS runtime detection + warning
+       - ROADMAP.yaml Phase 06 deliverable CheckpointState langgraph comment reservation
+       - REQUIREMENTS.md section 3.3.4
+       - REQUIREMENTS.md section 4.15
+-    files_created: []
+-    files_modified: []
++    files_created:
++      - src/agent/filesystem.py
++      - tests/test_filesystem.py
++    files_modified:
++      - src/agent/__init__.py
++      - src/agent/fs_memory.py
++      - src/agent/init.py
++      - src/agent/workspace_lock.py
++      - tests/test_fs_memory.py
++      - tests/test_init.py
++      - tests/test_workspace_lock.py
++      - dev_memory/CURRENT_PHASE.yaml
++      - dev_memory/DECISIONS.md
++      - dev_memory/PROGRESS.md
++      - dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
++      - dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
++      - dev_memory/phases/phase_06_process_management/SUMMARY.md
++      - dev_memory/phases/phase_06_process_management/UT_RESULTS.md
+     behavior_notes:
+-      - "Implementation pending."
++      - "Filesystem inspection parses /proc/self/mountinfo and warns for NFS/FUSE/remote-like filesystem types."
++      - "Warnings are emitted during agent init context preparation and workspace lock acquisition, but they do not block execution."
++      - "CheckpointState has a comment-only LangGraph reservation; langgraph_state_snapshot remains rejected by the strict schema."
+     ut_required: true
+-    ut_passed: false
+-    targeted_ut: pending
+-    production_regression_ut: pending
++    ut_passed: true
++    targeted_ut: "234 tests passed, 0 failed (filesystem/workspace_lock/init/fs_memory); 3 error tests passed"
++    production_regression_ut: "538 tests passed, 0 failed"
+     self_review_required: true
+-    self_reviewed: false
++    self_reviewed: true
+     patch_required: true
+     patch_file: dev_memory/phases/phase_06_process_management/patches/08_nfs_warning_langgraph_reservation.patch
+-    patch_generated: false
++    patch_generated: true
+     commit_required: true
+     commit_pending: true
+     implementation_commit: pending
+     external_review_verdict: pending
+     ubuntu_validation_status: pending
+-next_action: "Implement Phase 06 Subtask 6.8 NFS/FUSE runtime warnings plus CheckpointState LangGraph comment reservation."
++next_action: "Commit/push Phase 06 Subtask 6.8, then send range for Claude review."
+diff --git a/dev_memory/DECISIONS.md b/dev_memory/DECISIONS.md
+index 4a773a5..e984446 100644
+--- a/dev_memory/DECISIONS.md
++++ b/dev_memory/DECISIONS.md
+@@ -953,3 +953,16 @@ Decision records must include:
+   - Recompute the full clean plan inside execute. Rejected because it breaks the compute/execute separation and hides planner bugs behind a second decision path.
+   - Only compare checkpoint mtime. Rejected because mtimes are filesystem metadata and can be stale or manipulated; canonical payload hashes are more precise.
+   - Rely on Layer 2 post-checkpoint protection for active trials. Rejected because it only protects lines after `trace_line_count`, while current trial events can start before the checkpoint boundary.
++
++## 2026-06-03T06:35:00Z - Phase 06 remote filesystem handling is warning-only
++
++- affected_requirement:
++  - ROADMAP.yaml Phase 06
++  - REQUIREMENTS.md section 4.15
++  - REQUIREMENTS.md section 3.3.4
++- decision: Subtask 6.8 adds runtime mount inspection for workspace paths and emits `RemoteFilesystemWarning` for NFS/FUSE/remote-like filesystem types during `agent init` context preparation and `WorkspaceLock.acquire()`. The warning is nonblocking. Phase 06 also reserves future LangGraph checkpoint state with a comment only; `langgraph_state_snapshot` is not added to `CheckpointState` yet and is still rejected as an extra field.
++- rationale: v1 lock/fsync/atomic-rename behavior has been validated on Linux local POSIX filesystems. NFS, FUSE, and remote-like filesystems can have implementation-specific `flock`, directory fsync, and rename semantics, but rejecting them outright would make development workspaces unusable without a concrete failing scenario. A warning makes the deployment assumption visible while preserving forward progress. For LangGraph, a comment-only reservation documents the future schema pressure without adding an unconstrained `dict` field before the Phase 9.0 spike defines serialization, invalidation, and replay rules.
++- alternatives_considered:
++  - Reject remote-like filesystems during init/lock acquisition. Rejected because v1 has a local-filesystem assumption, not a proven hard incompatibility for every NFS/FUSE deployment.
++  - Only record the filesystem assumption in `DECISIONS.md`. Rejected because users need a runtime signal when their actual workspace path sits on unvalidated storage.
++  - Add `langgraph_state_snapshot: dict[str, Any] | None` immediately. Rejected because it would expand the canonical checkpoint schema before the LangGraph spike decides what state is serializable and authoritative.
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index 6a274d0..837b146 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -1,5 +1,21 @@
+ # Development Progress
+ 
++## 2026-06-03T14:35:00+08:00 - Phase 06 / Subtask 6.8 implementation completed
++
++- Added `src/agent/filesystem.py` with Linux mountinfo parsing and
++  NFS/FUSE/remote-like filesystem classification.
++- Added nonblocking `RemoteFilesystemWarning` emission during `agent init`
++  context preparation and `WorkspaceLock.acquire()`.
++- Added a comment-only LangGraph state reservation near `CheckpointState`
++  fields; `langgraph_state_snapshot` remains rejected by the strict schema.
++- Targeted UT passed: filesystem / workspace lock / init / fs_memory -> 234
++  passed.
++- Error framework smoke passed: 3 passed.
++- Full UT passed: `.venv/bin/python -m pytest tests/ -q` -> 538 passed.
++
++Next action: generate Subtask 6.8 patch artifacts, commit, push, and send the
++range for Claude review.
++
+ ## 2026-06-03T14:20:00+08:00 - Phase 06 / Subtask 6.7 approved and validated
+ 
+ - Claude review verdict: Approve, with no Critical / High / Medium / Low findings.
+diff --git a/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml b/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
+index ecbb066..8019c6c 100644
+--- a/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
+@@ -135,25 +135,25 @@ subtasks:
+         status: done
+   - id: "6.8"
+     title: "NFS/FUSE runtime warning + CheckpointState LangGraph comment reservation"
+-    status: in_progress
++    status: implementation_complete
+     implementation_commit: pending
+     review_status: pending
+     ubuntu_validation_status: pending
+     checklist:
+       - item: "Add runtime filesystem type detection for workspace paths"
+-        status: pending
++        status: done
+       - item: "Warn for NFS/FUSE/remote-like filesystems during workspace lock acquisition"
+-        status: pending
++        status: done
+       - item: "Warn for NFS/FUSE/remote-like filesystems during agent init context preparation"
+-        status: pending
++        status: done
+       - item: "Keep warnings nonblocking"
+-        status: pending
++        status: done
+       - item: "Add CheckpointState comment-only LangGraph state reservation without adding schema fields"
+-        status: pending
++        status: done
+       - item: "Run targeted tests and full production suite"
+-        status: pending
++        status: done
+       - item: "Generate patch artifacts"
+-        status: pending
++        status: done
+   - id: "6.4"
+     title: "workspace lock hardening (probe flock + LockStatus unknown)"
+     status: done
+diff --git a/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md b/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
+index 96d82ed..b43d587 100644
+--- a/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
++++ b/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
+@@ -273,3 +273,36 @@ External review:
+ - Notes: reviewer independently verified checkpoint hash staleness, Layer D
+   current-trial line protection, conservative start-line-ahead refusal, and
+   compatibility with existing clean trace behavior.
++
++## Subtask 6.8 - NFS/FUSE Warning + LangGraph Reservation
++
++Self-review checklist:
++
++- [x] Filesystem inspection is read-only and parses Linux mountinfo.
++- [x] Longest mount-point match is used when multiple mount points can contain
++  the workspace path.
++- [x] NFS/FUSE/remote-like filesystem types emit `RemoteFilesystemWarning`.
++- [x] Local-like filesystem types such as ext4/xfs/btrfs/overlay/tmpfs do not
++  warn.
++- [x] `agent init` emits the warning during context preparation but continues.
++- [x] `WorkspaceLock.acquire()` emits the warning before lock acquisition but
++  continues.
++- [x] `_write_holder()` remains unchanged; no `os.replace(run.lock)` path is
++  introduced.
++- [x] `CheckpointState` only contains a comment reservation for LangGraph state.
++- [x] `langgraph_state_snapshot` remains rejected as an extra checkpoint field.
++- [x] Public filesystem warning helpers are exported from `agent.__init__`.
++- [x] Targeted and full test suites pass.
++
++Residual risks / follow-up:
++
++- The detector is intentionally heuristic. It warns on known remote-like and
++  FUSE types but does not try to prove a filesystem's lock/fsync semantics.
++- Richer user-facing rendering of the warning belongs to future CLI/doctor
++  layers.
++
++Self-review result:
++
++- No known Critical / High / Medium / Low findings.
++- Primary review focus for Claude: confirm warning-only behavior, mount parsing
++  coverage, and that the LangGraph reservation does not add a checkpoint field.
+diff --git a/dev_memory/phases/phase_06_process_management/SUMMARY.md b/dev_memory/phases/phase_06_process_management/SUMMARY.md
+index 69c301d..d459d6f 100644
+--- a/dev_memory/phases/phase_06_process_management/SUMMARY.md
++++ b/dev_memory/phases/phase_06_process_management/SUMMARY.md
+@@ -332,3 +332,34 @@ hashes and Layer D active-trial protection.
+     `current_trial_start_line` through trace end,
+   - `current_trial_start_line` ahead of trace causes conservative refusal,
+   - existing trace cleanup behavior remains compatible.
++
++## Subtask 6.8 - NFS/FUSE Warning + LangGraph Reservation
++
++Completed the final Phase 06 planned deliverable.
++
++### Changes
++
++- Added `src/agent/filesystem.py`.
++- Added `/proc/self/mountinfo` parsing and longest-mount matching.
++- Classified NFS/FUSE/remote-like filesystem types for runtime warnings.
++- Added `RemoteFilesystemWarning`.
++- `prepare_init_context()` now warns when the configured workspace appears to be
++  on NFS/FUSE/remote-like storage.
++- `WorkspaceLock.acquire()` now warns when the lock directory appears to be on
++  NFS/FUSE/remote-like storage.
++- Added a comment-only `CheckpointState` reservation for future Phase 9.0
++  LangGraph state. The schema field is not added.
++
++### Guardrails
++
++- Remote filesystem detection is warning-only and does not block init or lock
++  acquisition.
++- `WorkspaceLock._write_holder()` remains unchanged and `run.lock` is not
++  replaced.
++- `langgraph_state_snapshot` remains rejected as an extra checkpoint field.
++
++### Validation
++
++- `tests/test_filesystem.py tests/test_workspace_lock.py tests/test_init.py tests/test_fs_memory.py`: 234 passed
++- `tests/test_errors.py`: 3 passed
++- Full suite: 538 passed
+diff --git a/dev_memory/phases/phase_06_process_management/UT_RESULTS.md b/dev_memory/phases/phase_06_process_management/UT_RESULTS.md
+index 13ad5f6..eea3cd0 100644
+--- a/dev_memory/phases/phase_06_process_management/UT_RESULTS.md
++++ b/dev_memory/phases/phase_06_process_management/UT_RESULTS.md
+@@ -241,3 +241,26 @@ Review / validation sync:
+ - Re-run trace cleanup targeted set: 34 passed
+ - Re-run adjacent targeted set: 95 passed
+ - Re-run full suite: 519 passed
++
++## Subtask 6.8 - NFS/FUSE Warning + LangGraph Reservation
++
++Commands:
++
++```bash
++.venv/bin/python -m pytest tests/test_filesystem.py tests/test_workspace_lock.py tests/test_init.py tests/test_fs_memory.py -q
++.venv/bin/python -m pytest tests/test_errors.py -q
++.venv/bin/python -m pytest tests/ -q
++```
++
++Results:
++
++- Filesystem / workspace lock / init / fs_memory targeted set: 234 passed
++- Error framework smoke: 3 passed
++- Full suite: 538 passed
++
++Notes:
++
++- Targeted tests cover NFS/FUSE/remote-like type classification, mountinfo
++  longest-match parsing, nonblocking warning behavior, init warning hook,
++  workspace lock warning hook, and strict rejection of the reserved
++  `langgraph_state_snapshot` field.
+diff --git a/src/agent/__init__.py b/src/agent/__init__.py
+index 4e57b64..ef1909f 100644
+--- a/src/agent/__init__.py
++++ b/src/agent/__init__.py
+@@ -10,6 +10,14 @@ from .errors import (
+     EXIT_VALIDATION,
+     AgentError,
+ )
++from .filesystem import (
++    FilesystemInspection,
++    FilesystemMount,
++    RemoteFilesystemWarning,
++    inspect_filesystem,
++    is_remote_filesystem_type,
++    warn_if_remote_filesystem,
++)
+ from .doctor import (
+     StateConsistencyError,
+     StateConsistencyIssue,
+@@ -289,6 +297,8 @@ __all__ = [
+     "ExperienceSourceIntegrity",
+     "ExperienceValidation",
+     "EnvMarkerRead",
++    "FilesystemInspection",
++    "FilesystemMount",
+     "FsMemoryError",
+     "HistorySummary",
+     "InitAborted",
+@@ -329,6 +339,7 @@ __all__ = [
+     "ProcessSpawnResult",
+     "RegistryLoadError",
+     "RegistryValidationError",
++    "RemoteFilesystemWarning",
+     "ScoreVsBest",
+     "ScheduleSlot",
+     "SessionId",
+@@ -411,6 +422,8 @@ __all__ = [
+     "inspect_trace_checkpoint_alignment",
+     "inspect_trace_session_spans",
+     "inspect_state_consistency",
++    "inspect_filesystem",
++    "is_remote_filesystem_type",
+     "learned_rule_path",
+     "learned_rule_payload",
+     "load_config",
+@@ -464,6 +477,7 @@ __all__ = [
+     "verify_initialized_for_startup",
+     "verify_learned_rule_integrity",
+     "verify_trial_integrity",
++    "warn_if_remote_filesystem",
+     "with_experience_local_integrity",
+     "with_learned_rule_integrity",
+     "with_trial_integrity",
+diff --git a/src/agent/filesystem.py b/src/agent/filesystem.py
+new file mode 100644
+index 0000000..6014bc8
+--- /dev/null
++++ b/src/agent/filesystem.py
+@@ -0,0 +1,183 @@
++"""Filesystem runtime inspection helpers.
++
++Phase 06 keeps v1 scoped to Linux local POSIX filesystems. These helpers do not
++block remote filesystems; they surface a runtime warning so users do not mistake
++NFS/FUSE lock/fsync behavior for a validated deployment target.
++"""
++
++from __future__ import annotations
++
++import warnings
++from dataclasses import dataclass, replace
++from pathlib import Path
++
++
++REMOTE_FILESYSTEM_TYPES = frozenset(
++    {
++        "9p",
++        "afs",
++        "ceph",
++        "cifs",
++        "davfs",
++        "davfs2",
++        "gfs",
++        "gfs2",
++        "glusterfs",
++        "lustre",
++        "ncpfs",
++        "nfs",
++        "nfs4",
++        "ocfs2",
++        "smb3",
++        "smbfs",
++        "sshfs",
++    }
++)
++
++
++class RemoteFilesystemWarning(RuntimeWarning):
++    """Warns that a workspace path is on an unvalidated filesystem type."""
++
++
++@dataclass(frozen=True)
++class FilesystemMount:
++    mount_point: Path
++    fs_type: str
++    source: str | None
++
++
++@dataclass(frozen=True)
++class FilesystemInspection:
++    path: Path
++    mount: FilesystemMount | None
++    is_remote_like: bool
++    warning_message: str | None = None
++    error: str | None = None
++
++    @property
++    def fs_type(self) -> str | None:
++        return None if self.mount is None else self.mount.fs_type
++
++    @property
++    def mount_point(self) -> Path | None:
++        return None if self.mount is None else self.mount.mount_point
++
++    @property
++    def source(self) -> str | None:
++        return None if self.mount is None else self.mount.source
++
++
++def inspect_filesystem(
++    path: str | Path,
++    *,
++    mountinfo_text: str | None = None,
++    mountinfo_path: str | Path = "/proc/self/mountinfo",
++) -> FilesystemInspection:
++    """Inspect the mount containing ``path`` using Linux mountinfo data."""
++
++    resolved_path = _resolve_path(Path(path))
++    try:
++        text = (
++            mountinfo_text
++            if mountinfo_text is not None
++            else Path(mountinfo_path).read_text(encoding="utf-8")
++        )
++    except OSError as exc:
++        return FilesystemInspection(
++            path=resolved_path,
++            mount=None,
++            is_remote_like=False,
++            error=f"failed to read mountinfo: {exc}",
++        )
++
++    mount = _find_mount_for_path(resolved_path, _parse_mountinfo(text))
++    return FilesystemInspection(
++        path=resolved_path,
++        mount=mount,
++        is_remote_like=(
++            False if mount is None else is_remote_filesystem_type(mount.fs_type)
++        ),
++    )
++
++
++def warn_if_remote_filesystem(
++    path: str | Path,
++    *,
++    context: str,
++) -> FilesystemInspection:
++    """Warn when ``path`` appears to live on NFS/FUSE/remote-like storage."""
++
++    inspection = inspect_filesystem(path)
++    if not inspection.is_remote_like or inspection.mount is None:
++        return inspection
++
++    message = (
++        f"{context} path {inspection.path} is on filesystem type "
++        f"{inspection.mount.fs_type!r} mounted at {inspection.mount.mount_point}. "
++        "CompilerGYMAgent v1 is validated for Linux local POSIX filesystems; "
++        "fcntl.flock, fsync, and atomic rename behavior on NFS/FUSE/remote "
++        "filesystems is unverified. Continuing with warning only."
++    )
++    warnings.warn(message, RemoteFilesystemWarning, stacklevel=2)
++    return replace(inspection, warning_message=message)
++
++
++def is_remote_filesystem_type(fs_type: str) -> bool:
++    value = fs_type.lower()
++    return (
++        value in REMOTE_FILESYSTEM_TYPES
++        or value.startswith("fuse.")
++        or value == "fuse"
++    )
++
++
++def _parse_mountinfo(text: str) -> tuple[FilesystemMount, ...]:
++    mounts: list[FilesystemMount] = []
++    for raw_line in text.splitlines():
++        line = raw_line.strip()
++        if not line or " - " not in line:
++            continue
++        before, after = line.split(" - ", 1)
++        before_fields = before.split()
++        after_fields = after.split()
++        if len(before_fields) < 5 or not after_fields:
++            continue
++        mount_point = Path(_decode_mountinfo_escape(before_fields[4]))
++        fs_type = after_fields[0]
++        source = after_fields[1] if len(after_fields) > 1 else None
++        mounts.append(FilesystemMount(mount_point=mount_point, fs_type=fs_type, source=source))
++    return tuple(mounts)
++
++
++def _find_mount_for_path(
++    path: Path,
++    mounts: tuple[FilesystemMount, ...],
++) -> FilesystemMount | None:
++    candidates = [mount for mount in mounts if _path_is_at_or_under(path, mount.mount_point)]
++    if not candidates:
++        return None
++    return max(candidates, key=lambda mount: len(str(mount.mount_point)))
++
++
++def _path_is_at_or_under(path: Path, mount_point: Path) -> bool:
++    try:
++        path.relative_to(mount_point)
++        return True
++    except ValueError:
++        return False
++
++
++def _resolve_path(path: Path) -> Path:
++    try:
++        return path.expanduser().resolve(strict=False)
++    except OSError:
++        return path.expanduser().absolute()
++
++
++def _decode_mountinfo_escape(value: str) -> str:
++    return (
++        value.replace("\\040", " ")
++        .replace("\\011", "\t")
++        .replace("\\012", "\n")
++        .replace("\\134", "\\")
++    )
+diff --git a/src/agent/fs_memory.py b/src/agent/fs_memory.py
+index e117cb6..5a4f798 100644
+--- a/src/agent/fs_memory.py
++++ b/src/agent/fs_memory.py
+@@ -827,6 +827,10 @@ class CheckpointState(StrictFsModel):
+     last_completed_trial: NonEmptyStr | None = None
+     current_trial: CheckpointCurrentTrial | None = None
+     current_best: CheckpointBest | None = None
++    # Reserved for Phase 9.0 LangGraph skeleton spike.
++    # langgraph_state_snapshot: dict[str, Any] | None
++    # Do not add this as a Phase 06 field; LangGraph state remains cache-only
++    # until the spike defines serialization, invalidation, and replay rules.
+     explorer_state: dict[str, Any] = Field(default_factory=dict)
+     random_seed: int = Field(ge=0)
+     total_tokens_consumed: int = Field(ge=0)
+diff --git a/src/agent/init.py b/src/agent/init.py
+index 9eedb52..78a9cf2 100644
+--- a/src/agent/init.py
++++ b/src/agent/init.py
+@@ -24,6 +24,7 @@ from pydantic import (
+ 
+ from .config import AgentConfig, NonEmptyStr, ProjectConfig, load_config
+ from .errors import AgentError, EXIT_EXECUTION_REFUSED, EXIT_VALIDATION
++from .filesystem import warn_if_remote_filesystem
+ from .fs_memory import atomic_write_yaml
+ from .registry import (
+     ModulesRegistry,
+@@ -171,6 +172,7 @@ def prepare_init_context(
+ ) -> InitContext:
+     config_file = Path(config_path)
+     config = load_config(config_file)
++    warn_if_remote_filesystem(config.memory.workspace, context="agent init workspace")
+     registry_file = (
+         Path(registry_path)
+         if registry_path is not None
+diff --git a/src/agent/workspace_lock.py b/src/agent/workspace_lock.py
+index 6a5132c..0027fa3 100644
+--- a/src/agent/workspace_lock.py
++++ b/src/agent/workspace_lock.py
+@@ -23,6 +23,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
+ 
+ from .config import AgentConfig, NonEmptyStr, WorkspaceLockConfig
+ from .errors import AgentError, EXIT_GENERIC, EXIT_LOCK_BUSY
++from .filesystem import warn_if_remote_filesystem
+ from .identifiers import validate_session_id_atom
+ 
+ try:  # pragma: no cover - Linux path is covered on the target Ubuntu host.
+@@ -219,6 +220,7 @@ class WorkspaceLock:
+             raise ValueError("timeout must be >= 0")
+ 
+         self._require_fcntl()
++        warn_if_remote_filesystem(self.lock_path.parent, context="workspace lock")
+         self.lock_path.parent.mkdir(parents=True, exist_ok=True)
+         self._fd = os.open(str(self.lock_path), os.O_RDWR | os.O_CREAT, 0o600)
+ 
+diff --git a/tests/test_filesystem.py b/tests/test_filesystem.py
+new file mode 100644
+index 0000000..72f986c
+--- /dev/null
++++ b/tests/test_filesystem.py
+@@ -0,0 +1,85 @@
++from __future__ import annotations
++
++from pathlib import Path
++
++import pytest
++
++from agent.filesystem import (
++    RemoteFilesystemWarning,
++    inspect_filesystem,
++    is_remote_filesystem_type,
++    warn_if_remote_filesystem,
++)
++
++
++MOUNTINFO = """\
++11 1 8:1 / / rw,relatime - ext4 /dev/root rw
++22 11 0:45 / /home/user/ws rw,relatime - nfs4 server:/exports/ws rw
++33 11 0:56 / /home/user/ws/fuse\\040space rw,nosuid - fuse.sshfs sshfs rw
++"""
++
++
++@pytest.mark.parametrize(
++    "fs_type",
++    ["nfs", "nfs4", "fuse", "fuse.sshfs", "cifs", "9p", "lustre"],
++)
++def test_is_remote_filesystem_type_flags_remote_like_types(fs_type: str) -> None:
++    assert is_remote_filesystem_type(fs_type) is True
++
++
++@pytest.mark.parametrize("fs_type", ["ext4", "xfs", "btrfs", "overlay", "tmpfs"])
++def test_is_remote_filesystem_type_leaves_local_like_types(fs_type: str) -> None:
++    assert is_remote_filesystem_type(fs_type) is False
++
++
++def test_inspect_filesystem_uses_longest_mount_match_and_decodes_paths() -> None:
++    inspection = inspect_filesystem(
++        Path("/home/user/ws/fuse space/project"),
++        mountinfo_text=MOUNTINFO,
++    )
++
++    assert inspection.mount is not None
++    assert inspection.mount.mount_point == Path("/home/user/ws/fuse space")
++    assert inspection.fs_type == "fuse.sshfs"
++    assert inspection.source == "sshfs"
++    assert inspection.is_remote_like is True
++
++
++def test_inspect_filesystem_reports_local_mount_without_warning_flag() -> None:
++    inspection = inspect_filesystem(Path("/var/tmp/project"), mountinfo_text=MOUNTINFO)
++
++    assert inspection.mount is not None
++    assert inspection.mount.mount_point == Path("/")
++    assert inspection.fs_type == "ext4"
++    assert inspection.is_remote_like is False
++
++
++def test_warn_if_remote_filesystem_emits_warning(monkeypatch: pytest.MonkeyPatch) -> None:
++    monkeypatch.setattr(
++        "agent.filesystem.inspect_filesystem",
++        lambda path: inspect_filesystem(Path("/home/user/ws/project"), mountinfo_text=MOUNTINFO),
++    )
++
++    with pytest.warns(RemoteFilesystemWarning, match="unverified"):
++        inspection = warn_if_remote_filesystem(
++            Path("/home/user/ws/project"),
++            context="workspace lock",
++        )
++
++    assert inspection.is_remote_like is True
++    assert inspection.warning_message is not None
++    assert "workspace lock" in inspection.warning_message
++
++
++def test_warn_if_remote_filesystem_is_nonblocking_for_local_mount(
++    monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    monkeypatch.setattr(
++        "agent.filesystem.inspect_filesystem",
++        lambda path: inspect_filesystem(Path("/var/tmp/project"), mountinfo_text=MOUNTINFO),
++    )
++
++    inspection = warn_if_remote_filesystem(Path("/var/tmp/project"), context="agent init")
++
++    assert inspection.is_remote_like is False
++    assert inspection.warning_message is None
+diff --git a/tests/test_fs_memory.py b/tests/test_fs_memory.py
+index a8e44cc..6986579 100644
+--- a/tests/test_fs_memory.py
++++ b/tests/test_fs_memory.py
+@@ -1347,6 +1347,14 @@ def test_checkpoint_state_schema_accepts_documented_running_state() -> None:
+     assert checkpoint.current_best.score == 1.231
+ 
+ 
++def test_checkpoint_state_rejects_langgraph_reserved_field_for_now() -> None:
++    data = checkpoint_data()
++    data["langgraph_state_snapshot"] = {"node": "compile"}
++
++    with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
++        CheckpointState.model_validate(data)
++
++
+ def test_checkpoint_state_accepts_operation_ledger() -> None:
+     data = checkpoint_data()
+     data["current_trial"]["current_trial_start_line"] = 42
+diff --git a/tests/test_init.py b/tests/test_init.py
+index 73dc512..fc495bf 100644
+--- a/tests/test_init.py
++++ b/tests/test_init.py
+@@ -119,6 +119,28 @@ def test_prepare_init_context_loads_registry_and_existing_history(tmp_path: Path
+     assert context.history.has_history is True
+ 
+ 
++def test_prepare_init_context_remote_filesystem_warning_is_nonblocking(
++    tmp_path: Path,
++    monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    config_path, registry_path, _ = write_project_files(tmp_path)
++    workspace = tmp_path / "workspace"
++
++    def warn(path: object, *, context: str) -> None:
++        assert Path(path) == workspace
++        assert context == "agent init workspace"
++        import warnings
++
++        warnings.warn("remote init warning", RuntimeWarning, stacklevel=2)
++
++    monkeypatch.setattr("agent.init.warn_if_remote_filesystem", warn)
++
++    with pytest.warns(RuntimeWarning, match="remote init warning"):
++        context = prepare_init_context(config_path, registry_path=registry_path)
++
++    assert context.workspace == workspace
++
++
+ def test_render_init_confirmation_includes_identity_baseline_and_history(
+     tmp_path: Path,
+ ) -> None:
+diff --git a/tests/test_workspace_lock.py b/tests/test_workspace_lock.py
+index b996a1b..18bcff5 100644
+--- a/tests/test_workspace_lock.py
++++ b/tests/test_workspace_lock.py
+@@ -176,7 +176,13 @@ def test_workspace_lock_from_config_uses_configured_lock_file(tmp_path: Path) ->
+ 
+ def test_acquire_writes_holder_metadata_and_release_keeps_lock_file(
+     tmp_path: Path,
++    monkeypatch: pytest.MonkeyPatch,
+ ) -> None:
++    warned_paths: list[Path] = []
++    monkeypatch.setattr(
++        "agent.workspace_lock.warn_if_remote_filesystem",
++        lambda path, *, context: warned_paths.append(Path(path)),
++    )
+     lock = make_lock(tmp_path)
+     lock_path = tmp_path / "state" / "run.lock"
+ 
+@@ -199,6 +205,28 @@ def test_acquire_writes_holder_metadata_and_release_keeps_lock_file(
+     assert lock.is_held is False
+     assert lock_path.exists()
+     assert yaml.safe_load(lock_path.read_text())["session_id"] == "sess_20260507_test"
++    assert warned_paths == [tmp_path / "state"]
++
++
++def test_acquire_remote_filesystem_warning_is_nonblocking(
++    tmp_path: Path,
++    monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    def warn(path: object, *, context: str) -> None:
++        assert Path(path) == tmp_path / "state"
++        assert context == "workspace lock"
++        import warnings
++
++        warnings.warn("remote fs warning", RuntimeWarning, stacklevel=2)
++
++    monkeypatch.setattr("agent.workspace_lock.warn_if_remote_filesystem", warn)
++    lock = make_lock(tmp_path)
++
++    with pytest.warns(RuntimeWarning, match="remote fs warning"):
++        lock.acquire("agent run", "sess_warn")
++
++    assert lock.is_held is True
++    lock.release()
+ 
+ 
+ def test_release_is_idempotent(tmp_path: Path) -> None:

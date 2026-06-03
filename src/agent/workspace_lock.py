@@ -23,6 +23,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 
 from .config import AgentConfig, NonEmptyStr, WorkspaceLockConfig
 from .errors import AgentError, EXIT_GENERIC, EXIT_LOCK_BUSY
+from .filesystem import warn_if_remote_filesystem
 from .identifiers import validate_session_id_atom
 
 try:  # pragma: no cover - Linux path is covered on the target Ubuntu host.
@@ -219,6 +220,7 @@ class WorkspaceLock:
             raise ValueError("timeout must be >= 0")
 
         self._require_fcntl()
+        warn_if_remote_filesystem(self.lock_path.parent, context="workspace lock")
         self.lock_path.parent.mkdir(parents=True, exist_ok=True)
         self._fd = os.open(str(self.lock_path), os.O_RDWR | os.O_CREAT, 0o600)
 

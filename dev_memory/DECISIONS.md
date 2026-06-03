@@ -953,3 +953,16 @@ Decision records must include:
   - Recompute the full clean plan inside execute. Rejected because it breaks the compute/execute separation and hides planner bugs behind a second decision path.
   - Only compare checkpoint mtime. Rejected because mtimes are filesystem metadata and can be stale or manipulated; canonical payload hashes are more precise.
   - Rely on Layer 2 post-checkpoint protection for active trials. Rejected because it only protects lines after `trace_line_count`, while current trial events can start before the checkpoint boundary.
+
+## 2026-06-03T06:35:00Z - Phase 06 remote filesystem handling is warning-only
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 06
+  - REQUIREMENTS.md section 4.15
+  - REQUIREMENTS.md section 3.3.4
+- decision: Subtask 6.8 adds runtime mount inspection for workspace paths and emits `RemoteFilesystemWarning` for NFS/FUSE/remote-like filesystem types during `agent init` context preparation and `WorkspaceLock.acquire()`. The warning is nonblocking. Phase 06 also reserves future LangGraph checkpoint state with a comment only; `langgraph_state_snapshot` is not added to `CheckpointState` yet and is still rejected as an extra field.
+- rationale: v1 lock/fsync/atomic-rename behavior has been validated on Linux local POSIX filesystems. NFS, FUSE, and remote-like filesystems can have implementation-specific `flock`, directory fsync, and rename semantics, but rejecting them outright would make development workspaces unusable without a concrete failing scenario. A warning makes the deployment assumption visible while preserving forward progress. For LangGraph, a comment-only reservation documents the future schema pressure without adding an unconstrained `dict` field before the Phase 9.0 spike defines serialization, invalidation, and replay rules.
+- alternatives_considered:
+  - Reject remote-like filesystems during init/lock acquisition. Rejected because v1 has a local-filesystem assumption, not a proven hard incompatibility for every NFS/FUSE deployment.
+  - Only record the filesystem assumption in `DECISIONS.md`. Rejected because users need a runtime signal when their actual workspace path sits on unvalidated storage.
+  - Add `langgraph_state_snapshot: dict[str, Any] | None` immediately. Rejected because it would expand the canonical checkpoint schema before the LangGraph spike decides what state is serializable and authoritative.

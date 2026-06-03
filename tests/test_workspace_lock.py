@@ -176,7 +176,13 @@ def test_workspace_lock_from_config_uses_configured_lock_file(tmp_path: Path) ->
 
 def test_acquire_writes_holder_metadata_and_release_keeps_lock_file(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    warned_paths: list[Path] = []
+    monkeypatch.setattr(
+        "agent.workspace_lock.warn_if_remote_filesystem",
+        lambda path, *, context: warned_paths.append(Path(path)),
+    )
     lock = make_lock(tmp_path)
     lock_path = tmp_path / "state" / "run.lock"
 
@@ -199,6 +205,28 @@ def test_acquire_writes_holder_metadata_and_release_keeps_lock_file(
     assert lock.is_held is False
     assert lock_path.exists()
     assert yaml.safe_load(lock_path.read_text())["session_id"] == "sess_20260507_test"
+    assert warned_paths == [tmp_path / "state"]
+
+
+def test_acquire_remote_filesystem_warning_is_nonblocking(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def warn(path: object, *, context: str) -> None:
+        assert Path(path) == tmp_path / "state"
+        assert context == "workspace lock"
+        import warnings
+
+        warnings.warn("remote fs warning", RuntimeWarning, stacklevel=2)
+
+    monkeypatch.setattr("agent.workspace_lock.warn_if_remote_filesystem", warn)
+    lock = make_lock(tmp_path)
+
+    with pytest.warns(RuntimeWarning, match="remote fs warning"):
+        lock.acquire("agent run", "sess_warn")
+
+    assert lock.is_held is True
+    lock.release()
 
 
 def test_release_is_idempotent(tmp_path: Path) -> None:

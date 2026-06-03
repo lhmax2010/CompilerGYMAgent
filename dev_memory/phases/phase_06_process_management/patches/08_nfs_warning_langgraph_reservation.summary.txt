@@ -1,0 +1,23 @@
+Phase 06 / Subtask 6.8 - NFS/FUSE Warning + LangGraph Reservation
+
+Scope:
+- Add runtime filesystem inspection for workspace paths.
+- Emit nonblocking warnings for NFS/FUSE/remote-like filesystem types during
+  agent init and workspace lock acquisition.
+- Add a comment-only CheckpointState reservation for future LangGraph state.
+
+Changed:
+- Added `src/agent/filesystem.py`.
+- Exported filesystem warning helpers from `agent.__init__`.
+- Wired `warn_if_remote_filesystem()` into `prepare_init_context()` and
+  `WorkspaceLock.acquire()`.
+- Added a comment-only `langgraph_state_snapshot` reservation near
+  `CheckpointState` fields without adding a real schema field.
+- Added tests for mountinfo parsing, warning-only behavior, init/lock warning
+  hooks, and strict rejection of the reserved LangGraph field.
+
+Validation:
+- `tests/test_filesystem.py tests/test_workspace_lock.py tests/test_init.py tests/test_fs_memory.py`
+  -> 234 passed.
+- `tests/test_errors.py` -> 3 passed.
+- `tests/` -> 538 passed.

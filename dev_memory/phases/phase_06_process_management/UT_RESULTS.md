@@ -241,3 +241,26 @@ Review / validation sync:
 - Re-run trace cleanup targeted set: 34 passed
 - Re-run adjacent targeted set: 95 passed
 - Re-run full suite: 519 passed
+
+## Subtask 6.8 - NFS/FUSE Warning + LangGraph Reservation
+
+Commands:
+
+```bash
+.venv/bin/python -m pytest tests/test_filesystem.py tests/test_workspace_lock.py tests/test_init.py tests/test_fs_memory.py -q
+.venv/bin/python -m pytest tests/test_errors.py -q
+.venv/bin/python -m pytest tests/ -q
+```
+
+Results:
+
+- Filesystem / workspace lock / init / fs_memory targeted set: 234 passed
+- Error framework smoke: 3 passed
+- Full suite: 538 passed
+
+Notes:
+
+- Targeted tests cover NFS/FUSE/remote-like type classification, mountinfo
+  longest-match parsing, nonblocking warning behavior, init warning hook,
+  workspace lock warning hook, and strict rejection of the reserved
+  `langgraph_state_snapshot` field.

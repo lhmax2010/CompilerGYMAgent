@@ -359,28 +359,46 @@ subtasks:
       full: "519 passed"
   - id: "6.8"
     title: "NFS/FUSE runtime warning + CheckpointState LangGraph comment reservation"
-    status: in_progress
+    status: implementation_complete
     related_requirements:
       - ROADMAP.yaml Phase 06 deliverable NFS runtime detection + warning
       - ROADMAP.yaml Phase 06 deliverable CheckpointState langgraph comment reservation
       - REQUIREMENTS.md section 3.3.4
       - REQUIREMENTS.md section 4.15
-    files_created: []
-    files_modified: []
+    files_created:
+      - src/agent/filesystem.py
+      - tests/test_filesystem.py
+    files_modified:
+      - src/agent/__init__.py
+      - src/agent/fs_memory.py
+      - src/agent/init.py
+      - src/agent/workspace_lock.py
+      - tests/test_fs_memory.py
+      - tests/test_init.py
+      - tests/test_workspace_lock.py
+      - dev_memory/CURRENT_PHASE.yaml
+      - dev_memory/DECISIONS.md
+      - dev_memory/PROGRESS.md
+      - dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
+      - dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
+      - dev_memory/phases/phase_06_process_management/SUMMARY.md
+      - dev_memory/phases/phase_06_process_management/UT_RESULTS.md
     behavior_notes:
-      - "Implementation pending."
+      - "Filesystem inspection parses /proc/self/mountinfo and warns for NFS/FUSE/remote-like filesystem types."
+      - "Warnings are emitted during agent init context preparation and workspace lock acquisition, but they do not block execution."
+      - "CheckpointState has a comment-only LangGraph reservation; langgraph_state_snapshot remains rejected by the strict schema."
     ut_required: true
-    ut_passed: false
-    targeted_ut: pending
-    production_regression_ut: pending
+    ut_passed: true
+    targeted_ut: "234 tests passed, 0 failed (filesystem/workspace_lock/init/fs_memory); 3 error tests passed"
+    production_regression_ut: "538 tests passed, 0 failed"
     self_review_required: true
-    self_reviewed: false
+    self_reviewed: true
     patch_required: true
     patch_file: dev_memory/phases/phase_06_process_management/patches/08_nfs_warning_langgraph_reservation.patch
-    patch_generated: false
+    patch_generated: true
     commit_required: true
     commit_pending: true
     implementation_commit: pending
     external_review_verdict: pending
     ubuntu_validation_status: pending
-next_action: "Implement Phase 06 Subtask 6.8 NFS/FUSE runtime warnings plus CheckpointState LangGraph comment reservation."
+next_action: "Commit/push Phase 06 Subtask 6.8, then send range for Claude review."

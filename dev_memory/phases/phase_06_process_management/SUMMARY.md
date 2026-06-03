@@ -332,3 +332,34 @@ hashes and Layer D active-trial protection.
     `current_trial_start_line` through trace end,
   - `current_trial_start_line` ahead of trace causes conservative refusal,
   - existing trace cleanup behavior remains compatible.
+
+## Subtask 6.8 - NFS/FUSE Warning + LangGraph Reservation
+
+Completed the final Phase 06 planned deliverable.
+
+### Changes
+
+- Added `src/agent/filesystem.py`.
+- Added `/proc/self/mountinfo` parsing and longest-mount matching.
+- Classified NFS/FUSE/remote-like filesystem types for runtime warnings.
+- Added `RemoteFilesystemWarning`.
+- `prepare_init_context()` now warns when the configured workspace appears to be
+  on NFS/FUSE/remote-like storage.
+- `WorkspaceLock.acquire()` now warns when the lock directory appears to be on
+  NFS/FUSE/remote-like storage.
+- Added a comment-only `CheckpointState` reservation for future Phase 9.0
+  LangGraph state. The schema field is not added.
+
+### Guardrails
+
+- Remote filesystem detection is warning-only and does not block init or lock
+  acquisition.
+- `WorkspaceLock._write_holder()` remains unchanged and `run.lock` is not
+  replaced.
+- `langgraph_state_snapshot` remains rejected as an extra checkpoint field.
+
+### Validation
+
+- `tests/test_filesystem.py tests/test_workspace_lock.py tests/test_init.py tests/test_fs_memory.py`: 234 passed
+- `tests/test_errors.py`: 3 passed
+- Full suite: 538 passed

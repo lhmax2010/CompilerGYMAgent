@@ -1347,6 +1347,14 @@ def test_checkpoint_state_schema_accepts_documented_running_state() -> None:
     assert checkpoint.current_best.score == 1.231
 
 
+def test_checkpoint_state_rejects_langgraph_reserved_field_for_now() -> None:
+    data = checkpoint_data()
+    data["langgraph_state_snapshot"] = {"node": "compile"}
+
+    with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+        CheckpointState.model_validate(data)
+
+
 def test_checkpoint_state_accepts_operation_ledger() -> None:
     data = checkpoint_data()
     data["current_trial"]["current_trial_start_line"] = 42

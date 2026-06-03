@@ -24,6 +24,7 @@ from pydantic import (
 
 from .config import AgentConfig, NonEmptyStr, ProjectConfig, load_config
 from .errors import AgentError, EXIT_EXECUTION_REFUSED, EXIT_VALIDATION
+from .filesystem import warn_if_remote_filesystem
 from .fs_memory import atomic_write_yaml
 from .registry import (
     ModulesRegistry,
@@ -171,6 +172,7 @@ def prepare_init_context(
 ) -> InitContext:
     config_file = Path(config_path)
     config = load_config(config_file)
+    warn_if_remote_filesystem(config.memory.workspace, context="agent init workspace")
     registry_file = (
         Path(registry_path)
         if registry_path is not None

@@ -1,5 +1,21 @@
 # Development Progress
 
+## 2026-06-03T14:35:00+08:00 - Phase 06 / Subtask 6.8 implementation completed
+
+- Added `src/agent/filesystem.py` with Linux mountinfo parsing and
+  NFS/FUSE/remote-like filesystem classification.
+- Added nonblocking `RemoteFilesystemWarning` emission during `agent init`
+  context preparation and `WorkspaceLock.acquire()`.
+- Added a comment-only LangGraph state reservation near `CheckpointState`
+  fields; `langgraph_state_snapshot` remains rejected by the strict schema.
+- Targeted UT passed: filesystem / workspace lock / init / fs_memory -> 234
+  passed.
+- Error framework smoke passed: 3 passed.
+- Full UT passed: `.venv/bin/python -m pytest tests/ -q` -> 538 passed.
+
+Next action: generate Subtask 6.8 patch artifacts, commit, push, and send the
+range for Claude review.
+
 ## 2026-06-03T14:20:00+08:00 - Phase 06 / Subtask 6.7 approved and validated
 
 - Claude review verdict: Approve, with no Critical / High / Medium / Low findings.

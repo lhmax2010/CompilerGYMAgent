@@ -119,6 +119,28 @@ def test_prepare_init_context_loads_registry_and_existing_history(tmp_path: Path
     assert context.history.has_history is True
 
 
+def test_prepare_init_context_remote_filesystem_warning_is_nonblocking(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config_path, registry_path, _ = write_project_files(tmp_path)
+    workspace = tmp_path / "workspace"
+
+    def warn(path: object, *, context: str) -> None:
+        assert Path(path) == workspace
+        assert context == "agent init workspace"
+        import warnings
+
+        warnings.warn("remote init warning", RuntimeWarning, stacklevel=2)
+
+    monkeypatch.setattr("agent.init.warn_if_remote_filesystem", warn)
+
+    with pytest.warns(RuntimeWarning, match="remote init warning"):
+        context = prepare_init_context(config_path, registry_path=registry_path)
+
+    assert context.workspace == workspace
+
+
 def test_render_init_confirmation_includes_identity_baseline_and_history(
     tmp_path: Path,
 ) -> None:

@@ -827,6 +827,10 @@ class CheckpointState(StrictFsModel):
     last_completed_trial: NonEmptyStr | None = None
     current_trial: CheckpointCurrentTrial | None = None
     current_best: CheckpointBest | None = None
+    # Reserved for Phase 9.0 LangGraph skeleton spike.
+    # langgraph_state_snapshot: dict[str, Any] | None
+    # Do not add this as a Phase 06 field; LangGraph state remains cache-only
+    # until the spike defines serialization, invalidation, and replay rules.
     explorer_state: dict[str, Any] = Field(default_factory=dict)
     random_seed: int = Field(ge=0)
     total_tokens_consumed: int = Field(ge=0)
