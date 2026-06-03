@@ -196,3 +196,12 @@ Notes:
   lease diagnostics.
 - The validator is read-only and does not mutate checkpoint, trace, leases, or
   processes.
+
+Review / validation sync:
+
+- Claude review verdict: Approve
+- Review range: `a196c52..b109e45`
+- Re-run full suite: 515 passed
+- Independent reviewer probe: clean/read-only state, dangling process refs,
+  orphan leases, malformed lease YAML, operation/lease mismatch, and
+  repair_suggestion fields all matched the 6.6 contract.

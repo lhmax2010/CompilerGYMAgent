@@ -222,3 +222,11 @@ Self-review result:
 - Primary review focus for Claude: ensure diagnostics are useful and the
   implementation really reuses 3.8/3.9 helpers instead of duplicating trace
   logic.
+
+External review:
+
+- Verdict: Approve
+- Range: `a196c52..b109e45`
+- Notes: reviewer confirmed true reuse of 3.8/3.9, correct diagnosis for
+  dangling refs/orphans/malformed leases/status mismatches, strict read-only
+  behavior, and complete issue metadata (`repair_suggestion` + `details`).

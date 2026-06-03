@@ -277,3 +277,14 @@ Phase 10 doctor commands will render later.
   (`state_consistency`, `trace_session`, `process_registry`, `fs_memory`,
   `errors`): 203 passed
 - Full suite: 515 passed
+
+### Review
+
+- Claude review verdict: Approve
+- Review range: `a196c52..b109e45`
+- Reviewer independently verified:
+  - 3.8 trace/checkpoint alignment and 3.9 session spans are reused,
+  - process refs, orphan leases, malformed leases, and status mismatches are
+    diagnosed correctly,
+  - repeated inspection is read-only and does not mutate files,
+  - findings include `repair_suggestion` and structured details.

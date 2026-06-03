@@ -1,7 +1,7 @@
 phase_id: phase_06_process_management
 phase_title: "Process Management (runner + cleaner + monitor)"
 started_at: 2026-06-01T15:30:36+08:00
-last_updated: 2026-06-01T21:41:31+08:00
+last_updated: 2026-06-03T00:00:00+08:00
 target_milestone: "M3 (advanced)"
 related_requirements:
   - REQUIREMENTS.md section 3.3.5
@@ -294,8 +294,18 @@ subtasks:
     patch_file: dev_memory/phases/phase_06_process_management/patches/06_state_consistency.patch
     patch_generated: true
     commit_required: true
-    commit_pending: true
-    implementation_commit: pending
-    external_review_verdict: pending
-    ubuntu_validation_status: pending
-next_action: "Commit/push Phase 06 Subtask 6.6 doctor/state_consistency.py, then send range for Claude review."
+    commit_pending: false
+    implementation_commit: b109e45
+    external_review_verdict: approve
+    external_reviewed_at: 2026-06-03T00:00:00+08:00
+    external_review_tests: "515 passed; adjacent targeted set 203 passed"
+    external_review_notes:
+      - "Reviewer confirmed inspect_state_consistency reuses 3.8 inspect_trace_checkpoint_alignment and 3.9 inspect_trace_session_spans."
+      - "Reviewer independently verified process_ref_missing, orphan_process_lease, process_lease_invalid, operation/lease status mismatch, and current_trial_start_line diagnostics."
+      - "Reviewer verified the inspector is pure read-only: repeated runs do not change checkpoint, trace, lease files, or process state."
+      - "Every issue carries repair_suggestion and structured details."
+    ubuntu_validation_status: passed
+    ubuntu_validation_tests:
+      targeted: "203 passed"
+      full: "515 passed"
+next_action: "Begin Phase 06 Subtask 6.7 clean trace hardening (CleanPlan hashes + Layer D current-trial protection)."
