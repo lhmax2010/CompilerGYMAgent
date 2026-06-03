@@ -81,11 +81,37 @@ def write_checkpoint(
     *,
     session_id: str = "sess_checkpoint",
     trace_line_count: int | None = None,
+    current_trial: dict[str, object] | None = None,
 ) -> None:
-    payload = checkpoint_data(session_id=session_id)
+    payload = checkpoint_data(session_id=session_id, current_trial=current_trial)
     if trace_line_count is not None:
         payload["trace_line_count"] = trace_line_count
     write_checkpoint_state(current_layout, payload)
+
+
+def current_trial_data(
+    *,
+    trial_id: str = "trial_active",
+    start_line: int = 2,
+) -> dict[str, object]:
+    return {
+        "trial_id": trial_id,
+        "started_at": "2026-04-30T10:18:00Z",
+        "current_stage": "spec_inject",
+        "stage_started_at": "2026-04-30T10:19:00Z",
+        "spec_backup_path": "spec_backups/pre_trial.spec.bak",
+        "workspace_snapshot_pre": "workspace_snapshots/pre.yaml",
+        "build_dir": "build_dirs/trial_active",
+        "artifact_staging": "artifacts/staging/trial_active",
+        "current_trial_start_line": start_line,
+        "operations": [
+            {
+                "op": "spec_inject",
+                "status": "running",
+                "details": {"attempt": 1},
+            }
+        ],
+    }
 
 
 def write_lock_holder(
@@ -199,9 +225,53 @@ def test_compute_clean_plan_protects_checkpoint_session_span_layer_one(
 
     assert plan.protected_session_ids == frozenset({"sess_checkpoint"})
     assert plan.protected_line_ranges == (LineRange(2, 4),)
+    assert plan.checkpoint_hash is not None
+    assert plan.checkpoint_hash.startswith("sha256:")
+    assert plan.protected_sessions_hash is not None
+    assert plan.protected_sessions_hash.startswith("sha256:")
     assert plan.removable_line_ranges == (LineRange(1, 1),)
     assert plan.removable_event_count == 1
     assert plan.can_execute is True
+
+
+def test_compute_clean_plan_protects_current_trial_layer_d(
+    tmp_path: Path,
+) -> None:
+    current_layout = layout(tmp_path)
+    append_event(current_layout, 1, ts="2026-04-01T00:00:00Z", session_id="sess_old")
+    append_event(current_layout, 2, ts="2026-04-01T00:01:00Z", session_id="sess_mid")
+    append_event(current_layout, 3, ts="2026-04-01T00:02:00Z", session_id="sess_mid")
+    append_event(current_layout, 4, ts="2026-04-01T00:03:00Z", session_id="sess_tail")
+    write_checkpoint(
+        current_layout,
+        trace_line_count=3,
+        current_trial=current_trial_data(start_line=2),
+    )
+
+    plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
+
+    assert plan.current_trial_protected_line_range == LineRange(2, 4)
+    assert plan.protected_line_ranges == (LineRange(2, 4),)
+    assert plan.removable_line_ranges == (LineRange(1, 1),)
+    assert plan.removable_event_count == 1
+
+
+def test_compute_clean_plan_refuses_current_trial_start_line_ahead(
+    tmp_path: Path,
+) -> None:
+    current_layout = layout(tmp_path)
+    append_event(current_layout, 1, ts="2026-04-01T00:00:00Z", session_id="sess_old")
+    write_checkpoint(
+        current_layout,
+        trace_line_count=1,
+        current_trial=current_trial_data(start_line=2),
+    )
+
+    plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
+
+    assert plan.current_trial_protected_line_range is None
+    assert "current_trial_start_line is ahead" in str(plan.refusal_reason)
+    assert plan.can_execute is False
 
 
 def test_compute_clean_plan_protects_post_checkpoint_lines_layer_two(

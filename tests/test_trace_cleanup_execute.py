@@ -12,6 +12,7 @@ from agent.fs_memory import (
     append_trace_event,
     load_trace_events,
     trace_event_payload,
+    write_checkpoint_state,
 )
 from agent.registry import ProjectNamespace
 import agent.trace_cleanup as trace_cleanup
@@ -73,6 +74,23 @@ def old_recent_trace(current_layout: NamespaceLayout) -> None:
     )
 
 
+def checkpoint_data(current_layout: NamespaceLayout, **overrides: object) -> dict[str, object]:
+    data: dict[str, object] = {
+        "session_id": "sess_checkpoint",
+        "namespace": str(current_layout.namespace),
+        "last_completed_trial": None,
+        "current_trial": None,
+        "current_best": None,
+        "explorer_state": {},
+        "random_seed": 42,
+        "total_tokens_consumed": 0,
+        "trace_line_count": 0,
+        "last_updated": "2026-05-10T12:00:00Z",
+    }
+    data.update(overrides)
+    return data
+
+
 def fixed_now() -> datetime:
     return datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
 
@@ -124,6 +142,48 @@ def test_execute_detects_stale_plan_after_lock_acquisition(tmp_path: Path) -> No
     )
 
     with pytest.raises(StaleCleanPlanError, match="stale"):
+        execute_clean_plan(current_layout, plan, backup=False)
+
+
+def test_execute_detects_checkpoint_changed_after_planning(tmp_path: Path) -> None:
+    current_layout = layout(tmp_path)
+    old_recent_trace(current_layout)
+    plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
+    write_checkpoint_state(
+        current_layout,
+        checkpoint_data(current_layout, trace_line_count=3),
+    )
+
+    with pytest.raises(StaleCleanPlanError, match="checkpoint changed"):
+        execute_clean_plan(current_layout, plan, backup=False)
+
+
+def test_execute_detects_protected_session_boundaries_changed_without_size_change(
+    tmp_path: Path,
+) -> None:
+    current_layout = layout(tmp_path)
+    append_event(current_layout, 1, ts="2026-04-01T00:00:00Z", session_id="sess_a")
+    append_event(current_layout, 2, ts="2026-04-01T00:01:00Z", session_id="sess_b")
+    write_checkpoint_state(
+        current_layout,
+        checkpoint_data(
+            current_layout,
+            session_id="sess_a",
+            trace_line_count=2,
+        ),
+    )
+    plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
+    original_size = current_layout.trace_path.stat().st_size
+    current_layout.trace_path.write_text(
+        current_layout.trace_path.read_text(encoding="utf-8").replace(
+            '"sess_a"',
+            '"sess_c"',
+        ),
+        encoding="utf-8",
+    )
+    assert current_layout.trace_path.stat().st_size == original_size
+
+    with pytest.raises(StaleCleanPlanError, match="protected session"):
         execute_clean_plan(current_layout, plan, backup=False)
 
 

@@ -939,3 +939,17 @@ Decision records must include:
   - Make state consistency automatically reconcile trace counts or garbage-collect orphan leases. Rejected because 6.6 is a diagnostic layer; mutation requires lock acquisition, confirmation, and command-specific policy.
   - Re-scan trace with new local logic. Rejected because 3.8/3.9 already define the canonical trace/checkpoint and session-span contracts.
   - Treat process lease registry as authoritative. Rejected because leases are derived state; checkpoint + trace remain the canonical recovery/audit sources, and leases are only cross-checked for existence/status consistency.
+
+## 2026-06-03T05:55:50Z - CleanPlan stale checks include checkpoint/protection hashes and Layer D
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 06
+  - REQUIREMENTS.md section 3.3.3
+  - REQUIREMENTS.md section 4.13
+  - REQUIREMENTS.md section 4.14.7a
+- decision: Subtask 6.7 extends `CleanPlan` with `checkpoint_hash`, `protected_sessions_hash`, and `current_trial_protected_line_range`. `execute_clean_plan()` still trusts the plan's clean/removal decision, but after acquiring the workspace lock it now rejects stale plans if the trace file size/line count, checkpoint hash, or protected session/current-trial boundaries changed. Clean planning also adds Layer D protection for in-progress trials: when checkpoint operations exist, trace lines from `current_trial_start_line` through the trace end are protected.
+- rationale: 3.10/3.11 already protected against trace file changes between planning and execution, but a checkpoint change without a trace change could change the active session or current-trial boundary. Snapshot hashes keep compute/execute separation intact: execute does not recompute clean eligibility, but it can prove the inputs that shaped protection have not changed. Layer D closes the gap where current-trial trace events before the checkpoint boundary could otherwise look old and inactive.
+- alternatives_considered:
+  - Recompute the full clean plan inside execute. Rejected because it breaks the compute/execute separation and hides planner bugs behind a second decision path.
+  - Only compare checkpoint mtime. Rejected because mtimes are filesystem metadata and can be stale or manipulated; canonical payload hashes are more precise.
+  - Rely on Layer 2 post-checkpoint protection for active trials. Rejected because it only protects lines after `trace_line_count`, while current trial events can start before the checkpoint boundary.

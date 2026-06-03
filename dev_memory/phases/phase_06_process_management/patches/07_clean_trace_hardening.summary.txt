@@ -1,0 +1,21 @@
+Phase 06 / Subtask 6.7 - Clean Trace Hardening
+
+Implemented CleanPlan snapshot hashes and Layer D current-trial trace
+protection.
+
+Changes:
+- Added checkpoint_hash to CleanPlan.
+- Added protected_sessions_hash to CleanPlan.
+- Added current_trial_protected_line_range to CleanPlan.
+- execute_clean_plan now revalidates these snapshots under the workspace lock
+  before rewriting trace.
+- Layer D protects trace lines from current_trial_start_line through trace end
+  when checkpoint operations indicate a trial is in progress.
+- Planning refuses execution when current_trial_start_line is ahead of the
+  validated trace length.
+
+Validation:
+- .venv/bin/python -m pytest tests/test_trace_cleanup.py tests/test_trace_cleanup_execute.py -q -> 34 passed
+- Trace cleanup adjacent set -> 95 passed
+- .venv/bin/python -m pytest tests/test_errors.py -q -> 3 passed
+- .venv/bin/python -m pytest tests/ -q -> 519 passed

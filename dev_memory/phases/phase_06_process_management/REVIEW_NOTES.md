@@ -230,3 +230,38 @@ External review:
 - Notes: reviewer confirmed true reuse of 3.8/3.9, correct diagnosis for
   dangling refs/orphans/malformed leases/status mismatches, strict read-only
   behavior, and complete issue metadata (`repair_suggestion` + `details`).
+
+## Subtask 6.7 - Clean Trace Hardening
+
+Self-review checklist:
+
+- [x] `CleanPlan` stores a checkpoint snapshot hash.
+- [x] `CleanPlan` stores a protected session/current-trial snapshot hash.
+- [x] Execute still checks trace line count and file size before rewrite.
+- [x] Execute now rejects a plan if checkpoint changed after planning.
+- [x] Execute now rejects a plan if protected session boundaries changed after
+  planning even when trace line count and file size are unchanged.
+- [x] Layer D protects current trial lines from `current_trial_start_line` to
+  trace end when operation ledger entries indicate an in-progress trial.
+- [x] Layer D merges with existing Layer 1 session-span protection and Layer 2
+  post-checkpoint protection.
+- [x] Planning refuses when `current_trial_start_line` is beyond validated
+  trace length.
+- [x] Existing dry-run/execute APIs remain source-compatible through defaulted
+  CleanPlan fields.
+- [x] Targeted and full test suites pass.
+
+Residual risks / follow-up:
+
+- 6.7 protects active-trial trace lines but does not implement broader clean
+  trace CLI behavior; CLI already exists from 3.11 and later Phase 10 can render
+  the new fields more richly.
+- Full trial lifecycle semantics and operation replay policies remain Phase
+  09/10 scope.
+
+Self-review result:
+
+- No known Critical / High / Medium / Low findings.
+- Primary review focus for Claude: ensure Layer D is conservative enough and
+  execute stale checks catch checkpoint/protection changes without redoing the
+  full clean-planning decision logic.

@@ -104,6 +104,31 @@ subtasks:
         status: done
       - item: "Ubuntu/Linux validation"
         status: done
+  - id: "6.7"
+    title: "clean trace hardening (CleanPlan hashes + Layer D current-trial protection)"
+    status: implementation_complete
+    implementation_commit: pending
+    review_status: pending
+    ubuntu_validation_status: pending
+    checklist:
+      - item: "Add checkpoint_hash snapshot to CleanPlan"
+        status: done
+      - item: "Add protected_sessions_hash snapshot to CleanPlan"
+        status: done
+      - item: "Revalidate checkpoint_hash under workspace lock before rewrite"
+        status: done
+      - item: "Revalidate protected session boundaries under workspace lock before rewrite"
+        status: done
+      - item: "Protect current-trial trace lines from current_trial_start_line to trace end when operations indicate in-progress trial"
+        status: done
+      - item: "Refuse plans when current_trial_start_line is ahead of validated trace"
+        status: done
+      - item: "Preserve existing trace size/line-count stale check"
+        status: done
+      - item: "Run targeted tests and full production suite"
+        status: done
+      - item: "Generate patch artifacts"
+        status: done
   - id: "6.4"
     title: "workspace lock hardening (probe flock + LockStatus unknown)"
     status: done

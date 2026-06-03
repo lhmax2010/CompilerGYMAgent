@@ -1,0 +1,708 @@
+diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index 3135d04..1683442 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -1,7 +1,7 @@
+ phase_id: phase_06_process_management
+ phase_title: "Process Management (runner + cleaner + monitor)"
+ started_at: 2026-06-01T15:30:36+08:00
+-last_updated: 2026-06-03T00:00:00+08:00
++last_updated: 2026-06-03T13:55:50+08:00
+ target_milestone: "M3 (advanced)"
+ related_requirements:
+   - REQUIREMENTS.md section 3.3.5
+@@ -308,4 +308,43 @@ subtasks:
+     ubuntu_validation_tests:
+       targeted: "203 passed"
+       full: "515 passed"
+-next_action: "Begin Phase 06 Subtask 6.7 clean trace hardening (CleanPlan hashes + Layer D current-trial protection)."
++  - id: "6.7"
++    title: "clean trace hardening (CleanPlan hashes + Layer D current-trial protection)"
++    status: implementation_complete
++    related_requirements:
++      - ROADMAP.yaml Phase 06 deliverable clean trace hardening
++      - REQUIREMENTS.md section 4.14.7a
++      - REQUIREMENTS.md section 4.13
++      - REQUIREMENTS.md section 3.3.3
++    files_created: []
++    files_modified:
++      - src/agent/trace_cleanup.py
++      - tests/test_trace_cleanup.py
++      - tests/test_trace_cleanup_execute.py
++      - dev_memory/CURRENT_PHASE.yaml
++      - dev_memory/DECISIONS.md
++      - dev_memory/PROGRESS.md
++      - dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
++      - dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
++      - dev_memory/phases/phase_06_process_management/SUMMARY.md
++      - dev_memory/phases/phase_06_process_management/UT_RESULTS.md
++    behavior_notes:
++      - "CleanPlan now records checkpoint_hash and protected_sessions_hash snapshots."
++      - "execute_clean_plan revalidates trace size/line count, checkpoint_hash, and protected session boundaries while holding the workspace lock."
++      - "Layer D protects current-trial trace lines from current_trial_start_line through the current trace end when checkpoint operations indicate a trial is in progress."
++      - "If current_trial_start_line is ahead of validated trace events, planning refuses execution."
++    ut_required: true
++    ut_passed: true
++    targeted_ut: "95 tests passed, 0 failed (trace_cleanup/execute/cli/trace_session/state_consistency); 3 error tests passed"
++    production_regression_ut: "519 tests passed, 0 failed"
++    self_review_required: true
++    self_reviewed: true
++    patch_required: true
++    patch_file: dev_memory/phases/phase_06_process_management/patches/07_clean_trace_hardening.patch
++    patch_generated: true
++    commit_required: true
++    commit_pending: true
++    implementation_commit: pending
++    external_review_verdict: pending
++    ubuntu_validation_status: pending
++next_action: "Commit/push Phase 06 Subtask 6.7 clean trace hardening, then send range for Claude review."
+diff --git a/dev_memory/DECISIONS.md b/dev_memory/DECISIONS.md
+index 3764be0..4a773a5 100644
+--- a/dev_memory/DECISIONS.md
++++ b/dev_memory/DECISIONS.md
+@@ -939,3 +939,17 @@ Decision records must include:
+   - Make state consistency automatically reconcile trace counts or garbage-collect orphan leases. Rejected because 6.6 is a diagnostic layer; mutation requires lock acquisition, confirmation, and command-specific policy.
+   - Re-scan trace with new local logic. Rejected because 3.8/3.9 already define the canonical trace/checkpoint and session-span contracts.
+   - Treat process lease registry as authoritative. Rejected because leases are derived state; checkpoint + trace remain the canonical recovery/audit sources, and leases are only cross-checked for existence/status consistency.
++
++## 2026-06-03T05:55:50Z - CleanPlan stale checks include checkpoint/protection hashes and Layer D
++
++- affected_requirement:
++  - ROADMAP.yaml Phase 06
++  - REQUIREMENTS.md section 3.3.3
++  - REQUIREMENTS.md section 4.13
++  - REQUIREMENTS.md section 4.14.7a
++- decision: Subtask 6.7 extends `CleanPlan` with `checkpoint_hash`, `protected_sessions_hash`, and `current_trial_protected_line_range`. `execute_clean_plan()` still trusts the plan's clean/removal decision, but after acquiring the workspace lock it now rejects stale plans if the trace file size/line count, checkpoint hash, or protected session/current-trial boundaries changed. Clean planning also adds Layer D protection for in-progress trials: when checkpoint operations exist, trace lines from `current_trial_start_line` through the trace end are protected.
++- rationale: 3.10/3.11 already protected against trace file changes between planning and execution, but a checkpoint change without a trace change could change the active session or current-trial boundary. Snapshot hashes keep compute/execute separation intact: execute does not recompute clean eligibility, but it can prove the inputs that shaped protection have not changed. Layer D closes the gap where current-trial trace events before the checkpoint boundary could otherwise look old and inactive.
++- alternatives_considered:
++  - Recompute the full clean plan inside execute. Rejected because it breaks the compute/execute separation and hides planner bugs behind a second decision path.
++  - Only compare checkpoint mtime. Rejected because mtimes are filesystem metadata and can be stale or manipulated; canonical payload hashes are more precise.
++  - Rely on Layer 2 post-checkpoint protection for active trials. Rejected because it only protects lines after `trace_line_count`, while current trial events can start before the checkpoint boundary.
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index 00f602c..1a541fe 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -1,5 +1,26 @@
+ # Development Progress
+
++## 2026-06-03T13:55:50+08:00 - Phase 06 / Subtask 6.7 implementation completed
++
++- Added `checkpoint_hash`, `protected_sessions_hash`, and
++  `current_trial_protected_line_range` to `CleanPlan`.
++- Hardened `execute_clean_plan()` so it revalidates trace file size/line count,
++  checkpoint hash, and protected session/current-trial boundaries while holding
++  the workspace lock.
++- Added Layer D current-trial protection: when checkpoint operations indicate
++  an in-progress trial, trace lines from `current_trial_start_line` through the
++  trace end are protected from cleanup.
++- Added conservative refusal when `current_trial_start_line` is ahead of
++  validated trace events.
++- Targeted UT passed: `tests/test_trace_cleanup.py tests/test_trace_cleanup_execute.py`
++  -> 34 passed.
++- Adjacent UT passed: trace cleanup / execute / CLI / trace session /
++  state consistency -> 95 passed.
++- Full UT passed: `.venv/bin/python -m pytest tests/ -q` -> 519 passed.
++
++Next action: generate Subtask 6.7 patch artifacts, commit, push, and send the
++range for Claude review.
++
+ ## 2026-06-01T21:41:31+08:00 - Phase 06 / Subtask 6.6 implementation completed
+
+ - Added `src/agent/doctor/state_consistency.py` as the read-only
+diff --git a/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml b/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
+index b96fc0b..0deba55 100644
+--- a/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
+@@ -104,6 +104,31 @@ subtasks:
+         status: done
+       - item: "Ubuntu/Linux validation"
+         status: done
++  - id: "6.7"
++    title: "clean trace hardening (CleanPlan hashes + Layer D current-trial protection)"
++    status: implementation_complete
++    implementation_commit: pending
++    review_status: pending
++    ubuntu_validation_status: pending
++    checklist:
++      - item: "Add checkpoint_hash snapshot to CleanPlan"
++        status: done
++      - item: "Add protected_sessions_hash snapshot to CleanPlan"
++        status: done
++      - item: "Revalidate checkpoint_hash under workspace lock before rewrite"
++        status: done
++      - item: "Revalidate protected session boundaries under workspace lock before rewrite"
++        status: done
++      - item: "Protect current-trial trace lines from current_trial_start_line to trace end when operations indicate in-progress trial"
++        status: done
++      - item: "Refuse plans when current_trial_start_line is ahead of validated trace"
++        status: done
++      - item: "Preserve existing trace size/line-count stale check"
++        status: done
++      - item: "Run targeted tests and full production suite"
++        status: done
++      - item: "Generate patch artifacts"
++        status: done
+   - id: "6.4"
+     title: "workspace lock hardening (probe flock + LockStatus unknown)"
+     status: done
+diff --git a/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md b/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
+index f21f6e1..545cb40 100644
+--- a/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
++++ b/dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
+@@ -230,3 +230,38 @@ External review:
+ - Notes: reviewer confirmed true reuse of 3.8/3.9, correct diagnosis for
+   dangling refs/orphans/malformed leases/status mismatches, strict read-only
+   behavior, and complete issue metadata (`repair_suggestion` + `details`).
++
++## Subtask 6.7 - Clean Trace Hardening
++
++Self-review checklist:
++
++- [x] `CleanPlan` stores a checkpoint snapshot hash.
++- [x] `CleanPlan` stores a protected session/current-trial snapshot hash.
++- [x] Execute still checks trace line count and file size before rewrite.
++- [x] Execute now rejects a plan if checkpoint changed after planning.
++- [x] Execute now rejects a plan if protected session boundaries changed after
++  planning even when trace line count and file size are unchanged.
++- [x] Layer D protects current trial lines from `current_trial_start_line` to
++  trace end when operation ledger entries indicate an in-progress trial.
++- [x] Layer D merges with existing Layer 1 session-span protection and Layer 2
++  post-checkpoint protection.
++- [x] Planning refuses when `current_trial_start_line` is beyond validated
++  trace length.
++- [x] Existing dry-run/execute APIs remain source-compatible through defaulted
++  CleanPlan fields.
++- [x] Targeted and full test suites pass.
++
++Residual risks / follow-up:
++
++- 6.7 protects active-trial trace lines but does not implement broader clean
++  trace CLI behavior; CLI already exists from 3.11 and later Phase 10 can render
++  the new fields more richly.
++- Full trial lifecycle semantics and operation replay policies remain Phase
++  09/10 scope.
++
++Self-review result:
++
++- No known Critical / High / Medium / Low findings.
++- Primary review focus for Claude: ensure Layer D is conservative enough and
++  execute stale checks catch checkpoint/protection changes without redoing the
++  full clean-planning decision logic.
+diff --git a/dev_memory/phases/phase_06_process_management/SUMMARY.md b/dev_memory/phases/phase_06_process_management/SUMMARY.md
+index 6c61ba6..37b36da 100644
+--- a/dev_memory/phases/phase_06_process_management/SUMMARY.md
++++ b/dev_memory/phases/phase_06_process_management/SUMMARY.md
+@@ -288,3 +288,35 @@ Phase 10 doctor commands will render later.
+     diagnosed correctly,
+   - repeated inspection is read-only and does not mutate files,
+   - findings include `repair_suggestion` and structured details.
++
++## Subtask 6.7 - Clean Trace Hardening
++
++Added the Phase 06 clean trace hardening promised by ROADMAP: plan snapshot
++hashes and Layer D active-trial protection.
++
++### Changes
++
++- Added `checkpoint_hash` to `CleanPlan`.
++- Added `protected_sessions_hash` to `CleanPlan`.
++- Added `current_trial_protected_line_range` to `CleanPlan` for Layer D
++  visibility.
++- `execute_clean_plan()` now revalidates, while holding the workspace lock:
++  - trace line count and file size,
++  - checkpoint hash,
++  - protected session/current-trial line boundaries.
++- Layer D protection now preserves current-trial trace lines from
++  `current_trial_start_line` through the current trace end when checkpoint
++  operations indicate an in-progress trial.
++- Planning refuses execution if `current_trial_start_line` is ahead of
++  validated trace events.
++- Added stable canonical JSON SHA-256 helpers for checkpoint and protected
++  session snapshots.
++
++### Validation
++
++- `tests/test_trace_cleanup.py tests/test_trace_cleanup_execute.py`: 34 passed
++- Trace/cleanup adjacent set
++  (`trace_cleanup`, `trace_cleanup_execute`, `cli_clean_trace`,
++  `trace_session`, `state_consistency`): 95 passed
++- `tests/test_errors.py`: 3 passed
++- Full suite: 519 passed
+diff --git a/dev_memory/phases/phase_06_process_management/UT_RESULTS.md b/dev_memory/phases/phase_06_process_management/UT_RESULTS.md
+index cbc762b..c72614f 100644
+--- a/dev_memory/phases/phase_06_process_management/UT_RESULTS.md
++++ b/dev_memory/phases/phase_06_process_management/UT_RESULTS.md
+@@ -205,3 +205,28 @@ Review / validation sync:
+ - Independent reviewer probe: clean/read-only state, dangling process refs,
+   orphan leases, malformed lease YAML, operation/lease mismatch, and
+   repair_suggestion fields all matched the 6.6 contract.
++
++## Subtask 6.7 - Clean Trace Hardening
++
++Commands:
++
++```bash
++.venv/bin/python -m pytest tests/test_trace_cleanup.py tests/test_trace_cleanup_execute.py -q
++.venv/bin/python -m pytest tests/test_trace_cleanup.py tests/test_trace_cleanup_execute.py tests/test_cli_clean_trace.py tests/test_trace_session.py tests/test_state_consistency.py -q
++.venv/bin/python -m pytest tests/test_errors.py -q
++.venv/bin/python -m pytest tests/ -q
++```
++
++Results:
++
++- Trace cleanup targeted tests: 34 passed
++- Trace/cleanup adjacent set: 95 passed
++- Error framework smoke: 3 passed
++- Full suite: 519 passed
++
++Notes:
++
++- New tests cover Layer D current-trial protection, refusal when
++  `current_trial_start_line` is ahead of trace, stale checkpoint hash detection,
++  and protected-session hash detection with unchanged trace line count/file
++  size.
+diff --git a/src/agent/trace_cleanup.py b/src/agent/trace_cleanup.py
+index 8f4a1fe..cecc3ac 100644
+--- a/src/agent/trace_cleanup.py
++++ b/src/agent/trace_cleanup.py
+@@ -2,6 +2,8 @@
+
+ from __future__ import annotations
+
++import hashlib
++import json
+ import os
+ import tempfile
+ from contextlib import contextmanager
+@@ -18,6 +20,7 @@ from .fs_memory import (
+     NamespaceLayout,
+     TraceError,
+     TraceEvent,
++    checkpoint_payload,
+     iter_trace_events,
+     load_checkpoint_for_layout,
+     trace_event_payload,
+@@ -98,6 +101,9 @@ class CleanPlan:
+     removable_byte_ranges: tuple[ByteRange, ...]
+     removable_event_count: int
+     refusal_reason: str | None
++    checkpoint_hash: str | None = None
++    protected_sessions_hash: str | None = None
++    current_trial_protected_line_range: LineRange | None = None
+
+     @property
+     def is_dry_run_safe(self) -> bool:
+@@ -167,6 +173,7 @@ def compute_clean_plan(
+     cutoff_ts = now_utc - timedelta(days=keep_days)
+
+     checkpoint = _load_checkpoint_if_present(layout)
++    checkpoint_hash = _checkpoint_hash(checkpoint)
+     lock_snapshot = _read_workspace_lock(layout)
+     trace_lines, file_size_bytes = _scan_trace_lines(layout.trace_path)
+     total_lines = len(trace_lines)
+@@ -177,18 +184,24 @@ def compute_clean_plan(
+     if lock_snapshot.active_holder is not None:
+         protected_session_ids.add(lock_snapshot.active_holder.session_id)
+
+-    session_spans = inspect_trace_session_spans(layout)
+-    protected_line_ranges = _merge_line_ranges(
+-        LineRange(
+-            first=span.first_line_number,
+-            last=span.last_line_number,
+-        )
+-        for span in session_spans
+-        if span.session_id in protected_session_ids
+-    )
+     post_checkpoint_boundary_line = (
+         None if checkpoint is None else checkpoint.trace_line_count
+     )
++    current_trial_protected_line_range = _current_trial_protected_line_range(
++        checkpoint,
++        total_lines=total_lines,
++    )
++    protected_line_ranges = _protected_line_ranges(
++        layout,
++        protected_session_ids=frozenset(protected_session_ids),
++        current_trial_protected_line_range=current_trial_protected_line_range,
++    )
++    protected_sessions_hash = _protected_sessions_hash(
++        protected_session_ids=frozenset(protected_session_ids),
++        protected_line_ranges=protected_line_ranges,
++        post_checkpoint_boundary_line=post_checkpoint_boundary_line,
++        current_trial_protected_line_range=current_trial_protected_line_range,
++    )
+
+     refusal_reason = lock_snapshot.refusal_reason
+     if checkpoint is not None and checkpoint.trace_line_count is None:
+@@ -205,6 +218,17 @@ def compute_clean_plan(
+             refusal_reason,
+             "checkpoint trace_line_count is ahead of validated trace events",
+         )
++    if (
++        checkpoint is not None
++        and checkpoint.current_trial is not None
++        and checkpoint.current_trial.operations
++        and checkpoint.current_trial.current_trial_start_line is not None
++        and checkpoint.current_trial.current_trial_start_line > total_lines
++    ):
++        refusal_reason = _combine_refusal(
++            refusal_reason,
++            "current_trial_start_line is ahead of validated trace events",
++        )
+
+     removable_lines = tuple(
+         trace_line
+@@ -235,6 +259,9 @@ def compute_clean_plan(
+         removable_byte_ranges=removable_byte_ranges,
+         removable_event_count=len(removable_lines),
+         refusal_reason=refusal_reason,
++        checkpoint_hash=checkpoint_hash,
++        protected_sessions_hash=protected_sessions_hash,
++        current_trial_protected_line_range=current_trial_protected_line_range,
+     )
+
+
+@@ -259,7 +286,7 @@ def execute_clean_plan(
+         plan,
+         force_inactive_only=force_inactive_only,
+     ):
+-        _require_plan_still_matches_trace(plan)
++        _require_plan_still_matches_state(layout, plan)
+         backup_path = _backup_trace_file(layout, plan, now=now) if backup else None
+         _rewrite_trace_file(plan)
+
+@@ -337,6 +364,12 @@ def _can_execute_under_existing_self_lock(
+     )
+
+
++def _require_plan_still_matches_state(layout: NamespaceLayout, plan: CleanPlan) -> None:
++    _require_plan_still_matches_trace(plan)
++    _require_plan_still_matches_checkpoint(layout, plan)
++    _require_plan_still_matches_protected_sessions(layout, plan)
++
++
+ def _require_plan_still_matches_trace(plan: CleanPlan) -> None:
+     total_lines = sum(1 for _ in iter_trace_events(plan.trace_path))
+     try:
+@@ -349,6 +382,49 @@ def _require_plan_still_matches_trace(plan: CleanPlan) -> None:
+         )
+
+
++def _require_plan_still_matches_checkpoint(
++    layout: NamespaceLayout,
++    plan: CleanPlan,
++) -> None:
++    checkpoint = _load_checkpoint_if_present(layout)
++    if _checkpoint_hash(checkpoint) != plan.checkpoint_hash:
++        raise StaleCleanPlanError(
++            "clean plan is stale; checkpoint changed after planning"
++        )
++
++
++def _require_plan_still_matches_protected_sessions(
++    layout: NamespaceLayout,
++    plan: CleanPlan,
++) -> None:
++    if plan.protected_sessions_hash is None:
++        raise StaleCleanPlanError(
++            "clean plan is stale; missing protected session snapshot"
++        )
++    checkpoint = _load_checkpoint_if_present(layout)
++    current_trial_protected_line_range = _current_trial_protected_line_range(
++        checkpoint,
++        total_lines=plan.total_lines,
++    )
++    protected_line_ranges = _protected_line_ranges(
++        layout,
++        protected_session_ids=plan.protected_session_ids,
++        current_trial_protected_line_range=current_trial_protected_line_range,
++    )
++    current_hash = _protected_sessions_hash(
++        protected_session_ids=plan.protected_session_ids,
++        protected_line_ranges=protected_line_ranges,
++        post_checkpoint_boundary_line=(
++            None if checkpoint is None else checkpoint.trace_line_count
++        ),
++        current_trial_protected_line_range=current_trial_protected_line_range,
++    )
++    if current_hash != plan.protected_sessions_hash:
++        raise StaleCleanPlanError(
++            "clean plan is stale; protected session boundaries changed"
++        )
++
++
+ def _backup_trace_file(
+     layout: NamespaceLayout,
+     plan: CleanPlan,
+@@ -589,6 +665,85 @@ def _scan_trace_lines(path: Path) -> tuple[tuple[_TraceLine, ...], int]:
+     )
+
+
++def _protected_line_ranges(
++    layout: NamespaceLayout,
++    *,
++    protected_session_ids: frozenset[str],
++    current_trial_protected_line_range: LineRange | None,
++) -> tuple[LineRange, ...]:
++    session_spans = inspect_trace_session_spans(layout)
++    ranges = [
++        LineRange(
++            first=span.first_line_number,
++            last=span.last_line_number,
++        )
++        for span in session_spans
++        if span.session_id in protected_session_ids
++    ]
++    if current_trial_protected_line_range is not None:
++        ranges.append(current_trial_protected_line_range)
++    return _merge_line_ranges(ranges)
++
++
++def _current_trial_protected_line_range(
++    checkpoint: CheckpointState | None,
++    *,
++    total_lines: int,
++) -> LineRange | None:
++    if checkpoint is None or checkpoint.current_trial is None:
++        return None
++    current_trial = checkpoint.current_trial
++    if not current_trial.operations:
++        return None
++    start_line = current_trial.current_trial_start_line
++    if start_line is None or start_line > total_lines:
++        return None
++    return LineRange(first=start_line, last=total_lines)
++
++
++def _checkpoint_hash(checkpoint: CheckpointState | None) -> str | None:
++    if checkpoint is None:
++        return None
++    return _stable_sha256(checkpoint_payload(checkpoint))
++
++
++def _protected_sessions_hash(
++    *,
++    protected_session_ids: frozenset[str],
++    protected_line_ranges: tuple[LineRange, ...],
++    post_checkpoint_boundary_line: int | None,
++    current_trial_protected_line_range: LineRange | None,
++) -> str:
++    return _stable_sha256(
++        {
++            "protected_session_ids": sorted(protected_session_ids),
++            "protected_line_ranges": [
++                {"first": item.first, "last": item.last}
++                for item in protected_line_ranges
++            ],
++            "post_checkpoint_boundary_line": post_checkpoint_boundary_line,
++            "current_trial_protected_line_range": (
++                None
++                if current_trial_protected_line_range is None
++                else {
++                    "first": current_trial_protected_line_range.first,
++                    "last": current_trial_protected_line_range.last,
++                }
++            ),
++        }
++    )
++
++
++def _stable_sha256(payload: object) -> str:
++    encoded = json.dumps(
++        payload,
++        ensure_ascii=True,
++        separators=(",", ":"),
++        sort_keys=True,
++    ).encode("utf-8")
++    return "sha256:" + hashlib.sha256(encoded).hexdigest()
++
++
+ def _is_removable_trace_line(
+     trace_line: _TraceLine,
+     *,
+diff --git a/tests/test_trace_cleanup.py b/tests/test_trace_cleanup.py
+index 999c13e..35653c7 100644
+--- a/tests/test_trace_cleanup.py
++++ b/tests/test_trace_cleanup.py
+@@ -81,13 +81,39 @@ def write_checkpoint(
+     *,
+     session_id: str = "sess_checkpoint",
+     trace_line_count: int | None = None,
++    current_trial: dict[str, object] | None = None,
+ ) -> None:
+-    payload = checkpoint_data(session_id=session_id)
++    payload = checkpoint_data(session_id=session_id, current_trial=current_trial)
+     if trace_line_count is not None:
+         payload["trace_line_count"] = trace_line_count
+     write_checkpoint_state(current_layout, payload)
+
+
++def current_trial_data(
++    *,
++    trial_id: str = "trial_active",
++    start_line: int = 2,
++) -> dict[str, object]:
++    return {
++        "trial_id": trial_id,
++        "started_at": "2026-04-30T10:18:00Z",
++        "current_stage": "spec_inject",
++        "stage_started_at": "2026-04-30T10:19:00Z",
++        "spec_backup_path": "spec_backups/pre_trial.spec.bak",
++        "workspace_snapshot_pre": "workspace_snapshots/pre.yaml",
++        "build_dir": "build_dirs/trial_active",
++        "artifact_staging": "artifacts/staging/trial_active",
++        "current_trial_start_line": start_line,
++        "operations": [
++            {
++                "op": "spec_inject",
++                "status": "running",
++                "details": {"attempt": 1},
++            }
++        ],
++    }
++
++
+ def write_lock_holder(
+     workspace: Path,
+     *,
+@@ -199,11 +225,55 @@ def test_compute_clean_plan_protects_checkpoint_session_span_layer_one(
+
+     assert plan.protected_session_ids == frozenset({"sess_checkpoint"})
+     assert plan.protected_line_ranges == (LineRange(2, 4),)
++    assert plan.checkpoint_hash is not None
++    assert plan.checkpoint_hash.startswith("sha256:")
++    assert plan.protected_sessions_hash is not None
++    assert plan.protected_sessions_hash.startswith("sha256:")
+     assert plan.removable_line_ranges == (LineRange(1, 1),)
+     assert plan.removable_event_count == 1
+     assert plan.can_execute is True
+
+
++def test_compute_clean_plan_protects_current_trial_layer_d(
++    tmp_path: Path,
++) -> None:
++    current_layout = layout(tmp_path)
++    append_event(current_layout, 1, ts="2026-04-01T00:00:00Z", session_id="sess_old")
++    append_event(current_layout, 2, ts="2026-04-01T00:01:00Z", session_id="sess_mid")
++    append_event(current_layout, 3, ts="2026-04-01T00:02:00Z", session_id="sess_mid")
++    append_event(current_layout, 4, ts="2026-04-01T00:03:00Z", session_id="sess_tail")
++    write_checkpoint(
++        current_layout,
++        trace_line_count=3,
++        current_trial=current_trial_data(start_line=2),
++    )
++
++    plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
++
++    assert plan.current_trial_protected_line_range == LineRange(2, 4)
++    assert plan.protected_line_ranges == (LineRange(2, 4),)
++    assert plan.removable_line_ranges == (LineRange(1, 1),)
++    assert plan.removable_event_count == 1
++
++
++def test_compute_clean_plan_refuses_current_trial_start_line_ahead(
++    tmp_path: Path,
++) -> None:
++    current_layout = layout(tmp_path)
++    append_event(current_layout, 1, ts="2026-04-01T00:00:00Z", session_id="sess_old")
++    write_checkpoint(
++        current_layout,
++        trace_line_count=1,
++        current_trial=current_trial_data(start_line=2),
++    )
++
++    plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
++
++    assert plan.current_trial_protected_line_range is None
++    assert "current_trial_start_line is ahead" in str(plan.refusal_reason)
++    assert plan.can_execute is False
++
++
+ def test_compute_clean_plan_protects_post_checkpoint_lines_layer_two(
+     tmp_path: Path,
+ ) -> None:
+diff --git a/tests/test_trace_cleanup_execute.py b/tests/test_trace_cleanup_execute.py
+index 1c8b330..1ef8520 100644
+--- a/tests/test_trace_cleanup_execute.py
++++ b/tests/test_trace_cleanup_execute.py
+@@ -12,6 +12,7 @@ from agent.fs_memory import (
+     append_trace_event,
+     load_trace_events,
+     trace_event_payload,
++    write_checkpoint_state,
+ )
+ from agent.registry import ProjectNamespace
+ import agent.trace_cleanup as trace_cleanup
+@@ -73,6 +74,23 @@ def old_recent_trace(current_layout: NamespaceLayout) -> None:
+     )
+
+
++def checkpoint_data(current_layout: NamespaceLayout, **overrides: object) -> dict[str, object]:
++    data: dict[str, object] = {
++        "session_id": "sess_checkpoint",
++        "namespace": str(current_layout.namespace),
++        "last_completed_trial": None,
++        "current_trial": None,
++        "current_best": None,
++        "explorer_state": {},
++        "random_seed": 42,
++        "total_tokens_consumed": 0,
++        "trace_line_count": 0,
++        "last_updated": "2026-05-10T12:00:00Z",
++    }
++    data.update(overrides)
++    return data
++
++
+ def fixed_now() -> datetime:
+     return datetime(2026, 5, 10, 12, 0, 0, tzinfo=UTC)
+
+@@ -127,6 +145,48 @@ def test_execute_detects_stale_plan_after_lock_acquisition(tmp_path: Path) -> No
+         execute_clean_plan(current_layout, plan, backup=False)
+
+
++def test_execute_detects_checkpoint_changed_after_planning(tmp_path: Path) -> None:
++    current_layout = layout(tmp_path)
++    old_recent_trace(current_layout)
++    plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
++    write_checkpoint_state(
++        current_layout,
++        checkpoint_data(current_layout, trace_line_count=3),
++    )
++
++    with pytest.raises(StaleCleanPlanError, match="checkpoint changed"):
++        execute_clean_plan(current_layout, plan, backup=False)
++
++
++def test_execute_detects_protected_session_boundaries_changed_without_size_change(
++    tmp_path: Path,
++) -> None:
++    current_layout = layout(tmp_path)
++    append_event(current_layout, 1, ts="2026-04-01T00:00:00Z", session_id="sess_a")
++    append_event(current_layout, 2, ts="2026-04-01T00:01:00Z", session_id="sess_b")
++    write_checkpoint_state(
++        current_layout,
++        checkpoint_data(
++            current_layout,
++            session_id="sess_a",
++            trace_line_count=2,
++        ),
++    )
++    plan = compute_clean_plan(current_layout, keep_days=7, now=fixed_now())
++    original_size = current_layout.trace_path.stat().st_size
++    current_layout.trace_path.write_text(
++        current_layout.trace_path.read_text(encoding="utf-8").replace(
++            '"sess_a"',
++            '"sess_c"',
++        ),
++        encoding="utf-8",
++    )
++    assert current_layout.trace_path.stat().st_size == original_size
++
++    with pytest.raises(StaleCleanPlanError, match="protected session"):
++        execute_clean_plan(current_layout, plan, backup=False)
++
++
+ def test_execute_rewrites_trace_from_real_plan_and_writes_backup(tmp_path: Path) -> None:
+     current_layout = layout(tmp_path)
+     old_recent_trace(current_layout)

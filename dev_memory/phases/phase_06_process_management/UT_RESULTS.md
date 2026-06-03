@@ -205,3 +205,28 @@ Review / validation sync:
 - Independent reviewer probe: clean/read-only state, dangling process refs,
   orphan leases, malformed lease YAML, operation/lease mismatch, and
   repair_suggestion fields all matched the 6.6 contract.
+
+## Subtask 6.7 - Clean Trace Hardening
+
+Commands:
+
+```bash
+.venv/bin/python -m pytest tests/test_trace_cleanup.py tests/test_trace_cleanup_execute.py -q
+.venv/bin/python -m pytest tests/test_trace_cleanup.py tests/test_trace_cleanup_execute.py tests/test_cli_clean_trace.py tests/test_trace_session.py tests/test_state_consistency.py -q
+.venv/bin/python -m pytest tests/test_errors.py -q
+.venv/bin/python -m pytest tests/ -q
+```
+
+Results:
+
+- Trace cleanup targeted tests: 34 passed
+- Trace/cleanup adjacent set: 95 passed
+- Error framework smoke: 3 passed
+- Full suite: 519 passed
+
+Notes:
+
+- New tests cover Layer D current-trial protection, refusal when
+  `current_trial_start_line` is ahead of trace, stale checkpoint hash detection,
+  and protected-session hash detection with unchanged trace line count/file
+  size.

@@ -288,3 +288,35 @@ Phase 10 doctor commands will render later.
     diagnosed correctly,
   - repeated inspection is read-only and does not mutate files,
   - findings include `repair_suggestion` and structured details.
+
+## Subtask 6.7 - Clean Trace Hardening
+
+Added the Phase 06 clean trace hardening promised by ROADMAP: plan snapshot
+hashes and Layer D active-trial protection.
+
+### Changes
+
+- Added `checkpoint_hash` to `CleanPlan`.
+- Added `protected_sessions_hash` to `CleanPlan`.
+- Added `current_trial_protected_line_range` to `CleanPlan` for Layer D
+  visibility.
+- `execute_clean_plan()` now revalidates, while holding the workspace lock:
+  - trace line count and file size,
+  - checkpoint hash,
+  - protected session/current-trial line boundaries.
+- Layer D protection now preserves current-trial trace lines from
+  `current_trial_start_line` through the current trace end when checkpoint
+  operations indicate an in-progress trial.
+- Planning refuses execution if `current_trial_start_line` is ahead of
+  validated trace events.
+- Added stable canonical JSON SHA-256 helpers for checkpoint and protected
+  session snapshots.
+
+### Validation
+
+- `tests/test_trace_cleanup.py tests/test_trace_cleanup_execute.py`: 34 passed
+- Trace/cleanup adjacent set
+  (`trace_cleanup`, `trace_cleanup_execute`, `cli_clean_trace`,
+  `trace_session`, `state_consistency`): 95 passed
+- `tests/test_errors.py`: 3 passed
+- Full suite: 519 passed

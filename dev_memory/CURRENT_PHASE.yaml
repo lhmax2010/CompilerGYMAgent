@@ -1,7 +1,7 @@
 phase_id: phase_06_process_management
 phase_title: "Process Management (runner + cleaner + monitor)"
 started_at: 2026-06-01T15:30:36+08:00
-last_updated: 2026-06-03T00:00:00+08:00
+last_updated: 2026-06-03T13:55:50+08:00
 target_milestone: "M3 (advanced)"
 related_requirements:
   - REQUIREMENTS.md section 3.3.5
@@ -308,4 +308,43 @@ subtasks:
     ubuntu_validation_tests:
       targeted: "203 passed"
       full: "515 passed"
-next_action: "Begin Phase 06 Subtask 6.7 clean trace hardening (CleanPlan hashes + Layer D current-trial protection)."
+  - id: "6.7"
+    title: "clean trace hardening (CleanPlan hashes + Layer D current-trial protection)"
+    status: implementation_complete
+    related_requirements:
+      - ROADMAP.yaml Phase 06 deliverable clean trace hardening
+      - REQUIREMENTS.md section 4.14.7a
+      - REQUIREMENTS.md section 4.13
+      - REQUIREMENTS.md section 3.3.3
+    files_created: []
+    files_modified:
+      - src/agent/trace_cleanup.py
+      - tests/test_trace_cleanup.py
+      - tests/test_trace_cleanup_execute.py
+      - dev_memory/CURRENT_PHASE.yaml
+      - dev_memory/DECISIONS.md
+      - dev_memory/PROGRESS.md
+      - dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
+      - dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
+      - dev_memory/phases/phase_06_process_management/SUMMARY.md
+      - dev_memory/phases/phase_06_process_management/UT_RESULTS.md
+    behavior_notes:
+      - "CleanPlan now records checkpoint_hash and protected_sessions_hash snapshots."
+      - "execute_clean_plan revalidates trace size/line count, checkpoint_hash, and protected session boundaries while holding the workspace lock."
+      - "Layer D protects current-trial trace lines from current_trial_start_line through the current trace end when checkpoint operations indicate a trial is in progress."
+      - "If current_trial_start_line is ahead of validated trace events, planning refuses execution."
+    ut_required: true
+    ut_passed: true
+    targeted_ut: "95 tests passed, 0 failed (trace_cleanup/execute/cli/trace_session/state_consistency); 3 error tests passed"
+    production_regression_ut: "519 tests passed, 0 failed"
+    self_review_required: true
+    self_reviewed: true
+    patch_required: true
+    patch_file: dev_memory/phases/phase_06_process_management/patches/07_clean_trace_hardening.patch
+    patch_generated: true
+    commit_required: true
+    commit_pending: true
+    implementation_commit: pending
+    external_review_verdict: pending
+    ubuntu_validation_status: pending
+next_action: "Commit/push Phase 06 Subtask 6.7 clean trace hardening, then send range for Claude review."

@@ -1,5 +1,26 @@
 # Development Progress
 
+## 2026-06-03T13:55:50+08:00 - Phase 06 / Subtask 6.7 implementation completed
+
+- Added `checkpoint_hash`, `protected_sessions_hash`, and
+  `current_trial_protected_line_range` to `CleanPlan`.
+- Hardened `execute_clean_plan()` so it revalidates trace file size/line count,
+  checkpoint hash, and protected session/current-trial boundaries while holding
+  the workspace lock.
+- Added Layer D current-trial protection: when checkpoint operations indicate
+  an in-progress trial, trace lines from `current_trial_start_line` through the
+  trace end are protected from cleanup.
+- Added conservative refusal when `current_trial_start_line` is ahead of
+  validated trace events.
+- Targeted UT passed: `tests/test_trace_cleanup.py tests/test_trace_cleanup_execute.py`
+  -> 34 passed.
+- Adjacent UT passed: trace cleanup / execute / CLI / trace session /
+  state consistency -> 95 passed.
+- Full UT passed: `.venv/bin/python -m pytest tests/ -q` -> 519 passed.
+
+Next action: generate Subtask 6.7 patch artifacts, commit, push, and send the
+range for Claude review.
+
 ## 2026-06-01T21:41:31+08:00 - Phase 06 / Subtask 6.6 implementation completed
 
 - Added `src/agent/doctor/state_consistency.py` as the read-only

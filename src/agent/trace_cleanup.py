@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 import tempfile
 from contextlib import contextmanager
@@ -18,6 +20,7 @@ from .fs_memory import (
     NamespaceLayout,
     TraceError,
     TraceEvent,
+    checkpoint_payload,
     iter_trace_events,
     load_checkpoint_for_layout,
     trace_event_payload,
@@ -98,6 +101,9 @@ class CleanPlan:
     removable_byte_ranges: tuple[ByteRange, ...]
     removable_event_count: int
     refusal_reason: str | None
+    checkpoint_hash: str | None = None
+    protected_sessions_hash: str | None = None
+    current_trial_protected_line_range: LineRange | None = None
 
     @property
     def is_dry_run_safe(self) -> bool:
@@ -167,6 +173,7 @@ def compute_clean_plan(
     cutoff_ts = now_utc - timedelta(days=keep_days)
 
     checkpoint = _load_checkpoint_if_present(layout)
+    checkpoint_hash = _checkpoint_hash(checkpoint)
     lock_snapshot = _read_workspace_lock(layout)
     trace_lines, file_size_bytes = _scan_trace_lines(layout.trace_path)
     total_lines = len(trace_lines)
@@ -177,17 +184,23 @@ def compute_clean_plan(
     if lock_snapshot.active_holder is not None:
         protected_session_ids.add(lock_snapshot.active_holder.session_id)
 
-    session_spans = inspect_trace_session_spans(layout)
-    protected_line_ranges = _merge_line_ranges(
-        LineRange(
-            first=span.first_line_number,
-            last=span.last_line_number,
-        )
-        for span in session_spans
-        if span.session_id in protected_session_ids
-    )
     post_checkpoint_boundary_line = (
         None if checkpoint is None else checkpoint.trace_line_count
+    )
+    current_trial_protected_line_range = _current_trial_protected_line_range(
+        checkpoint,
+        total_lines=total_lines,
+    )
+    protected_line_ranges = _protected_line_ranges(
+        layout,
+        protected_session_ids=frozenset(protected_session_ids),
+        current_trial_protected_line_range=current_trial_protected_line_range,
+    )
+    protected_sessions_hash = _protected_sessions_hash(
+        protected_session_ids=frozenset(protected_session_ids),
+        protected_line_ranges=protected_line_ranges,
+        post_checkpoint_boundary_line=post_checkpoint_boundary_line,
+        current_trial_protected_line_range=current_trial_protected_line_range,
     )
 
     refusal_reason = lock_snapshot.refusal_reason
@@ -204,6 +217,17 @@ def compute_clean_plan(
         refusal_reason = _combine_refusal(
             refusal_reason,
             "checkpoint trace_line_count is ahead of validated trace events",
+        )
+    if (
+        checkpoint is not None
+        and checkpoint.current_trial is not None
+        and checkpoint.current_trial.operations
+        and checkpoint.current_trial.current_trial_start_line is not None
+        and checkpoint.current_trial.current_trial_start_line > total_lines
+    ):
+        refusal_reason = _combine_refusal(
+            refusal_reason,
+            "current_trial_start_line is ahead of validated trace events",
         )
 
     removable_lines = tuple(
@@ -235,6 +259,9 @@ def compute_clean_plan(
         removable_byte_ranges=removable_byte_ranges,
         removable_event_count=len(removable_lines),
         refusal_reason=refusal_reason,
+        checkpoint_hash=checkpoint_hash,
+        protected_sessions_hash=protected_sessions_hash,
+        current_trial_protected_line_range=current_trial_protected_line_range,
     )
 
 
@@ -259,7 +286,7 @@ def execute_clean_plan(
         plan,
         force_inactive_only=force_inactive_only,
     ):
-        _require_plan_still_matches_trace(plan)
+        _require_plan_still_matches_state(layout, plan)
         backup_path = _backup_trace_file(layout, plan, now=now) if backup else None
         _rewrite_trace_file(plan)
 
@@ -337,6 +364,12 @@ def _can_execute_under_existing_self_lock(
     )
 
 
+def _require_plan_still_matches_state(layout: NamespaceLayout, plan: CleanPlan) -> None:
+    _require_plan_still_matches_trace(plan)
+    _require_plan_still_matches_checkpoint(layout, plan)
+    _require_plan_still_matches_protected_sessions(layout, plan)
+
+
 def _require_plan_still_matches_trace(plan: CleanPlan) -> None:
     total_lines = sum(1 for _ in iter_trace_events(plan.trace_path))
     try:
@@ -346,6 +379,49 @@ def _require_plan_still_matches_trace(plan: CleanPlan) -> None:
     if total_lines != plan.total_lines or file_size != plan.file_size_bytes:
         raise StaleCleanPlanError(
             "clean plan is stale; trace line count or file size changed"
+        )
+
+
+def _require_plan_still_matches_checkpoint(
+    layout: NamespaceLayout,
+    plan: CleanPlan,
+) -> None:
+    checkpoint = _load_checkpoint_if_present(layout)
+    if _checkpoint_hash(checkpoint) != plan.checkpoint_hash:
+        raise StaleCleanPlanError(
+            "clean plan is stale; checkpoint changed after planning"
+        )
+
+
+def _require_plan_still_matches_protected_sessions(
+    layout: NamespaceLayout,
+    plan: CleanPlan,
+) -> None:
+    if plan.protected_sessions_hash is None:
+        raise StaleCleanPlanError(
+            "clean plan is stale; missing protected session snapshot"
+        )
+    checkpoint = _load_checkpoint_if_present(layout)
+    current_trial_protected_line_range = _current_trial_protected_line_range(
+        checkpoint,
+        total_lines=plan.total_lines,
+    )
+    protected_line_ranges = _protected_line_ranges(
+        layout,
+        protected_session_ids=plan.protected_session_ids,
+        current_trial_protected_line_range=current_trial_protected_line_range,
+    )
+    current_hash = _protected_sessions_hash(
+        protected_session_ids=plan.protected_session_ids,
+        protected_line_ranges=protected_line_ranges,
+        post_checkpoint_boundary_line=(
+            None if checkpoint is None else checkpoint.trace_line_count
+        ),
+        current_trial_protected_line_range=current_trial_protected_line_range,
+    )
+    if current_hash != plan.protected_sessions_hash:
+        raise StaleCleanPlanError(
+            "clean plan is stale; protected session boundaries changed"
         )
 
 
@@ -587,6 +663,85 @@ def _scan_trace_lines(path: Path) -> tuple[tuple[_TraceLine, ...], int]:
         ),
         offset,
     )
+
+
+def _protected_line_ranges(
+    layout: NamespaceLayout,
+    *,
+    protected_session_ids: frozenset[str],
+    current_trial_protected_line_range: LineRange | None,
+) -> tuple[LineRange, ...]:
+    session_spans = inspect_trace_session_spans(layout)
+    ranges = [
+        LineRange(
+            first=span.first_line_number,
+            last=span.last_line_number,
+        )
+        for span in session_spans
+        if span.session_id in protected_session_ids
+    ]
+    if current_trial_protected_line_range is not None:
+        ranges.append(current_trial_protected_line_range)
+    return _merge_line_ranges(ranges)
+
+
+def _current_trial_protected_line_range(
+    checkpoint: CheckpointState | None,
+    *,
+    total_lines: int,
+) -> LineRange | None:
+    if checkpoint is None or checkpoint.current_trial is None:
+        return None
+    current_trial = checkpoint.current_trial
+    if not current_trial.operations:
+        return None
+    start_line = current_trial.current_trial_start_line
+    if start_line is None or start_line > total_lines:
+        return None
+    return LineRange(first=start_line, last=total_lines)
+
+
+def _checkpoint_hash(checkpoint: CheckpointState | None) -> str | None:
+    if checkpoint is None:
+        return None
+    return _stable_sha256(checkpoint_payload(checkpoint))
+
+
+def _protected_sessions_hash(
+    *,
+    protected_session_ids: frozenset[str],
+    protected_line_ranges: tuple[LineRange, ...],
+    post_checkpoint_boundary_line: int | None,
+    current_trial_protected_line_range: LineRange | None,
+) -> str:
+    return _stable_sha256(
+        {
+            "protected_session_ids": sorted(protected_session_ids),
+            "protected_line_ranges": [
+                {"first": item.first, "last": item.last}
+                for item in protected_line_ranges
+            ],
+            "post_checkpoint_boundary_line": post_checkpoint_boundary_line,
+            "current_trial_protected_line_range": (
+                None
+                if current_trial_protected_line_range is None
+                else {
+                    "first": current_trial_protected_line_range.first,
+                    "last": current_trial_protected_line_range.last,
+                }
+            ),
+        }
+    )
+
+
+def _stable_sha256(payload: object) -> str:
+    encoded = json.dumps(
+        payload,
+        ensure_ascii=True,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    return "sha256:" + hashlib.sha256(encoded).hexdigest()
 
 
 def _is_removable_trace_line(
