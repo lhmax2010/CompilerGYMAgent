@@ -320,3 +320,15 @@ hashes and Layer D active-trial protection.
   `trace_session`, `state_consistency`): 95 passed
 - `tests/test_errors.py`: 3 passed
 - Full suite: 519 passed
+
+### Review
+
+- Claude review verdict: Approve
+- Review range: `a0dffdd..379309f`
+- Reviewer independently verified:
+  - checkpoint content changes after planning make execute reject the plan even
+    when trace line count and file size are unchanged,
+  - Layer D protects current-trial trace lines from
+    `current_trial_start_line` through trace end,
+  - `current_trial_start_line` ahead of trace causes conservative refusal,
+  - existing trace cleanup behavior remains compatible.

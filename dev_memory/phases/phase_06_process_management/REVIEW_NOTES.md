@@ -265,3 +265,11 @@ Self-review result:
 - Primary review focus for Claude: ensure Layer D is conservative enough and
   execute stale checks catch checkpoint/protection changes without redoing the
   full clean-planning decision logic.
+
+External review:
+
+- Verdict: Approve
+- Range: `a0dffdd..379309f`
+- Notes: reviewer independently verified checkpoint hash staleness, Layer D
+  current-trial line protection, conservative start-line-ahead refusal, and
+  compatibility with existing clean trace behavior.

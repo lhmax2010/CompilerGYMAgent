@@ -1,5 +1,21 @@
 # Development Progress
 
+## 2026-06-03T14:20:00+08:00 - Phase 06 / Subtask 6.7 approved and validated
+
+- Claude review verdict: Approve, with no Critical / High / Medium / Low findings.
+- Reviewer independently verified checkpoint content hash staleness: changing
+  checkpoint content without changing trace size/line count raises
+  `StaleCleanPlanError` during execute.
+- Reviewer independently verified Layer D protects current-trial trace lines from
+  `current_trial_start_line` through trace end.
+- Reviewer independently verified `current_trial_start_line` ahead of trace
+  refuses execution.
+- Review validation counts matched implementation: trace cleanup targeted set 34
+  passed, adjacent set 95 passed, full suite 519 passed.
+
+Next action: begin Phase 06 Subtask 6.8 NFS/FUSE runtime warning plus
+CheckpointState LangGraph comment reservation.
+
 ## 2026-06-03T13:55:50+08:00 - Phase 06 / Subtask 6.7 implementation completed
 
 - Added `checkpoint_hash`, `protected_sessions_hash`, and

@@ -310,7 +310,7 @@ subtasks:
       full: "515 passed"
   - id: "6.7"
     title: "clean trace hardening (CleanPlan hashes + Layer D current-trial protection)"
-    status: implementation_complete
+    status: done
     related_requirements:
       - ROADMAP.yaml Phase 06 deliverable clean trace hardening
       - REQUIREMENTS.md section 4.14.7a
@@ -343,8 +343,44 @@ subtasks:
     patch_file: dev_memory/phases/phase_06_process_management/patches/07_clean_trace_hardening.patch
     patch_generated: true
     commit_required: true
+    commit_pending: false
+    implementation_commit: 379309f
+    external_review_verdict: approve
+    external_reviewed_at: 2026-06-03T13:55:50+08:00
+    external_review_tests: "519 passed; trace cleanup targeted set 34 passed; adjacent targeted set 95 passed"
+    external_review_notes:
+      - "Reviewer independently verified checkpoint hash staleness: checkpoint content changes with unchanged trace size/line count cause StaleCleanPlanError."
+      - "Reviewer independently verified Layer D protects current-trial lines from current_trial_start_line through trace end."
+      - "Reviewer independently verified current_trial_start_line ahead of trace refuses execution."
+      - "Existing trace cleanup tests remained compatible: targeted trace cleanup set 34 passed."
+    ubuntu_validation_status: passed
+    ubuntu_validation_tests:
+      targeted: "34 passed; adjacent targeted set 95 passed; error smoke 3 passed"
+      full: "519 passed"
+  - id: "6.8"
+    title: "NFS/FUSE runtime warning + CheckpointState LangGraph comment reservation"
+    status: in_progress
+    related_requirements:
+      - ROADMAP.yaml Phase 06 deliverable NFS runtime detection + warning
+      - ROADMAP.yaml Phase 06 deliverable CheckpointState langgraph comment reservation
+      - REQUIREMENTS.md section 3.3.4
+      - REQUIREMENTS.md section 4.15
+    files_created: []
+    files_modified: []
+    behavior_notes:
+      - "Implementation pending."
+    ut_required: true
+    ut_passed: false
+    targeted_ut: pending
+    production_regression_ut: pending
+    self_review_required: true
+    self_reviewed: false
+    patch_required: true
+    patch_file: dev_memory/phases/phase_06_process_management/patches/08_nfs_warning_langgraph_reservation.patch
+    patch_generated: false
+    commit_required: true
     commit_pending: true
     implementation_commit: pending
     external_review_verdict: pending
     ubuntu_validation_status: pending
-next_action: "Commit/push Phase 06 Subtask 6.7 clean trace hardening, then send range for Claude review."
+next_action: "Implement Phase 06 Subtask 6.8 NFS/FUSE runtime warnings plus CheckpointState LangGraph comment reservation."

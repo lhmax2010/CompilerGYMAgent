@@ -230,3 +230,14 @@ Notes:
   `current_trial_start_line` is ahead of trace, stale checkpoint hash detection,
   and protected-session hash detection with unchanged trace line count/file
   size.
+
+Review / validation sync:
+
+- Claude review verdict: Approve
+- Review range: `a0dffdd..379309f`
+- Independent reviewer probe: checkpoint hash staleness, Layer D current-trial
+  range protection, start-line-ahead refusal, and no-current-trial
+  compatibility all matched the 6.7 contract.
+- Re-run trace cleanup targeted set: 34 passed
+- Re-run adjacent targeted set: 95 passed
+- Re-run full suite: 519 passed

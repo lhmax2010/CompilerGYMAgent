@@ -106,10 +106,10 @@ subtasks:
         status: done
   - id: "6.7"
     title: "clean trace hardening (CleanPlan hashes + Layer D current-trial protection)"
-    status: implementation_complete
-    implementation_commit: pending
-    review_status: pending
-    ubuntu_validation_status: pending
+    status: done
+    implementation_commit: 379309f
+    review_status: approve
+    ubuntu_validation_status: passed
     checklist:
       - item: "Add checkpoint_hash snapshot to CleanPlan"
         status: done
@@ -129,6 +129,31 @@ subtasks:
         status: done
       - item: "Generate patch artifacts"
         status: done
+      - item: "Claude review"
+        status: done
+      - item: "Ubuntu/Linux validation"
+        status: done
+  - id: "6.8"
+    title: "NFS/FUSE runtime warning + CheckpointState LangGraph comment reservation"
+    status: in_progress
+    implementation_commit: pending
+    review_status: pending
+    ubuntu_validation_status: pending
+    checklist:
+      - item: "Add runtime filesystem type detection for workspace paths"
+        status: pending
+      - item: "Warn for NFS/FUSE/remote-like filesystems during workspace lock acquisition"
+        status: pending
+      - item: "Warn for NFS/FUSE/remote-like filesystems during agent init context preparation"
+        status: pending
+      - item: "Keep warnings nonblocking"
+        status: pending
+      - item: "Add CheckpointState comment-only LangGraph state reservation without adding schema fields"
+        status: pending
+      - item: "Run targeted tests and full production suite"
+        status: pending
+      - item: "Generate patch artifacts"
+        status: pending
   - id: "6.4"
     title: "workspace lock hardening (probe flock + LockStatus unknown)"
     status: done

@@ -26,3 +26,15 @@
   without operations still rely on the existing session/boundary protections.
 - User-facing rendering of the new plan fields can be improved in later CLI /
   doctor work.
+
+## External Review
+
+- Verdict: Approve
+- Range: `a0dffdd..379309f`
+- Reviewer confirmed:
+  - checkpoint content drift after planning is caught by execute-time hash
+    validation,
+  - Layer D protects current-trial trace lines from
+    `current_trial_start_line` through trace end,
+  - start-line-ahead plans are refused conservatively,
+  - existing trace cleanup tests remain compatible.
