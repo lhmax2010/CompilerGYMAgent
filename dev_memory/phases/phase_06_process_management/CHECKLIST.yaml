@@ -1,7 +1,8 @@
 phase_id: phase_06_process_management
 phase_title: "Process Management (runner + cleaner + monitor)"
-status: in_progress
+status: done
 started_at: 2026-06-01T15:30:36+08:00
+closed_at: 2026-06-03T15:44:39+08:00
 subtasks:
   - id: "6.1"
     title: "process_identity.py + process_lab fixture"
@@ -135,10 +136,10 @@ subtasks:
         status: done
   - id: "6.8"
     title: "NFS/FUSE runtime warning + CheckpointState LangGraph comment reservation"
-    status: implementation_complete
-    implementation_commit: pending
-    review_status: pending
-    ubuntu_validation_status: pending
+    status: done
+    implementation_commit: c62954e
+    review_status: approve
+    ubuntu_validation_status: passed
     checklist:
       - item: "Add runtime filesystem type detection for workspace paths"
         status: done
@@ -153,6 +154,10 @@ subtasks:
       - item: "Run targeted tests and full production suite"
         status: done
       - item: "Generate patch artifacts"
+        status: done
+      - item: "Claude review"
+        status: done
+      - item: "Ubuntu/Linux validation"
         status: done
   - id: "6.4"
     title: "workspace lock hardening (probe flock + LockStatus unknown)"
@@ -254,3 +259,9 @@ subtasks:
         status: done
       - item: "Ubuntu/Linux validation"
         status: done
+phase_closure:
+  status: done
+  actual_subtasks_done: 9
+  closed_at: 2026-06-03T15:44:39+08:00
+  final_full_suite: "538 passed"
+  next_phase: "05 - Compile / Benchmark Skills"

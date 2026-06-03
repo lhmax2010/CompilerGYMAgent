@@ -12,28 +12,28 @@ Completed:
 | 02 | FS-Memory SoT writers | 2026-05-21 | 11 |
 | 03 | Trace lifecycle | 2026-05-29 | 15 |
 | 04 | Workspace Protection Skills + CLI Entrypoint Skeleton | 2026-05-30 | 5 |
+| 06 | Process Management (runner + cleaner + monitor) | 2026-06-03 | 9 |
 
 Current handoff:
 
 | State | Next phase | Why next |
 |---|---|---|
-| Phase 05.5 started | Phase 06 + Phase 05.5 in parallel | Phase 06 builds process safety for real compile/benchmark work. Phase 05.5 independently validates the automated decision loop with mocks before the full candidate engine is built. |
+| Phase 06 closed | Phase 05 - Compile / Benchmark Skills | Process runner, lease registry, cleaner, state consistency, and clean-trace hardening are now in place. Compile/benchmark skills can build on the stable process substrate instead of inventing subprocess rules. |
 
 Next three implementation phases:
 
 | Order | Phase | Estimate | Main risk |
 |---:|---|---:|---|
-| 1 | 06 - Process Management | 6-9 subtasks | Linux process-group, env-marker, and psutil behavior needs real integration coverage. |
-| 1b | 05.5 - Integration Feasibility Mock Spike | 4-6 subtasks | In progress. The automated decision core must beat naive baselines and learn second-order interactions before Phase 07 hardens it. |
-| 2 | 05 - Compile / Benchmark Skills | 8-12 subtasks | Compile/benchmark skills depend on stable process management and fake-gbs harness quality. |
-| 3 | 08 - Baseline + Statistical Significance | 7-10 subtasks | Statistical contracts need synthetic reference checks before candidate engine convergence. |
+| 1 | 05 - Compile / Benchmark Skills | 8-12 subtasks | fake_gbs harness quality and process_runner integration determine how trustworthy later benchmark loops are. |
+| 2 | 08 - Baseline + Statistical Significance | 7-10 subtasks | Statistical contracts need synthetic reference checks before candidate engine convergence. |
+| 3 | 7.0 - Candidate Search Strategy + Constraint Solver Spike | 2-3 subtasks | Must turn 05.5's noise-robust interaction-discovery risk into concrete Phase 07 search requirements. |
+| 4 | 07 - Candidate Engine + Constraint + Schedule | 10-16 subtasks | LLM integration and non-bruteforce search strategy remain the largest algorithmic risk. |
 
-The planned order intentionally runs Phase 06 before Phase 05, even though the numbering is not sequential. Compile and benchmark skills should sit on top of the process runner/cleaner instead of inventing their own subprocess rules.
+The planned order intentionally ran Phase 06 before Phase 05, even though the numbering is not sequential. That dependency is now satisfied: compile and benchmark skills should use the Phase 06 process runner/cleaner and lease registry.
 
-Phase 05.5 is intentionally parallel with Phase 06. It is a mock-only spike that
-tests whether the automated decision core can beat naive baselines and learn
-second-order interactions before Phase 07 turns that learning into production
-candidate-engine APIs. Findings land in
+Phase 05.5 closed as a mock-only spike. It showed that the integration plumbing
+is viable but that noise-robust second-order interaction discovery is the top
+Phase 07 risk and must be handed through Phase 7.0 and Phase 08. Findings live in
 `dev_memory/spikes/05.5_integration_feasibility_findings.md`.
 
 ## Cadence And Remaining Size
@@ -47,7 +47,10 @@ Calibration:
 - Phase 03: 15 subtasks in roughly 9 days.
 - Average used for planning: 35 subtasks in roughly 28 days.
 - Phase 04 closed as a same-day focused phase with 5 subtasks; keep the 1.3
-  planning rate until the Phase 04-06 recalibration trigger says otherwise.
+  planning rate.
+- Phase 06 closed with 9 patch-count subtasks over roughly 2.5 calendar days.
+  This is faster than the calibrated planning rate, so no downward recalibration
+  is needed before Phase 05.
 
 This count includes implementation commits, Claude review, review-fix loops, Ubuntu validation, patch artifacts, and sync commits. It should be used directly for planning; raw feature counts are too optimistic.
 
@@ -55,8 +58,8 @@ Remaining estimate:
 
 | Scope | Phases | Subtasks | Workdays | Weeks |
 |---|---|---:|---:|---:|
-| v1-minimal remaining | 06/05.5/05/08/7.0/07/09/10/11/12/13 | 81-124 | 62-95 | 13-19 |
-| v1-full remaining | 06/05.5/05/08/7.0/07/9.0/9.1/09/10/11/12/13/14/15a/15b/16 | 106-164 | 82-126 | 17-26 |
+| v1-minimal remaining | 05/08/7.0/07/09/10/11/12/13 | 72-115 | 55-88 | 11-18 |
+| v1-full remaining | 05/08/7.0/07/9.0/9.1/09/10/11/12/13/14/15a/15b/16 | 97-155 | 75-119 | 15-24 |
 
 The roadmap is deliberately slower than `doc/REQUIREMENTS.md` section 9's nominal schedule because this project is using a high-assurance loop: Codex implementation, Claude review, review fixes, Linux validation, and explicit dev_memory provenance.
 

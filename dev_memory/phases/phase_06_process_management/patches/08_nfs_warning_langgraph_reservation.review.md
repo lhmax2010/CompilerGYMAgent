@@ -29,3 +29,15 @@
   assumption visible but does not prove exact lock/fsync semantics for every
   mount implementation.
 - Future CLI/doctor layers can render the warning more prominently.
+
+## External Review
+
+- Verdict: Approve
+- Range: `2d7e657..c62954e`
+- Reviewer confirmed:
+  - NFS/FUSE/remote-like detection works with injected mountinfo,
+  - warning behavior is nonblocking,
+  - mountinfo-unavailable cases degrade gracefully,
+  - `langgraph_state_snapshot` remains comment-only and schema-rejected,
+  - `_write_holder()` and the never-`os.replace(run.lock)` red line are
+    untouched.

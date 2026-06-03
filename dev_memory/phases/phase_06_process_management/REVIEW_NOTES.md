@@ -306,3 +306,20 @@ Self-review result:
 - No known Critical / High / Medium / Low findings.
 - Primary review focus for Claude: confirm warning-only behavior, mount parsing
   coverage, and that the LangGraph reservation does not add a checkpoint field.
+
+External review:
+
+- Verdict: Approve
+- Range: `2d7e657..c62954e`
+- Notes: reviewer confirmed mountinfo-based remote filesystem detection,
+  warning-only behavior, strict schema rejection of the reserved LangGraph
+  field, and the unchanged workspace lock holder write path.
+
+## Phase 06 Closure
+
+- Verdict: all Phase 06 subtasks approved.
+- Final full suite: 538 passed.
+- Actual patch-count subtasks: 9.
+- Residual follow-ups are intentionally deferred to later phases:
+  process-cleanup trace event kind whitelist, full doctor/CLI rendering, and
+  Phase 09/10 replay semantics.
