@@ -1,6 +1,6 @@
 # dev_memory/ROADMAP.yaml
 roadmap_version: 1
-last_updated: 2026-06-03T17:05:00+08:00
+last_updated: 2026-06-03T17:24:00+08:00
 status: active
 
 # ============================================================
@@ -23,12 +23,12 @@ cadence_assumption:
 # Overall sizing (calibrated)
 # ============================================================
 sizing:
-  v1_minimal_phases: ["04","06","05.5","05","08","7.0","07","09","10","11","12","13"]
+  v1_minimal_phases: ["04","06","05.5","05","08a","7.0","07","08b","09","10","11","12","13"]
   v1_minimal_estimate_subtasks: { low: 89, high: 136 }
   v1_minimal_estimate_workdays_at_current_pace: { low: 68, high: 105 }
   v1_minimal_estimate_weeks: { low: 14, high: 21 }
 
-  v1_full_phases: ["04","06","05.5","05","08","7.0","07","9.0","9.1","09","10","11","12","13","14","15a","15b","16"]
+  v1_full_phases: ["04","06","05.5","05","08a","7.0","07","08b","9.0","9.1","09","10","11","12","13","14","15a","15b","16"]
   v1_full_estimate_subtasks: { low: 114, high: 176 }
   v1_full_estimate_workdays_at_current_pace: { low: 88, high: 135 }
   v1_full_estimate_weeks: { low: 18, high: 27 }
@@ -165,61 +165,143 @@ planned_phases:
     can_parallel_with: []
     estimate_subtasks: { low: 8, high: 12 }
     risk: medium
+    rationale: >
+      First compile/benchmark skill phase. v1 uses a fake_gbs harness, but the
+      mock must still exercise the real Phase 06 process runner, process lease
+      registry, timeout, env marker, and cleaner paths. Real gbs integration is
+      deferred to Phase 16.
     goals:
-      - "gbs_compile skill (uses Phase 06 process_runner)"
-      - "build_only_check (gbs sub-mode interface placeholder)"
-      - "error_analyzer with 5-class compile error taxonomy (§4.7.3)"
-      - "benchmark_runner / quick_benchmark / score_aggregator"
-      - "fake_gbs test harness (deterministic, side-effect-free)"
+      - "Compile skill uses Phase 06 process_runner with start_new_session, env marker, and process lease writes"
+      - "Benchmark skill returns run-level records, not just raw score lists"
+      - "fake_gbs mock uses real subprocesses, logs, artifacts, timeouts, leases, and killpg cleanup"
+      - "Failure classifier returns category + confidence + evidence and routes failures without polluting failed_combos"
+      - "Refine env markers to session + trial + lease granularity"
     deliverables:
-      - "src/agent/skills/gbs_compile.py"
-      - "src/agent/skills/build_only_check.py"
-      - "src/agent/skills/error_analyzer.py"
-      - "src/agent/skills/benchmark_runner.py"
-      - "src/agent/skills/quick_benchmark.py"
-      - "src/agent/skills/score_aggregator.py"
-      - "tests/fixtures/fake_gbs.py"
+      - path: "src/agent/skills/compile.py"
+        description: "Compile skill protected by workspace snapshot/spec backup/restore, using Phase 06 process_runner and cleaner."
+        requirements:
+          - "Use process_runner spawn path: start_new_session + env markers + process lease"
+          - "On compile failure / timeout / crash, invoke Phase 06 cleaner to clean process group"
+          - "Produce compile_result with status, artifact_ref, artifact_hash, failure classification, stdout/stderr/log refs"
+          - "Enforce spawn ordering: spawn process -> write lease -> trace process_started with full ProcessRecord payload -> append checkpoint operation.process_refs"
+      - path: "src/agent/skills/benchmark.py"
+        description: "Benchmark skill that consumes compile artifacts and emits run-level records."
+        requirements:
+          - "Return run-level record per run: score, phase warmup|measured, duration, started_at, ended_at, exit_code, signal, stdout_ref, stderr_ref, env snapshot, valid_for_scoring, invalid_reason"
+          - "Support explicit warmup vs measured runs"
+          - "Support multiple measured runs"
+          - "Only mark hard failures in Phase 05: parse_failed, timeout, nonzero exit, crash, functional invalid, or artifact invalid"
+          - "Leave outlier/final statistical judgment to Phase 08"
+      - path: "src/agent/skills/fake_gbs.py or tests/fixtures/fake_gbs.py"
+        description: "Mock compile/benchmark harness that still uses real subprocess/process_runner paths."
+        requirements:
+          - "Must spawn real Python subprocesses through process_runner; no function-level sleep/return mock"
+          - "Produce real stdout/stderr/log files"
+          - "Compile success writes a real artifact with path and hash; benchmark consumes the artifact"
+          - "Simulate invalid_option, timeout, crash signal, OOM-like exit, artifact_missing, and score_parse_failed"
+          - "Support gaussian, right_skewed, and bursty noise profiles"
+          - "Support reproducible seed replay"
+      - path: "src/agent/skills/error_analyzer.py or compile.py / benchmark.py internal classifier"
+        description: "Failure classifier with confidence, evidence, and three-way routing."
+        requirements:
+          - "Compile categories: invalid_option, option_conflict, compiler_crash, build_timeout, build_system_failure, dependency_missing, disk_full_or_quota, permission_denied, oom_killed, network_failure, source_dirty, spec_corruption, artifact_missing, infra_failure, unknown_failure"
+          - "Benchmark categories: benchmark_timeout, benchmark_crash, score_parse_failed, functional_correctness_failed, artifact_invalid, environment_unstable, too_noisy, infra_failure, unknown_failure"
+          - "Each classification includes confidence and evidence such as a log line"
+          - "Only high-confidence option_related failures may write failed_combos / constraint evidence"
+          - "environment_related failures are retryable and never write failed_combos"
+          - "unknown failures do not pollute the experience/constraint store"
+          - "score_parse_failed is a first-class failure, not success with score=None"
+          - "Performance regression with a valid parse is success + bad score unless it crosses a hard invalid threshold"
+      - path: "Phase 06 process env marker enhancement"
+        description: "Refine process markers to session + trial + lease granularity."
+        requirements:
+          - "Spawn injects AGENT_SESSION_ID + AGENT_TRIAL_ID + AGENT_LEASE_ID and optionally AGENT_PROCESS_ROLE"
+          - "Cleaner env_scan filters to trial_id / lease_id where available, not only session_id"
+          - "Old leases with only AGENT_SESSION_ID remain supported"
+    subtask_order:
+      - "5.1 env marker refinement: AGENT_TRIAL_ID / AGENT_LEASE_ID / optional AGENT_PROCESS_ROLE + cleaner env_scan filtering"
+      - "5.2 fake_gbs mock harness: real process_runner, logs, artifacts, failure modes, noise profiles, seed replay"
+      - "5.3 compile skill: spawn ordering, workspace protection, compile_result, cleanup on failure"
+      - "5.4 benchmark skill: run-level records, warmup separation, multiple measured runs"
+      - "5.5 failure classifier: confidence, evidence, three-way routing, score_parse_failed first-class"
     exit_criteria:
-      - "Full compile-benchmark cycle on fake_gbs produces valid TrialRecord data"
-      - "error_analyzer correctly classifies 5 sample error categories"
-      - "score_aggregator computes geomean + stddev + bootstrap CI"
+      - "fake_gbs compile+benchmark cycle uses real process_runner subprocesses, leases, logs, artifacts, timeout, and cleaner paths"
+      - "Compile success emits artifact_ref + artifact_hash and trace process_started has full ProcessRecord payload sufficient to rebuild lease"
+      - "Compile and benchmark hard failures are categorized with confidence + evidence and routed option/environment/unknown correctly"
+      - "Benchmark returns run-level records with warmup/measured phase separation and valid_for_scoring flags"
+      - "score_parse_failed is tested as failure even when benchmark process exits zero"
+      - "Noise profiles include gaussian, right_skewed, and bursty with deterministic seed replay"
     validation_plan: ["Linux integration with fake_gbs", "Ubuntu fcntl regression"]
     deferred_items: ["Real gbs integration → Phase 16"]
 
-  - id: "08"
-    title: "Baseline + Statistical Significance"
+  - id: "08a"
+    title: "Baseline + Statistical Significance - Minimal Stats Core"
     status: planned
     milestone: "M2 + M4 (partial)"
     requirement_sections: ["4.8", "4.9", "4.6.4 (convergence detector)"]
     dependencies: ["05"]
-    can_parallel_with: ["07 algorithmic portions (after this lands)"]
-    estimate_subtasks: { low: 7, high: 10 }
+    can_parallel_with: []
+    estimate_subtasks: { low: 4, high: 6 }
     risk: medium
     goals:
+      - "Minimal statistics core required before Candidate Engine"
+      - "raw_runs schema consuming Phase 05 run-level benchmark records"
       - "Baseline snapshot + environment hash (hard/soft fields split)"
-      - "Bootstrap CI (paired/unpaired/directional, lower_is_better support)"
-      - "Significance test plug-in interface"
-      - "Convergence detector + stagnation"
+      - "Mean/median/stddev/CV summary"
+      - "Baseline-normalized score support"
+      - "Basic bootstrap CI"
+      - "Paired/unpaired test interface"
+      - "High-variance flagging"
       - "Provide statistical machinery needed for noise-robust near-miss / interaction discovery (05.5 handoff)"
     deliverables:
       - "src/agent/baseline.py"
       - "src/agent/environment_snapshot.py"
       - "src/agent/stats/bootstrap.py"
       - "src/agent/stats/significance.py"
+      - "src/agent/stats/raw_runs.py"
+    exit_criteria:
+      - "raw_runs schema accepts Phase 05 benchmark run-level records"
+      - "Bootstrap CI basic path matches scipy/reference implementation within 1% on synthetic data"
+      - "Mean/median/stddev/CV and baseline-normalized scores are tested"
+      - "High-variance flag fires on synthetic noisy profiles"
+      - "Statistical checks pass on fake_gbs gaussian, right_skewed, and bursty noise profiles, not only synthetic gaussian"
+      - "Document how repeated combo evaluation and bootstrap/CI decisions feed candidate-engine near-miss detection"
+    validation_plan: ["Synthetic and fake_gbs non-Gaussian data benchmarks", "Ubuntu fcntl regression"]
+
+  - id: "08b"
+    title: "Baseline + Statistical Significance - Advanced Noise Policy"
+    status: planned
+    milestone: "M2 + M4 (partial)"
+    requirement_sections: ["4.8", "4.9", "4.6.4 (convergence detector)"]
+    dependencies: ["08a"]
+    can_parallel_with: ["07"]
+    estimate_subtasks: { low: 3, high: 4 }
+    risk: medium
+    goals:
+      - "Adaptive rerun policy"
+      - "Outlier policy and noise diagnostics"
+      - "Sequential testing support"
+      - "Convergence detector + stagnation"
+      - "Advanced handoff for Phase 07 noisy interaction discovery"
+    deliverables:
+      - "src/agent/stats/adaptive_rerun.py"
+      - "src/agent/stats/outliers.py"
+      - "src/agent/stats/noise_diagnostics.py"
+      - "src/agent/stats/sequential.py"
       - "src/agent/convergence.py"
     exit_criteria:
-      - "Bootstrap CI matches scipy reference within 1% on synthetic data"
       - "Convergence detector fires within ±2 trials of nominal on synthetic series"
-      - "Environment hash distinguishes hard-fail from soft-context fields per §4.9"
-      - "Document how repeated combo evaluation and bootstrap/CI decisions feed candidate-engine near-miss detection"
-    validation_plan: ["Synthetic data benchmarks", "Ubuntu fcntl regression"]
+      - "Adaptive rerun policy is tested on fake_gbs right_skewed and bursty profiles"
+      - "Outlier policy and sequential testing are documented as consumers of Phase 05 run-level records"
+      - "Noise diagnostics report when Phase 07 near-miss interaction evidence is statistically underpowered"
+    validation_plan: ["fake_gbs non-Gaussian profile benchmarks", "Ubuntu fcntl regression"]
 
   - id: "7.0"
     title: "Candidate Engine Search Strategy + Constraint Solver Spike"
     status: planned
     milestone: "M2 (precursor)"
     requirement_sections: ["4.6.2", "4.10"]
-    dependencies: ["08"]
+    dependencies: ["08a"]
     estimate_subtasks: { low: 2, high: 3 }
     risk: high
     spike: true
@@ -245,7 +327,7 @@ planned_phases:
     status: planned
     milestone: M2
     requirement_sections: ["4.6.1", "4.6.2 (existing trace contract from 3.5)", "4.6.3", "4.10"]
-    dependencies: ["02", "03", "05.5", "08", "7.0"]
+    dependencies: ["02", "03", "05.5", "08a", "7.0"]
     can_parallel_with: []
     estimate_subtasks: { low: 10, high: 16 }
     risk: high
@@ -316,7 +398,7 @@ planned_phases:
     status: planned
     milestone: M3
     requirement_sections: ["3.3.3", "3.3.4", "+ all skill phases"]
-    dependencies: ["9.0", "9.1", "07", "08"]
+    dependencies: ["9.0", "9.1", "07", "08b"]
     estimate_subtasks: { low: 10, high: 16 }
     risk: high
     goals:
@@ -379,6 +461,11 @@ planned_phases:
       - "crash-resume across each of 8 trial stages tested"
       - "doctor catches: spec backup residue, orphan processes, stale index, build_dir residue, checkpoint/SoT divergence"
     validation_plan: ["Crash-resume matrix", "Ubuntu fcntl regression"]
+    notes:
+      - "doctor checkpoint sanity check must cross-check operation status, lease status, and build artifact presence before suggesting resume actions"
+      - "doctor should support --strict-local-fs so CI or hardened deployments can fail on remote/NFS/FUSE workspace detection instead of warning only"
+      - "terminal process leases should use a short TTL before GC to avoid deleting fresh diagnostic evidence"
+      - "checkpoint_revision diagnostic field should be considered for detecting user/manual checkpoint edits between status and resume"
 
   - id: "11"
     title: "Experience Injection + Canary"

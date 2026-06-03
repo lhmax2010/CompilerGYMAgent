@@ -966,3 +966,88 @@ Decision records must include:
   - Reject remote-like filesystems during init/lock acquisition. Rejected because v1 has a local-filesystem assumption, not a proven hard incompatibility for every NFS/FUSE deployment.
   - Only record the filesystem assumption in `DECISIONS.md`. Rejected because users need a runtime signal when their actual workspace path sits on unvalidated storage.
   - Add `langgraph_state_snapshot: dict[str, Any] | None` immediately. Rejected because it would expand the canonical checkpoint schema before the LangGraph spike decides what state is serializable and authoritative.
+
+## 2026-06-03T09:24:00Z - Benchmark returns run-level records, not just scores
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 05
+  - ROADMAP.yaml Phase 08a
+  - REQUIREMENTS.md section 4.8
+  - REQUIREMENTS.md section 4.9
+- decision: Phase 05 benchmark skills return run-level records, not just a list of numeric scores. Each run records score, warmup/measured phase, duration, started_at, ended_at, exit_code, signal, stdout/stderr refs, minimal environment snapshot, valid_for_scoring, invalid_reason, benchmark command, artifact hash, and a summary_hint such as mean, median, stddev, and coefficient of variation.
+- rationale: Phase 05.5 showed that noisy benchmarks require statistical handling. Phase 08 needs per-run context for bootstrap CI, paired/unpaired tests, outlier analysis, and environment diagnosis. A raw score list cannot tell whether variance comes from the benchmark, the artifact, or the environment.
+- alternatives_considered:
+  - Return only `[score1, score2, ...]`. Rejected because Phase 08 would lack enough data and would force a benchmark schema rewrite.
+  - Make Phase 05 decide outliers and final validity. Rejected because statistical policy belongs to Phase 08; Phase 05 should only mark hard failures such as parse_failed, timeout, nonzero exit, crash, or invalid artifact.
+  - Record environment only once per trial. Rejected because benchmark run-level variance can be driven by transient load, frequency, thermal, or memory state.
+
+## 2026-06-03T09:24:00Z - Failure classification: confidence + evidence + three-way routing
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 05
+  - REQUIREMENTS.md section 4.7.1
+  - REQUIREMENTS.md section 4.7.3
+  - REQUIREMENTS.md section 4.6.2
+- decision: Compile and benchmark failures carry category, confidence, and evidence such as relevant log lines. Routing is three-way: high-confidence option_related failures may update failed_combos or constraints; environment_related failures are retryable and must never update failed_combos; unknown failures do not pollute experience or constraint state.
+- rationale: Treating disk full, OOM, timeouts, network, permission, or environment instability as invalid compiler options would permanently poison the candidate engine. Only high-confidence option evidence should become hard search knowledge. Unknown failures need to remain visible without becoming rules.
+- alternatives_considered:
+  - Use one generic failure flag. Rejected because it cannot distinguish compiler option feedback from infrastructure failure.
+  - Let every failure update failed_combos. Rejected because transient or environmental failures would permanently block valid combinations.
+  - Route unknown failures through LLM analysis automatically in Phase 05. Rejected because Phase 05 should produce structured evidence first; richer LLM/error-analyzer policy can build on it later.
+
+## 2026-06-03T09:24:00Z - score_parse_failed is a first-class failure outcome
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 05
+  - REQUIREMENTS.md section 4.7.1
+  - REQUIREMENTS.md section 4.8
+- decision: A benchmark process that exits normally but does not yield a parseable score is `score_parse_failed`, not success with `score=None`.
+- rationale: An unparseable score provides no usable optimization signal. Marking it as success with a missing score would waste candidate-engine retry budget, pollute run aggregates, and make Phase 08 distinguish true low scores from absent data after the fact.
+- alternatives_considered:
+  - Treat `score=None` as a successful run. Rejected because it conflates valid poor performance with missing measurement.
+  - Treat score parsing failures as generic benchmark_crash. Rejected because the process can exit zero and still produce an invalid output format; callers need the precise category.
+  - Drop unparseable runs silently. Rejected because silent omission hides systematic output-format regressions.
+
+## 2026-06-03T09:24:00Z - Mock must use real process_runner + realistic noise distributions
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 05
+  - ROADMAP.yaml Phase 08a
+  - REQUIREMENTS.md section 3.3.5
+  - REQUIREMENTS.md section 4.7.1
+  - REQUIREMENTS.md section 4.8
+- decision: fake_gbs must execute through the real Phase 06 process_runner path with subprocesses, process leases, timeout, killpg cleanup, stdout/stderr/log files, and artifact files. Its benchmark noise profiles must include gaussian, right_skewed, and bursty distributions with reproducible seed replay.
+- rationale: A function-level mock would not validate the process substrate that Phase 06 built. Perfect Gaussian noise is also too kind; real benchmark noise is often skewed, bursty, or autocorrelated. Phase 08 statistical tools need early exposure to these profiles.
+- alternatives_considered:
+  - Implement fake_gbs as in-process sleep/return functions. Rejected because process_runner, lease registry, env markers, timeout, and cleaner paths would remain untested in Phase 05.
+  - Only model gaussian noise. Rejected because Phase 08 could pass in synthetic tests and fail on realistic non-Gaussian benchmark behavior.
+  - Defer fake_gbs artifacts/logs until real gbs. Rejected because compile/benchmark skills need to exercise real log and artifact refs now.
+
+## 2026-06-03T09:24:00Z - Env marker granularity: session + trial + lease
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 05
+  - ROADMAP.yaml Phase 06
+  - REQUIREMENTS.md section 3.3.5
+  - REQUIREMENTS.md section 4.11.x
+- decision: Phase 05 refines process env markers from session-only to session + trial + lease granularity. Spawns inject `AGENT_SESSION_ID`, `AGENT_TRIAL_ID`, `AGENT_LEASE_ID`, and optionally `AGENT_PROCESS_ROLE`. Cleaner env scans should filter to trial_id and lease_id when those fields are available, while remaining backward-compatible with older leases that only have the session marker.
+- rationale: Session-level attribution is too coarse once compile, benchmark, helpers, and future canary processes can coexist in one session. Trial/lease markers let the cleaner identify the exact process group for the lease being cleaned and avoid associating same-session but unrelated processes.
+- alternatives_considered:
+  - Keep only `AGENT_SESSION_ID`. Rejected because same-session multi-process workflows can create suspected or false-positive targets.
+  - Replace session marker with lease marker only. Rejected because old leases and broad session diagnostics still need a common fallback marker.
+  - Require new markers for all old leases. Rejected because Phase 05 must be backward-compatible with Phase 06 leases created before marker refinement.
+
+## 2026-06-03T09:24:00Z - Lease rebuildability requires trace process_started with full payload
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 05
+  - ROADMAP.yaml Phase 06
+  - REQUIREMENTS.md section 3.3.4
+  - REQUIREMENTS.md section 3.3.5
+  - REQUIREMENTS.md section 4.11.x
+- decision: Phase 05 compile/benchmark spawn orchestration must follow `spawn process -> write lease -> trace process_started(full ProcessRecord payload) -> append checkpoint operation.process_refs`. The trace event must include the full ProcessRecord payload needed to rebuild a missing lease.
+- rationale: Process leases are derived state, but that claim is only true if canonical checkpoint + trace contain enough information to reconstruct them. If trace only records a pid or a role, a lost lease cannot be rebuilt with pgid, create_time, env marker visibility, cmdline hash, and cgroup reservation.
+- alternatives_considered:
+  - Register the lease without a trace process_started event. Rejected because lease loss would make derived-state rebuild impossible.
+  - Trace only pid and role. Rejected because cleanup safety depends on pgid, create_time, session/trial/lease identity, and diagnostic cmdline hash.
+  - Append checkpoint process_refs before the trace event. Rejected because a crash could leave checkpoint pointing at a lease with no canonical trace evidence.
