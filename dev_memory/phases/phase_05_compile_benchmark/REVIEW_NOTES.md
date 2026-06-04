@@ -48,7 +48,7 @@
 - [x] Checkpoint operation ledger receives compile process_refs and does not write deprecated `current_trial.process`.
 - [x] Successful compile records artifact_ref and artifact_hash.
 - [x] Trace failure after lease creation kills the process group and terminalizes the lease.
-- [x] Failure classifications use 5.5a schema and keep `write_failed_combos=False`.
+- [x] Failure classifications use 5.5a schema; 5.5b owns classifier routing and failed-combo write decisions.
 - [x] Targeted, adjacent, and full test suites pass.
 
 ## Subtask 5.4 - benchmark skill
@@ -63,4 +63,17 @@
 - [x] Checkpoint operation ledger receives benchmark process_refs and does not write deprecated `current_trial.process`.
 - [x] Trace failure after lease creation kills the process group and terminalizes the lease through fake_gbs cleanup.
 - [x] Outlier/statistical judgment is not implemented in Phase 05 and remains deferred to Phase 08.
+- [x] Targeted, adjacent, and full test suites pass.
+
+## Subtask 5.5b - failure classifier rules + routing tests
+
+- [x] Compile and benchmark skills consume a shared classifier module.
+- [x] invalid_option maps to option_related with affected_options extraction.
+- [x] option_conflict maps to option_related and writes failed_combos only when HIGH confidence.
+- [x] environment_related classifications never write failed_combos.
+- [x] disk full, OOM, timeout, network, and permission patterns route to environment_related.
+- [x] High-confidence environment evidence overrides option matches to prevent candidate-memory pollution.
+- [x] Unmatched failures default to unknown/LOW/write_failed_combos=False.
+- [x] matched_rule_id and classifier_version are populated.
+- [x] score_parse_failed is classified as a first-class benchmark failure.
 - [x] Targeted, adjacent, and full test suites pass.

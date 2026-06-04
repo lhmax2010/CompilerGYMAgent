@@ -2,6 +2,12 @@
 
 from .benchmark import BenchmarkSkillError, BenchmarkSkillResult, benchmark_candidate
 from .compile import CompileSkillError, CompileSkillResult, compile_candidate
+from .error_analyzer import (
+    CLASSIFIER_VERSION,
+    LogContent,
+    classify_benchmark_failure,
+    classify_compile_failure,
+)
 from .fake_gbs import (
     DEFAULT_BURSTY_TRANSITIONS,
     FakeGbsBenchmarkResult,
@@ -39,6 +45,7 @@ from .workspace_verify import WorkspaceVerifyResult, workspace_verify
 __all__ = [
     "BenchmarkSkillError",
     "BenchmarkSkillResult",
+    "CLASSIFIER_VERSION",
     "DEFAULT_BURSTY_TRANSITIONS",
     "CompileSkillError",
     "CompileSkillResult",
@@ -66,8 +73,11 @@ __all__ = [
     "WorkspaceSnapshotResult",
     "WorkspaceVerifyResult",
     "benchmark_candidate",
+    "classify_benchmark_failure",
+    "classify_compile_failure",
     "compile_candidate",
     "compute_combo_hash",
+    "LogContent",
     "load_workspace_snapshot",
     "spec_backup",
     "spec_injector",

@@ -160,7 +160,7 @@ planned_phases:
     title: "Compile / Benchmark Skills"
     status: in_progress
     started_at: 2026-06-04T10:05:00+08:00
-    actual_subtasks_done: 5
+    actual_subtasks_done: 6
     milestone: "M1 end / M2 start"
     requirement_sections: ["4.7.1 (gbs_compile, build_only_check, error_analyzer, benchmark_runner, quick_benchmark, score_aggregator)"]
     dependencies: ["04", "06"]

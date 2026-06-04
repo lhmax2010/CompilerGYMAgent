@@ -1094,3 +1094,16 @@ Decision records must include:
   - Enforce `write_failed_combos` only in the Phase 5.5b classifier rules. Rejected because rules can regress; the schema should make unsafe states unrepresentable.
   - Allow `MEDIUM` option-related failures to write failed_combos. Rejected because Phase 05 should prefer missed pruning over permanent false negatives until evidence is strong.
   - Represent benchmark failures as `success + score=None`. Rejected because score absence must be explicit and traceable through `score_parse_failed` plus `score_source_ref`.
+
+## 2026-06-04T22:23:35+08:00 - Failure classifier routing: high-confidence environment evidence overrides option matches
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 05
+  - REQUIREMENTS.md section 4.7.1
+  - REQUIREMENTS.md section 4.7.3
+- decision: Phase 05 failure classifier rules keep the general confidence/tie model from the earlier failure-classification decision, but add one conservative override: if there is HIGH-confidence environment_related evidence, the final route is environment_related even when an option_related pattern is also present. Only HIGH-confidence option_related failures with no HIGH-confidence environment override may set `write_failed_combos=true`.
+- rationale: OOM, disk full, network failure, permission failure, and timeout evidence can coincide with option-looking compiler messages. In that situation, writing failed_combos would permanently poison candidate memory based on an environmental incident. The safer v1 behavior is to retry or surface the environment failure and avoid treating the combo or option as invalid.
+- alternatives_considered:
+  - Always apply option_related > environment_related tie-break. Rejected because it can convert OOM/disk/network failures into hard candidate constraints.
+  - Always route mixed evidence to unknown. Rejected because high-confidence environment evidence is actionable and retryable; hiding it as unknown would reduce useful diagnostics.
+  - Let downstream candidate memory decide whether to write failed_combos. Rejected because routing safety belongs in the classifier contract and is already enforced by the 5.5a schema.

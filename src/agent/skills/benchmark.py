@@ -24,6 +24,7 @@ from agent.process_registry import process_lease_path, process_lease_payload
 from agent.process_runner import ProcessSpawnResult
 from agent.trace import TraceCheckpointWriter
 
+from .error_analyzer import LogContent, classify_benchmark_failure
 from .fake_gbs import (
     FakeGbsBenchmarkResult,
     FakeGbsFailureMode,
@@ -311,7 +312,14 @@ def _run_record_from_fake_result(
     stdout_ref = _namespace_ref(layout, result.stdout_path)
     stderr_ref = _namespace_ref(layout, result.stderr_path)
     score_source_ref = f"{stdout_ref}#L1"
-    classification = _failure_classification_for_benchmark(result)
+    classification = _failure_classification_for_benchmark(
+        result,
+        stdout_ref=stdout_ref,
+        stderr_ref=stderr_ref,
+        result_ref=_namespace_ref(layout, result.result_json_path)
+        if result.result_json_path.exists()
+        else None,
+    )
     valid = result.status == "success" and result.score is not None
     return RunLevelRecord(
         run_id=run_id,
@@ -345,29 +353,16 @@ def _run_record_from_fake_result(
 
 def _failure_classification_for_benchmark(
     result: FakeGbsBenchmarkResult,
+    *,
+    stdout_ref: str,
+    stderr_ref: str,
+    result_ref: str | None,
 ) -> FailureClassification | None:
-    if result.status == "success":
-        return None
-    category_by_status = {
-        "timeout": "benchmark_timeout",
-        "crash_signal": "benchmark_crash",
-        "oom_like_exit": "environment_unstable",
-        "artifact_missing": "artifact_invalid",
-        "score_parse_failed": "score_parse_failed",
-        "infra_failure": "infra_failure",
-    }
-    route_by_status = {
-        "timeout": "environment_related",
-        "oom_like_exit": "environment_related",
-        "infra_failure": "environment_related",
-    }
-    retryable = result.status in {"timeout", "oom_like_exit", "infra_failure"}
-    return FailureClassification(
-        category=category_by_status.get(result.status, "unknown_failure"),  # type: ignore[arg-type]
-        route=route_by_status.get(result.status, "unknown"),  # type: ignore[arg-type]
-        confidence="LOW",
-        retryable=retryable,
-        write_failed_combos=False,
+    return classify_benchmark_failure(
+        result.status,
+        stdout=LogContent(ref=stdout_ref, text=_read_text(result.stdout_path)),
+        stderr=LogContent(ref=stderr_ref, text=_read_text(result.stderr_path)),
+        result_json_ref=result_ref,
     )
 
 
@@ -582,6 +577,10 @@ def _namespace_ref(layout: NamespaceLayout, path: Path) -> str:
         return path.relative_to(layout.namespace_dir).as_posix()
     except ValueError as exc:
         raise BenchmarkSkillError(f"path is outside namespace: {path}") from exc
+
+
+def _read_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8", errors="replace") if path.exists() else ""
 
 
 def _run_id(trial_id: str, *, phase: str, run_index: int) -> str:

@@ -160,8 +160,11 @@ def test_compile_skill_failure_uses_result_schema_and_operation_ledger(tmp_path)
     assert result.success is False
     assert result.failure_classification is not None
     assert result.failure_classification.category == "invalid_option"
-    assert result.failure_classification.write_failed_combos is False
+    assert result.failure_classification.route == "option_related"
+    assert result.failure_classification.confidence == "HIGH"
+    assert result.failure_classification.write_failed_combos is True
     assert result.failure_classification.affected_options == ("-finvalid-option",)
+    assert result.failure_classification.matched_rule_id == "gcc_unknown_option_v1"
 
     checkpoint_after = load_checkpoint_for_layout(fake.layout)
     assert checkpoint_after.current_trial is not None
@@ -171,7 +174,7 @@ def test_compile_skill_failure_uses_result_schema_and_operation_ledger(tmp_path)
     assert operation.status == "failed"
     assert operation.output_ref is None
     assert operation.details["failure_classification"]["category"] == "invalid_option"
-    assert operation.details["failure_classification"]["write_failed_combos"] is False
+    assert operation.details["failure_classification"]["write_failed_combos"] is True
 
 
 def _checkpoint(fake) -> dict[str, object]:

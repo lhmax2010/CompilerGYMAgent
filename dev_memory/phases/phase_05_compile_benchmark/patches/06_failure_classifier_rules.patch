@@ -1,0 +1,1383 @@
+diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index 5478f3f..7e2064c 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -1,7 +1,7 @@
+ phase_id: phase_05_compile_benchmark
+ phase_title: "Compile / Benchmark Skills"
+ started_at: 2026-06-04T10:05:00+08:00
+-last_updated: 2026-06-04T22:08:19+08:00
++last_updated: 2026-06-04T22:23:35+08:00
+ target_milestone: "M1 end / M2 start"
+ related_requirements:
+   - REQUIREMENTS.md section 4.7.1 gbs_compile
+@@ -167,7 +167,7 @@ subtasks:
+       - "process_started trace carries full ProcessRecord and ProcessLease payload sufficient for lease rebuild."
+       - "Checkpoint operation ledger is the process authority; deprecated current_trial.process is forced to None."
+       - "If process_started trace/checkpoint write fails after lease creation, fake_gbs immediately invokes cleaner killpg and terminalizes the lease."
+-      - "Compile failures return the shared FailureClassification schema conservatively with write_failed_combos=False; classifier rules remain deferred to 5.5b."
++      - "Compile failures return the shared FailureClassification schema; 5.5b classifier rules may write failed_combos only for HIGH-confidence option_related evidence."
+     ut_required: true
+     ut_passed: true
+     targeted_ut: "3 tests passed, 0 failed (test_compile_skill.py)"
+@@ -223,5 +223,52 @@ subtasks:
+     patch_file: dev_memory/phases/phase_05_compile_benchmark/patches/05_benchmark_skill.patch
+     patch_generated: true
+     commit_required: true
++    commit_pending: false
++    implementation_commit: a0cce66
++    external_review_verdict: approve
++    external_reviewed_at: 2026-06-04T22:12:00+08:00
++    external_review_tests: "585 passed; RunLevelRecord fields, warmup/measured split, artifact verification, hard failures, and 0 residual processes verified"
++  - id: "5.5b"
++    title: "failure classifier rules + routing tests"
++    status: done
++    related_requirements:
++      - ROADMAP.yaml Phase 05 deliverable failure classifier rules
++      - DECISIONS.md "Failure classification: confidence + evidence + three-way routing"
++      - DECISIONS.md "Failure classifier routing: high-confidence environment evidence overrides option matches"
++    files_created:
++      - src/agent/skills/error_analyzer.py
++      - tests/test_error_analyzer.py
++    files_modified:
++      - src/agent/skills/compile.py
++      - src/agent/skills/benchmark.py
++      - src/agent/skills/__init__.py
++      - src/agent/__init__.py
++      - tests/test_compile_skill.py
++      - dev_memory/CURRENT_PHASE.yaml
++      - dev_memory/ROADMAP.yaml
++      - dev_memory/DECISIONS.md
++      - dev_memory/PROGRESS.md
++      - dev_memory/phases/phase_05_compile_benchmark/CHECKLIST.yaml
++      - dev_memory/phases/phase_05_compile_benchmark/REVIEW_NOTES.md
++      - dev_memory/phases/phase_05_compile_benchmark/SUMMARY.md
++      - dev_memory/phases/phase_05_compile_benchmark/UT_RESULTS.md
++    behavior_notes:
++      - "Added a shared error_analyzer classifier consumed by compile and benchmark skills."
++      - "Rules map log/status evidence to category, route, confidence, affected_options, retryable, matched_rule_id, and classifier_version."
++      - "invalid_option and option_conflict become write_failed_combos=True only when HIGH-confidence option_related evidence is present."
++      - "environment_related categories such as disk_full_or_quota, oom_killed, build_timeout, network_failure, and permission_denied never write failed_combos."
++      - "High-confidence environment evidence overrides option matches to avoid poisoning candidate memory during OOM/disk/network failures."
++      - "Unmatched failures default to unknown/LOW/write_failed_combos=False."
++    ut_required: true
++    ut_passed: true
++    targeted_ut: "9 tests passed, 0 failed (test_error_analyzer.py)"
++    adjacent_ut: "44 tests passed, 0 failed (error_analyzer/compile/benchmark/result_schema/fake_gbs)"
++    production_regression_ut: "594 tests passed, 0 failed"
++    self_review_required: true
++    self_reviewed: true
++    patch_required: true
++    patch_file: dev_memory/phases/phase_05_compile_benchmark/patches/06_failure_classifier_rules.patch
++    patch_generated: true
++    commit_required: true
+     commit_pending: true
+-next_action: "Subtask 5.4 benchmark skill implemented; generate patch artifacts, commit/push, then request Claude review."
++next_action: "Subtask 5.5b failure classifier rules implemented; generate patch artifacts, commit/push, then request Claude review."
+diff --git a/dev_memory/DECISIONS.md b/dev_memory/DECISIONS.md
+index d9c1f67..2be0af1 100644
+--- a/dev_memory/DECISIONS.md
++++ b/dev_memory/DECISIONS.md
+@@ -1094,3 +1094,16 @@ Decision records must include:
+   - Enforce `write_failed_combos` only in the Phase 5.5b classifier rules. Rejected because rules can regress; the schema should make unsafe states unrepresentable.
+   - Allow `MEDIUM` option-related failures to write failed_combos. Rejected because Phase 05 should prefer missed pruning over permanent false negatives until evidence is strong.
+   - Represent benchmark failures as `success + score=None`. Rejected because score absence must be explicit and traceable through `score_parse_failed` plus `score_source_ref`.
++
++## 2026-06-04T22:23:35+08:00 - Failure classifier routing: high-confidence environment evidence overrides option matches
++
++- affected_requirement:
++  - ROADMAP.yaml Phase 05
++  - REQUIREMENTS.md section 4.7.1
++  - REQUIREMENTS.md section 4.7.3
++- decision: Phase 05 failure classifier rules keep the general confidence/tie model from the earlier failure-classification decision, but add one conservative override: if there is HIGH-confidence environment_related evidence, the final route is environment_related even when an option_related pattern is also present. Only HIGH-confidence option_related failures with no HIGH-confidence environment override may set `write_failed_combos=true`.
++- rationale: OOM, disk full, network failure, permission failure, and timeout evidence can coincide with option-looking compiler messages. In that situation, writing failed_combos would permanently poison candidate memory based on an environmental incident. The safer v1 behavior is to retry or surface the environment failure and avoid treating the combo or option as invalid.
++- alternatives_considered:
++  - Always apply option_related > environment_related tie-break. Rejected because it can convert OOM/disk/network failures into hard candidate constraints.
++  - Always route mixed evidence to unknown. Rejected because high-confidence environment evidence is actionable and retryable; hiding it as unknown would reduce useful diagnostics.
++  - Let downstream candidate memory decide whether to write failed_combos. Rejected because routing safety belongs in the classifier contract and is already enforced by the 5.5a schema.
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index 8ec34e8..ad706c8 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -2325,3 +2325,56 @@ Next action: begin Subtask 5.4 benchmark skill.
+   - `.venv/bin/python -m pytest tests/ -q` -> 585 passed.
+ 
+ Next action: generate patch artifacts, commit/push Subtask 5.4, then request Claude review.
++
++## 2026-06-04T22:12:00+08:00 - Phase 05 / Subtask 5.4 approved
++
++- External review verdict: Approve.
++- Review range: `e61f207..a0cce66`.
++- Review confirmed:
++  - benchmark returns 5.5a RunLevelRecord objects with required fields,
++  - warmup/measured phases are separated,
++  - artifact_hash_verified reflects real artifact hash verification,
++  - artifact mismatch produces artifact_invalid without spawning,
++  - score_parse_failed is a hard failure,
++  - summary_hint only aggregates and does not make outlier decisions,
++  - trace failure after lease creation kills and terminalizes the lease,
++  - deprecated `current_trial.process` is not written,
++  - no residual processes remain.
++- Validation:
++  - `.venv/bin/python -m pytest tests/ -q` -> 585 passed.
++
++Next action: begin Subtask 5.5b failure classifier rules + routing tests.
++
++## 2026-06-04T22:23:35+08:00 - Phase 05 / Subtask 5.5b implemented
++
++- Added shared failure classifier rules:
++  - `src/agent/skills/error_analyzer.py`,
++  - `classify_compile_failure()`,
++  - `classify_benchmark_failure()`,
++  - `LogContent`.
++- Updated compile and benchmark skills to consume the shared classifier instead of inline status mappings.
++- Added evidence-backed classification:
++  - result-json status evidence,
++  - stdout/stderr log line evidence,
++  - matched_rule_id,
++  - classifier_version.
++- Added option-related rules:
++  - invalid_option,
++  - option_conflict,
++  - affected_options extraction filtered against the combo.
++- Added environment-related rules:
++  - disk_full_or_quota,
++  - oom_killed / environment_unstable,
++  - build_timeout,
++  - network_failure,
++  - permission_denied,
++  - dependency_missing,
++  - too_noisy.
++- High-confidence environment evidence overrides option matches to prevent OOM/disk/network failures from writing failed_combos.
++- Unmatched failures default to unknown/LOW/write_failed_combos=False.
++- Validation:
++  - `.venv/bin/python -m pytest tests/test_error_analyzer.py -q` -> 9 passed.
++  - `.venv/bin/python -m pytest tests/test_error_analyzer.py tests/test_compile_skill.py tests/test_benchmark_skill.py tests/test_result_schema.py tests/test_fake_gbs.py -q` -> 44 passed.
++  - `.venv/bin/python -m pytest tests/ -q` -> 594 passed.
++
++Next action: generate patch artifacts, commit/push Subtask 5.5b, then request Claude review.
+diff --git a/dev_memory/ROADMAP.yaml b/dev_memory/ROADMAP.yaml
+index 6b7010b..8c6a8b8 100644
+--- a/dev_memory/ROADMAP.yaml
++++ b/dev_memory/ROADMAP.yaml
+@@ -160,7 +160,7 @@ planned_phases:
+     title: "Compile / Benchmark Skills"
+     status: in_progress
+     started_at: 2026-06-04T10:05:00+08:00
+-    actual_subtasks_done: 5
++    actual_subtasks_done: 6
+     milestone: "M1 end / M2 start"
+     requirement_sections: ["4.7.1 (gbs_compile, build_only_check, error_analyzer, benchmark_runner, quick_benchmark, score_aggregator)"]
+     dependencies: ["04", "06"]
+diff --git a/dev_memory/phases/phase_05_compile_benchmark/CHECKLIST.yaml b/dev_memory/phases/phase_05_compile_benchmark/CHECKLIST.yaml
+index 70defb3..298a434 100644
+--- a/dev_memory/phases/phase_05_compile_benchmark/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_05_compile_benchmark/CHECKLIST.yaml
+@@ -40,8 +40,13 @@ subtasks:
+     implementation_complete: true
+     tests_passed: true
+     patch_artifacts_generated: true
+-    external_review: pending
++    external_review: approve
+     ubuntu_validation: pending
+   - id: "5.5b"
+     title: "failure classifier rules + routing tests"
+-    status: pending
++    status: done
++    implementation_complete: true
++    tests_passed: true
++    patch_artifacts_generated: true
++    external_review: pending
++    ubuntu_validation: pending
+diff --git a/dev_memory/phases/phase_05_compile_benchmark/REVIEW_NOTES.md b/dev_memory/phases/phase_05_compile_benchmark/REVIEW_NOTES.md
+index 0451633..b3a1f5c 100644
+--- a/dev_memory/phases/phase_05_compile_benchmark/REVIEW_NOTES.md
++++ b/dev_memory/phases/phase_05_compile_benchmark/REVIEW_NOTES.md
+@@ -48,7 +48,7 @@
+ - [x] Checkpoint operation ledger receives compile process_refs and does not write deprecated `current_trial.process`.
+ - [x] Successful compile records artifact_ref and artifact_hash.
+ - [x] Trace failure after lease creation kills the process group and terminalizes the lease.
+-- [x] Failure classifications use 5.5a schema and keep `write_failed_combos=False`.
++- [x] Failure classifications use 5.5a schema; 5.5b owns classifier routing and failed-combo write decisions.
+ - [x] Targeted, adjacent, and full test suites pass.
+ 
+ ## Subtask 5.4 - benchmark skill
+@@ -64,3 +64,16 @@
+ - [x] Trace failure after lease creation kills the process group and terminalizes the lease through fake_gbs cleanup.
+ - [x] Outlier/statistical judgment is not implemented in Phase 05 and remains deferred to Phase 08.
+ - [x] Targeted, adjacent, and full test suites pass.
++
++## Subtask 5.5b - failure classifier rules + routing tests
++
++- [x] Compile and benchmark skills consume a shared classifier module.
++- [x] invalid_option maps to option_related with affected_options extraction.
++- [x] option_conflict maps to option_related and writes failed_combos only when HIGH confidence.
++- [x] environment_related classifications never write failed_combos.
++- [x] disk full, OOM, timeout, network, and permission patterns route to environment_related.
++- [x] High-confidence environment evidence overrides option matches to prevent candidate-memory pollution.
++- [x] Unmatched failures default to unknown/LOW/write_failed_combos=False.
++- [x] matched_rule_id and classifier_version are populated.
++- [x] score_parse_failed is classified as a first-class benchmark failure.
++- [x] Targeted, adjacent, and full test suites pass.
+diff --git a/dev_memory/phases/phase_05_compile_benchmark/SUMMARY.md b/dev_memory/phases/phase_05_compile_benchmark/SUMMARY.md
+index e48f593..db7895c 100644
+--- a/dev_memory/phases/phase_05_compile_benchmark/SUMMARY.md
++++ b/dev_memory/phases/phase_05_compile_benchmark/SUMMARY.md
+@@ -76,7 +76,7 @@ Validation:
+   - checkpoint operation ledger `process_refs`.
+ - If trace/checkpoint writing fails after lease creation, fake_gbs invokes `cleanup_process_lease(force_suspected=True)` and terminalizes the lease.
+ - The checkpoint operation ledger is the process authority; the deprecated `current_trial.process` field is not written.
+-- Compile failures return 5.5a `FailureClassification` objects with `write_failed_combos=False`; classifier rules remain deferred to 5.5b.
++- Compile failures return 5.5a `FailureClassification` objects; 5.5b classifier rules now control whether a HIGH-confidence option_related failure may write failed_combos.
+ 
+ Validation:
+ 
+@@ -118,3 +118,26 @@ Validation:
+ - `.venv/bin/python -m pytest tests/test_benchmark_skill.py -q` -> 4 passed.
+ - `.venv/bin/python -m pytest tests/test_benchmark_skill.py tests/test_compile_skill.py tests/test_fake_gbs.py tests/test_result_schema.py tests/test_process_runner.py tests/test_process_cleaner.py -q` -> 54 passed.
+ - `.venv/bin/python -m pytest tests/ -q` -> 585 passed.
++
++## 5.5b failure classifier rules + routing tests
++
++- Added `src/agent/skills/error_analyzer.py`.
++- Added shared classifier entry points:
++  - `classify_compile_failure()`,
++  - `classify_benchmark_failure()`,
++  - `LogContent`,
++  - `CLASSIFIER_VERSION`.
++- Compile and benchmark skills now consume the shared classifier instead of inline status-only mappings.
++- Rules combine process result status, stdout/stderr log evidence, and result-json refs into 5.5a `FailureClassification`.
++- HIGH confidence requires at least two evidence sources, such as result status plus a log pattern.
++- invalid_option and option_conflict can write failed_combos only when they are HIGH-confidence option_related classifications.
++- environment_related categories such as disk_full_or_quota, oom_killed, build_timeout, network_failure, and permission_denied never write failed_combos.
++- High-confidence environment evidence overrides option matches, so OOM/disk/network failures do not poison candidate memory even when an option-looking log line is present.
++- Unmatched failures default to unknown/LOW/write_failed_combos=False.
++- affected_options extraction is token-aware and filters against the candidate combo when available.
++
++Validation:
++
++- `.venv/bin/python -m pytest tests/test_error_analyzer.py -q` -> 9 passed.
++- `.venv/bin/python -m pytest tests/test_error_analyzer.py tests/test_compile_skill.py tests/test_benchmark_skill.py tests/test_result_schema.py tests/test_fake_gbs.py -q` -> 44 passed.
++- `.venv/bin/python -m pytest tests/ -q` -> 594 passed.
+diff --git a/dev_memory/phases/phase_05_compile_benchmark/UT_RESULTS.md b/dev_memory/phases/phase_05_compile_benchmark/UT_RESULTS.md
+index 7c9785f..6969473 100644
+--- a/dev_memory/phases/phase_05_compile_benchmark/UT_RESULTS.md
++++ b/dev_memory/phases/phase_05_compile_benchmark/UT_RESULTS.md
+@@ -58,3 +58,15 @@
+ - Full:
+   - Command: `.venv/bin/python -m pytest tests/ -q`
+   - Result: 585 passed, 0 failed
++
++## Subtask 5.5b
++
++- Targeted:
++  - Command: `.venv/bin/python -m pytest tests/test_error_analyzer.py -q`
++  - Result: 9 passed, 0 failed
++- Adjacent:
++  - Command: `.venv/bin/python -m pytest tests/test_error_analyzer.py tests/test_compile_skill.py tests/test_benchmark_skill.py tests/test_result_schema.py tests/test_fake_gbs.py -q`
++  - Result: 44 passed, 0 failed
++- Full:
++  - Command: `.venv/bin/python -m pytest tests/ -q`
++  - Result: 594 passed, 0 failed
+diff --git a/dev_memory/phases/phase_05_compile_benchmark/patches/06_failure_classifier_rules.review.md b/dev_memory/phases/phase_05_compile_benchmark/patches/06_failure_classifier_rules.review.md
+new file mode 100644
+index 0000000..3c948e1
+--- /dev/null
++++ b/dev_memory/phases/phase_05_compile_benchmark/patches/06_failure_classifier_rules.review.md
+@@ -0,0 +1,24 @@
++# Self Review - Phase 05 / Subtask 5.5b
++
++## Scope
++
++This subtask adds the Phase 05 classifier-rule layer on top of the 5.5a failure/result schema.
++
++## Checks
++
++- Compile and benchmark skills consume a shared classifier module.
++- Classifier output is always a 5.5a FailureClassification.
++- invalid_option maps to option_related and extracts affected_options.
++- option_conflict maps to option_related and can write failed_combos only at HIGH confidence.
++- Environment-related classifications never write failed_combos.
++- Disk full, OOM, timeout, network, and permission patterns route to environment_related.
++- High-confidence environment evidence overrides option matches.
++- Unknown/unmatched failures default to unknown/LOW/write_failed_combos=False.
++- matched_rule_id and classifier_version are populated.
++- score_parse_failed remains a first-class benchmark failure.
++- Classifier tests cover conservative routing and affected option extraction.
++- Targeted, adjacent, and full tests pass.
++
++## Result
++
++No known findings. The rules layer now supplies structured classifications while preserving the model-level failed-combo write gate from 5.5a.
+diff --git a/dev_memory/phases/phase_05_compile_benchmark/patches/06_failure_classifier_rules.summary.txt b/dev_memory/phases/phase_05_compile_benchmark/patches/06_failure_classifier_rules.summary.txt
+new file mode 100644
+index 0000000..9a3f7ee
+--- /dev/null
++++ b/dev_memory/phases/phase_05_compile_benchmark/patches/06_failure_classifier_rules.summary.txt
+@@ -0,0 +1,18 @@
++Phase 05 / Subtask 5.5b - failure classifier rules + routing tests
++
++Implemented:
++- Added src/agent/skills/error_analyzer.py.
++- Added classify_compile_failure() and classify_benchmark_failure().
++- Added LogContent and CLASSIFIER_VERSION exports.
++- Updated compile.py and benchmark.py to consume the shared classifier instead of inline status-only mappings.
++- Classifier combines result-json status evidence with stdout/stderr log-line evidence.
++- invalid_option and option_conflict become option_related; affected_options are extracted from precise option tokens and filtered against the combo when available.
++- disk_full_or_quota, oom_killed/environment_unstable, build_timeout, network_failure, permission_denied, dependency_missing, and too_noisy route to environment_related.
++- High-confidence environment evidence overrides option matches to avoid poisoning candidate memory during OOM/disk/network failures.
++- Unknown/unmatched failures default to unknown/LOW/write_failed_combos=False.
++- Only HIGH-confidence option_related classifications can write failed_combos, with the 5.5a schema still enforcing the hard boundary.
++
++Validation:
++- test_error_analyzer.py: 9 passed.
++- error_analyzer/compile/benchmark/result_schema/fake_gbs adjacent tests: 44 passed.
++- Full suite: 594 passed.
+diff --git a/src/agent/__init__.py b/src/agent/__init__.py
+index aed53b2..695e4eb 100644
+--- a/src/agent/__init__.py
++++ b/src/agent/__init__.py
+@@ -212,6 +212,7 @@ from .registry import (
+ from .skills import (
+     BenchmarkSkillError,
+     BenchmarkSkillResult,
++    CLASSIFIER_VERSION,
+     CompileSkillError,
+     CompileSkillResult,
+     DEFAULT_BURSTY_TRANSITIONS,
+@@ -230,6 +231,7 @@ from .skills import (
+     RunLevelRecord,
+     RunPhase,
+     RunSummaryHint,
++    LogContent,
+     SpecBackupResult,
+     SpecInjectResult,
+     SpecRestoreResult,
+@@ -245,6 +247,8 @@ from .skills import (
+     workspace_snapshot,
+     workspace_verify,
+     benchmark_candidate,
++    classify_benchmark_failure,
++    classify_compile_failure,
+     compile_candidate,
+     compute_combo_hash as compute_result_combo_hash,
+ )
+@@ -289,6 +293,7 @@ __all__ = [
+     "AgentError",
+     "BenchmarkSkillError",
+     "BenchmarkSkillResult",
++    "CLASSIFIER_VERSION",
+     "AGENT_LEASE_ID_ENV",
+     "AGENT_PROCESS_ROLE_ENV",
+     "AGENT_SESSION_ID_ENV",
+@@ -390,6 +395,7 @@ __all__ = [
+     "RunLevelRecord",
+     "RunPhase",
+     "RunSummaryHint",
++    "LogContent",
+     "ScoreVsBest",
+     "ScheduleSlot",
+     "SessionId",
+@@ -444,6 +450,8 @@ __all__ = [
+     "append_trace_event",
+     "attribute_process",
+     "benchmark_candidate",
++    "classify_benchmark_failure",
++    "classify_compile_failure",
+     "checkpoint_payload",
+     "checkpoint_with_reconciled_trace_count",
+     "checkpoint_with_trace_line_count",
+diff --git a/src/agent/skills/__init__.py b/src/agent/skills/__init__.py
+index 665aeb1..eb5c43a 100644
+--- a/src/agent/skills/__init__.py
++++ b/src/agent/skills/__init__.py
+@@ -2,6 +2,12 @@
+ 
+ from .benchmark import BenchmarkSkillError, BenchmarkSkillResult, benchmark_candidate
+ from .compile import CompileSkillError, CompileSkillResult, compile_candidate
++from .error_analyzer import (
++    CLASSIFIER_VERSION,
++    LogContent,
++    classify_benchmark_failure,
++    classify_compile_failure,
++)
+ from .fake_gbs import (
+     DEFAULT_BURSTY_TRANSITIONS,
+     FakeGbsBenchmarkResult,
+@@ -39,6 +45,7 @@ from .workspace_verify import WorkspaceVerifyResult, workspace_verify
+ __all__ = [
+     "BenchmarkSkillError",
+     "BenchmarkSkillResult",
++    "CLASSIFIER_VERSION",
+     "DEFAULT_BURSTY_TRANSITIONS",
+     "CompileSkillError",
+     "CompileSkillResult",
+@@ -66,8 +73,11 @@ __all__ = [
+     "WorkspaceSnapshotResult",
+     "WorkspaceVerifyResult",
+     "benchmark_candidate",
++    "classify_benchmark_failure",
++    "classify_compile_failure",
+     "compile_candidate",
+     "compute_combo_hash",
++    "LogContent",
+     "load_workspace_snapshot",
+     "spec_backup",
+     "spec_injector",
+diff --git a/src/agent/skills/benchmark.py b/src/agent/skills/benchmark.py
+index 642c8b0..eb6173b 100644
+--- a/src/agent/skills/benchmark.py
++++ b/src/agent/skills/benchmark.py
+@@ -24,6 +24,7 @@ from agent.process_registry import process_lease_path, process_lease_payload
+ from agent.process_runner import ProcessSpawnResult
+ from agent.trace import TraceCheckpointWriter
+ 
++from .error_analyzer import LogContent, classify_benchmark_failure
+ from .fake_gbs import (
+     FakeGbsBenchmarkResult,
+     FakeGbsFailureMode,
+@@ -311,7 +312,14 @@ def _run_record_from_fake_result(
+     stdout_ref = _namespace_ref(layout, result.stdout_path)
+     stderr_ref = _namespace_ref(layout, result.stderr_path)
+     score_source_ref = f"{stdout_ref}#L1"
+-    classification = _failure_classification_for_benchmark(result)
++    classification = _failure_classification_for_benchmark(
++        result,
++        stdout_ref=stdout_ref,
++        stderr_ref=stderr_ref,
++        result_ref=_namespace_ref(layout, result.result_json_path)
++        if result.result_json_path.exists()
++        else None,
++    )
+     valid = result.status == "success" and result.score is not None
+     return RunLevelRecord(
+         run_id=run_id,
+@@ -345,29 +353,16 @@ def _run_record_from_fake_result(
+ 
+ def _failure_classification_for_benchmark(
+     result: FakeGbsBenchmarkResult,
++    *,
++    stdout_ref: str,
++    stderr_ref: str,
++    result_ref: str | None,
+ ) -> FailureClassification | None:
+-    if result.status == "success":
+-        return None
+-    category_by_status = {
+-        "timeout": "benchmark_timeout",
+-        "crash_signal": "benchmark_crash",
+-        "oom_like_exit": "environment_unstable",
+-        "artifact_missing": "artifact_invalid",
+-        "score_parse_failed": "score_parse_failed",
+-        "infra_failure": "infra_failure",
+-    }
+-    route_by_status = {
+-        "timeout": "environment_related",
+-        "oom_like_exit": "environment_related",
+-        "infra_failure": "environment_related",
+-    }
+-    retryable = result.status in {"timeout", "oom_like_exit", "infra_failure"}
+-    return FailureClassification(
+-        category=category_by_status.get(result.status, "unknown_failure"),  # type: ignore[arg-type]
+-        route=route_by_status.get(result.status, "unknown"),  # type: ignore[arg-type]
+-        confidence="LOW",
+-        retryable=retryable,
+-        write_failed_combos=False,
++    return classify_benchmark_failure(
++        result.status,
++        stdout=LogContent(ref=stdout_ref, text=_read_text(result.stdout_path)),
++        stderr=LogContent(ref=stderr_ref, text=_read_text(result.stderr_path)),
++        result_json_ref=result_ref,
+     )
+ 
+ 
+@@ -584,6 +579,10 @@ def _namespace_ref(layout: NamespaceLayout, path: Path) -> str:
+         raise BenchmarkSkillError(f"path is outside namespace: {path}") from exc
+ 
+ 
++def _read_text(path: Path) -> str:
++    return path.read_text(encoding="utf-8", errors="replace") if path.exists() else ""
++
++
+ def _run_id(trial_id: str, *, phase: str, run_index: int) -> str:
+     safe_trial = "".join(char if char.isalnum() or char in "_-" else "_" for char in trial_id)
+     return f"benchmark_{safe_trial}_{phase}_{run_index}"
+diff --git a/src/agent/skills/compile.py b/src/agent/skills/compile.py
+index 17218d7..46eb23a 100644
+--- a/src/agent/skills/compile.py
++++ b/src/agent/skills/compile.py
+@@ -20,6 +20,7 @@ from agent.process_registry import process_lease_path, process_lease_payload
+ from agent.process_runner import ProcessSpawnResult
+ from agent.trace import TraceCheckpointWriter
+ 
++from .error_analyzer import LogContent, classify_compile_failure
+ from .fake_gbs import FakeGbsCompileResult, FakeGbsFailureMode, FakeGbsHarness
+ from .result_schema import FailureClassification
+ from .spec_backup import SpecBackupResult, spec_backup
+@@ -166,7 +167,12 @@ def compile_candidate(
+     stdout_ref = _namespace_ref(layout, fake_result.stdout_path)
+     stderr_ref = _namespace_ref(layout, fake_result.stderr_path)
+     result_ref = _namespace_ref(layout, fake_result.result_json_path)
+-    classification = _failure_classification_for_compile(fake_result)
++    classification = _failure_classification_for_compile(
++        fake_result,
++        stdout_ref=stdout_ref,
++        stderr_ref=stderr_ref,
++        result_ref=result_ref,
++    )
+     terminal_status = "completed" if fake_result.status == "success" else "failed"
+     final_checkpoint = _checkpoint_with_compile_operation(
+         trace_checkpoint.checkpoint,
+@@ -294,35 +300,17 @@ def _compile_operation_payload(
+ 
+ def _failure_classification_for_compile(
+     result: FakeGbsCompileResult,
++    *,
++    stdout_ref: str,
++    stderr_ref: str,
++    result_ref: str,
+ ) -> FailureClassification | None:
+-    if result.status == "success":
+-        return None
+-    category_by_status = {
+-        "invalid_option": "invalid_option",
+-        "timeout": "build_timeout",
+-        "crash_signal": "compiler_crash",
+-        "oom_like_exit": "oom_killed",
+-        "artifact_missing": "artifact_missing",
+-        "infra_failure": "infra_failure",
+-    }
+-    route_by_status = {
+-        "timeout": "environment_related",
+-        "oom_like_exit": "environment_related",
+-        "infra_failure": "environment_related",
+-    }
+-    retryable = result.status in {"timeout", "oom_like_exit", "infra_failure"}
+-    affected_options = (
+-        tuple(option for option in result.combo if "invalid" in option)
+-        if result.status == "invalid_option"
+-        else ()
+-    )
+-    return FailureClassification(
+-        category=category_by_status.get(result.status, "unknown_failure"),  # type: ignore[arg-type]
+-        route=route_by_status.get(result.status, "unknown"),  # type: ignore[arg-type]
+-        confidence="LOW",
+-        affected_options=affected_options,
+-        retryable=retryable,
+-        write_failed_combos=False,
++    return classify_compile_failure(
++        result.status,
++        combo=result.combo,
++        stdout=LogContent(ref=stdout_ref, text=_read_text(result.stdout_path)),
++        stderr=LogContent(ref=stderr_ref, text=_read_text(result.stderr_path)),
++        result_json_ref=result_ref if result.result_json_path.exists() else None,
+     )
+ 
+ 
+@@ -378,6 +366,10 @@ def _optional_namespace_ref(layout: NamespaceLayout, path: Path | None) -> str |
+     return _namespace_ref(layout, path)
+ 
+ 
++def _read_text(path: Path) -> str:
++    return path.read_text(encoding="utf-8", errors="replace") if path.exists() else ""
++
++
+ def _normalize_now(now: datetime | None) -> datetime:
+     value = now or datetime.now(UTC)
+     if value.tzinfo is None or value.utcoffset() is None:
+diff --git a/src/agent/skills/error_analyzer.py b/src/agent/skills/error_analyzer.py
+new file mode 100644
+index 0000000..61524ac
+--- /dev/null
++++ b/src/agent/skills/error_analyzer.py
+@@ -0,0 +1,558 @@
++"""Failure classification rules for Phase 05 compile/benchmark skills."""
++
++from __future__ import annotations
++
++import re
++from collections.abc import Iterable, Sequence
++from dataclasses import dataclass
++from typing import Literal
++
++from .result_schema import (
++    EvidenceLine,
++    FailureCategory,
++    FailureClassification,
++    FailureConfidence,
++    FailureRoute,
++)
++
++
++CLASSIFIER_VERSION = "failure_classifier.v1"
++
++FailureDomain = Literal["compile", "benchmark"]
++
++
++@dataclass(frozen=True)
++class LogContent:
++    """Named log text used as classifier evidence input."""
++
++    ref: str
++    text: str
++
++
++@dataclass(frozen=True)
++class _Rule:
++    pattern_id: str
++    category: FailureCategory
++    route: FailureRoute
++    retryable: bool
++    pattern: re.Pattern[str]
++    domains: tuple[FailureDomain, ...] = ("compile", "benchmark")
++    base_confidence: FailureConfidence = "MEDIUM"
++    extracts_options: bool = False
++
++
++@dataclass(frozen=True)
++class _Candidate:
++    category: FailureCategory
++    route: FailureRoute
++    retryable: bool
++    evidence: tuple[EvidenceLine, ...]
++    affected_options: tuple[str, ...]
++    matched_rule_id: str
++    confidence: FailureConfidence
++    source_keys: tuple[str, ...]
++
++
++_CONFIDENCE_RANK = {"LOW": 1, "MEDIUM": 2, "HIGH": 3}
++_ROUTE_TIE_RANK = {"unknown": 1, "environment_related": 2, "option_related": 3}
++_GENERIC_CATEGORIES = {"infra_failure", "unknown_failure"}
++
++
++_COMPILE_STATUS: dict[str, tuple[FailureCategory, FailureRoute, bool, str]] = {
++    "invalid_option": (
++        "invalid_option",
++        "option_related",
++        False,
++        "status_invalid_option_v1",
++    ),
++    "option_conflict": (
++        "option_conflict",
++        "option_related",
++        False,
++        "status_option_conflict_v1",
++    ),
++    "timeout": ("build_timeout", "environment_related", True, "status_build_timeout_v1"),
++    "crash_signal": ("compiler_crash", "unknown", False, "status_compiler_crash_v1"),
++    "oom_like_exit": ("oom_killed", "environment_related", True, "status_oom_killed_v1"),
++    "artifact_missing": (
++        "artifact_missing",
++        "unknown",
++        False,
++        "status_artifact_missing_v1",
++    ),
++    "infra_failure": ("infra_failure", "environment_related", True, "status_infra_failure_v1"),
++}
++
++_BENCHMARK_STATUS: dict[str, tuple[FailureCategory, FailureRoute, bool, str]] = {
++    "timeout": (
++        "benchmark_timeout",
++        "environment_related",
++        True,
++        "status_benchmark_timeout_v1",
++    ),
++    "crash_signal": ("benchmark_crash", "unknown", False, "status_benchmark_crash_v1"),
++    "oom_like_exit": (
++        "environment_unstable",
++        "environment_related",
++        True,
++        "status_environment_unstable_v1",
++    ),
++    "artifact_missing": (
++        "artifact_invalid",
++        "unknown",
++        False,
++        "status_artifact_invalid_v1",
++    ),
++    "artifact_invalid": (
++        "artifact_invalid",
++        "unknown",
++        False,
++        "status_artifact_invalid_v1",
++    ),
++    "score_parse_failed": (
++        "score_parse_failed",
++        "unknown",
++        True,
++        "status_score_parse_failed_v1",
++    ),
++    "infra_failure": ("infra_failure", "environment_related", True, "status_infra_failure_v1"),
++}
++
++
++_COMPILE_RULES: tuple[_Rule, ...] = (
++    _Rule(
++        pattern_id="gcc_unknown_option_v1",
++        category="invalid_option",
++        route="option_related",
++        retryable=False,
++        extracts_options=True,
++        domains=("compile",),
++        pattern=re.compile(
++            r"(?:unrecognized|unknown|unsupported)\s+(?:command-line\s+)?option\s+['\"]?(?P<option>-[^\s'\"]+)",
++            re.IGNORECASE,
++        ),
++    ),
++    _Rule(
++        pattern_id="compiler_option_conflict_v1",
++        category="option_conflict",
++        route="option_related",
++        retryable=False,
++        extracts_options=True,
++        domains=("compile",),
++        pattern=re.compile(
++            r"(?:conflicting|mutually exclusive|cannot be used together|not compatible)",
++            re.IGNORECASE,
++        ),
++    ),
++    _Rule(
++        pattern_id="disk_full_or_quota_v1",
++        category="disk_full_or_quota",
++        route="environment_related",
++        retryable=True,
++        pattern=re.compile(
++            r"(?:no space left on device|disk quota exceeded|quota exceeded|ENOSPC)",
++            re.IGNORECASE,
++        ),
++    ),
++    _Rule(
++        pattern_id="oom_killed_v1",
++        category="oom_killed",
++        route="environment_related",
++        retryable=True,
++        domains=("compile",),
++        pattern=re.compile(
++            r"(?:^Killed$|out of memory|oom-killer|cannot allocate memory)",
++            re.IGNORECASE,
++        ),
++    ),
++    _Rule(
++        pattern_id="permission_denied_v1",
++        category="permission_denied",
++        route="environment_related",
++        retryable=True,
++        pattern=re.compile(
++            r"(?:permission denied|operation not permitted|EACCES)",
++            re.IGNORECASE,
++        ),
++    ),
++    _Rule(
++        pattern_id="network_failure_v1",
++        category="network_failure",
++        route="environment_related",
++        retryable=True,
++        pattern=re.compile(
++            r"(?:network is unreachable|temporary failure in name resolution|could not resolve host|connection timed out)",
++            re.IGNORECASE,
++        ),
++    ),
++    _Rule(
++        pattern_id="dependency_missing_v1",
++        category="dependency_missing",
++        route="environment_related",
++        retryable=True,
++        domains=("compile",),
++        pattern=re.compile(
++            r"(?:required dependency .* missing|cannot find .* dependency|dependency .* not found)",
++            re.IGNORECASE,
++        ),
++    ),
++    _Rule(
++        pattern_id="compiler_crash_v1",
++        category="compiler_crash",
++        route="unknown",
++        retryable=False,
++        domains=("compile",),
++        pattern=re.compile(
++            r"(?:internal compiler error|segmentation fault|compiler crash)",
++            re.IGNORECASE,
++        ),
++    ),
++)
++
++_BENCHMARK_RULES: tuple[_Rule, ...] = (
++    _Rule(
++        pattern_id="benchmark_score_parse_failed_v1",
++        category="score_parse_failed",
++        route="unknown",
++        retryable=True,
++        domains=("benchmark",),
++        pattern=re.compile(
++            r"(?:score line is malformed|no SCORE line|could not parse score|score parse failed)",
++            re.IGNORECASE,
++        ),
++    ),
++    _Rule(
++        pattern_id="benchmark_correctness_failed_v1",
++        category="functional_correctness_failed",
++        route="unknown",
++        retryable=False,
++        domains=("benchmark",),
++        pattern=re.compile(
++            r"(?:functional correctness failed|wrong answer|checksum mismatch|validation failed)",
++            re.IGNORECASE,
++        ),
++    ),
++    _Rule(
++        pattern_id="benchmark_artifact_invalid_v1",
++        category="artifact_invalid",
++        route="unknown",
++        retryable=False,
++        domains=("benchmark",),
++        pattern=re.compile(
++            r"(?:artifact hash mismatch|artifact missing|artifact invalid)",
++            re.IGNORECASE,
++        ),
++    ),
++    _Rule(
++        pattern_id="benchmark_environment_unstable_v1",
++        category="environment_unstable",
++        route="environment_related",
++        retryable=True,
++        domains=("benchmark",),
++        pattern=re.compile(
++            r"(?:^Killed$|out of memory|oom-killer|cannot allocate memory|thermal throttle|system load unstable)",
++            re.IGNORECASE,
++        ),
++    ),
++    _Rule(
++        pattern_id="benchmark_too_noisy_v1",
++        category="too_noisy",
++        route="environment_related",
++        retryable=True,
++        domains=("benchmark",),
++        pattern=re.compile(
++            r"(?:too noisy|variance too high|coefficient of variation)",
++            re.IGNORECASE,
++        ),
++    ),
++)
++
++
++def classify_compile_failure(
++    status: str,
++    *,
++    combo: Sequence[str] = (),
++    stdout: LogContent | None = None,
++    stderr: LogContent | None = None,
++    result_json_ref: str | None = None,
++) -> FailureClassification | None:
++    """Classify a compile failure using conservative routing."""
++
++    if status == "success":
++        return None
++    return _classify(
++        domain="compile",
++        status=status,
++        status_rules=_COMPILE_STATUS,
++        log_rules=_COMPILE_RULES,
++        combo=tuple(combo),
++        logs=tuple(log for log in (stdout, stderr) if log is not None),
++        result_json_ref=result_json_ref,
++        unknown_category="unknown_failure",
++    )
++
++
++def classify_benchmark_failure(
++    status: str,
++    *,
++    stdout: LogContent | None = None,
++    stderr: LogContent | None = None,
++    result_json_ref: str | None = None,
++) -> FailureClassification | None:
++    """Classify a benchmark failure using conservative routing."""
++
++    if status == "success":
++        return None
++    return _classify(
++        domain="benchmark",
++        status=status,
++        status_rules=_BENCHMARK_STATUS,
++        log_rules=(*_COMPILE_RULES, *_BENCHMARK_RULES),
++        combo=(),
++        logs=tuple(log for log in (stdout, stderr) if log is not None),
++        result_json_ref=result_json_ref,
++        unknown_category="unknown_failure",
++    )
++
++
++def _classify(
++    *,
++    domain: FailureDomain,
++    status: str,
++    status_rules: dict[str, tuple[FailureCategory, FailureRoute, bool, str]],
++    log_rules: Sequence[_Rule],
++    combo: tuple[str, ...],
++    logs: tuple[LogContent, ...],
++    result_json_ref: str | None,
++    unknown_category: FailureCategory,
++) -> FailureClassification:
++    candidates: list[_Candidate] = []
++    if status in status_rules:
++        category, route, retryable, pattern_id = status_rules[status]
++        evidence = EvidenceLine(
++            log_ref=f"{result_json_ref or 'result_json'}#status",
++            text=f"status={status}",
++            pattern_id=pattern_id,
++        )
++        candidates.append(
++            _Candidate(
++                category=category,
++                route=route,
++                retryable=retryable,
++                evidence=(evidence,),
++                affected_options=_status_affected_options(status, combo),
++                matched_rule_id=pattern_id,
++                confidence="MEDIUM",
++                source_keys=(f"status:{pattern_id}",),
++            )
++        )
++
++    candidates.extend(_match_log_rules(domain=domain, rules=log_rules, logs=logs, combo=combo))
++    if not candidates:
++        return FailureClassification(
++            category=unknown_category,
++            route="unknown",
++            confidence="LOW",
++            retryable=False,
++            write_failed_combos=False,
++            classifier_version=CLASSIFIER_VERSION,
++        )
++
++    merged = _merge_candidates(candidates)
++    selected = _select_candidate(merged)
++    write_failed = (
++        selected.route == "option_related" and selected.confidence == "HIGH"
++    )
++    return FailureClassification(
++        category=selected.category,
++        route=selected.route,
++        confidence=selected.confidence,
++        evidence=selected.evidence,
++        affected_options=selected.affected_options,
++        retryable=selected.retryable,
++        write_failed_combos=write_failed,
++        matched_rule_id=selected.matched_rule_id,
++        classifier_version=CLASSIFIER_VERSION,
++    )
++
++
++def _match_log_rules(
++    *,
++    domain: FailureDomain,
++    rules: Sequence[_Rule],
++    logs: Sequence[LogContent],
++    combo: tuple[str, ...],
++) -> tuple[_Candidate, ...]:
++    matches: list[_Candidate] = []
++    for log in logs:
++        for line_no, line in enumerate(log.text.splitlines(), start=1):
++            for rule in rules:
++                if domain not in rule.domains:
++                    continue
++                match = rule.pattern.search(line)
++                if match is None:
++                    continue
++                affected_options = (
++                    _extract_rule_options(rule=rule, match=match, line=line, combo=combo)
++                    if rule.extracts_options
++                    else ()
++                )
++                evidence = EvidenceLine(
++                    log_ref=f"{log.ref}#L{line_no}",
++                    text=line.strip(),
++                    pattern_id=rule.pattern_id,
++                )
++                matches.append(
++                    _Candidate(
++                        category=rule.category,
++                        route=rule.route,
++                        retryable=rule.retryable,
++                        evidence=(evidence,),
++                        affected_options=affected_options,
++                        matched_rule_id=rule.pattern_id,
++                        confidence=rule.base_confidence,
++                        source_keys=(f"log:{rule.pattern_id}",),
++                    )
++                )
++    return tuple(matches)
++
++
++def _merge_candidates(candidates: Sequence[_Candidate]) -> tuple[_Candidate, ...]:
++    buckets: dict[tuple[FailureCategory, FailureRoute], list[_Candidate]] = {}
++    for candidate in candidates:
++        buckets.setdefault((candidate.category, candidate.route), []).append(candidate)
++
++    merged: list[_Candidate] = []
++    for (category, route), group in buckets.items():
++        evidence = _dedupe_evidence(item for candidate in group for item in candidate.evidence)
++        affected = _dedupe_strings(
++            option for candidate in group for option in candidate.affected_options
++        )
++        source_keys = _dedupe_strings(
++            key for candidate in group for key in candidate.source_keys
++        )
++        retryable = any(candidate.retryable for candidate in group)
++        matched_rule_id = _preferred_rule_id(group)
++        confidence = _merged_confidence(group, source_keys)
++        merged.append(
++            _Candidate(
++                category=category,
++                route=route,
++                retryable=retryable,
++                evidence=evidence,
++                affected_options=affected,
++                matched_rule_id=matched_rule_id,
++                confidence=confidence,
++                source_keys=source_keys,
++            )
++        )
++    return tuple(merged)
++
++
++def _select_candidate(candidates: Sequence[_Candidate]) -> _Candidate:
++    high_environment = [
++        candidate
++        for candidate in candidates
++        if candidate.route == "environment_related" and candidate.confidence == "HIGH"
++    ]
++    if high_environment:
++        return sorted(
++            high_environment,
++            key=lambda item: (
++                _CONFIDENCE_RANK[item.confidence],
++                _specificity_rank(item),
++                len(item.evidence),
++                item.matched_rule_id,
++            ),
++            reverse=True,
++        )[0]
++    return sorted(
++        candidates,
++        key=lambda item: (
++            _CONFIDENCE_RANK[item.confidence],
++            _ROUTE_TIE_RANK[item.route],
++            _specificity_rank(item),
++            len(item.evidence),
++            item.matched_rule_id,
++        ),
++        reverse=True,
++    )[0]
++
++
++def _specificity_rank(candidate: _Candidate) -> int:
++    if candidate.category in _GENERIC_CATEGORIES:
++        return 0
++    return 1
++
++
++def _merged_confidence(
++    group: Sequence[_Candidate],
++    source_keys: tuple[str, ...],
++) -> FailureConfidence:
++    if len(source_keys) >= 2:
++        return "HIGH"
++    return max((candidate.confidence for candidate in group), key=_CONFIDENCE_RANK.__getitem__)
++
++
++def _preferred_rule_id(group: Sequence[_Candidate]) -> str:
++    for candidate in group:
++        if not candidate.matched_rule_id.startswith("status_"):
++            return candidate.matched_rule_id
++    return group[0].matched_rule_id
++
++
++def _status_affected_options(status: str, combo: tuple[str, ...]) -> tuple[str, ...]:
++    if status != "invalid_option":
++        return ()
++    return tuple(option for option in combo if "invalid" in option.lower())
++
++
++def _extract_rule_options(
++    *,
++    rule: _Rule,
++    match: re.Match[str],
++    line: str,
++    combo: tuple[str, ...],
++) -> tuple[str, ...]:
++    option = match.groupdict().get("option")
++    if option:
++        return _filter_options((option.rstrip(".,:;"),), combo)
++    return _filter_options(_option_tokens(line), combo)
++
++
++def _option_tokens(line: str) -> tuple[str, ...]:
++    return tuple(
++        token.strip("'\"`.,:;()[]{}")
++        for token in re.findall(r"(?<!\w)-[A-Za-z0-9][A-Za-z0-9_+=:./-]*", line)
++    )
++
++
++def _filter_options(options: Iterable[str], combo: tuple[str, ...]) -> tuple[str, ...]:
++    cleaned = _dedupe_strings(option for option in options if option.startswith("-"))
++    if not combo:
++        return cleaned
++    combo_set = set(combo)
++    return tuple(option for option in cleaned if option in combo_set)
++
++
++def _dedupe_strings(values: Iterable[str]) -> tuple[str, ...]:
++    seen: set[str] = set()
++    result: list[str] = []
++    for value in values:
++        if value in seen:
++            continue
++        seen.add(value)
++        result.append(value)
++    return tuple(result)
++
++
++def _dedupe_evidence(values: Iterable[EvidenceLine]) -> tuple[EvidenceLine, ...]:
++    seen: set[tuple[str, str, str]] = set()
++    result: list[EvidenceLine] = []
++    for evidence in values:
++        key = (evidence.log_ref, evidence.text, evidence.pattern_id)
++        if key in seen:
++            continue
++        seen.add(key)
++        result.append(evidence)
++    return tuple(result)
+diff --git a/tests/test_compile_skill.py b/tests/test_compile_skill.py
+index 9b84d59..01d917b 100644
+--- a/tests/test_compile_skill.py
++++ b/tests/test_compile_skill.py
+@@ -160,8 +160,11 @@ def test_compile_skill_failure_uses_result_schema_and_operation_ledger(tmp_path)
+     assert result.success is False
+     assert result.failure_classification is not None
+     assert result.failure_classification.category == "invalid_option"
+-    assert result.failure_classification.write_failed_combos is False
++    assert result.failure_classification.route == "option_related"
++    assert result.failure_classification.confidence == "HIGH"
++    assert result.failure_classification.write_failed_combos is True
+     assert result.failure_classification.affected_options == ("-finvalid-option",)
++    assert result.failure_classification.matched_rule_id == "gcc_unknown_option_v1"
+ 
+     checkpoint_after = load_checkpoint_for_layout(fake.layout)
+     assert checkpoint_after.current_trial is not None
+@@ -171,7 +174,7 @@ def test_compile_skill_failure_uses_result_schema_and_operation_ledger(tmp_path)
+     assert operation.status == "failed"
+     assert operation.output_ref is None
+     assert operation.details["failure_classification"]["category"] == "invalid_option"
+-    assert operation.details["failure_classification"]["write_failed_combos"] is False
++    assert operation.details["failure_classification"]["write_failed_combos"] is True
+ 
+ 
+ def _checkpoint(fake) -> dict[str, object]:
+diff --git a/tests/test_error_analyzer.py b/tests/test_error_analyzer.py
+new file mode 100644
+index 0000000..de0b34e
+--- /dev/null
++++ b/tests/test_error_analyzer.py
+@@ -0,0 +1,200 @@
++from __future__ import annotations
++
++from agent import (
++    CLASSIFIER_VERSION,
++    LogContent,
++    classify_benchmark_failure,
++    classify_compile_failure,
++)
++
++
++def test_compile_invalid_option_high_confidence_writes_failed_combos() -> None:
++    failure = classify_compile_failure(
++        "invalid_option",
++        combo=["-O3", "-funknown-flag"],
++        stderr=LogContent(
++            ref="logs/compile.stderr",
++            text="gcc: error: unrecognized command-line option '-funknown-flag'\n",
++        ),
++        result_json_ref="results/compile.json",
++    )
++
++    assert failure is not None
++    assert failure.category == "invalid_option"
++    assert failure.route == "option_related"
++    assert failure.confidence == "HIGH"
++    assert failure.affected_options == ("-funknown-flag",)
++    assert failure.write_failed_combos is True
++    assert failure.matched_rule_id == "gcc_unknown_option_v1"
++    assert failure.classifier_version == CLASSIFIER_VERSION
++    assert {evidence.pattern_id for evidence in failure.evidence} == {
++        "status_invalid_option_v1",
++        "gcc_unknown_option_v1",
++    }
++
++
++def test_compile_invalid_option_extracts_only_reported_option() -> None:
++    failure = classify_compile_failure(
++        "invalid_option",
++        combo=["-O3", "-funroll-loops", "-fno-such-pass"],
++        stderr=LogContent(
++            ref="logs/compile.stderr",
++            text="clang: error: unknown option '-fno-such-pass'; did you mean '-O3'?\n",
++        ),
++        result_json_ref="results/compile.json",
++    )
++
++    assert failure is not None
++    assert failure.affected_options == ("-fno-such-pass",)
++    assert "-O3" not in failure.affected_options
++
++
++def test_compile_option_conflict_high_confidence_writes_affected_options() -> None:
++    failure = classify_compile_failure(
++        "option_conflict",
++        combo=["-O3", "-Os", "-funroll-loops"],
++        stderr=LogContent(
++            ref="logs/compile.stderr",
++            text="error: conflicting optimization options -O3 and -Os are mutually exclusive\n",
++        ),
++        result_json_ref="results/compile.json",
++    )
++
++    assert failure is not None
++    assert failure.category == "option_conflict"
++    assert failure.route == "option_related"
++    assert failure.confidence == "HIGH"
++    assert failure.affected_options == ("-O3", "-Os")
++    assert failure.write_failed_combos is True
++
++
++def test_environment_related_failures_never_write_failed_combos() -> None:
++    cases = [
++        (
++            "infra_failure",
++            "ld: cannot write output file: No space left on device",
++            "disk_full_or_quota",
++        ),
++        (
++            "oom_like_exit",
++            "Killed",
++            "oom_killed",
++        ),
++        (
++            "timeout",
++            "build timed out after 120 seconds",
++            "build_timeout",
++        ),
++        (
++            "infra_failure",
++            "curl: (6) Could not resolve host: mirror.example",
++            "network_failure",
++        ),
++        (
++            "infra_failure",
++            "mkdir build: Permission denied",
++            "permission_denied",
++        ),
++    ]
++
++    for status, stderr, category in cases:
++        failure = classify_compile_failure(
++            status,
++            combo=["-O3"],
++            stderr=LogContent(ref="logs/compile.stderr", text=stderr),
++            result_json_ref="results/compile.json",
++        )
++
++        assert failure is not None
++        assert failure.category == category
++        assert failure.route == "environment_related"
++        assert failure.write_failed_combos is False
++
++
++def test_high_confidence_environment_evidence_overrides_option_match() -> None:
++    failure = classify_compile_failure(
++        "oom_like_exit",
++        combo=["-funknown-flag"],
++        stderr=LogContent(
++            ref="logs/compile.stderr",
++            text=(
++                "gcc: error: unrecognized command-line option '-funknown-flag'\n"
++                "Killed\n"
++            ),
++        ),
++        result_json_ref="results/compile.json",
++    )
++
++    assert failure is not None
++    assert failure.category == "oom_killed"
++    assert failure.route == "environment_related"
++    assert failure.confidence == "HIGH"
++    assert failure.write_failed_combos is False
++
++
++def test_single_option_log_match_is_medium_and_does_not_write_failed_combos() -> None:
++    failure = classify_compile_failure(
++        "infra_failure",
++        combo=["-funknown-flag"],
++        stderr=LogContent(
++            ref="logs/compile.stderr",
++            text="gcc: error: unrecognized command-line option '-funknown-flag'\n",
++        ),
++    )
++
++    assert failure is not None
++    assert failure.category == "invalid_option"
++    assert failure.route == "option_related"
++    assert failure.confidence == "MEDIUM"
++    assert failure.write_failed_combos is False
++
++
++def test_unknown_failure_defaults_conservatively() -> None:
++    failure = classify_compile_failure(
++        "mysterious",
++        combo=["-O2"],
++        stderr=LogContent(ref="logs/compile.stderr", text="something strange happened\n"),
++    )
++
++    assert failure is not None
++    assert failure.category == "unknown_failure"
++    assert failure.route == "unknown"
++    assert failure.confidence == "LOW"
++    assert failure.write_failed_combos is False
++    assert failure.evidence == ()
++
++
++def test_benchmark_score_parse_failed_has_score_evidence_and_no_memory_write() -> None:
++    failure = classify_benchmark_failure(
++        "score_parse_failed",
++        stdout=LogContent(
++            ref="logs/benchmark.stdout",
++            text="benchmark completed but score line is malformed\n",
++        ),
++        result_json_ref="results/benchmark.json",
++    )
++
++    assert failure is not None
++    assert failure.category == "score_parse_failed"
++    assert failure.route == "unknown"
++    assert failure.confidence == "HIGH"
++    assert failure.retryable is True
++    assert failure.write_failed_combos is False
++    assert {evidence.pattern_id for evidence in failure.evidence} == {
++        "status_score_parse_failed_v1",
++        "benchmark_score_parse_failed_v1",
++    }
++
++
++def test_benchmark_environment_failure_is_routed_without_failed_combo_write() -> None:
++    failure = classify_benchmark_failure(
++        "oom_like_exit",
++        stderr=LogContent(ref="logs/benchmark.stderr", text="Killed\n"),
++        result_json_ref="results/benchmark.json",
++    )
++
++    assert failure is not None
++    assert failure.category == "environment_unstable"
++    assert failure.route == "environment_related"
++    assert failure.confidence == "HIGH"
++    assert failure.write_failed_combos is False

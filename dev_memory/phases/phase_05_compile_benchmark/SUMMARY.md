@@ -76,7 +76,7 @@ Validation:
   - checkpoint operation ledger `process_refs`.
 - If trace/checkpoint writing fails after lease creation, fake_gbs invokes `cleanup_process_lease(force_suspected=True)` and terminalizes the lease.
 - The checkpoint operation ledger is the process authority; the deprecated `current_trial.process` field is not written.
-- Compile failures return 5.5a `FailureClassification` objects with `write_failed_combos=False`; classifier rules remain deferred to 5.5b.
+- Compile failures return 5.5a `FailureClassification` objects; 5.5b classifier rules now control whether a HIGH-confidence option_related failure may write failed_combos.
 
 Validation:
 
@@ -118,3 +118,26 @@ Validation:
 - `.venv/bin/python -m pytest tests/test_benchmark_skill.py -q` -> 4 passed.
 - `.venv/bin/python -m pytest tests/test_benchmark_skill.py tests/test_compile_skill.py tests/test_fake_gbs.py tests/test_result_schema.py tests/test_process_runner.py tests/test_process_cleaner.py -q` -> 54 passed.
 - `.venv/bin/python -m pytest tests/ -q` -> 585 passed.
+
+## 5.5b failure classifier rules + routing tests
+
+- Added `src/agent/skills/error_analyzer.py`.
+- Added shared classifier entry points:
+  - `classify_compile_failure()`,
+  - `classify_benchmark_failure()`,
+  - `LogContent`,
+  - `CLASSIFIER_VERSION`.
+- Compile and benchmark skills now consume the shared classifier instead of inline status-only mappings.
+- Rules combine process result status, stdout/stderr log evidence, and result-json refs into 5.5a `FailureClassification`.
+- HIGH confidence requires at least two evidence sources, such as result status plus a log pattern.
+- invalid_option and option_conflict can write failed_combos only when they are HIGH-confidence option_related classifications.
+- environment_related categories such as disk_full_or_quota, oom_killed, build_timeout, network_failure, and permission_denied never write failed_combos.
+- High-confidence environment evidence overrides option matches, so OOM/disk/network failures do not poison candidate memory even when an option-looking log line is present.
+- Unmatched failures default to unknown/LOW/write_failed_combos=False.
+- affected_options extraction is token-aware and filters against the candidate combo when available.
+
+Validation:
+
+- `.venv/bin/python -m pytest tests/test_error_analyzer.py -q` -> 9 passed.
+- `.venv/bin/python -m pytest tests/test_error_analyzer.py tests/test_compile_skill.py tests/test_benchmark_skill.py tests/test_result_schema.py tests/test_fake_gbs.py -q` -> 44 passed.
+- `.venv/bin/python -m pytest tests/ -q` -> 594 passed.

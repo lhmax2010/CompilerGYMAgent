@@ -1,0 +1,18 @@
+Phase 05 / Subtask 5.5b - failure classifier rules + routing tests
+
+Implemented:
+- Added src/agent/skills/error_analyzer.py.
+- Added classify_compile_failure() and classify_benchmark_failure().
+- Added LogContent and CLASSIFIER_VERSION exports.
+- Updated compile.py and benchmark.py to consume the shared classifier instead of inline status-only mappings.
+- Classifier combines result-json status evidence with stdout/stderr log-line evidence.
+- invalid_option and option_conflict become option_related; affected_options are extracted from precise option tokens and filtered against the combo when available.
+- disk_full_or_quota, oom_killed/environment_unstable, build_timeout, network_failure, permission_denied, dependency_missing, and too_noisy route to environment_related.
+- High-confidence environment evidence overrides option matches to avoid poisoning candidate memory during OOM/disk/network failures.
+- Unknown/unmatched failures default to unknown/LOW/write_failed_combos=False.
+- Only HIGH-confidence option_related classifications can write failed_combos, with the 5.5a schema still enforcing the hard boundary.
+
+Validation:
+- test_error_analyzer.py: 9 passed.
+- error_analyzer/compile/benchmark/result_schema/fake_gbs adjacent tests: 44 passed.
+- Full suite: 594 passed.

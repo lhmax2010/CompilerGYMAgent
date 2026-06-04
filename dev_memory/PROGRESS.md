@@ -2325,3 +2325,56 @@ Next action: begin Subtask 5.4 benchmark skill.
   - `.venv/bin/python -m pytest tests/ -q` -> 585 passed.
 
 Next action: generate patch artifacts, commit/push Subtask 5.4, then request Claude review.
+
+## 2026-06-04T22:12:00+08:00 - Phase 05 / Subtask 5.4 approved
+
+- External review verdict: Approve.
+- Review range: `e61f207..a0cce66`.
+- Review confirmed:
+  - benchmark returns 5.5a RunLevelRecord objects with required fields,
+  - warmup/measured phases are separated,
+  - artifact_hash_verified reflects real artifact hash verification,
+  - artifact mismatch produces artifact_invalid without spawning,
+  - score_parse_failed is a hard failure,
+  - summary_hint only aggregates and does not make outlier decisions,
+  - trace failure after lease creation kills and terminalizes the lease,
+  - deprecated `current_trial.process` is not written,
+  - no residual processes remain.
+- Validation:
+  - `.venv/bin/python -m pytest tests/ -q` -> 585 passed.
+
+Next action: begin Subtask 5.5b failure classifier rules + routing tests.
+
+## 2026-06-04T22:23:35+08:00 - Phase 05 / Subtask 5.5b implemented
+
+- Added shared failure classifier rules:
+  - `src/agent/skills/error_analyzer.py`,
+  - `classify_compile_failure()`,
+  - `classify_benchmark_failure()`,
+  - `LogContent`.
+- Updated compile and benchmark skills to consume the shared classifier instead of inline status mappings.
+- Added evidence-backed classification:
+  - result-json status evidence,
+  - stdout/stderr log line evidence,
+  - matched_rule_id,
+  - classifier_version.
+- Added option-related rules:
+  - invalid_option,
+  - option_conflict,
+  - affected_options extraction filtered against the combo.
+- Added environment-related rules:
+  - disk_full_or_quota,
+  - oom_killed / environment_unstable,
+  - build_timeout,
+  - network_failure,
+  - permission_denied,
+  - dependency_missing,
+  - too_noisy.
+- High-confidence environment evidence overrides option matches to prevent OOM/disk/network failures from writing failed_combos.
+- Unmatched failures default to unknown/LOW/write_failed_combos=False.
+- Validation:
+  - `.venv/bin/python -m pytest tests/test_error_analyzer.py -q` -> 9 passed.
+  - `.venv/bin/python -m pytest tests/test_error_analyzer.py tests/test_compile_skill.py tests/test_benchmark_skill.py tests/test_result_schema.py tests/test_fake_gbs.py -q` -> 44 passed.
+  - `.venv/bin/python -m pytest tests/ -q` -> 594 passed.
+
+Next action: generate patch artifacts, commit/push Subtask 5.5b, then request Claude review.

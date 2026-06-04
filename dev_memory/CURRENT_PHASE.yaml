@@ -1,7 +1,7 @@
 phase_id: phase_05_compile_benchmark
 phase_title: "Compile / Benchmark Skills"
 started_at: 2026-06-04T10:05:00+08:00
-last_updated: 2026-06-04T22:08:19+08:00
+last_updated: 2026-06-04T22:23:35+08:00
 target_milestone: "M1 end / M2 start"
 related_requirements:
   - REQUIREMENTS.md section 4.7.1 gbs_compile
@@ -167,7 +167,7 @@ subtasks:
       - "process_started trace carries full ProcessRecord and ProcessLease payload sufficient for lease rebuild."
       - "Checkpoint operation ledger is the process authority; deprecated current_trial.process is forced to None."
       - "If process_started trace/checkpoint write fails after lease creation, fake_gbs immediately invokes cleaner killpg and terminalizes the lease."
-      - "Compile failures return the shared FailureClassification schema conservatively with write_failed_combos=False; classifier rules remain deferred to 5.5b."
+      - "Compile failures return the shared FailureClassification schema; 5.5b classifier rules may write failed_combos only for HIGH-confidence option_related evidence."
     ut_required: true
     ut_passed: true
     targeted_ut: "3 tests passed, 0 failed (test_compile_skill.py)"
@@ -223,5 +223,52 @@ subtasks:
     patch_file: dev_memory/phases/phase_05_compile_benchmark/patches/05_benchmark_skill.patch
     patch_generated: true
     commit_required: true
+    commit_pending: false
+    implementation_commit: a0cce66
+    external_review_verdict: approve
+    external_reviewed_at: 2026-06-04T22:12:00+08:00
+    external_review_tests: "585 passed; RunLevelRecord fields, warmup/measured split, artifact verification, hard failures, and 0 residual processes verified"
+  - id: "5.5b"
+    title: "failure classifier rules + routing tests"
+    status: done
+    related_requirements:
+      - ROADMAP.yaml Phase 05 deliverable failure classifier rules
+      - DECISIONS.md "Failure classification: confidence + evidence + three-way routing"
+      - DECISIONS.md "Failure classifier routing: high-confidence environment evidence overrides option matches"
+    files_created:
+      - src/agent/skills/error_analyzer.py
+      - tests/test_error_analyzer.py
+    files_modified:
+      - src/agent/skills/compile.py
+      - src/agent/skills/benchmark.py
+      - src/agent/skills/__init__.py
+      - src/agent/__init__.py
+      - tests/test_compile_skill.py
+      - dev_memory/CURRENT_PHASE.yaml
+      - dev_memory/ROADMAP.yaml
+      - dev_memory/DECISIONS.md
+      - dev_memory/PROGRESS.md
+      - dev_memory/phases/phase_05_compile_benchmark/CHECKLIST.yaml
+      - dev_memory/phases/phase_05_compile_benchmark/REVIEW_NOTES.md
+      - dev_memory/phases/phase_05_compile_benchmark/SUMMARY.md
+      - dev_memory/phases/phase_05_compile_benchmark/UT_RESULTS.md
+    behavior_notes:
+      - "Added a shared error_analyzer classifier consumed by compile and benchmark skills."
+      - "Rules map log/status evidence to category, route, confidence, affected_options, retryable, matched_rule_id, and classifier_version."
+      - "invalid_option and option_conflict become write_failed_combos=True only when HIGH-confidence option_related evidence is present."
+      - "environment_related categories such as disk_full_or_quota, oom_killed, build_timeout, network_failure, and permission_denied never write failed_combos."
+      - "High-confidence environment evidence overrides option matches to avoid poisoning candidate memory during OOM/disk/network failures."
+      - "Unmatched failures default to unknown/LOW/write_failed_combos=False."
+    ut_required: true
+    ut_passed: true
+    targeted_ut: "9 tests passed, 0 failed (test_error_analyzer.py)"
+    adjacent_ut: "44 tests passed, 0 failed (error_analyzer/compile/benchmark/result_schema/fake_gbs)"
+    production_regression_ut: "594 tests passed, 0 failed"
+    self_review_required: true
+    self_reviewed: true
+    patch_required: true
+    patch_file: dev_memory/phases/phase_05_compile_benchmark/patches/06_failure_classifier_rules.patch
+    patch_generated: true
+    commit_required: true
     commit_pending: true
-next_action: "Subtask 5.4 benchmark skill implemented; generate patch artifacts, commit/push, then request Claude review."
+next_action: "Subtask 5.5b failure classifier rules implemented; generate patch artifacts, commit/push, then request Claude review."

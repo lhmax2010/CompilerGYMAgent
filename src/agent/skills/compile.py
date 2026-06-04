@@ -20,6 +20,7 @@ from agent.process_registry import process_lease_path, process_lease_payload
 from agent.process_runner import ProcessSpawnResult
 from agent.trace import TraceCheckpointWriter
 
+from .error_analyzer import LogContent, classify_compile_failure
 from .fake_gbs import FakeGbsCompileResult, FakeGbsFailureMode, FakeGbsHarness
 from .result_schema import FailureClassification
 from .spec_backup import SpecBackupResult, spec_backup
@@ -166,7 +167,12 @@ def compile_candidate(
     stdout_ref = _namespace_ref(layout, fake_result.stdout_path)
     stderr_ref = _namespace_ref(layout, fake_result.stderr_path)
     result_ref = _namespace_ref(layout, fake_result.result_json_path)
-    classification = _failure_classification_for_compile(fake_result)
+    classification = _failure_classification_for_compile(
+        fake_result,
+        stdout_ref=stdout_ref,
+        stderr_ref=stderr_ref,
+        result_ref=result_ref,
+    )
     terminal_status = "completed" if fake_result.status == "success" else "failed"
     final_checkpoint = _checkpoint_with_compile_operation(
         trace_checkpoint.checkpoint,
@@ -294,35 +300,17 @@ def _compile_operation_payload(
 
 def _failure_classification_for_compile(
     result: FakeGbsCompileResult,
+    *,
+    stdout_ref: str,
+    stderr_ref: str,
+    result_ref: str,
 ) -> FailureClassification | None:
-    if result.status == "success":
-        return None
-    category_by_status = {
-        "invalid_option": "invalid_option",
-        "timeout": "build_timeout",
-        "crash_signal": "compiler_crash",
-        "oom_like_exit": "oom_killed",
-        "artifact_missing": "artifact_missing",
-        "infra_failure": "infra_failure",
-    }
-    route_by_status = {
-        "timeout": "environment_related",
-        "oom_like_exit": "environment_related",
-        "infra_failure": "environment_related",
-    }
-    retryable = result.status in {"timeout", "oom_like_exit", "infra_failure"}
-    affected_options = (
-        tuple(option for option in result.combo if "invalid" in option)
-        if result.status == "invalid_option"
-        else ()
-    )
-    return FailureClassification(
-        category=category_by_status.get(result.status, "unknown_failure"),  # type: ignore[arg-type]
-        route=route_by_status.get(result.status, "unknown"),  # type: ignore[arg-type]
-        confidence="LOW",
-        affected_options=affected_options,
-        retryable=retryable,
-        write_failed_combos=False,
+    return classify_compile_failure(
+        result.status,
+        combo=result.combo,
+        stdout=LogContent(ref=stdout_ref, text=_read_text(result.stdout_path)),
+        stderr=LogContent(ref=stderr_ref, text=_read_text(result.stderr_path)),
+        result_json_ref=result_ref if result.result_json_path.exists() else None,
     )
 
 
@@ -376,6 +364,10 @@ def _optional_namespace_ref(layout: NamespaceLayout, path: Path | None) -> str |
     if path is None:
         return None
     return _namespace_ref(layout, path)
+
+
+def _read_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8", errors="replace") if path.exists() else ""
 
 
 def _normalize_now(now: datetime | None) -> datetime:
