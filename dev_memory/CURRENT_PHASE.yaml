@@ -1,7 +1,7 @@
 phase_id: phase_05_compile_benchmark
 phase_title: "Compile / Benchmark Skills"
 started_at: 2026-06-04T10:05:00+08:00
-last_updated: 2026-06-04T21:36:13+08:00
+last_updated: 2026-06-04T21:43:21+08:00
 target_milestone: "M1 end / M2 start"
 related_requirements:
   - REQUIREMENTS.md section 4.7.1 gbs_compile
@@ -135,6 +135,9 @@ subtasks:
     patch_file: dev_memory/phases/phase_05_compile_benchmark/patches/03_result_schema_skeleton.patch
     patch_generated: true
     commit_required: true
-    commit_pending: true
-    external_review_verdict: pending
-next_action: "Push Subtask 5.5a and request Claude review; next planned subtask is 5.3 compile skill after review/Ubuntu validation."
+    commit_pending: false
+    implementation_commit: 69c9fb7
+    external_review_verdict: approve
+    external_reviewed_at: 2026-06-04T21:43:21+08:00
+    external_review_tests: "578 passed; write_failed_combos gate, objective_direction, scoring/failure consistency, and pure-schema boundary verified"
+next_action: "Subtask 5.5a approved; next planned subtask is 5.3 compile skill."

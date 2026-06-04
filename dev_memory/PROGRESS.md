@@ -2227,3 +2227,20 @@ Next action: generate patch artifacts, commit/push Subtask 5.2, then request Cla
   - `.venv/bin/python -m pytest tests/ -q` -> 578 passed.
 
 Next action: generate patch artifacts, commit/push Subtask 5.5a, then request Claude review.
+
+## 2026-06-04T21:43:21+08:00 - Phase 05 / Subtask 5.5a approved
+
+- External review verdict: Approve.
+- Review range: `aa8f2a2..69c9fb7`.
+- Review confirmed:
+  - conservative defaults are present at the schema layer,
+  - `write_failed_combos=True` is structurally limited to HIGH-confidence option-related failures,
+  - invalid route/confidence/objective_direction values are rejected,
+  - objective_direction is required on run-level records,
+  - run-level fields are complete for Phase 08 handoff,
+  - artifact/exit/scoring consistency checks reject contradictory states,
+  - 5.5a remains pure schema with no classifier rules or log pattern matching.
+- Validation:
+  - `.venv/bin/python -m pytest tests/ -q` -> 578 passed.
+
+Next action: begin Subtask 5.3 compile skill.
