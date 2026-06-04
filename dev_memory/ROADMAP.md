@@ -12,7 +12,7 @@ Completed:
 | 02 | FS-Memory SoT writers | 2026-05-21 | 11 |
 | 03 | Trace lifecycle | 2026-05-29 | 15 |
 | 04 | Workspace Protection Skills + CLI Entrypoint Skeleton | 2026-05-30 | 5 |
-| 06 | Process Management (runner + cleaner + monitor) | 2026-06-03 | 10 |
+| 06 | Process Management (runner + cleaner + monitor) | 2026-06-03 | 11 |
 
 Current handoff:
 
@@ -48,8 +48,8 @@ Calibration:
 - Average used for planning: 35 subtasks in roughly 28 days.
 - Phase 04 closed as a same-day focused phase with 5 subtasks; keep the 1.3
   planning rate.
-- Phase 06 closed with 10 patch-count subtasks over roughly 2.5 calendar days,
-  including one post-close blocker fix before Phase 05. This is faster than the
+- Phase 06 closed with 11 patch-count subtasks over roughly 2.5 calendar days,
+  including post-close blocker fixes before Phase 05. This is faster than the
   calibrated planning rate, so no downward recalibration is needed before Phase
   05.
 

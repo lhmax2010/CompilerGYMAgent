@@ -280,9 +280,30 @@ subtasks:
         status: done
       - item: "Generate patch artifacts"
         status: done
+  - id: "6.10"
+    title: "pre-Phase 05 blocker hardening"
+    status: done
+    implementation_commit: pending
+    review_status: pending
+    ubuntu_validation_status: passed
+    checklist:
+      - item: "Set force_suspected semantics to kill owned + suspected targets"
+        status: done
+      - item: "Preserve default mixed target behavior: kill owned only"
+        status: done
+      - item: "Preserve suspected-only force behavior"
+        status: done
+      - item: "Reject duplicate process_refs across checkpoint operations"
+        status: done
+      - item: "Add regression tests for mixed force cleanup and cross-operation duplicate refs"
+        status: done
+      - item: "Run targeted tests and full production suite"
+        status: done
+      - item: "Generate patch artifacts"
+        status: done
 phase_closure:
   status: done
-  actual_subtasks_done: 10
+  actual_subtasks_done: 11
   closed_at: 2026-06-03T15:44:39+08:00
-  final_full_suite: "540 passed"
+  final_full_suite: "542 passed"
   next_phase: "05 - Compile / Benchmark Skills"

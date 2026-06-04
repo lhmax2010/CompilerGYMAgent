@@ -380,8 +380,8 @@ Completed the final Phase 06 planned deliverable.
 
 - Status: done
 - Closed at: 2026-06-03T15:44:39+08:00
-- Actual patch-count subtasks: 10
-- Final full suite: 540 passed
+- Actual patch-count subtasks: 11
+- Final full suite: 542 passed
 - Next phase: Phase 05 - Compile / Benchmark Skills
 
 ## Post-Close Blocker Fix - pre-Phase 05
@@ -412,3 +412,23 @@ Fixed two externally reviewed blockers before Phase 05 starts.
 - `tests/test_process_cleaner.py`: 9 passed
 - `tests/test_fs_memory.py`: 144 passed
 - Full suite: 540 passed
+
+## Post-Close Blocker Hardening - pre-Phase 05
+
+Locked down two additional external-review hardening points before Phase 05.
+
+### Changes
+
+- `cleanup_process_lease(force_suspected=True)` now kills owned and suspected
+  targets in a mixed target set.
+- Non-force mixed target cleanup remains conservative: owned targets are killed
+  while suspected targets survive until fixture/operator cleanup.
+- Suspected-only force cleanup remains supported.
+- `CheckpointCurrentTrial` now rejects duplicate `process_refs` across all
+  operations, not only duplicates within a single operation.
+
+### Validation
+
+- `tests/test_process_cleaner.py`: 10 passed
+- `tests/test_fs_memory.py`: 145 passed
+- Full suite: 542 passed

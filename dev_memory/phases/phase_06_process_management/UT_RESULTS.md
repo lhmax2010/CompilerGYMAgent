@@ -277,8 +277,8 @@ Review / validation sync:
 
 ## Phase 06 Closure
 
-- Final full suite: 540 passed
-- Actual patch-count subtasks: 10
+- Final full suite: 542 passed
+- Actual patch-count subtasks: 11
 - Ubuntu/Linux validation: passed
 
 ## Post-Close Blocker Fix - pre-Phase 05
@@ -305,3 +305,26 @@ Notes:
 - Checkpoint regression covers deprecated `current_trial.process` absence for
   an active `current_stage` and verifies running process refs are sourced from
   operation ledger entries.
+
+## Post-Close Blocker Hardening - pre-Phase 05
+
+Commands:
+
+```bash
+.venv/bin/python -m pytest tests/test_process_cleaner.py -q
+.venv/bin/python -m pytest tests/test_fs_memory.py -q
+.venv/bin/python -m pytest tests/ -q
+```
+
+Results:
+
+- `tests/test_process_cleaner.py`: 10 passed
+- `tests/test_fs_memory.py`: 145 passed
+- Full suite: 542 passed
+
+Notes:
+
+- Process cleaner tests now lock the three force semantics:
+  default mixed owned+suspected kills only owned, forced mixed kills both, and
+  suspected-only force kills suspected.
+- Checkpoint tests now reject duplicate lease refs across different operations.

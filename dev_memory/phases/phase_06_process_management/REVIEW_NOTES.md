@@ -318,8 +318,8 @@ External review:
 ## Phase 06 Closure
 
 - Verdict: all Phase 06 subtasks approved.
-- Final full suite: 540 passed.
-- Actual patch-count subtasks: 10.
+- Final full suite: 542 passed.
+- Actual patch-count subtasks: 11.
 - Residual follow-ups are intentionally deferred to later phases:
   process-cleanup trace event kind whitelist, full doctor/CLI rendering, and
   Phase 09/10 replay semantics.
@@ -351,3 +351,27 @@ Self-review result:
 - No known Critical / High / Medium / Low findings.
 - Primary review focus for Claude: confirm mixed verdict cleanup filtering and
   checkpoint operation-ledger authority before Phase 05 starts.
+
+## Post-Close Blocker Hardening - pre-Phase 05
+
+Self-review checklist:
+
+- [x] `force_suspected=True` kills owned plus suspected targets in mixed target
+  sets.
+- [x] Non-force mixed target cleanup still kills only owned targets.
+- [x] Suspected-only force behavior remains covered.
+- [x] Cross-operation duplicate `process_refs` are rejected.
+- [x] Existing single-operation duplicate `process_refs` rejection remains
+  covered.
+- [x] Targeted and full test suites pass.
+
+Residual risks / follow-up:
+
+- Phase 05 env marker refinement should reduce how often same-session unrelated
+  processes appear as suspected targets in the first place.
+
+Self-review result:
+
+- No known Critical / High / Medium / Low findings.
+- Primary review focus for Claude: confirm force semantics 2 and global
+  process_ref uniqueness before Phase 05 starts.

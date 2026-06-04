@@ -1,5 +1,22 @@
 # Development Progress
 
+## 2026-06-04T09:10:00+08:00 - Phase 06 pre-Phase 05 blocker hardening completed
+
+- Locked `force_suspected=True` semantics to force cleanup mode: mixed owned +
+  suspected target sets kill both owned and suspected targets.
+- Preserved default conservative semantics: mixed owned + suspected target sets
+  kill only owned targets when force is not set.
+- Added a real-process regression for forced mixed cleanup.
+- Added global uniqueness validation for checkpoint operation
+  `process_refs` across all operations in a current trial.
+- Targeted UT passed: `tests/test_process_cleaner.py` -> 10 passed,
+  `tests/test_fs_memory.py` -> 145 passed.
+- Full UT passed: `.venv/bin/python -m pytest tests/ -q` -> 542 passed.
+- Phase 06 patch-count subtasks updated to 11.
+
+Next action: push blocker hardening and send Claude the review range, then
+start Phase 05 after approval.
+
 ## 2026-06-03T17:05:00+08:00 - Phase 06 pre-Phase 05 blockers fixed
 
 - Fixed `cleanup_process_lease()` mixed-target behavior: owned targets are

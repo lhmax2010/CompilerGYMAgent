@@ -1,0 +1,20 @@
+Phase 06 / Post-Close Hardening - pre-Phase 05 blockers
+
+Scope:
+- Lock down force_suspected cleanup semantics.
+- Reject duplicate checkpoint operation process_refs across operations.
+
+Changed:
+- `cleanup_process_lease(force_suspected=True)` now kills owned and suspected
+  targets when both verdicts are present.
+- Non-force cleanup keeps the conservative mixed target behavior: owned targets
+  are killed, suspected targets remain alive.
+- `CheckpointCurrentTrial` now rejects duplicate lease refs across all
+  operations, not only duplicates within one operation.
+- Added regression tests for forced mixed cleanup and cross-operation
+  duplicate process_refs.
+
+Validation:
+- `tests/test_process_cleaner.py` -> 10 passed.
+- `tests/test_fs_memory.py` -> 145 passed.
+- `tests/` -> 542 passed.
