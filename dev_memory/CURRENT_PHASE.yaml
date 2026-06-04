@@ -1,7 +1,7 @@
 phase_id: phase_05_compile_benchmark
 phase_title: "Compile / Benchmark Skills"
 started_at: 2026-06-04T10:05:00+08:00
-last_updated: 2026-06-04T22:01:59+08:00
+last_updated: 2026-06-04T22:08:19+08:00
 target_milestone: "M1 end / M2 start"
 related_requirements:
   - REQUIREMENTS.md section 4.7.1 gbs_compile
@@ -184,4 +184,44 @@ subtasks:
     external_review_verdict: approve
     external_reviewed_at: 2026-06-04T22:01:59+08:00
     external_review_tests: "581 passed; spawn ordering, trace failure cleanup, FailureClassification, operation ledger, and 0 residual processes verified"
-next_action: "Subtask 5.3 approved; next planned subtask is 5.4 benchmark skill."
+  - id: "5.4"
+    title: "benchmark skill"
+    status: done
+    related_requirements:
+      - ROADMAP.yaml Phase 05 deliverable benchmark skill
+      - DECISIONS.md "Benchmark returns run-level records, not just scores"
+      - DECISIONS.md "score_parse_failed is a first-class failure outcome"
+      - DECISIONS.md "Lease rebuildability requires trace process_started with full payload"
+    files_created:
+      - src/agent/skills/benchmark.py
+      - tests/test_benchmark_skill.py
+    files_modified:
+      - src/agent/skills/__init__.py
+      - src/agent/__init__.py
+      - dev_memory/CURRENT_PHASE.yaml
+      - dev_memory/ROADMAP.yaml
+      - dev_memory/PROGRESS.md
+      - dev_memory/phases/phase_05_compile_benchmark/CHECKLIST.yaml
+      - dev_memory/phases/phase_05_compile_benchmark/REVIEW_NOTES.md
+      - dev_memory/phases/phase_05_compile_benchmark/SUMMARY.md
+      - dev_memory/phases/phase_05_compile_benchmark/UT_RESULTS.md
+    behavior_notes:
+      - "benchmark_candidate consumes fake_gbs through the real process-backed harness and emits 5.5a RunLevelRecord objects."
+      - "Warmup and measured runs are explicit phases with stable measured run_index ordering."
+      - "The skill verifies artifact hashes before benchmark; artifact mismatch produces a hard invalid artifact_invalid run without spawning a benchmark process."
+      - "process_started trace events carry full ProcessRecord and ProcessLease payloads; checkpoint operation.process_refs are the process authority."
+      - "Trace/checkpoint failure after lease creation is handled by fake_gbs cleanup_process_lease(force_suspected=True), terminalizing the lease and leaving no live process group."
+      - "Hard benchmark failures use FailureClassification with write_failed_combos=False; outlier/statistical judgment remains deferred to Phase 08."
+    ut_required: true
+    ut_passed: true
+    targeted_ut: "4 tests passed, 0 failed (test_benchmark_skill.py)"
+    adjacent_ut: "54 tests passed, 0 failed (benchmark/compile/fake_gbs/result_schema/process)"
+    production_regression_ut: "585 tests passed, 0 failed"
+    self_review_required: true
+    self_reviewed: true
+    patch_required: true
+    patch_file: dev_memory/phases/phase_05_compile_benchmark/patches/05_benchmark_skill.patch
+    patch_generated: true
+    commit_required: true
+    commit_pending: true
+next_action: "Subtask 5.4 benchmark skill implemented; generate patch artifacts, commit/push, then request Claude review."

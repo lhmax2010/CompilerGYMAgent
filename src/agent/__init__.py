@@ -210,6 +210,8 @@ from .registry import (
     validate_project_against_registry,
 )
 from .skills import (
+    BenchmarkSkillError,
+    BenchmarkSkillResult,
     CompileSkillError,
     CompileSkillResult,
     DEFAULT_BURSTY_TRANSITIONS,
@@ -242,6 +244,7 @@ from .skills import (
     spec_restore,
     workspace_snapshot,
     workspace_verify,
+    benchmark_candidate,
     compile_candidate,
     compute_combo_hash as compute_result_combo_hash,
 )
@@ -284,6 +287,8 @@ from .workspace_lock import (
 __all__ = [
     "AgentConfig",
     "AgentError",
+    "BenchmarkSkillError",
+    "BenchmarkSkillResult",
     "AGENT_LEASE_ID_ENV",
     "AGENT_PROCESS_ROLE_ENV",
     "AGENT_SESSION_ID_ENV",
@@ -438,6 +443,7 @@ __all__ = [
     "atomic_write_yaml",
     "append_trace_event",
     "attribute_process",
+    "benchmark_candidate",
     "checkpoint_payload",
     "checkpoint_with_reconciled_trace_count",
     "checkpoint_with_trace_line_count",

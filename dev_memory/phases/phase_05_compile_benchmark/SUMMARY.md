@@ -83,3 +83,38 @@ Validation:
 - `.venv/bin/python -m pytest tests/test_compile_skill.py -q` -> 3 passed.
 - `.venv/bin/python -m pytest tests/test_compile_skill.py tests/test_fake_gbs.py tests/test_spec_skills.py tests/test_workspace_skills.py tests/test_process_runner.py tests/test_process_cleaner.py -q` -> 55 passed.
 - `.venv/bin/python -m pytest tests/ -q` -> 581 passed.
+
+## 5.4 benchmark skill
+
+- Added `src/agent/skills/benchmark.py`.
+- Added `benchmark_candidate()` as the Phase 05 benchmark skill entry point.
+- The skill consumes compile artifacts and verifies the expected `sha256:` artifact hash before spawning benchmark runs.
+- Artifact hash mismatch is a hard invalid `artifact_invalid` run-level record and does not spawn a benchmark process.
+- Successful benchmark runs emit 5.5a `RunLevelRecord` objects with:
+  - run_id,
+  - run_index,
+  - combo_hash,
+  - warmup/measured phase,
+  - metric metadata and objective_direction,
+  - timing and exit/signal data,
+  - stdout/stderr refs,
+  - environment snapshot,
+  - artifact_ref/artifact_hash/artifact_hash_verified,
+  - score_source_ref,
+  - nullable pair_key,
+  - summary_hint.
+- Warmup and measured runs are explicit phases; measured runs keep stable run_index ordering for Phase 08.
+- The benchmark process path uses fake_gbs through the real process-backed harness.
+- Spawn recovery ordering mirrors compile:
+  - process spawned,
+  - lease written,
+  - trace `process_started` with full ProcessRecord and ProcessLease payload,
+  - checkpoint operation ledger process_refs updated.
+- Hard benchmark failures use 5.5a `FailureClassification` conservatively with `write_failed_combos=False`.
+- Outlier and final statistical judgment remain deferred to Phase 08.
+
+Validation:
+
+- `.venv/bin/python -m pytest tests/test_benchmark_skill.py -q` -> 4 passed.
+- `.venv/bin/python -m pytest tests/test_benchmark_skill.py tests/test_compile_skill.py tests/test_fake_gbs.py tests/test_result_schema.py tests/test_process_runner.py tests/test_process_cleaner.py -q` -> 54 passed.
+- `.venv/bin/python -m pytest tests/ -q` -> 585 passed.

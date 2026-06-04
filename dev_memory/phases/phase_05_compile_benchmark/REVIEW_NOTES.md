@@ -50,3 +50,17 @@
 - [x] Trace failure after lease creation kills the process group and terminalizes the lease.
 - [x] Failure classifications use 5.5a schema and keep `write_failed_combos=False`.
 - [x] Targeted, adjacent, and full test suites pass.
+
+## Subtask 5.4 - benchmark skill
+
+- [x] `benchmark_candidate()` consumes fake_gbs through the real process-backed harness.
+- [x] Artifact hash is verified before spawning benchmark runs.
+- [x] Artifact mismatch emits an invalid `artifact_invalid` run-level record and spawns no benchmark process.
+- [x] Warmup and measured phases are explicit, with stable measured run_index ordering.
+- [x] Returned records are 5.5a `RunLevelRecord` objects and include objective_direction, artifact verification, score_source_ref, env snapshot, pair_key, and summary_hint.
+- [x] `score_parse_failed` is modeled as an invalid run with `FailureClassification`, not success with score=None.
+- [x] `process_started` trace contains full ProcessRecord and ProcessLease payloads.
+- [x] Checkpoint operation ledger receives benchmark process_refs and does not write deprecated `current_trial.process`.
+- [x] Trace failure after lease creation kills the process group and terminalizes the lease through fake_gbs cleanup.
+- [x] Outlier/statistical judgment is not implemented in Phase 05 and remains deferred to Phase 08.
+- [x] Targeted, adjacent, and full test suites pass.

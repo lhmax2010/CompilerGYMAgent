@@ -2298,3 +2298,30 @@ Next action: generate patch artifacts, commit/push Subtask 5.3, then request Cla
   - `.venv/bin/python -m pytest tests/ -q` -> 581 passed.
 
 Next action: begin Subtask 5.4 benchmark skill.
+
+## 2026-06-04T22:08:19+08:00 - Phase 05 / Subtask 5.4 implemented
+
+- Added the Phase 05 benchmark skill:
+  - `src/agent/skills/benchmark.py`,
+  - `benchmark_candidate()`,
+  - `BenchmarkSkillResult`,
+  - `BenchmarkSkillError`.
+- The skill consumes compile artifacts and verifies the expected artifact hash before any benchmark process spawn.
+- Artifact mismatch is reported as an invalid `artifact_invalid` `RunLevelRecord` and does not spawn a benchmark process.
+- Warmup and measured runs are explicit:
+  - warmup runs are phase=`warmup`,
+  - measured runs are phase=`measured`,
+  - measured run_index ordering is stable for Phase 08.
+- Benchmark runs use fake_gbs through the real process-backed harness and enforce recovery ordering:
+  - process is spawned,
+  - lease is written,
+  - `process_started` trace is appended with full ProcessRecord and ProcessLease payload,
+  - checkpoint operation ledger receives benchmark `process_refs`.
+- Hard benchmark failures produce 5.5a `FailureClassification` objects with `write_failed_combos=False`.
+- Outlier and final statistical judgment remain deferred to Phase 08.
+- Validation:
+  - `.venv/bin/python -m pytest tests/test_benchmark_skill.py -q` -> 4 passed.
+  - `.venv/bin/python -m pytest tests/test_benchmark_skill.py tests/test_compile_skill.py tests/test_fake_gbs.py tests/test_result_schema.py tests/test_process_runner.py tests/test_process_cleaner.py -q` -> 54 passed.
+  - `.venv/bin/python -m pytest tests/ -q` -> 585 passed.
+
+Next action: generate patch artifacts, commit/push Subtask 5.4, then request Claude review.

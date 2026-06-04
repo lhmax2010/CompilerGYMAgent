@@ -1,0 +1,22 @@
+Phase 05 / Subtask 5.4 - benchmark skill
+
+Implemented:
+- Added src/agent/skills/benchmark.py.
+- Added benchmark_candidate(), BenchmarkSkillResult, and BenchmarkSkillError.
+- benchmark_candidate consumes compile artifacts and verifies artifact_hash before spawning benchmark runs.
+- Artifact hash mismatch produces an invalid artifact_invalid RunLevelRecord and does not spawn a benchmark process.
+- Benchmark runs through fake_gbs using the real process-backed harness.
+- Warmup and measured runs are explicit phases; measured run_index ordering is stable for Phase 08.
+- Run output uses the shared 5.5a RunLevelRecord schema with objective_direction, artifact verification, score_source_ref, env snapshot, pair_key, and summary_hint.
+- process_started trace includes full ProcessRecord and ProcessLease payload.
+- Checkpoint operation ledger receives benchmark process_refs and remains the process authority.
+- Deprecated checkpoint.current_trial.process is not written.
+- Trace/checkpoint failure after benchmark lease creation is handled by fake_gbs cleanup_process_lease(force_suspected=True), terminalizing the lease and leaving no live process group.
+- Hard benchmark failures return FailureClassification schema objects conservatively with write_failed_combos=False.
+- Outlier and final statistical judgment remain deferred to Phase 08.
+
+Validation:
+- test_benchmark_skill.py: 4 passed.
+- benchmark/compile/fake_gbs/result_schema/process adjacent tests: 54 passed.
+- Full suite: 585 passed.
+

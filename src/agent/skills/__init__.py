@@ -1,5 +1,6 @@
 """Deterministic skill helpers for the local agent workflow."""
 
+from .benchmark import BenchmarkSkillError, BenchmarkSkillResult, benchmark_candidate
 from .compile import CompileSkillError, CompileSkillResult, compile_candidate
 from .fake_gbs import (
     DEFAULT_BURSTY_TRANSITIONS,
@@ -36,6 +37,8 @@ from .workspace_snapshot import (
 from .workspace_verify import WorkspaceVerifyResult, workspace_verify
 
 __all__ = [
+    "BenchmarkSkillError",
+    "BenchmarkSkillResult",
     "DEFAULT_BURSTY_TRANSITIONS",
     "CompileSkillError",
     "CompileSkillResult",
@@ -62,6 +65,7 @@ __all__ = [
     "WorkspaceSnapshotPhase",
     "WorkspaceSnapshotResult",
     "WorkspaceVerifyResult",
+    "benchmark_candidate",
     "compile_candidate",
     "compute_combo_hash",
     "load_workspace_snapshot",
