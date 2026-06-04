@@ -1,0 +1,18 @@
+Phase 05 / Subtask 5.5a - failure/result schema skeleton
+
+Implemented:
+- Added src/agent/skills/result_schema.py.
+- Added schema aliases for failure category, failure route, confidence, run phase, and objective direction.
+- Added EvidenceLine and FailureClassification.
+- FailureClassification defaults to route=unknown and write_failed_combos=False.
+- Model validation rejects write_failed_combos=True unless route=option_related and confidence=HIGH.
+- Added RunEnvironmentSnapshot, RunSummaryHint, and RunLevelRecord.
+- RunLevelRecord carries run_id, run_index, combo_hash, score, warmup/measured phase, metric metadata, required objective_direction, duration, timestamps, exit/signal, stdout/stderr refs, env snapshot, artifact refs/hashes, score_source_ref, pair_key, failure_classification, and summary_hint.
+- score_parse_failed invalid runs require score_source_ref.
+- Exported the schema models through agent.skills and top-level agent.
+
+Validation:
+- test_result_schema.py: 19 passed.
+- fake_gbs + result schema adjacent tests: 28 passed.
+- Full suite: 578 passed.
+

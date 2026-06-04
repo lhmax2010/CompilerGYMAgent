@@ -24,3 +24,17 @@
 - [x] Bursty mode uses a seeded Markov state machine and has 100-round pressure coverage.
 - [x] Same seed replays score/noise state sequence.
 - [x] Targeted and full test suites pass.
+
+## Subtask 5.5a - failure/result schema skeleton
+
+- [x] `FailureClassification` defaults to `route=unknown` and `write_failed_combos=False`.
+- [x] Model validation rejects `write_failed_combos=True` unless `route=option_related` and `confidence=HIGH`.
+- [x] Failure category, route, confidence, run phase, and objective direction are closed schema values, not arbitrary strings.
+- [x] `EvidenceLine` includes log_ref, text, and pattern_id for traceable evidence.
+- [x] `RunLevelRecord` requires `objective_direction`.
+- [x] `RunLevelRecord` includes run_id, run_index, combo_hash, metric metadata, artifact verification, score_source_ref, pair_key, failure_classification, and summary_hint.
+- [x] Successful runs require a score and reject failure metadata.
+- [x] Invalid runs require invalid_reason and failure_classification.
+- [x] `score_parse_failed` invalid runs require score_source_ref.
+- [x] Subtask remains schema-only; no classifier rule matching or log parsing is implemented.
+- [x] Targeted, adjacent, and full test suites pass.

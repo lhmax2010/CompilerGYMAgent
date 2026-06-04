@@ -38,3 +38,21 @@ Validation:
 - `.venv/bin/python -m pytest tests/test_fake_gbs.py -q` -> 9 passed.
 - `.venv/bin/python -m pytest tests/test_fake_gbs.py tests/test_process_runner.py tests/test_process_cleaner.py -q` -> 28 passed.
 - `.venv/bin/python -m pytest tests/ -q` -> 559 passed.
+
+## 5.5a failure/result schema skeleton
+
+- Added `src/agent/skills/result_schema.py`.
+- Defined closed schema aliases for failure category, route, confidence, run phase, and objective direction.
+- Added `EvidenceLine` and `FailureClassification`.
+- `FailureClassification` defaults conservatively to `route=unknown` and `write_failed_combos=False`.
+- Model validation rejects `write_failed_combos=True` unless `route=option_related` and `confidence=HIGH`.
+- Added `RunEnvironmentSnapshot`, `RunSummaryHint`, and `RunLevelRecord`.
+- `RunLevelRecord` captures run_id, run_index, combo_hash, metric metadata, required objective_direction, timing, exit/signal state, stdout/stderr refs, env snapshot, artifact refs/hashes, score_source_ref, pair_key, failure classification, and summary hints.
+- `score_parse_failed` invalid runs must carry `score_source_ref`.
+- This subtask is schema-only and intentionally contains no classifier pattern matching or log parsing rules.
+
+Validation:
+
+- `.venv/bin/python -m pytest tests/test_result_schema.py -q` -> 19 passed.
+- `.venv/bin/python -m pytest tests/test_fake_gbs.py tests/test_result_schema.py -q` -> 28 passed.
+- `.venv/bin/python -m pytest tests/ -q` -> 578 passed.

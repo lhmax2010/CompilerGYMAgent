@@ -1080,3 +1080,17 @@ Decision records must include:
   - Keep force behavior identical to non-force when owned targets exist. Rejected because it leaves suspected escapees alive in mixed target sets.
   - Always kill suspected targets, even without force. Rejected because suspected can include same-session but unrelated processes and should remain conservative by default.
   - Kill only suspected targets under force and skip owned targets. Rejected because owned targets are the highest-confidence cleanup target and must remain killable.
+
+## 2026-06-04T13:36:13Z - Result schema enforces conservative failed-combo writes
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 05
+  - REQUIREMENTS.md section 4.7.1
+  - REQUIREMENTS.md section 4.7.3
+  - REQUIREMENTS.md section 4.6.2
+- decision: Subtask 5.5a implements the failure/result schema as pure data models and enforces the failed-combo write gate at model construction time. `FailureClassification` defaults to `route=unknown` and `write_failed_combos=false`; a classification with `write_failed_combos=true` is invalid unless `route=option_related` and `confidence=HIGH`. `RunLevelRecord` is also model-checked so valid scoring runs cannot carry failure metadata, invalid runs must carry `invalid_reason` and `failure_classification`, and `score_parse_failed` runs must include `score_source_ref`.
+- rationale: Failed-combo memory is durable candidate-engine knowledge. If a low-confidence or environment-related failure can be represented as writeable, a later classifier-rule bug could poison search even if the routing decision was intended to be conservative. Putting the invariant in the schema gives compile, benchmark, and future classifier code a shared hard boundary before any rule implementation exists.
+- alternatives_considered:
+  - Enforce `write_failed_combos` only in the Phase 5.5b classifier rules. Rejected because rules can regress; the schema should make unsafe states unrepresentable.
+  - Allow `MEDIUM` option-related failures to write failed_combos. Rejected because Phase 05 should prefer missed pruning over permanent false negatives until evidence is strong.
+  - Represent benchmark failures as `success + score=None`. Rejected because score absence must be explicit and traceable through `score_parse_failed` plus `score_source_ref`.

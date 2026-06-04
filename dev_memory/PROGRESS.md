@@ -2196,3 +2196,34 @@ Next action: generate patch artifacts, commit/push Subtask 5.1, then request Cla
   - `.venv/bin/python -m pytest tests/ -q` -> 559 passed.
 
 Next action: generate patch artifacts, commit/push Subtask 5.2, then request Claude review.
+
+## 2026-06-04T21:36:13+08:00 - Phase 05 / Subtask 5.5a implemented
+
+- Added schema-only failure/result models for compile and benchmark skills:
+  - `EvidenceLine`,
+  - `FailureClassification`,
+  - `RunEnvironmentSnapshot`,
+  - `RunSummaryHint`,
+  - `RunLevelRecord`.
+- Added conservative model-layer safeguards:
+  - failure classifications default to `route=unknown`,
+  - `write_failed_combos` defaults to false,
+  - `write_failed_combos=true` is rejected unless `route=option_related` and `confidence=HIGH`.
+- Added run-level benchmark contract:
+  - required `objective_direction`,
+  - run_id/run_index/combo_hash,
+  - metric metadata,
+  - artifact_ref/artifact_hash/artifact_hash_verified,
+  - score_source_ref and nullable pair_key,
+  - failure_classification for invalid runs,
+  - summary_hint for mean/median/stddev/CV handoff.
+- Kept 5.5a schema-only:
+  - no classifier rule matching,
+  - no compiler log parsing,
+  - no routing implementation beyond model invariants.
+- Validation:
+  - `.venv/bin/python -m pytest tests/test_result_schema.py -q` -> 19 passed.
+  - `.venv/bin/python -m pytest tests/test_fake_gbs.py tests/test_result_schema.py -q` -> 28 passed.
+  - `.venv/bin/python -m pytest tests/ -q` -> 578 passed.
+
+Next action: generate patch artifacts, commit/push Subtask 5.5a, then request Claude review.

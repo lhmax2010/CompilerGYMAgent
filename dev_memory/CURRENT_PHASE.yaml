@@ -1,7 +1,7 @@
 phase_id: phase_05_compile_benchmark
 phase_title: "Compile / Benchmark Skills"
 started_at: 2026-06-04T10:05:00+08:00
-last_updated: 2026-06-04T10:50:00+08:00
+last_updated: 2026-06-04T21:36:13+08:00
 target_milestone: "M1 end / M2 start"
 related_requirements:
   - REQUIREMENTS.md section 4.7.1 gbs_compile
@@ -91,6 +91,50 @@ subtasks:
     patch_file: dev_memory/phases/phase_05_compile_benchmark/patches/02_fake_gbs_harness.patch
     patch_generated: true
     commit_required: true
+    commit_pending: false
+    implementation_commit: aa8f2a2
+    external_review_verdict: approve
+    external_reviewed_at: 2026-06-04T11:15:00+08:00
+    external_review_tests: "559 passed; bursty Markov probe verified; 0 residual process leak"
+  - id: "5.5a"
+    title: "failure/result schema skeleton"
+    status: done
+    related_requirements:
+      - ROADMAP.yaml Phase 05 deliverable failure/result schema skeleton
+      - DECISIONS.md "Failure classification: confidence + evidence + three-way routing"
+      - DECISIONS.md "Benchmark returns run-level records, not just scores"
+      - DECISIONS.md "score_parse_failed is a first-class failure outcome"
+    files_created:
+      - src/agent/skills/result_schema.py
+      - tests/test_result_schema.py
+    files_modified:
+      - src/agent/skills/__init__.py
+      - src/agent/__init__.py
+      - dev_memory/CURRENT_PHASE.yaml
+      - dev_memory/ROADMAP.yaml
+      - dev_memory/DECISIONS.md
+      - dev_memory/PROGRESS.md
+      - dev_memory/phases/phase_05_compile_benchmark/CHECKLIST.yaml
+      - dev_memory/phases/phase_05_compile_benchmark/REVIEW_NOTES.md
+      - dev_memory/phases/phase_05_compile_benchmark/SUMMARY.md
+      - dev_memory/phases/phase_05_compile_benchmark/UT_RESULTS.md
+    behavior_notes:
+      - "Added pure schema-only failure classification and run-level benchmark record models; no classifier rules or log pattern matching."
+      - "FailureClassification defaults to route=unknown and write_failed_combos=False."
+      - "Model validation rejects write_failed_combos=True unless route=option_related and confidence=HIGH."
+      - "RunLevelRecord requires objective_direction, run_index, combo_hash, artifact verification fields, env snapshot, and scoring validity metadata."
+      - "score_parse_failed invalid runs require score_source_ref so parse failures point back to logs."
+    ut_required: true
+    ut_passed: true
+    targeted_ut: "19 tests passed, 0 failed (test_result_schema.py)"
+    adjacent_ut: "28 tests passed, 0 failed (fake_gbs/result_schema)"
+    production_regression_ut: "578 tests passed, 0 failed"
+    self_review_required: true
+    self_reviewed: true
+    patch_required: true
+    patch_file: dev_memory/phases/phase_05_compile_benchmark/patches/03_result_schema_skeleton.patch
+    patch_generated: true
+    commit_required: true
     commit_pending: true
     external_review_verdict: pending
-next_action: "Push Subtask 5.2 and request Claude review; next planned subtask is 5.5a failure/result schema skeleton after review/Ubuntu validation."
+next_action: "Push Subtask 5.5a and request Claude review; next planned subtask is 5.3 compile skill after review/Ubuntu validation."

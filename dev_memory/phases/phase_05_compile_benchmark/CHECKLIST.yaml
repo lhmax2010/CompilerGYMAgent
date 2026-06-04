@@ -16,11 +16,16 @@ subtasks:
     implementation_complete: true
     tests_passed: true
     patch_artifacts_generated: true
-    external_review: pending
+    external_review: approve
     ubuntu_validation: pending
   - id: "5.5a"
     title: "failure/result schema skeleton"
-    status: pending
+    status: done
+    implementation_complete: true
+    tests_passed: true
+    patch_artifacts_generated: true
+    external_review: pending
+    ubuntu_validation: pending
   - id: "5.3"
     title: "compile skill"
     status: pending

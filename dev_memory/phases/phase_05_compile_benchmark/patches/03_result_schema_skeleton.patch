@@ -1,0 +1,832 @@
+diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index 420053c..221e00e 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -1,7 +1,7 @@
+ phase_id: phase_05_compile_benchmark
+ phase_title: "Compile / Benchmark Skills"
+ started_at: 2026-06-04T10:05:00+08:00
+-last_updated: 2026-06-04T10:50:00+08:00
++last_updated: 2026-06-04T21:36:13+08:00
+ target_milestone: "M1 end / M2 start"
+ related_requirements:
+   - REQUIREMENTS.md section 4.7.1 gbs_compile
+@@ -91,6 +91,50 @@ subtasks:
+     patch_file: dev_memory/phases/phase_05_compile_benchmark/patches/02_fake_gbs_harness.patch
+     patch_generated: true
+     commit_required: true
++    commit_pending: false
++    implementation_commit: aa8f2a2
++    external_review_verdict: approve
++    external_reviewed_at: 2026-06-04T11:15:00+08:00
++    external_review_tests: "559 passed; bursty Markov probe verified; 0 residual process leak"
++  - id: "5.5a"
++    title: "failure/result schema skeleton"
++    status: done
++    related_requirements:
++      - ROADMAP.yaml Phase 05 deliverable failure/result schema skeleton
++      - DECISIONS.md "Failure classification: confidence + evidence + three-way routing"
++      - DECISIONS.md "Benchmark returns run-level records, not just scores"
++      - DECISIONS.md "score_parse_failed is a first-class failure outcome"
++    files_created:
++      - src/agent/skills/result_schema.py
++      - tests/test_result_schema.py
++    files_modified:
++      - src/agent/skills/__init__.py
++      - src/agent/__init__.py
++      - dev_memory/CURRENT_PHASE.yaml
++      - dev_memory/ROADMAP.yaml
++      - dev_memory/DECISIONS.md
++      - dev_memory/PROGRESS.md
++      - dev_memory/phases/phase_05_compile_benchmark/CHECKLIST.yaml
++      - dev_memory/phases/phase_05_compile_benchmark/REVIEW_NOTES.md
++      - dev_memory/phases/phase_05_compile_benchmark/SUMMARY.md
++      - dev_memory/phases/phase_05_compile_benchmark/UT_RESULTS.md
++    behavior_notes:
++      - "Added pure schema-only failure classification and run-level benchmark record models; no classifier rules or log pattern matching."
++      - "FailureClassification defaults to route=unknown and write_failed_combos=False."
++      - "Model validation rejects write_failed_combos=True unless route=option_related and confidence=HIGH."
++      - "RunLevelRecord requires objective_direction, run_index, combo_hash, artifact verification fields, env snapshot, and scoring validity metadata."
++      - "score_parse_failed invalid runs require score_source_ref so parse failures point back to logs."
++    ut_required: true
++    ut_passed: true
++    targeted_ut: "19 tests passed, 0 failed (test_result_schema.py)"
++    adjacent_ut: "28 tests passed, 0 failed (fake_gbs/result_schema)"
++    production_regression_ut: "578 tests passed, 0 failed"
++    self_review_required: true
++    self_reviewed: true
++    patch_required: true
++    patch_file: dev_memory/phases/phase_05_compile_benchmark/patches/03_result_schema_skeleton.patch
++    patch_generated: true
++    commit_required: true
+     commit_pending: true
+     external_review_verdict: pending
+-next_action: "Push Subtask 5.2 and request Claude review; next planned subtask is 5.5a failure/result schema skeleton after review/Ubuntu validation."
++next_action: "Push Subtask 5.5a and request Claude review; next planned subtask is 5.3 compile skill after review/Ubuntu validation."
+diff --git a/dev_memory/DECISIONS.md b/dev_memory/DECISIONS.md
+index 5e8d8cc..d9c1f67 100644
+--- a/dev_memory/DECISIONS.md
++++ b/dev_memory/DECISIONS.md
+@@ -1080,3 +1080,17 @@ Decision records must include:
+   - Keep force behavior identical to non-force when owned targets exist. Rejected because it leaves suspected escapees alive in mixed target sets.
+   - Always kill suspected targets, even without force. Rejected because suspected can include same-session but unrelated processes and should remain conservative by default.
+   - Kill only suspected targets under force and skip owned targets. Rejected because owned targets are the highest-confidence cleanup target and must remain killable.
++
++## 2026-06-04T13:36:13Z - Result schema enforces conservative failed-combo writes
++
++- affected_requirement:
++  - ROADMAP.yaml Phase 05
++  - REQUIREMENTS.md section 4.7.1
++  - REQUIREMENTS.md section 4.7.3
++  - REQUIREMENTS.md section 4.6.2
++- decision: Subtask 5.5a implements the failure/result schema as pure data models and enforces the failed-combo write gate at model construction time. `FailureClassification` defaults to `route=unknown` and `write_failed_combos=false`; a classification with `write_failed_combos=true` is invalid unless `route=option_related` and `confidence=HIGH`. `RunLevelRecord` is also model-checked so valid scoring runs cannot carry failure metadata, invalid runs must carry `invalid_reason` and `failure_classification`, and `score_parse_failed` runs must include `score_source_ref`.
++- rationale: Failed-combo memory is durable candidate-engine knowledge. If a low-confidence or environment-related failure can be represented as writeable, a later classifier-rule bug could poison search even if the routing decision was intended to be conservative. Putting the invariant in the schema gives compile, benchmark, and future classifier code a shared hard boundary before any rule implementation exists.
++- alternatives_considered:
++  - Enforce `write_failed_combos` only in the Phase 5.5b classifier rules. Rejected because rules can regress; the schema should make unsafe states unrepresentable.
++  - Allow `MEDIUM` option-related failures to write failed_combos. Rejected because Phase 05 should prefer missed pruning over permanent false negatives until evidence is strong.
++  - Represent benchmark failures as `success + score=None`. Rejected because score absence must be explicit and traceable through `score_parse_failed` plus `score_source_ref`.
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index b7aa33e..32ba16f 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -2196,3 +2196,34 @@ Next action: generate patch artifacts, commit/push Subtask 5.1, then request Cla
+   - `.venv/bin/python -m pytest tests/ -q` -> 559 passed.
+ 
+ Next action: generate patch artifacts, commit/push Subtask 5.2, then request Claude review.
++
++## 2026-06-04T21:36:13+08:00 - Phase 05 / Subtask 5.5a implemented
++
++- Added schema-only failure/result models for compile and benchmark skills:
++  - `EvidenceLine`,
++  - `FailureClassification`,
++  - `RunEnvironmentSnapshot`,
++  - `RunSummaryHint`,
++  - `RunLevelRecord`.
++- Added conservative model-layer safeguards:
++  - failure classifications default to `route=unknown`,
++  - `write_failed_combos` defaults to false,
++  - `write_failed_combos=true` is rejected unless `route=option_related` and `confidence=HIGH`.
++- Added run-level benchmark contract:
++  - required `objective_direction`,
++  - run_id/run_index/combo_hash,
++  - metric metadata,
++  - artifact_ref/artifact_hash/artifact_hash_verified,
++  - score_source_ref and nullable pair_key,
++  - failure_classification for invalid runs,
++  - summary_hint for mean/median/stddev/CV handoff.
++- Kept 5.5a schema-only:
++  - no classifier rule matching,
++  - no compiler log parsing,
++  - no routing implementation beyond model invariants.
++- Validation:
++  - `.venv/bin/python -m pytest tests/test_result_schema.py -q` -> 19 passed.
++  - `.venv/bin/python -m pytest tests/test_fake_gbs.py tests/test_result_schema.py -q` -> 28 passed.
++  - `.venv/bin/python -m pytest tests/ -q` -> 578 passed.
++
++Next action: generate patch artifacts, commit/push Subtask 5.5a, then request Claude review.
+diff --git a/dev_memory/ROADMAP.yaml b/dev_memory/ROADMAP.yaml
+index ac0b086..eb36209 100644
+--- a/dev_memory/ROADMAP.yaml
++++ b/dev_memory/ROADMAP.yaml
+@@ -160,7 +160,7 @@ planned_phases:
+     title: "Compile / Benchmark Skills"
+     status: in_progress
+     started_at: 2026-06-04T10:05:00+08:00
+-    actual_subtasks_done: 2
++    actual_subtasks_done: 3
+     milestone: "M1 end / M2 start"
+     requirement_sections: ["4.7.1 (gbs_compile, build_only_check, error_analyzer, benchmark_runner, quick_benchmark, score_aggregator)"]
+     dependencies: ["04", "06"]
+diff --git a/dev_memory/phases/phase_05_compile_benchmark/CHECKLIST.yaml b/dev_memory/phases/phase_05_compile_benchmark/CHECKLIST.yaml
+index 49c7704..7b4d95a 100644
+--- a/dev_memory/phases/phase_05_compile_benchmark/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_05_compile_benchmark/CHECKLIST.yaml
+@@ -16,11 +16,16 @@ subtasks:
+     implementation_complete: true
+     tests_passed: true
+     patch_artifacts_generated: true
+-    external_review: pending
++    external_review: approve
+     ubuntu_validation: pending
+   - id: "5.5a"
+     title: "failure/result schema skeleton"
+-    status: pending
++    status: done
++    implementation_complete: true
++    tests_passed: true
++    patch_artifacts_generated: true
++    external_review: pending
++    ubuntu_validation: pending
+   - id: "5.3"
+     title: "compile skill"
+     status: pending
+diff --git a/dev_memory/phases/phase_05_compile_benchmark/REVIEW_NOTES.md b/dev_memory/phases/phase_05_compile_benchmark/REVIEW_NOTES.md
+index 224d444..eb62d34 100644
+--- a/dev_memory/phases/phase_05_compile_benchmark/REVIEW_NOTES.md
++++ b/dev_memory/phases/phase_05_compile_benchmark/REVIEW_NOTES.md
+@@ -24,3 +24,17 @@
+ - [x] Bursty mode uses a seeded Markov state machine and has 100-round pressure coverage.
+ - [x] Same seed replays score/noise state sequence.
+ - [x] Targeted and full test suites pass.
++
++## Subtask 5.5a - failure/result schema skeleton
++
++- [x] `FailureClassification` defaults to `route=unknown` and `write_failed_combos=False`.
++- [x] Model validation rejects `write_failed_combos=True` unless `route=option_related` and `confidence=HIGH`.
++- [x] Failure category, route, confidence, run phase, and objective direction are closed schema values, not arbitrary strings.
++- [x] `EvidenceLine` includes log_ref, text, and pattern_id for traceable evidence.
++- [x] `RunLevelRecord` requires `objective_direction`.
++- [x] `RunLevelRecord` includes run_id, run_index, combo_hash, metric metadata, artifact verification, score_source_ref, pair_key, failure_classification, and summary_hint.
++- [x] Successful runs require a score and reject failure metadata.
++- [x] Invalid runs require invalid_reason and failure_classification.
++- [x] `score_parse_failed` invalid runs require score_source_ref.
++- [x] Subtask remains schema-only; no classifier rule matching or log parsing is implemented.
++- [x] Targeted, adjacent, and full test suites pass.
+diff --git a/dev_memory/phases/phase_05_compile_benchmark/SUMMARY.md b/dev_memory/phases/phase_05_compile_benchmark/SUMMARY.md
+index e86784d..1954026 100644
+--- a/dev_memory/phases/phase_05_compile_benchmark/SUMMARY.md
++++ b/dev_memory/phases/phase_05_compile_benchmark/SUMMARY.md
+@@ -38,3 +38,21 @@ Validation:
+ - `.venv/bin/python -m pytest tests/test_fake_gbs.py -q` -> 9 passed.
+ - `.venv/bin/python -m pytest tests/test_fake_gbs.py tests/test_process_runner.py tests/test_process_cleaner.py -q` -> 28 passed.
+ - `.venv/bin/python -m pytest tests/ -q` -> 559 passed.
++
++## 5.5a failure/result schema skeleton
++
++- Added `src/agent/skills/result_schema.py`.
++- Defined closed schema aliases for failure category, route, confidence, run phase, and objective direction.
++- Added `EvidenceLine` and `FailureClassification`.
++- `FailureClassification` defaults conservatively to `route=unknown` and `write_failed_combos=False`.
++- Model validation rejects `write_failed_combos=True` unless `route=option_related` and `confidence=HIGH`.
++- Added `RunEnvironmentSnapshot`, `RunSummaryHint`, and `RunLevelRecord`.
++- `RunLevelRecord` captures run_id, run_index, combo_hash, metric metadata, required objective_direction, timing, exit/signal state, stdout/stderr refs, env snapshot, artifact refs/hashes, score_source_ref, pair_key, failure classification, and summary hints.
++- `score_parse_failed` invalid runs must carry `score_source_ref`.
++- This subtask is schema-only and intentionally contains no classifier pattern matching or log parsing rules.
++
++Validation:
++
++- `.venv/bin/python -m pytest tests/test_result_schema.py -q` -> 19 passed.
++- `.venv/bin/python -m pytest tests/test_fake_gbs.py tests/test_result_schema.py -q` -> 28 passed.
++- `.venv/bin/python -m pytest tests/ -q` -> 578 passed.
+diff --git a/dev_memory/phases/phase_05_compile_benchmark/UT_RESULTS.md b/dev_memory/phases/phase_05_compile_benchmark/UT_RESULTS.md
+index 1d06483..efece09 100644
+--- a/dev_memory/phases/phase_05_compile_benchmark/UT_RESULTS.md
++++ b/dev_memory/phases/phase_05_compile_benchmark/UT_RESULTS.md
+@@ -22,3 +22,15 @@
+   - Result: 559 passed, 0 failed
+ - Bursty probe:
+   - `FakeGbsNoiseModel(seed=31)` over 100 bursty samples produced healthy=57, degraded=33, failed=10 with 31 adjacent non-healthy transitions.
++
++## Subtask 5.5a
++
++- Targeted:
++  - Command: `.venv/bin/python -m pytest tests/test_result_schema.py -q`
++  - Result: 19 passed, 0 failed
++- Adjacent:
++  - Command: `.venv/bin/python -m pytest tests/test_fake_gbs.py tests/test_result_schema.py -q`
++  - Result: 28 passed, 0 failed
++- Full:
++  - Command: `.venv/bin/python -m pytest tests/ -q`
++  - Result: 578 passed, 0 failed
+diff --git a/src/agent/__init__.py b/src/agent/__init__.py
+index 4eddd0c..941c4a0 100644
+--- a/src/agent/__init__.py
++++ b/src/agent/__init__.py
+@@ -211,11 +211,21 @@ from .registry import (
+ )
+ from .skills import (
+     DEFAULT_BURSTY_TRANSITIONS,
++    EvidenceLine,
++    FailureCategory,
+     FakeGbsBenchmarkResult,
+     FakeGbsCompileResult,
+     FakeGbsHarness,
+     FakeGbsNoiseModel,
+     FakeGbsNoiseSample,
++    FailureClassification,
++    FailureConfidence,
++    FailureRoute,
++    ObjectiveDirection,
++    RunEnvironmentSnapshot,
++    RunLevelRecord,
++    RunPhase,
++    RunSummaryHint,
+     SpecBackupResult,
+     SpecInjectResult,
+     SpecRestoreResult,
+@@ -230,6 +240,7 @@ from .skills import (
+     spec_restore,
+     workspace_snapshot,
+     workspace_verify,
++    compute_combo_hash as compute_result_combo_hash,
+ )
+ from .trace import (
+     TraceCheckpointAlignment,
+@@ -311,11 +322,16 @@ __all__ = [
+     "ExperienceSourceIntegrity",
+     "ExperienceValidation",
+     "EnvMarkerRead",
++    "EvidenceLine",
++    "FailureCategory",
+     "FakeGbsBenchmarkResult",
+     "FakeGbsCompileResult",
+     "FakeGbsHarness",
+     "FakeGbsNoiseModel",
+     "FakeGbsNoiseSample",
++    "FailureClassification",
++    "FailureConfidence",
++    "FailureRoute",
+     "FilesystemInspection",
+     "FilesystemMount",
+     "FsMemoryError",
+@@ -343,6 +359,7 @@ __all__ = [
+     "NamespaceMismatchError",
+     "NamespaceLayout",
+     "Option",
++    "ObjectiveDirection",
+     "OWNED_SCORE_THRESHOLD",
+     "PROCESS_LEASE_SCHEMA_VERSION",
+     "ProjectNamespace",
+@@ -359,6 +376,10 @@ __all__ = [
+     "RegistryLoadError",
+     "RegistryValidationError",
+     "RemoteFilesystemWarning",
++    "RunEnvironmentSnapshot",
++    "RunLevelRecord",
++    "RunPhase",
++    "RunSummaryHint",
+     "ScoreVsBest",
+     "ScheduleSlot",
+     "SessionId",
+@@ -425,6 +446,7 @@ __all__ = [
+     "compute_learned_rule_payload_hash",
+     "compute_payload_hash",
+     "compute_project_namespace",
++    "compute_result_combo_hash",
+     "compute_trial_payload_hash",
+     "count_trace_events",
+     "discover_trial_records",
+diff --git a/src/agent/skills/__init__.py b/src/agent/skills/__init__.py
+index 712db40..833c178 100644
+--- a/src/agent/skills/__init__.py
++++ b/src/agent/skills/__init__.py
+@@ -8,6 +8,19 @@ from .fake_gbs import (
+     FakeGbsNoiseModel,
+     FakeGbsNoiseSample,
+ )
++from .result_schema import (
++    EvidenceLine,
++    FailureCategory,
++    FailureClassification,
++    FailureConfidence,
++    FailureRoute,
++    ObjectiveDirection,
++    RunEnvironmentSnapshot,
++    RunLevelRecord,
++    RunPhase,
++    RunSummaryHint,
++    compute_combo_hash,
++)
+ from .spec_backup import SpecBackupResult, spec_backup
+ from .spec_injector import SpecInjectResult, spec_injector
+ from .spec_restore import SpecRestoreResult, spec_restore
+@@ -28,6 +41,16 @@ __all__ = [
+     "FakeGbsHarness",
+     "FakeGbsNoiseModel",
+     "FakeGbsNoiseSample",
++    "EvidenceLine",
++    "FailureCategory",
++    "FailureClassification",
++    "FailureConfidence",
++    "FailureRoute",
++    "ObjectiveDirection",
++    "RunEnvironmentSnapshot",
++    "RunLevelRecord",
++    "RunPhase",
++    "RunSummaryHint",
+     "SpecBackupResult",
+     "SpecInjectResult",
+     "SpecRestoreResult",
+@@ -36,6 +59,7 @@ __all__ = [
+     "WorkspaceSnapshotPhase",
+     "WorkspaceSnapshotResult",
+     "WorkspaceVerifyResult",
++    "compute_combo_hash",
+     "load_workspace_snapshot",
+     "spec_backup",
+     "spec_injector",
+diff --git a/src/agent/skills/result_schema.py b/src/agent/skills/result_schema.py
+new file mode 100644
+index 0000000..09a9d87
+--- /dev/null
++++ b/src/agent/skills/result_schema.py
+@@ -0,0 +1,219 @@
++"""Shared compile/benchmark result schemas for Phase 05 skills."""
++
++from __future__ import annotations
++
++import hashlib
++from datetime import UTC, datetime, timedelta
++from typing import Any, Literal
++
++from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
++
++from agent.config import NonEmptyStr
++
++
++FailureCategory = Literal[
++    "invalid_option",
++    "option_conflict",
++    "compiler_crash",
++    "build_timeout",
++    "build_system_failure",
++    "dependency_missing",
++    "disk_full_or_quota",
++    "permission_denied",
++    "oom_killed",
++    "network_failure",
++    "source_dirty",
++    "spec_corruption",
++    "artifact_missing",
++    "infra_failure",
++    "unknown_failure",
++    "benchmark_timeout",
++    "benchmark_crash",
++    "score_parse_failed",
++    "functional_correctness_failed",
++    "artifact_invalid",
++    "environment_unstable",
++    "too_noisy",
++]
++FailureRoute = Literal["option_related", "environment_related", "unknown"]
++FailureConfidence = Literal["HIGH", "MEDIUM", "LOW"]
++RunPhase = Literal["warmup", "measured"]
++ObjectiveDirection = Literal["higher_is_better", "lower_is_better"]
++
++
++class StrictResultSchemaModel(BaseModel):
++    model_config = ConfigDict(extra="forbid", validate_assignment=True)
++
++
++class EvidenceLine(StrictResultSchemaModel):
++    """Evidence backing a failure classification."""
++
++    log_ref: NonEmptyStr
++    text: NonEmptyStr
++    pattern_id: NonEmptyStr
++
++
++class FailureClassification(StrictResultSchemaModel):
++    """Structured failure classification with conservative memory routing."""
++
++    category: FailureCategory = "unknown_failure"
++    route: FailureRoute = "unknown"
++    confidence: FailureConfidence = "LOW"
++    evidence: tuple[EvidenceLine, ...] = ()
++    affected_options: tuple[NonEmptyStr, ...] = ()
++    retryable: bool = False
++    write_failed_combos: bool = False
++    matched_rule_id: NonEmptyStr | None = None
++    classifier_version: NonEmptyStr = "failure_classifier.v1"
++
++    @model_validator(mode="after")
++    def failed_combo_write_requires_high_confidence_option_route(
++        self,
++    ) -> FailureClassification:
++        if self.write_failed_combos and not (
++            self.route == "option_related" and self.confidence == "HIGH"
++        ):
++            raise ValueError(
++                "write_failed_combos requires route='option_related' "
++                "and confidence='HIGH'"
++            )
++        return self
++
++
++class RunEnvironmentSnapshot(StrictResultSchemaModel):
++    """Minimal environment context captured for a benchmark run."""
++
++    loadavg_1m: float | None = None
++    loadavg_5m: float | None = None
++    loadavg_15m: float | None = None
++    cpu_governor: NonEmptyStr | None = None
++    cpu_freq_mhz: float | None = Field(default=None, ge=0)
++    thermal_throttle: bool | None = None
++    mem_available_bytes: int | None = Field(default=None, ge=0)
++
++
++class RunSummaryHint(StrictResultSchemaModel):
++    """Optional aggregate hint; Phase 08 owns final statistical decisions."""
++
++    mean: float | None = None
++    median: float | None = None
++    stddev: float | None = Field(default=None, ge=0)
++    cv: float | None = Field(default=None, ge=0)
++
++
++class RunLevelRecord(StrictResultSchemaModel):
++    """One benchmark run record consumed by Phase 08 statistics."""
++
++    run_id: NonEmptyStr
++    run_index: int = Field(ge=0)
++    combo_hash: NonEmptyStr
++    score: float | None = None
++    phase: RunPhase
++    metric_name: NonEmptyStr
++    metric_unit: NonEmptyStr
++    objective_direction: ObjectiveDirection
++    duration_sec: float = Field(ge=0)
++    started_at: NonEmptyStr
++    ended_at: NonEmptyStr
++    exit_code: int | None = None
++    signal: int | None = Field(default=None, ge=0)
++    stdout_ref: NonEmptyStr
++    stderr_ref: NonEmptyStr
++    env_snapshot: RunEnvironmentSnapshot = Field(default_factory=RunEnvironmentSnapshot)
++    valid_for_scoring: bool
++    invalid_reason: NonEmptyStr | None = None
++    benchmark_cmd: tuple[NonEmptyStr, ...] = Field(min_length=1)
++    artifact_ref: NonEmptyStr
++    artifact_hash: NonEmptyStr | None = None
++    artifact_hash_verified: bool = False
++    score_source_ref: NonEmptyStr | None = None
++    pair_key: NonEmptyStr | None = None
++    failure_classification: FailureClassification | None = None
++    summary_hint: RunSummaryHint | None = None
++
++    @field_validator("combo_hash", "artifact_hash")
++    @classmethod
++    def hashes_must_be_sha256(cls, value: str | None, info: Any) -> str | None:
++        if value is not None:
++            _validate_sha256_digest(value, info.field_name)
++        return value
++
++    @field_validator("started_at", "ended_at", mode="before")
++    @classmethod
++    def datetime_to_utc_string(cls, value: Any, info: Any) -> Any:
++        return _datetime_to_utc_isoformat(value, info.field_name)
++
++    @field_validator("started_at", "ended_at")
++    @classmethod
++    def timestamps_must_be_utc_isoformat(cls, value: str, info: Any) -> str:
++        _parse_utc_isoformat(value, info.field_name)
++        return value
++
++    @model_validator(mode="after")
++    def run_consistency(self) -> RunLevelRecord:
++        started_at = _parse_utc_isoformat(self.started_at, "started_at")
++        ended_at = _parse_utc_isoformat(self.ended_at, "ended_at")
++        if ended_at < started_at:
++            raise ValueError("ended_at cannot be before started_at")
++        if self.exit_code is not None and self.signal is not None:
++            raise ValueError("exit_code and signal are mutually exclusive")
++        if self.artifact_hash_verified and self.artifact_hash is None:
++            raise ValueError("artifact_hash_verified requires artifact_hash")
++        if self.valid_for_scoring:
++            if self.score is None:
++                raise ValueError("valid scoring runs must include score")
++            if self.failure_classification is not None:
++                raise ValueError("valid scoring runs must not include failure_classification")
++            if self.invalid_reason is not None:
++                raise ValueError("valid scoring runs must not include invalid_reason")
++        else:
++            if self.failure_classification is None:
++                raise ValueError("invalid scoring runs must include failure_classification")
++            if self.invalid_reason is None:
++                raise ValueError("invalid scoring runs must include invalid_reason")
++        if (
++            self.failure_classification is not None
++            and self.failure_classification.category == "score_parse_failed"
++            and self.score_source_ref is None
++        ):
++            raise ValueError("score_parse_failed runs must include score_source_ref")
++        return self
++
++
++def compute_combo_hash(combo: tuple[str, ...] | list[str]) -> str:
++    """Return a deterministic sha256 hash for a compiler option combo."""
++
++    payload = "\0".join(combo).encode("utf-8", errors="surrogateescape")
++    return "sha256:" + hashlib.sha256(payload).hexdigest()
++
++
++def _validate_sha256_digest(value: str, label: str) -> None:
++    prefix = "sha256:"
++    if not value.startswith(prefix):
++        raise ValueError(f"{label} must start with 'sha256:'")
++    digest = value[len(prefix) :]
++    if len(digest) != 64:
++        raise ValueError(f"{label} must contain a 64-character sha256 digest")
++    try:
++        int(digest, 16)
++    except ValueError as exc:
++        raise ValueError(f"{label} must be hexadecimal") from exc
++
++
++def _datetime_to_utc_isoformat(value: Any, label: str) -> Any:
++    if isinstance(value, datetime):
++        if value.tzinfo is None or value.utcoffset() is None:
++            raise ValueError(f"{label} must be timezone-aware")
++        return value.astimezone(UTC).isoformat()
++    return value
++
++
++def _parse_utc_isoformat(value: str, label: str) -> datetime:
++    normalized = value[:-1] + "+00:00" if value.endswith("Z") else value
++    try:
++        parsed = datetime.fromisoformat(normalized)
++    except ValueError as exc:
++        raise ValueError(f"{label} must be ISO 8601") from exc
++    if parsed.tzinfo is None or parsed.utcoffset() != timedelta(0):
++        raise ValueError(f"{label} must be UTC timezone-aware ISO 8601")
++    return parsed
+diff --git a/tests/test_result_schema.py b/tests/test_result_schema.py
+new file mode 100644
+index 0000000..7ee3c71
+--- /dev/null
++++ b/tests/test_result_schema.py
+@@ -0,0 +1,244 @@
++from __future__ import annotations
++
++from datetime import UTC, datetime, timedelta
++
++import pytest
++from pydantic import ValidationError
++
++from agent import (
++    EvidenceLine,
++    FailureClassification,
++    RunEnvironmentSnapshot,
++    RunLevelRecord,
++    RunSummaryHint,
++    compute_result_combo_hash,
++)
++
++
++SHA_A = "sha256:" + "a" * 64
++SHA_B = "sha256:" + "b" * 64
++
++
++def test_failure_classification_defaults_are_conservative() -> None:
++    failure = FailureClassification()
++
++    assert failure.category == "unknown_failure"
++    assert failure.route == "unknown"
++    assert failure.confidence == "LOW"
++    assert failure.evidence == ()
++    assert failure.affected_options == ()
++    assert failure.retryable is False
++    assert failure.write_failed_combos is False
++    assert failure.classifier_version == "failure_classifier.v1"
++
++
++def test_failure_classification_allows_high_confidence_option_memory_write() -> None:
++    failure = FailureClassification(
++        category="invalid_option",
++        route="option_related",
++        confidence="HIGH",
++        evidence=(
++            EvidenceLine(
++                log_ref="logs/compile.stderr#L120",
++                text="gcc: error: unrecognized command-line option '-fnope'",
++                pattern_id="gcc_unknown_option_v1",
++            ),
++        ),
++        affected_options=("-fnope",),
++        retryable=False,
++        write_failed_combos=True,
++        matched_rule_id="gcc_unknown_option_v1",
++    )
++
++    assert failure.write_failed_combos is True
++    assert failure.affected_options == ("-fnope",)
++
++
++@pytest.mark.parametrize(
++    ("route", "confidence"),
++    [
++        ("environment_related", "HIGH"),
++        ("unknown", "HIGH"),
++        ("option_related", "MEDIUM"),
++        ("option_related", "LOW"),
++    ],
++)
++def test_write_failed_combos_requires_high_confidence_option_route(
++    route: str, confidence: str
++) -> None:
++    with pytest.raises(ValidationError, match="write_failed_combos"):
++        FailureClassification(
++            category="invalid_option",
++            route=route,  # type: ignore[arg-type]
++            confidence=confidence,  # type: ignore[arg-type]
++            write_failed_combos=True,
++        )
++
++
++def test_failure_classification_rejects_open_ended_strings() -> None:
++    with pytest.raises(ValidationError):
++        FailureClassification(category="disk_is_sad")  # type: ignore[arg-type]
++    with pytest.raises(ValidationError):
++        FailureClassification(route="maybe_option")  # type: ignore[arg-type]
++    with pytest.raises(ValidationError):
++        FailureClassification(confidence="VERY_HIGH")  # type: ignore[arg-type]
++
++
++def test_run_level_record_accepts_successful_measured_run() -> None:
++    record = _record(valid_for_scoring=True)
++
++    assert record.run_id == "run_1"
++    assert record.run_index == 0
++    assert record.combo_hash == compute_result_combo_hash(["-O3", "-funroll-loops"])
++    assert record.objective_direction == "higher_is_better"
++    assert record.score == 123.4
++    assert record.failure_classification is None
++    assert record.artifact_hash_verified is True
++    assert record.summary_hint is not None
++    assert record.env_snapshot.mem_available_bytes == 1024
++
++
++def test_run_level_record_requires_objective_direction() -> None:
++    payload = _record_payload(valid_for_scoring=True)
++    payload.pop("objective_direction")
++
++    with pytest.raises(ValidationError, match="objective_direction"):
++        RunLevelRecord.model_validate(payload)
++
++
++def test_run_level_record_accepts_invalid_score_parse_failure() -> None:
++    failure = FailureClassification(
++        category="score_parse_failed",
++        route="unknown",
++        confidence="MEDIUM",
++        evidence=(
++            EvidenceLine(
++                log_ref="logs/bench.stdout#L80",
++                text="benchmark completed but no SCORE line was found",
++                pattern_id="score_line_missing_v1",
++            ),
++        ),
++        retryable=True,
++    )
++    record = _record(
++        valid_for_scoring=False,
++        score=None,
++        invalid_reason="score_parse_failed",
++        failure_classification=failure,
++        score_source_ref="logs/bench.stdout#L80-L90",
++        exit_code=0,
++    )
++
++    assert record.valid_for_scoring is False
++    assert record.failure_classification == failure
++    assert record.score_source_ref == "logs/bench.stdout#L80-L90"
++
++
++@pytest.mark.parametrize(
++    "update",
++    [
++        {"valid_for_scoring": True, "score": None},
++        {
++            "valid_for_scoring": True,
++            "failure_classification": FailureClassification(),
++        },
++        {"valid_for_scoring": False, "failure_classification": None},
++        {"valid_for_scoring": False, "invalid_reason": None},
++        {"exit_code": 1, "signal": 9},
++        {"artifact_hash": None, "artifact_hash_verified": True},
++    ],
++)
++def test_run_level_record_rejects_inconsistent_states(update: dict[str, object]) -> None:
++    payload = _record_payload(valid_for_scoring=True)
++    payload.update(update)
++    if update.get("valid_for_scoring") is False:
++        payload["score"] = None
++
++    with pytest.raises(ValidationError):
++        RunLevelRecord.model_validate(payload)
++
++
++def test_score_parse_failed_requires_score_source_ref() -> None:
++    payload = _record_payload(valid_for_scoring=False)
++    payload.update(
++        {
++            "score": None,
++            "invalid_reason": "score_parse_failed",
++            "failure_classification": FailureClassification(
++                category="score_parse_failed",
++                route="unknown",
++                confidence="MEDIUM",
++            ),
++            "score_source_ref": None,
++        }
++    )
++
++    with pytest.raises(ValidationError, match="score_source_ref"):
++        RunLevelRecord.model_validate(payload)
++
++
++def test_run_level_record_rejects_non_sha_hashes_and_time_travel() -> None:
++    with pytest.raises(ValidationError, match="combo_hash"):
++        _record(combo_hash="not-a-sha")
++    with pytest.raises(ValidationError, match="ended_at"):
++        _record(ended_at=datetime(2026, 6, 1, 7, 59, tzinfo=UTC))
++
++
++def test_schema_module_contains_no_classifier_rule_patterns() -> None:
++    import agent.skills.result_schema as result_schema
++
++    source = result_schema.__loader__.get_source(result_schema.__name__)  # type: ignore[union-attr]
++    assert source is not None
++    assert "unrecognized command-line option" not in source
++    assert "gcc_unknown_option" not in source
++
++
++def _record(**overrides: object) -> RunLevelRecord:
++    payload = _record_payload(valid_for_scoring=True)
++    payload.update(overrides)
++    return RunLevelRecord.model_validate(payload)
++
++
++def _record_payload(*, valid_for_scoring: bool) -> dict[str, object]:
++    started_at = datetime(2026, 6, 1, 8, 0, tzinfo=UTC)
++    return {
++        "run_id": "run_1",
++        "run_index": 0,
++        "combo_hash": compute_result_combo_hash(["-O3", "-funroll-loops"]),
++        "score": 123.4 if valid_for_scoring else None,
++        "phase": "measured",
++        "metric_name": "throughput",
++        "metric_unit": "items/sec",
++        "objective_direction": "higher_is_better",
++        "duration_sec": 1.25,
++        "started_at": started_at,
++        "ended_at": started_at + timedelta(seconds=1.25),
++        "exit_code": 0,
++        "signal": None,
++        "stdout_ref": "logs/bench.stdout#L1-L5",
++        "stderr_ref": "logs/bench.stderr#L1-L2",
++        "env_snapshot": RunEnvironmentSnapshot(
++            loadavg_1m=0.5,
++            loadavg_5m=0.4,
++            loadavg_15m=0.3,
++            cpu_governor="performance",
++            cpu_freq_mhz=3200.0,
++            thermal_throttle=False,
++            mem_available_bytes=1024,
++        ),
++        "valid_for_scoring": valid_for_scoring,
++        "invalid_reason": None,
++        "benchmark_cmd": ("fake-gbs", "benchmark"),
++        "artifact_ref": "artifacts/fake/run_1.artifact",
++        "artifact_hash": SHA_A,
++        "artifact_hash_verified": True,
++        "score_source_ref": "logs/bench.stdout#L3",
++        "pair_key": None,
++        "failure_classification": None,
++        "summary_hint": RunSummaryHint(
++            mean=123.4,
++            median=123.4,
++            stddev=0.0,
++            cv=0.0,
++        ),
++    }

@@ -8,6 +8,19 @@ from .fake_gbs import (
     FakeGbsNoiseModel,
     FakeGbsNoiseSample,
 )
+from .result_schema import (
+    EvidenceLine,
+    FailureCategory,
+    FailureClassification,
+    FailureConfidence,
+    FailureRoute,
+    ObjectiveDirection,
+    RunEnvironmentSnapshot,
+    RunLevelRecord,
+    RunPhase,
+    RunSummaryHint,
+    compute_combo_hash,
+)
 from .spec_backup import SpecBackupResult, spec_backup
 from .spec_injector import SpecInjectResult, spec_injector
 from .spec_restore import SpecRestoreResult, spec_restore
@@ -28,6 +41,16 @@ __all__ = [
     "FakeGbsHarness",
     "FakeGbsNoiseModel",
     "FakeGbsNoiseSample",
+    "EvidenceLine",
+    "FailureCategory",
+    "FailureClassification",
+    "FailureConfidence",
+    "FailureRoute",
+    "ObjectiveDirection",
+    "RunEnvironmentSnapshot",
+    "RunLevelRecord",
+    "RunPhase",
+    "RunSummaryHint",
     "SpecBackupResult",
     "SpecInjectResult",
     "SpecRestoreResult",
@@ -36,6 +59,7 @@ __all__ = [
     "WorkspaceSnapshotPhase",
     "WorkspaceSnapshotResult",
     "WorkspaceVerifyResult",
+    "compute_combo_hash",
     "load_workspace_snapshot",
     "spec_backup",
     "spec_injector",
