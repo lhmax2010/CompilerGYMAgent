@@ -1,6 +1,6 @@
 # dev_memory/ROADMAP.yaml
 roadmap_version: 1
-last_updated: 2026-06-04T09:10:00+08:00
+last_updated: 2026-06-04T09:25:00+08:00
 status: active
 
 # ============================================================
@@ -174,9 +174,40 @@ planned_phases:
       - "Compile skill uses Phase 06 process_runner with start_new_session, env marker, and process lease writes"
       - "Benchmark skill returns run-level records, not just raw score lists"
       - "fake_gbs mock uses real subprocesses, logs, artifacts, timeouts, leases, and killpg cleanup"
+      - "Failure/result schemas are defined before compile/benchmark skills consume them"
       - "Failure classifier returns category + confidence + evidence and routes failures without polluting failed_combos"
-      - "Refine env markers to session + trial + lease granularity"
+      - "Refine env markers to session + trial + lease granularity with pid-independent lease_id"
     deliverables:
+      - path: "Phase 06 process env marker enhancement"
+        description: "Refine process markers to session + trial + lease granularity before compile/benchmark skills spawn children."
+        requirements:
+          - "Generate lease_id before spawn; lease_id is pid-independent and formatted like <role>-<uuid>"
+          - "Spawn order starts with lease_id generation -> child_env -> Popen; do not derive AGENT_LEASE_ID from pid"
+          - "Spawn injects AGENT_SESSION_ID + AGENT_TRIAL_ID + AGENT_LEASE_ID + optional AGENT_PROCESS_ROLE"
+          - "ProcessRecord adds trial_id: str | None = None and lease_id: str | None = None for backward-compatible marker granularity"
+          - "ProcessLease persists lease_id; file name may remain role-<pid>.yaml or become <lease_id>-<pid>.yaml, but lease_id must be in file content"
+          - "Cleaner env_scan filters new leases by trial_id + lease_id, not only session_id"
+          - "Cleaner env_scan falls back to session-only matching for old leases with trial_id/lease_id None"
+      - path: "src/agent/skills/fake_gbs.py or tests/fixtures/fake_gbs.py"
+        description: "Mock compile/benchmark harness that still uses real subprocess/process_runner paths."
+        requirements:
+          - "Must spawn real Python subprocesses through process_runner; no function-level sleep/return mock"
+          - "Produce real stdout/stderr/log files"
+          - "Compile success writes a real artifact with path and hash; benchmark consumes and verifies the artifact"
+          - "Simulate invalid_option, timeout, crash signal, OOM-like exit, artifact_missing, and score_parse_failed"
+          - "Support gaussian, right_skewed, and bursty noise profiles"
+          - "Bursty profile uses a Markov state machine, e.g. healthy -> degraded -> failed -> healthy with explicit transition matrix"
+          - "Support reproducible seed replay across distributions and Markov states"
+      - path: "src/agent/skills/result_schema.py or equivalent"
+        description: "Failure/result schema skeleton consumed by compile.py and benchmark.py before classifier rules are implemented."
+        requirements:
+          - "Define FailureCategory / FailureRoute / FailureConfidence / EvidenceLine / FailureClassification"
+          - "Define RunLevelRecord with benchmark run metadata and failure_classification"
+          - "FailureClassification fields: category, route, confidence, evidence, affected_options, retryable, write_failed_combos, matched_rule_id, classifier_version"
+          - "Confidence semantics: HIGH means >=2 independent evidence sources agree; MEDIUM means one strong evidence source; LOW means heuristic or ambiguous"
+          - "Conservative default: route=unknown and write_failed_combos=False when evidence is insufficient"
+          - "Only confidence=HIGH and route=option_related may set write_failed_combos=True"
+          - "Tie-breaking for equal confidence: option_related > environment_related > unknown"
       - path: "src/agent/skills/compile.py"
         description: "Compile skill protected by workspace snapshot/spec backup/restore, using Phase 06 process_runner and cleaner."
         requirements:
@@ -184,25 +215,23 @@ planned_phases:
           - "On compile failure / timeout / crash, invoke Phase 06 cleaner to clean process group"
           - "Produce compile_result with status, artifact_ref, artifact_hash, failure classification, stdout/stderr/log refs"
           - "Enforce spawn ordering: spawn process -> write lease -> trace process_started with full ProcessRecord payload -> append checkpoint operation.process_refs"
+          - "If lease write succeeds but trace process_started fails, immediately killpg and terminalize the lease"
+          - "Do not write checkpoint.current_trial.process; process authority must be operation ledger process_refs only"
+          - "Compile/benchmark status=running operations must have non-empty process_refs; non-process operations such as spec_backup may keep process_refs empty"
       - path: "src/agent/skills/benchmark.py"
         description: "Benchmark skill that consumes compile artifacts and emits run-level records."
         requirements:
-          - "Return run-level record per run: score, phase warmup|measured, duration, started_at, ended_at, exit_code, signal, stdout_ref, stderr_ref, env snapshot, valid_for_scoring, invalid_reason"
+          - "Return run-level record per run: run_id, run_index, combo_hash, score, phase warmup|measured, metric_name, metric_unit, objective_direction, duration, started_at, ended_at, exit_code, signal, stdout_ref, stderr_ref, env snapshot, valid_for_scoring, invalid_reason"
+          - "Include artifact_ref, artifact_hash, and artifact_hash_verified after verifying the artifact before benchmark"
+          - "Include score_source_ref so parse failures can point at logs/bench.log#Lx-Ly"
+          - "Include pair_key as a nullable future paired-test key"
+          - "Include failure_classification for failed runs using the shared schema"
           - "Support explicit warmup vs measured runs"
-          - "Support multiple measured runs"
+          - "Support multiple measured runs with stable run_index ordering"
           - "Only mark hard failures in Phase 05: parse_failed, timeout, nonzero exit, crash, functional invalid, or artifact invalid"
           - "Leave outlier/final statistical judgment to Phase 08"
-      - path: "src/agent/skills/fake_gbs.py or tests/fixtures/fake_gbs.py"
-        description: "Mock compile/benchmark harness that still uses real subprocess/process_runner paths."
-        requirements:
-          - "Must spawn real Python subprocesses through process_runner; no function-level sleep/return mock"
-          - "Produce real stdout/stderr/log files"
-          - "Compile success writes a real artifact with path and hash; benchmark consumes the artifact"
-          - "Simulate invalid_option, timeout, crash signal, OOM-like exit, artifact_missing, and score_parse_failed"
-          - "Support gaussian, right_skewed, and bursty noise profiles"
-          - "Support reproducible seed replay"
-      - path: "src/agent/skills/error_analyzer.py or compile.py / benchmark.py internal classifier"
-        description: "Failure classifier with confidence, evidence, and three-way routing."
+      - path: "src/agent/skills/error_analyzer.py or compile.py / benchmark.py classifier rules"
+        description: "Failure classifier rules with confidence, evidence, and three-way routing."
         requirements:
           - "Compile categories: invalid_option, option_conflict, compiler_crash, build_timeout, build_system_failure, dependency_missing, disk_full_or_quota, permission_denied, oom_killed, network_failure, source_dirty, spec_corruption, artifact_missing, infra_failure, unknown_failure"
           - "Benchmark categories: benchmark_timeout, benchmark_crash, score_parse_failed, functional_correctness_failed, artifact_invalid, environment_unstable, too_noisy, infra_failure, unknown_failure"
@@ -212,27 +241,32 @@ planned_phases:
           - "unknown failures do not pollute the experience/constraint store"
           - "score_parse_failed is a first-class failure, not success with score=None"
           - "Performance regression with a valid parse is success + bad score unless it crosses a hard invalid threshold"
-      - path: "Phase 06 process env marker enhancement"
-        description: "Refine process markers to session + trial + lease granularity."
-        requirements:
-          - "Spawn injects AGENT_SESSION_ID + AGENT_TRIAL_ID + AGENT_LEASE_ID and optionally AGENT_PROCESS_ROLE"
-          - "Cleaner env_scan filters to trial_id / lease_id where available, not only session_id"
-          - "Old leases with only AGENT_SESSION_ID remain supported"
     subtask_order:
-      - "5.1 env marker refinement: AGENT_TRIAL_ID / AGENT_LEASE_ID / optional AGENT_PROCESS_ROLE + cleaner env_scan filtering"
-      - "5.2 fake_gbs mock harness: real process_runner, logs, artifacts, failure modes, noise profiles, seed replay"
-      - "5.3 compile skill: spawn ordering, workspace protection, compile_result, cleanup on failure"
-      - "5.4 benchmark skill: run-level records, warmup separation, multiple measured runs"
-      - "5.5 failure classifier: confidence, evidence, three-way routing, score_parse_failed first-class"
+      - "5.1 env marker refinement: pid-independent lease_id generated before Popen, AGENT_TRIAL_ID / AGENT_LEASE_ID / optional AGENT_PROCESS_ROLE, cleaner env_scan filtering"
+      - "5.2 fake_gbs mock harness: real process_runner, logs, artifacts, failure modes, gaussian/right_skewed/bursty Markov noise, seed replay"
+      - "5.5a failure/result schema skeleton: FailureClassification/Category/Route/EvidenceLine/RunLevelRecord data models"
+      - "5.3 compile skill: consume 5.5a schema, spawn ordering, workspace protection, exception paths"
+      - "5.4 benchmark skill: consume 5.5a schema, run-level records, warmup separation, multiple measured runs"
+      - "5.5b failure classifier rules + routing tests"
     exit_criteria:
+      - "5.1 proves AGENT_LEASE_ID is generated before Popen, is pid-independent, persists to ProcessLease and trace process_started payload, and cleaner env_scan filters new leases to lease granularity while old leases fall back to session"
       - "fake_gbs compile+benchmark cycle uses real process_runner subprocesses, leases, logs, artifacts, timeout, and cleaner paths"
+      - "fake_gbs bursty mode passes a 100-round pressure test with Markov transition counts consistent with the configured matrix and not degenerated into uniform random behavior"
       - "Compile success emits artifact_ref + artifact_hash and trace process_started has full ProcessRecord payload sufficient to rebuild lease"
+      - "Compile exception path kills and terminalizes the lease if trace process_started fails after lease creation"
       - "Compile and benchmark hard failures are categorized with confidence + evidence and routed option/environment/unknown correctly"
-      - "Benchmark returns run-level records with warmup/measured phase separation and valid_for_scoring flags"
+      - "Benchmark returns run-level records with run_id, run_index, combo_hash, metric metadata, artifact verification, score_source_ref, pair_key, warmup/measured phase separation, and valid_for_scoring flags"
       - "score_parse_failed is tested as failure even when benchmark process exits zero"
-      - "Noise profiles include gaussian, right_skewed, and bursty with deterministic seed replay"
+      - "Noise profiles include gaussian, right_skewed, and bursty Markov with deterministic seed replay"
+      - "Phase 05 skills do not write checkpoint.current_trial.process; running process authority is operation ledger process_refs"
+      - "Compile/benchmark running operations have non-empty process_refs"
     validation_plan: ["Linux integration with fake_gbs", "Ubuntu fcntl regression"]
-    deferred_items: ["Real gbs integration → Phase 16"]
+    notes:
+      - "5.1 is a hard prerequisite: AGENT_LEASE_ID cannot depend on pid because child_env must be prepared before Popen returns a pid."
+      - "Failure/result schemas land before compile/benchmark to avoid temporary divergent structures."
+      - "Phase 08a depends on fake_gbs non-Gaussian profiles; fake_gbs bursty stability is therefore a Phase 05 quality gate."
+      - "Phase 05 must not resurrect checkpoint.current_trial.process as process authority."
+    deferred_items: ["Real gbs integration -> Phase 16"]
 
   - id: "08a"
     title: "Baseline + Statistical Significance - Minimal Stats Core"
@@ -265,6 +299,7 @@ planned_phases:
       - "Mean/median/stddev/CV and baseline-normalized scores are tested"
       - "High-variance flag fires on synthetic noisy profiles"
       - "Statistical checks pass on fake_gbs gaussian, right_skewed, and bursty noise profiles, not only synthetic gaussian"
+      - "fake_gbs bursty Markov profile is stable enough that 08a tests are not flaky"
       - "Document how repeated combo evaluation and bootstrap/CI decisions feed candidate-engine near-miss detection"
     validation_plan: ["Synthetic and fake_gbs non-Gaussian data benchmarks", "Ubuntu fcntl regression"]
 

@@ -25,9 +25,10 @@ Next three implementation phases:
 | Order | Phase | Estimate | Main risk |
 |---:|---|---:|---|
 | 1 | 05 - Compile / Benchmark Skills | 8-12 subtasks | fake_gbs harness quality and process_runner integration determine how trustworthy later benchmark loops are. |
-| 2 | 08 - Baseline + Statistical Significance | 7-10 subtasks | Statistical contracts need synthetic reference checks before candidate engine convergence. |
+| 2 | 08a - Baseline + Statistical Significance - Minimal Stats Core | 4-6 subtasks | Must consume Phase 05 run-level records and validate statistics on gaussian, right-skewed, and bursty fake_gbs profiles before candidate engine work. |
 | 3 | 7.0 - Candidate Search Strategy + Constraint Solver Spike | 2-3 subtasks | Must turn 05.5's noise-robust interaction-discovery risk into concrete Phase 07 search requirements. |
 | 4 | 07 - Candidate Engine + Constraint + Schedule | 10-16 subtasks | LLM integration and non-bruteforce search strategy remain the largest algorithmic risk. |
+| 5 | 08b - Baseline + Statistical Significance - Advanced Noise Policy | 3-4 subtasks | Runs alongside/after 07 to add adaptive rerun, outlier policy, sequential testing, and noise diagnostics before orchestration. |
 
 The planned order intentionally ran Phase 06 before Phase 05, even though the numbering is not sequential. That dependency is now satisfied: compile and benchmark skills should use the Phase 06 process runner/cleaner and lease registry.
 
@@ -59,8 +60,8 @@ Remaining estimate:
 
 | Scope | Phases | Subtasks | Workdays | Weeks |
 |---|---|---:|---:|---:|
-| v1-minimal remaining | 05/08/7.0/07/09/10/11/12/13 | 72-115 | 55-88 | 11-18 |
-| v1-full remaining | 05/08/7.0/07/9.0/9.1/09/10/11/12/13/14/15a/15b/16 | 97-155 | 75-119 | 15-24 |
+| v1-minimal remaining | 05/08a/7.0/07/08b/09/10/11/12/13 | 72-115 | 55-88 | 11-18 |
+| v1-full remaining | 05/08a/7.0/07/08b/9.0/9.1/09/10/11/12/13/14/15a/15b/16 | 97-155 | 75-119 | 15-24 |
 
 The roadmap is deliberately slower than `doc/REQUIREMENTS.md` section 9's nominal schedule because this project is using a high-assurance loop: Codex implementation, Claude review, review fixes, Linux validation, and explicit dev_memory provenance.
 

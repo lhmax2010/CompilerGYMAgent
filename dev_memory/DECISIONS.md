@@ -974,8 +974,8 @@ Decision records must include:
   - ROADMAP.yaml Phase 08a
   - REQUIREMENTS.md section 4.8
   - REQUIREMENTS.md section 4.9
-- decision: Phase 05 benchmark skills return run-level records, not just a list of numeric scores. Each run records score, warmup/measured phase, duration, started_at, ended_at, exit_code, signal, stdout/stderr refs, minimal environment snapshot, valid_for_scoring, invalid_reason, benchmark command, artifact hash, and a summary_hint such as mean, median, stddev, and coefficient of variation.
-- rationale: Phase 05.5 showed that noisy benchmarks require statistical handling. Phase 08 needs per-run context for bootstrap CI, paired/unpaired tests, outlier analysis, and environment diagnosis. A raw score list cannot tell whether variance comes from the benchmark, the artifact, or the environment.
+- decision: Phase 05 benchmark skills return run-level records, not just a list of numeric scores. Each run records run_id, run_index, combo_hash, score, warmup/measured phase, metric_name, metric_unit, objective_direction, duration, started_at, ended_at, exit_code, signal, stdout/stderr refs, minimal environment snapshot, valid_for_scoring, invalid_reason, benchmark command, artifact_ref, artifact_hash, artifact_hash_verified, score_source_ref, nullable pair_key, failure_classification, and a summary_hint such as mean, median, stddev, and coefficient of variation.
+- rationale: Phase 05.5 showed that noisy benchmarks require statistical handling. Phase 08 needs per-run context for bootstrap CI, paired/unpaired tests, outlier analysis, and environment diagnosis. A raw score list cannot tell whether variance comes from the benchmark, the artifact, or the environment. Phase 08 also needs run_index and pair_key for paired alignment, objective_direction to know whether higher/lower is better, and artifact verification fields to know whether a score was measured against the intended artifact.
 - alternatives_considered:
   - Return only `[score1, score2, ...]`. Rejected because Phase 08 would lack enough data and would force a benchmark schema rewrite.
   - Make Phase 05 decide outliers and final validity. Rejected because statistical policy belongs to Phase 08; Phase 05 should only mark hard failures such as parse_failed, timeout, nonzero exit, crash, or invalid artifact.
@@ -988,8 +988,8 @@ Decision records must include:
   - REQUIREMENTS.md section 4.7.1
   - REQUIREMENTS.md section 4.7.3
   - REQUIREMENTS.md section 4.6.2
-- decision: Compile and benchmark failures carry category, confidence, and evidence such as relevant log lines. Routing is three-way: high-confidence option_related failures may update failed_combos or constraints; environment_related failures are retryable and must never update failed_combos; unknown failures do not pollute experience or constraint state.
-- rationale: Treating disk full, OOM, timeouts, network, permission, or environment instability as invalid compiler options would permanently poison the candidate engine. Only high-confidence option evidence should become hard search knowledge. Unknown failures need to remain visible without becoming rules.
+- decision: Compile and benchmark failures use a structured `FailureClassification` schema with category, route (`option_related | environment_related | unknown`), confidence (`HIGH | MEDIUM | LOW`), evidence lines, affected_options, retryable, write_failed_combos, matched_rule_id, and classifier_version. HIGH confidence means at least two independent evidence sources agree; MEDIUM means one strong evidence source; LOW means heuristic or ambiguous. Multiple pattern matches select the highest confidence; confidence ties use route priority `option_related > environment_related > unknown`. Conservative default is route=unknown and write_failed_combos=False. Only confidence=HIGH and route=option_related may set write_failed_combos=True.
+- rationale: Treating disk full, OOM, timeouts, network, permission, or environment instability as invalid compiler options would permanently poison the candidate engine. Only high-confidence option evidence should become hard search knowledge. Unknown failures need to remain visible without becoming rules. Making write_failed_combos explicit prevents accidental memory pollution and lets reviews test the routing decision directly.
 - alternatives_considered:
   - Use one generic failure flag. Rejected because it cannot distinguish compiler option feedback from infrastructure failure.
   - Let every failure update failed_combos. Rejected because transient or environmental failures would permanently block valid combinations.
@@ -1008,7 +1008,7 @@ Decision records must include:
   - Treat score parsing failures as generic benchmark_crash. Rejected because the process can exit zero and still produce an invalid output format; callers need the precise category.
   - Drop unparseable runs silently. Rejected because silent omission hides systematic output-format regressions.
 
-## 2026-06-03T09:24:00Z - Mock must use real process_runner + realistic noise distributions
+## 2026-06-03T09:24:00Z - Mock must use real process_runner + Markov bursty noise
 
 - affected_requirement:
   - ROADMAP.yaml Phase 05
@@ -1016,12 +1016,27 @@ Decision records must include:
   - REQUIREMENTS.md section 3.3.5
   - REQUIREMENTS.md section 4.7.1
   - REQUIREMENTS.md section 4.8
-- decision: fake_gbs must execute through the real Phase 06 process_runner path with subprocesses, process leases, timeout, killpg cleanup, stdout/stderr/log files, and artifact files. Its benchmark noise profiles must include gaussian, right_skewed, and bursty distributions with reproducible seed replay.
-- rationale: A function-level mock would not validate the process substrate that Phase 06 built. Perfect Gaussian noise is also too kind; real benchmark noise is often skewed, bursty, or autocorrelated. Phase 08 statistical tools need early exposure to these profiles.
+- decision: fake_gbs must execute through the real Phase 06 process_runner path with subprocesses, process leases, timeout, killpg cleanup, stdout/stderr/log files, and artifact files. Its benchmark noise profiles must include gaussian, right_skewed, and bursty distributions with reproducible seed replay. Bursty noise must be stateful: use a Markov state machine such as healthy -> degraded -> failed -> healthy with an explicit transition matrix, and validate it with a 100-round pressure test.
+- rationale: A function-level mock would not validate the process substrate that Phase 06 built. Perfect Gaussian noise is also too kind; real benchmark noise is often skewed, bursty, or autocorrelated. Stateless random draws cannot model bursts because they lose cross-trial memory. Phase 08 statistical tools need early exposure to gaussian, skewed, and stateful bursty profiles, and 08a should not inherit a flaky fake_gbs generator.
 - alternatives_considered:
   - Implement fake_gbs as in-process sleep/return functions. Rejected because process_runner, lease registry, env markers, timeout, and cleaner paths would remain untested in Phase 05.
   - Only model gaussian noise. Rejected because Phase 08 could pass in synthetic tests and fail on realistic non-Gaussian benchmark behavior.
+  - Model bursty noise as independent per-run random failures. Rejected because true bursts require state and transition memory.
   - Defer fake_gbs artifacts/logs until real gbs. Rejected because compile/benchmark skills need to exercise real log and artifact refs now.
+
+## 2026-06-04T09:25:00Z - AGENT_LEASE_ID generated before spawn, pid-independent
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 05
+  - ROADMAP.yaml Phase 06
+  - REQUIREMENTS.md section 3.3.5
+  - REQUIREMENTS.md section 4.11.x
+- decision: Phase 05 generates `lease_id` before `Popen`, independent of pid, using a stable form such as `<role>-<uuid>`. Spawn builds child_env with `AGENT_SESSION_ID`, `AGENT_TRIAL_ID`, `AGENT_LEASE_ID`, and optionally `AGENT_PROCESS_ROLE` before the child starts. `ProcessRecord` adds backward-compatible `trial_id: str | None = None` and `lease_id: str | None = None`; `ProcessLease` persists lease_id. The lease file name may remain `role-<pid>.yaml` or become `<lease_id>-<pid>.yaml`, but the file content and trace payload must carry lease_id. Cleaner env_scan filters new leases by trial_id + lease_id and falls back to session-only matching for old leases with no trial/lease marker.
+- rationale: Environment variables must be prepared before `Popen`, but pid only exists after spawn. If `AGENT_LEASE_ID` depended on pid, Phase 05 could not inject it into the child environment. A pid-independent lease id resolves this ordering conflict and lets cleaner identify the exact process lease instead of merely a same-session process.
+- alternatives_considered:
+  - Derive `AGENT_LEASE_ID` from the pid. Rejected because pid is unavailable when child_env is constructed.
+  - Keep only session marker and role. Rejected because same-session compile/benchmark/helper processes can be mistaken for the lease being cleaned.
+  - Require new trial/lease markers for all existing Phase 06 leases. Rejected because old leases must remain readable and cleanable through session-only compatibility mode.
 
 ## 2026-06-03T09:24:00Z - Env marker granularity: session + trial + lease
 
