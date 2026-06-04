@@ -799,13 +799,6 @@ class CheckpointCurrentTrial(StrictFsModel):
             raise ValueError("stage_started_at cannot be before started_at")
         if self.operations and self.current_trial_start_line is None:
             raise ValueError("current_trial_start_line is required when operations exist")
-        all_process_refs = [
-            ref for operation in self.operations for ref in operation.process_refs
-        ]
-        if len(all_process_refs) != len(set(all_process_refs)):
-            raise ValueError(
-                "process_refs must be unique across current_trial.operations"
-            )
         return self
 
     @property
