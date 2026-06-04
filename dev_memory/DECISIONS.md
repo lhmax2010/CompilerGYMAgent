@@ -1051,3 +1051,17 @@ Decision records must include:
   - Register the lease without a trace process_started event. Rejected because lease loss would make derived-state rebuild impossible.
   - Trace only pid and role. Rejected because cleanup safety depends on pgid, create_time, session/trial/lease identity, and diagnostic cmdline hash.
   - Append checkpoint process_refs before the trace event. Rejected because a crash could leave checkpoint pointing at a lease with no canonical trace evidence.
+
+## 2026-06-04T09:21:04Z - force_suspected cleanup kills owned and suspected targets
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 05
+  - ROADMAP.yaml Phase 06
+  - REQUIREMENTS.md section 3.3.5
+  - REQUIREMENTS.md section 4.11.x
+- decision: force_suspected semantics: force kills owned + suspected. When `cleanup_process_lease()` finds owned targets, non-force cleanup kills only owned targets; force cleanup kills both owned and suspected targets. When only suspected targets exist, force cleanup kills suspected targets, while non-force cleanup still records `unsafe_skip`.
+- rationale: Force cleanup is used by doctor-style cleanup after the user explicitly asks to clean residual processes. In that mode, same-lease escaped or double-forked suspected targets should not survive merely because the original owned leader is also still alive. Non-force cleanup remains conservative and kills only owned targets.
+- alternatives_considered:
+  - Keep force cleanup limited to owned targets whenever owned targets exist. Rejected because escaped suspected children can remain alive after a forced cleanup.
+  - Always kill suspected targets by default. Rejected because non-force cleanup must preserve the conservative ownership threshold.
+  - Treat suspected targets as a separate second cleanup pass. Rejected because one force cleanup request should produce one coherent killed target set and lease status update.

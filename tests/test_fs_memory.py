@@ -1472,6 +1472,22 @@ def test_checkpoint_operation_rejects_duplicate_process_refs() -> None:
         CheckpointState.model_validate(data)
 
 
+def test_checkpoint_operations_reject_cross_operation_duplicate_process_refs() -> None:
+    ref = "state/processes/sess_20260430_abc/r12_t3/compile-12345.yaml"
+    data = checkpoint_data()
+    data["current_trial"]["current_trial_start_line"] = 42
+    data["current_trial"]["operations"] = [
+        checkpoint_operation_data(op="compile", process_refs=[ref]),
+        checkpoint_operation_data(op="benchmark", process_refs=[ref]),
+    ]
+
+    with pytest.raises(
+        ValidationError,
+        match="process_refs must be unique across current_trial.operations",
+    ):
+        CheckpointState.model_validate(data)
+
+
 def test_checkpoint_operation_details_must_be_json() -> None:
     with pytest.raises(ValidationError, match="non-JSON"):
         CheckpointTrialOperation.model_validate(

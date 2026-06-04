@@ -214,7 +214,7 @@ def cleanup_process_lease(
         target for target in targets if target.attribution.verdict == "suspected"
     )
     if owned:
-        killable = owned
+        killable = owned + suspected if force_suspected else owned
     elif force_suspected and suspected:
         killable = suspected
     else:
