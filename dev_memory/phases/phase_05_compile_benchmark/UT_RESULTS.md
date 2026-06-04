@@ -9,3 +9,16 @@
   - Command: `.venv/bin/python -m pytest tests/ -q`
   - Result: 550 passed, 0 failed
 
+## Subtask 5.2
+
+- Targeted:
+  - Command: `.venv/bin/python -m pytest tests/test_fake_gbs.py -q`
+  - Result: 9 passed, 0 failed
+- Adjacent:
+  - Command: `.venv/bin/python -m pytest tests/test_fake_gbs.py tests/test_process_runner.py tests/test_process_cleaner.py -q`
+  - Result: 28 passed, 0 failed
+- Full:
+  - Command: `.venv/bin/python -m pytest tests/ -q`
+  - Result: 559 passed, 0 failed
+- Bursty probe:
+  - `FakeGbsNoiseModel(seed=31)` over 100 bursty samples produced healthy=57, degraded=33, failed=10 with 31 adjacent non-healthy transitions.

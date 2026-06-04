@@ -12,3 +12,15 @@
 - [x] Targeted process tests pass.
 - [x] Full test suite passes.
 
+## Subtask 5.2 - fake_gbs mock harness
+
+- [x] fake_gbs compile/benchmark uses real `process_runner` subprocesses.
+- [x] Subprocesses create process leases and expose pid/pgid/env marker payloads.
+- [x] Compile success writes a real artifact and artifact hash.
+- [x] Benchmark consumes artifact and verifies artifact hash.
+- [x] Failure modes cover invalid option, timeout, crash signal, OOM-like exit, artifact missing, and score parse failure.
+- [x] Timeout path uses `cleanup_process_lease()` and killpg.
+- [x] Noise profiles include gaussian, right_skewed, and bursty.
+- [x] Bursty mode uses a seeded Markov state machine and has 100-round pressure coverage.
+- [x] Same seed replays score/noise state sequence.
+- [x] Targeted and full test suites pass.

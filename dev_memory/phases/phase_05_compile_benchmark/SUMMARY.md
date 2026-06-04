@@ -16,3 +16,25 @@ Validation:
 - `.venv/bin/python -m pytest tests/test_process_identity.py tests/test_process_registry.py tests/test_process_runner.py tests/test_process_cleaner.py -q` -> 44 passed.
 - `.venv/bin/python -m pytest tests/ -q` -> 550 passed.
 
+## 5.2 fake_gbs mock harness
+
+- Added `src/agent/skills/fake_gbs.py`.
+- fake_gbs compile/benchmark run through `spawn_process()` and therefore use real subprocesses, process leases, independent process groups, and process env markers.
+- Compile success produces a real artifact and `sha256:` artifact hash.
+- Benchmark consumes and verifies the artifact and emits a parseable `SCORE` line.
+- Failure modes covered:
+  - invalid_option,
+  - timeout,
+  - crash_signal,
+  - oom_like_exit,
+  - artifact_missing,
+  - score_parse_failed.
+- Added gaussian, right_skewed, and bursty noise profiles.
+- Bursty noise is a stateful seeded Markov chain over healthy/degraded/failed.
+- Same seed replays score and burst state sequences.
+
+Validation:
+
+- `.venv/bin/python -m pytest tests/test_fake_gbs.py -q` -> 9 passed.
+- `.venv/bin/python -m pytest tests/test_fake_gbs.py tests/test_process_runner.py tests/test_process_cleaner.py -q` -> 28 passed.
+- `.venv/bin/python -m pytest tests/ -q` -> 559 passed.

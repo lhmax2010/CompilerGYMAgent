@@ -1,5 +1,13 @@
 """Deterministic skill helpers for the local agent workflow."""
 
+from .fake_gbs import (
+    DEFAULT_BURSTY_TRANSITIONS,
+    FakeGbsBenchmarkResult,
+    FakeGbsCompileResult,
+    FakeGbsHarness,
+    FakeGbsNoiseModel,
+    FakeGbsNoiseSample,
+)
 from .spec_backup import SpecBackupResult, spec_backup
 from .spec_injector import SpecInjectResult, spec_injector
 from .spec_restore import SpecRestoreResult, spec_restore
@@ -14,6 +22,12 @@ from .workspace_snapshot import (
 from .workspace_verify import WorkspaceVerifyResult, workspace_verify
 
 __all__ = [
+    "DEFAULT_BURSTY_TRANSITIONS",
+    "FakeGbsBenchmarkResult",
+    "FakeGbsCompileResult",
+    "FakeGbsHarness",
+    "FakeGbsNoiseModel",
+    "FakeGbsNoiseSample",
     "SpecBackupResult",
     "SpecInjectResult",
     "SpecRestoreResult",

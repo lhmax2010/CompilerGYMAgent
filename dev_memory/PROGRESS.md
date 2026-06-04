@@ -2171,3 +2171,28 @@ Next action: begin Subtask 6.6 doctor/state_consistency.py.
   - `.venv/bin/python -m pytest tests/ -q` -> 550 passed.
 
 Next action: generate patch artifacts, commit/push Subtask 5.1, then request Claude review.
+
+## 2026-06-04T10:50:00+08:00 - Phase 05 / Subtask 5.2 implemented
+
+- Added process-backed `fake_gbs` harness for Phase 05:
+  - compile and benchmark run through the real Phase 06 `process_runner`,
+  - every run has a process lease, independent pgid, and env marker payload,
+  - compile success writes a real artifact and `sha256:` hash,
+  - benchmark consumes and verifies the artifact and emits a parseable `SCORE`.
+- Added failure modes:
+  - invalid_option,
+  - timeout,
+  - crash_signal,
+  - oom_like_exit,
+  - artifact_missing,
+  - score_parse_failed.
+- Added seeded noise profiles:
+  - gaussian,
+  - right_skewed,
+  - stateful bursty Markov over healthy/degraded/failed.
+- Validation:
+  - `.venv/bin/python -m pytest tests/test_fake_gbs.py -q` -> 9 passed.
+  - `.venv/bin/python -m pytest tests/test_fake_gbs.py tests/test_process_runner.py tests/test_process_cleaner.py -q` -> 28 passed.
+  - `.venv/bin/python -m pytest tests/ -q` -> 559 passed.
+
+Next action: generate patch artifacts, commit/push Subtask 5.2, then request Claude review.

@@ -1,0 +1,275 @@
+diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index 63f1703..420053c 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -1,7 +1,7 @@
+ phase_id: phase_05_compile_benchmark
+ phase_title: "Compile / Benchmark Skills"
+ started_at: 2026-06-04T10:05:00+08:00
+-last_updated: 2026-06-04T10:05:00+08:00
++last_updated: 2026-06-04T10:50:00+08:00
+ target_milestone: "M1 end / M2 start"
+ related_requirements:
+   - REQUIREMENTS.md section 4.7.1 gbs_compile
+@@ -50,6 +50,47 @@ subtasks:
+     patch_file: dev_memory/phases/phase_05_compile_benchmark/patches/01_env_marker_lease_id.patch
+     patch_generated: true
+     commit_required: true
++    commit_pending: false
++    implementation_commit: 85a5063
++    external_review_verdict: approve
++    external_reviewed_at: 2026-06-04T10:20:00+08:00
++    external_review_tests: "550 passed; 0 residual process leak"
++  - id: "5.2"
++    title: "fake_gbs mock harness"
++    status: done
++    related_requirements:
++      - ROADMAP.yaml Phase 05 deliverable fake_gbs mock harness
++      - DECISIONS.md "Mock must use real process_runner + Markov bursty noise"
++    files_created:
++      - src/agent/skills/fake_gbs.py
++      - tests/test_fake_gbs.py
++    files_modified:
++      - src/agent/skills/__init__.py
++      - src/agent/__init__.py
++      - dev_memory/CURRENT_PHASE.yaml
++      - dev_memory/ROADMAP.yaml
++      - dev_memory/PROGRESS.md
++      - dev_memory/phases/phase_05_compile_benchmark/CHECKLIST.yaml
++      - dev_memory/phases/phase_05_compile_benchmark/REVIEW_NOTES.md
++      - dev_memory/phases/phase_05_compile_benchmark/SUMMARY.md
++      - dev_memory/phases/phase_05_compile_benchmark/UT_RESULTS.md
++    behavior_notes:
++      - "fake_gbs compile and benchmark run through process_runner, creating real subprocesses, process leases, pgids, and env markers."
++      - "Compile success writes a real artifact with sha256 hash; benchmark consumes and verifies the artifact."
++      - "Failure modes cover invalid_option, timeout, crash_signal, oom_like_exit, artifact_missing, and score_parse_failed."
++      - "Noise profiles include gaussian, right_skewed, and stateful bursty Markov with seeded replay."
++      - "Bursty profile has explicit transition matrix and 100-round pressure coverage."
++    ut_required: true
++    ut_passed: true
++    targeted_ut: "9 tests passed, 0 failed (test_fake_gbs.py)"
++    adjacent_ut: "28 tests passed, 0 failed (fake_gbs/process_runner/process_cleaner)"
++    production_regression_ut: "559 tests passed, 0 failed"
++    self_review_required: true
++    self_reviewed: true
++    patch_required: true
++    patch_file: dev_memory/phases/phase_05_compile_benchmark/patches/02_fake_gbs_harness.patch
++    patch_generated: true
++    commit_required: true
+     commit_pending: true
+     external_review_verdict: pending
+-next_action: "Push Subtask 5.1 and request Claude review; next planned subtask is 5.2 fake_gbs mock harness after review/Ubuntu validation."
++next_action: "Push Subtask 5.2 and request Claude review; next planned subtask is 5.5a failure/result schema skeleton after review/Ubuntu validation."
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index 12ef3a5..b7aa33e 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -2171,3 +2171,28 @@ Next action: begin Subtask 6.6 doctor/state_consistency.py.
+   - `.venv/bin/python -m pytest tests/ -q` -> 550 passed.
+ 
+ Next action: generate patch artifacts, commit/push Subtask 5.1, then request Claude review.
++
++## 2026-06-04T10:50:00+08:00 - Phase 05 / Subtask 5.2 implemented
++
++- Added process-backed `fake_gbs` harness for Phase 05:
++  - compile and benchmark run through the real Phase 06 `process_runner`,
++  - every run has a process lease, independent pgid, and env marker payload,
++  - compile success writes a real artifact and `sha256:` hash,
++  - benchmark consumes and verifies the artifact and emits a parseable `SCORE`.
++- Added failure modes:
++  - invalid_option,
++  - timeout,
++  - crash_signal,
++  - oom_like_exit,
++  - artifact_missing,
++  - score_parse_failed.
++- Added seeded noise profiles:
++  - gaussian,
++  - right_skewed,
++  - stateful bursty Markov over healthy/degraded/failed.
++- Validation:
++  - `.venv/bin/python -m pytest tests/test_fake_gbs.py -q` -> 9 passed.
++  - `.venv/bin/python -m pytest tests/test_fake_gbs.py tests/test_process_runner.py tests/test_process_cleaner.py -q` -> 28 passed.
++  - `.venv/bin/python -m pytest tests/ -q` -> 559 passed.
++
++Next action: generate patch artifacts, commit/push Subtask 5.2, then request Claude review.
+diff --git a/dev_memory/ROADMAP.yaml b/dev_memory/ROADMAP.yaml
+index 729a8ab..ac0b086 100644
+--- a/dev_memory/ROADMAP.yaml
++++ b/dev_memory/ROADMAP.yaml
+@@ -160,7 +160,7 @@ planned_phases:
+     title: "Compile / Benchmark Skills"
+     status: in_progress
+     started_at: 2026-06-04T10:05:00+08:00
+-    actual_subtasks_done: 1
++    actual_subtasks_done: 2
+     milestone: "M1 end / M2 start"
+     requirement_sections: ["4.7.1 (gbs_compile, build_only_check, error_analyzer, benchmark_runner, quick_benchmark, score_aggregator)"]
+     dependencies: ["04", "06"]
+diff --git a/dev_memory/phases/phase_05_compile_benchmark/CHECKLIST.yaml b/dev_memory/phases/phase_05_compile_benchmark/CHECKLIST.yaml
+index 1a62294..49c7704 100644
+--- a/dev_memory/phases/phase_05_compile_benchmark/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_05_compile_benchmark/CHECKLIST.yaml
+@@ -8,11 +8,16 @@ subtasks:
+     implementation_complete: true
+     tests_passed: true
+     patch_artifacts_generated: true
+-    external_review: pending
++    external_review: approve
+     ubuntu_validation: pending
+   - id: "5.2"
+     title: "fake_gbs mock harness"
+-    status: pending
++    status: done
++    implementation_complete: true
++    tests_passed: true
++    patch_artifacts_generated: true
++    external_review: pending
++    ubuntu_validation: pending
+   - id: "5.5a"
+     title: "failure/result schema skeleton"
+     status: pending
+@@ -25,4 +30,3 @@ subtasks:
+   - id: "5.5b"
+     title: "failure classifier rules + routing tests"
+     status: pending
+-
+diff --git a/dev_memory/phases/phase_05_compile_benchmark/REVIEW_NOTES.md b/dev_memory/phases/phase_05_compile_benchmark/REVIEW_NOTES.md
+index f32c2bb..224d444 100644
+--- a/dev_memory/phases/phase_05_compile_benchmark/REVIEW_NOTES.md
++++ b/dev_memory/phases/phase_05_compile_benchmark/REVIEW_NOTES.md
+@@ -12,3 +12,15 @@
+ - [x] Targeted process tests pass.
+ - [x] Full test suite passes.
+ 
++## Subtask 5.2 - fake_gbs mock harness
++
++- [x] fake_gbs compile/benchmark uses real `process_runner` subprocesses.
++- [x] Subprocesses create process leases and expose pid/pgid/env marker payloads.
++- [x] Compile success writes a real artifact and artifact hash.
++- [x] Benchmark consumes artifact and verifies artifact hash.
++- [x] Failure modes cover invalid option, timeout, crash signal, OOM-like exit, artifact missing, and score parse failure.
++- [x] Timeout path uses `cleanup_process_lease()` and killpg.
++- [x] Noise profiles include gaussian, right_skewed, and bursty.
++- [x] Bursty mode uses a seeded Markov state machine and has 100-round pressure coverage.
++- [x] Same seed replays score/noise state sequence.
++- [x] Targeted and full test suites pass.
+diff --git a/dev_memory/phases/phase_05_compile_benchmark/SUMMARY.md b/dev_memory/phases/phase_05_compile_benchmark/SUMMARY.md
+index a7a0619..e86784d 100644
+--- a/dev_memory/phases/phase_05_compile_benchmark/SUMMARY.md
++++ b/dev_memory/phases/phase_05_compile_benchmark/SUMMARY.md
+@@ -16,3 +16,25 @@ Validation:
+ - `.venv/bin/python -m pytest tests/test_process_identity.py tests/test_process_registry.py tests/test_process_runner.py tests/test_process_cleaner.py -q` -> 44 passed.
+ - `.venv/bin/python -m pytest tests/ -q` -> 550 passed.
+ 
++## 5.2 fake_gbs mock harness
++
++- Added `src/agent/skills/fake_gbs.py`.
++- fake_gbs compile/benchmark run through `spawn_process()` and therefore use real subprocesses, process leases, independent process groups, and process env markers.
++- Compile success produces a real artifact and `sha256:` artifact hash.
++- Benchmark consumes and verifies the artifact and emits a parseable `SCORE` line.
++- Failure modes covered:
++  - invalid_option,
++  - timeout,
++  - crash_signal,
++  - oom_like_exit,
++  - artifact_missing,
++  - score_parse_failed.
++- Added gaussian, right_skewed, and bursty noise profiles.
++- Bursty noise is a stateful seeded Markov chain over healthy/degraded/failed.
++- Same seed replays score and burst state sequences.
++
++Validation:
++
++- `.venv/bin/python -m pytest tests/test_fake_gbs.py -q` -> 9 passed.
++- `.venv/bin/python -m pytest tests/test_fake_gbs.py tests/test_process_runner.py tests/test_process_cleaner.py -q` -> 28 passed.
++- `.venv/bin/python -m pytest tests/ -q` -> 559 passed.
+diff --git a/dev_memory/phases/phase_05_compile_benchmark/UT_RESULTS.md b/dev_memory/phases/phase_05_compile_benchmark/UT_RESULTS.md
+index b0ad6da..1d06483 100644
+--- a/dev_memory/phases/phase_05_compile_benchmark/UT_RESULTS.md
++++ b/dev_memory/phases/phase_05_compile_benchmark/UT_RESULTS.md
+@@ -9,3 +9,16 @@
+   - Command: `.venv/bin/python -m pytest tests/ -q`
+   - Result: 550 passed, 0 failed
+ 
++## Subtask 5.2
++
++- Targeted:
++  - Command: `.venv/bin/python -m pytest tests/test_fake_gbs.py -q`
++  - Result: 9 passed, 0 failed
++- Adjacent:
++  - Command: `.venv/bin/python -m pytest tests/test_fake_gbs.py tests/test_process_runner.py tests/test_process_cleaner.py -q`
++  - Result: 28 passed, 0 failed
++- Full:
++  - Command: `.venv/bin/python -m pytest tests/ -q`
++  - Result: 559 passed, 0 failed
++- Bursty probe:
++  - `FakeGbsNoiseModel(seed=31)` over 100 bursty samples produced healthy=57, degraded=33, failed=10 with 31 adjacent non-healthy transitions.
+diff --git a/src/agent/__init__.py b/src/agent/__init__.py
+index d63fc0d..4eddd0c 100644
+--- a/src/agent/__init__.py
++++ b/src/agent/__init__.py
+@@ -210,6 +210,12 @@ from .registry import (
+     validate_project_against_registry,
+ )
+ from .skills import (
++    DEFAULT_BURSTY_TRANSITIONS,
++    FakeGbsBenchmarkResult,
++    FakeGbsCompileResult,
++    FakeGbsHarness,
++    FakeGbsNoiseModel,
++    FakeGbsNoiseSample,
+     SpecBackupResult,
+     SpecInjectResult,
+     SpecRestoreResult,
+@@ -284,6 +290,7 @@ __all__ = [
+     "ConfigLoadError",
+     "CREATE_TIME_TOLERANCE_SECONDS",
+     "CleanupTarget",
++    "DEFAULT_BURSTY_TRANSITIONS",
+     "DiscoveredTrialRecord",
+     "EXIT_EXECUTION_REFUSED",
+     "EXIT_GENERIC",
+@@ -304,6 +311,11 @@ __all__ = [
+     "ExperienceSourceIntegrity",
+     "ExperienceValidation",
+     "EnvMarkerRead",
++    "FakeGbsBenchmarkResult",
++    "FakeGbsCompileResult",
++    "FakeGbsHarness",
++    "FakeGbsNoiseModel",
++    "FakeGbsNoiseSample",
+     "FilesystemInspection",
+     "FilesystemMount",
+     "FsMemoryError",
+diff --git a/src/agent/skills/__init__.py b/src/agent/skills/__init__.py
+index 8b73174..712db40 100644
+--- a/src/agent/skills/__init__.py
++++ b/src/agent/skills/__init__.py
+@@ -1,5 +1,13 @@
+ """Deterministic skill helpers for the local agent workflow."""
+ 
++from .fake_gbs import (
++    DEFAULT_BURSTY_TRANSITIONS,
++    FakeGbsBenchmarkResult,
++    FakeGbsCompileResult,
++    FakeGbsHarness,
++    FakeGbsNoiseModel,
++    FakeGbsNoiseSample,
++)
+ from .spec_backup import SpecBackupResult, spec_backup
+ from .spec_injector import SpecInjectResult, spec_injector
+ from .spec_restore import SpecRestoreResult, spec_restore
+@@ -14,6 +22,12 @@ from .workspace_snapshot import (
+ from .workspace_verify import WorkspaceVerifyResult, workspace_verify
+ 
+ __all__ = [
++    "DEFAULT_BURSTY_TRANSITIONS",
++    "FakeGbsBenchmarkResult",
++    "FakeGbsCompileResult",
++    "FakeGbsHarness",
++    "FakeGbsNoiseModel",
++    "FakeGbsNoiseSample",
+     "SpecBackupResult",
+     "SpecInjectResult",
+     "SpecRestoreResult",

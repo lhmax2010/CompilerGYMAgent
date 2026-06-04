@@ -1,0 +1,18 @@
+Phase 05 / Subtask 5.2 - fake_gbs mock harness
+
+Implemented:
+- Added src/agent/skills/fake_gbs.py.
+- Added FakeGbsHarness with process-backed compile() and benchmark().
+- Each fake compile/benchmark run uses process_runner.spawn_process(), creating real subprocesses, process groups, process leases, and env markers.
+- Compile success writes a real artifact and sha256 artifact hash.
+- Benchmark consumes the artifact and emits/parse a SCORE line.
+- Failure modes covered: invalid_option, timeout, crash_signal, oom_like_exit, artifact_missing, score_parse_failed.
+- Timeout path uses process_cleaner cleanup/killpg.
+- Added FakeGbsNoiseModel with gaussian, right_skewed, and bursty Markov profiles.
+- Bursty profile is seeded and stateful across samples.
+
+Validation:
+- test_fake_gbs.py: 9 passed.
+- fake_gbs + process adjacent tests: 28 passed.
+- Full suite: 559 passed.
+

@@ -1,7 +1,7 @@
 phase_id: phase_05_compile_benchmark
 phase_title: "Compile / Benchmark Skills"
 started_at: 2026-06-04T10:05:00+08:00
-last_updated: 2026-06-04T10:05:00+08:00
+last_updated: 2026-06-04T10:50:00+08:00
 target_milestone: "M1 end / M2 start"
 related_requirements:
   - REQUIREMENTS.md section 4.7.1 gbs_compile
@@ -50,6 +50,47 @@ subtasks:
     patch_file: dev_memory/phases/phase_05_compile_benchmark/patches/01_env_marker_lease_id.patch
     patch_generated: true
     commit_required: true
+    commit_pending: false
+    implementation_commit: 85a5063
+    external_review_verdict: approve
+    external_reviewed_at: 2026-06-04T10:20:00+08:00
+    external_review_tests: "550 passed; 0 residual process leak"
+  - id: "5.2"
+    title: "fake_gbs mock harness"
+    status: done
+    related_requirements:
+      - ROADMAP.yaml Phase 05 deliverable fake_gbs mock harness
+      - DECISIONS.md "Mock must use real process_runner + Markov bursty noise"
+    files_created:
+      - src/agent/skills/fake_gbs.py
+      - tests/test_fake_gbs.py
+    files_modified:
+      - src/agent/skills/__init__.py
+      - src/agent/__init__.py
+      - dev_memory/CURRENT_PHASE.yaml
+      - dev_memory/ROADMAP.yaml
+      - dev_memory/PROGRESS.md
+      - dev_memory/phases/phase_05_compile_benchmark/CHECKLIST.yaml
+      - dev_memory/phases/phase_05_compile_benchmark/REVIEW_NOTES.md
+      - dev_memory/phases/phase_05_compile_benchmark/SUMMARY.md
+      - dev_memory/phases/phase_05_compile_benchmark/UT_RESULTS.md
+    behavior_notes:
+      - "fake_gbs compile and benchmark run through process_runner, creating real subprocesses, process leases, pgids, and env markers."
+      - "Compile success writes a real artifact with sha256 hash; benchmark consumes and verifies the artifact."
+      - "Failure modes cover invalid_option, timeout, crash_signal, oom_like_exit, artifact_missing, and score_parse_failed."
+      - "Noise profiles include gaussian, right_skewed, and stateful bursty Markov with seeded replay."
+      - "Bursty profile has explicit transition matrix and 100-round pressure coverage."
+    ut_required: true
+    ut_passed: true
+    targeted_ut: "9 tests passed, 0 failed (test_fake_gbs.py)"
+    adjacent_ut: "28 tests passed, 0 failed (fake_gbs/process_runner/process_cleaner)"
+    production_regression_ut: "559 tests passed, 0 failed"
+    self_review_required: true
+    self_reviewed: true
+    patch_required: true
+    patch_file: dev_memory/phases/phase_05_compile_benchmark/patches/02_fake_gbs_harness.patch
+    patch_generated: true
+    commit_required: true
     commit_pending: true
     external_review_verdict: pending
-next_action: "Push Subtask 5.1 and request Claude review; next planned subtask is 5.2 fake_gbs mock harness after review/Ubuntu validation."
+next_action: "Push Subtask 5.2 and request Claude review; next planned subtask is 5.5a failure/result schema skeleton after review/Ubuntu validation."
