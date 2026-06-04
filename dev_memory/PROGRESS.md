@@ -2281,3 +2281,20 @@ Next action: begin Subtask 5.3 compile skill.
   - `.venv/bin/python -m pytest tests/ -q` -> 581 passed.
 
 Next action: generate patch artifacts, commit/push Subtask 5.3, then request Claude review.
+
+## 2026-06-04T22:01:59+08:00 - Phase 05 / Subtask 5.3 approved
+
+- External review verdict: Approve.
+- Review range: `2ea8a9f..b32cb33`.
+- Review confirmed:
+  - spawn ordering is lease -> process_started trace -> checkpoint operation refs,
+  - `process_started` includes full ProcessRecord and ProcessLease payload,
+  - trace/checkpoint failure after lease creation triggers killpg and terminal lease state,
+  - workspace protection restores the spec in failure paths,
+  - deprecated `checkpoint.current_trial.process` is not used,
+  - compile failures use 5.5a `FailureClassification` with `write_failed_combos=false`,
+  - no residual processes remain.
+- Validation:
+  - `.venv/bin/python -m pytest tests/ -q` -> 581 passed.
+
+Next action: begin Subtask 5.4 benchmark skill.
