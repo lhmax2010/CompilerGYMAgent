@@ -2244,3 +2244,40 @@ Next action: generate patch artifacts, commit/push Subtask 5.5a, then request Cl
   - `.venv/bin/python -m pytest tests/ -q` -> 578 passed.
 
 Next action: begin Subtask 5.3 compile skill.
+
+## 2026-06-04T21:50:10+08:00 - Phase 05 / Subtask 5.3 implemented
+
+- Added the Phase 05 compile skill:
+  - `src/agent/skills/compile.py`,
+  - `compile_candidate()`,
+  - `CompileSkillResult`,
+  - `CompileSkillError`.
+- Wrapped compile in workspace protection:
+  - pre snapshot,
+  - spec backup,
+  - spec injection,
+  - fake_gbs compile,
+  - spec restore,
+  - workspace verify.
+- Added fake_gbs `on_spawn` hook so compile skill can enforce recovery ordering immediately after process lease creation:
+  - process is spawned,
+  - lease is written,
+  - `process_started` trace is appended with full ProcessRecord and ProcessLease payload,
+  - checkpoint operation ledger receives the lease ref.
+- Added exception-path cleanup:
+  - if trace/checkpoint write fails after lease creation,
+    fake_gbs calls `cleanup_process_lease(force_suspected=True)`,
+    terminalizes the lease,
+    and leaves no live process group.
+- Kept process authority in `current_trial.operations[].process_refs` only:
+  - deprecated `current_trial.process` is forced to None.
+- Compile failures use 5.5a `FailureClassification` objects conservatively:
+  - no classifier rules,
+  - no log pattern matching,
+  - `write_failed_combos=False`.
+- Validation:
+  - `.venv/bin/python -m pytest tests/test_compile_skill.py -q` -> 3 passed.
+  - `.venv/bin/python -m pytest tests/test_compile_skill.py tests/test_fake_gbs.py tests/test_spec_skills.py tests/test_workspace_skills.py tests/test_process_runner.py tests/test_process_cleaner.py -q` -> 55 passed.
+  - `.venv/bin/python -m pytest tests/ -q` -> 581 passed.
+
+Next action: generate patch artifacts, commit/push Subtask 5.3, then request Claude review.

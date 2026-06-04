@@ -15,7 +15,7 @@ import signal
 import subprocess
 import sys
 import time
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from random import Random
@@ -184,6 +184,7 @@ class FakeGbsHarness:
         trial_id: str,
         failure_mode: FakeGbsFailureMode | None = None,
         timeout_seconds: float = 2.0,
+        on_spawn: Callable[[ProcessSpawnResult], None] | None = None,
     ) -> FakeGbsCompileResult:
         safe_combo = tuple(str(option) for option in combo)
         effective_failure = failure_mode
@@ -205,6 +206,7 @@ class FakeGbsHarness:
                 effective_failure or "none",
             ],
             timeout_seconds=timeout_seconds,
+            on_spawn=on_spawn,
         )
         payload = _load_result_payload(context.result_json_path)
         artifact_hash = _sha256_file(artifact_path) if artifact_path.exists() else None
@@ -236,6 +238,7 @@ class FakeGbsHarness:
         noise_profile: FakeGbsNoiseProfile = "gaussian",
         failure_mode: FakeGbsFailureMode | None = None,
         timeout_seconds: float = 2.0,
+        on_spawn: Callable[[ProcessSpawnResult], None] | None = None,
     ) -> FakeGbsBenchmarkResult:
         artifact = Path(artifact_path)
         artifact_hash = _sha256_file(artifact) if artifact.exists() else None
@@ -259,6 +262,7 @@ class FakeGbsHarness:
                 failure_mode or "none",
             ],
             timeout_seconds=timeout_seconds,
+            on_spawn=on_spawn,
         )
         payload = _load_result_payload(context.result_json_path)
         status = _benchmark_status(context, payload, artifact)
@@ -295,6 +299,7 @@ class FakeGbsHarness:
         run_id: str,
         extra_args: Sequence[str],
         timeout_seconds: float,
+        on_spawn: Callable[[ProcessSpawnResult], None] | None = None,
     ) -> _RunContext:
         stdout_path = self.logs_dir / f"{run_id}.stdout.log"
         stderr_path = self.logs_dir / f"{run_id}.stderr.log"
@@ -318,6 +323,21 @@ class FakeGbsHarness:
                 stdout=stdout,  # type: ignore[arg-type]
                 stderr=stderr,  # type: ignore[arg-type]
             )
+            if on_spawn is not None:
+                try:
+                    on_spawn(spawn)
+                except Exception:
+                    cleanup_process_lease(
+                        self.layout,
+                        spawn.lease,
+                        force_suspected=True,
+                        kill_timeout_seconds=timeout_seconds,
+                    )
+                    try:
+                        spawn.popen.wait(timeout=timeout_seconds + 2.0)
+                    except subprocess.TimeoutExpired:
+                        pass
+                    raise
         cleanup: ProcessCleanupResult | None = None
         updated_lease: ProcessLease | None = None
         timed_out = False

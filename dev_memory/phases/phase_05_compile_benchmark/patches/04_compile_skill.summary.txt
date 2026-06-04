@@ -1,0 +1,24 @@
+Phase 05 / Subtask 5.3 - compile skill
+
+Implemented:
+- Added src/agent/skills/compile.py.
+- Added compile_candidate() and CompileSkillResult.
+- compile_candidate wraps fake_gbs compile with workspace protection:
+  - workspace_snapshot(pre),
+  - spec_backup,
+  - spec_injector,
+  - fake_gbs compile,
+  - spec_restore,
+  - workspace_verify.
+- Added fake_gbs on_spawn hook so compile_candidate can write process_started trace/checkpoint immediately after process lease creation.
+- process_started trace includes full ProcessRecord and ProcessLease payload.
+- Checkpoint operation ledger receives compile process_refs and remains the process authority.
+- Deprecated checkpoint.current_trial.process is not written.
+- If process_started trace/checkpoint writing fails after lease creation, fake_gbs kills the process group through process_cleaner and terminalizes the lease.
+- Compile failures return FailureClassification schema objects conservatively with write_failed_combos=False.
+
+Validation:
+- test_compile_skill.py: 3 passed.
+- compile/fake_gbs/workspace/spec/process adjacent tests: 55 passed.
+- Full suite: 581 passed.
+

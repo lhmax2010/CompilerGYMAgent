@@ -1,0 +1,979 @@
+diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index a4f9bdc..e0152f7 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -1,7 +1,7 @@
+ phase_id: phase_05_compile_benchmark
+ phase_title: "Compile / Benchmark Skills"
+ started_at: 2026-06-04T10:05:00+08:00
+-last_updated: 2026-06-04T21:43:21+08:00
++last_updated: 2026-06-04T21:50:10+08:00
+ target_milestone: "M1 end / M2 start"
+ related_requirements:
+   - REQUIREMENTS.md section 4.7.1 gbs_compile
+@@ -140,4 +140,45 @@ subtasks:
+     external_review_verdict: approve
+     external_reviewed_at: 2026-06-04T21:43:21+08:00
+     external_review_tests: "578 passed; write_failed_combos gate, objective_direction, scoring/failure consistency, and pure-schema boundary verified"
+-next_action: "Subtask 5.5a approved; next planned subtask is 5.3 compile skill."
++  - id: "5.3"
++    title: "compile skill"
++    status: done
++    related_requirements:
++      - ROADMAP.yaml Phase 05 deliverable compile skill
++      - DECISIONS.md "Lease rebuildability requires trace process_started with full payload"
++      - DECISIONS.md "Failure classification: confidence + evidence + three-way routing"
++    files_created:
++      - src/agent/skills/compile.py
++      - tests/test_compile_skill.py
++    files_modified:
++      - src/agent/skills/fake_gbs.py
++      - src/agent/skills/__init__.py
++      - src/agent/__init__.py
++      - dev_memory/CURRENT_PHASE.yaml
++      - dev_memory/ROADMAP.yaml
++      - dev_memory/PROGRESS.md
++      - dev_memory/phases/phase_05_compile_benchmark/CHECKLIST.yaml
++      - dev_memory/phases/phase_05_compile_benchmark/REVIEW_NOTES.md
++      - dev_memory/phases/phase_05_compile_benchmark/SUMMARY.md
++      - dev_memory/phases/phase_05_compile_benchmark/UT_RESULTS.md
++    behavior_notes:
++      - "compile_candidate runs workspace_snapshot(pre), spec_backup, spec_injector, fake_gbs compile, spec_restore, and workspace_verify."
++      - "fake_gbs accepts an on_spawn hook so compile_candidate can write process_started trace and checkpoint process_refs immediately after lease creation and before waiting for the process."
++      - "process_started trace carries full ProcessRecord and ProcessLease payload sufficient for lease rebuild."
++      - "Checkpoint operation ledger is the process authority; deprecated current_trial.process is forced to None."
++      - "If process_started trace/checkpoint write fails after lease creation, fake_gbs immediately invokes cleaner killpg and terminalizes the lease."
++      - "Compile failures return the shared FailureClassification schema conservatively with write_failed_combos=False; classifier rules remain deferred to 5.5b."
++    ut_required: true
++    ut_passed: true
++    targeted_ut: "3 tests passed, 0 failed (test_compile_skill.py)"
++    adjacent_ut: "55 tests passed, 0 failed (compile/fake_gbs/workspace/spec/process)"
++    production_regression_ut: "581 tests passed, 0 failed"
++    self_review_required: true
++    self_reviewed: true
++    patch_required: true
++    patch_file: dev_memory/phases/phase_05_compile_benchmark/patches/04_compile_skill.patch
++    patch_generated: true
++    commit_required: true
++    commit_pending: true
++    external_review_verdict: pending
++next_action: "Push Subtask 5.3 and request Claude review; next planned subtask is 5.4 benchmark skill after review/Ubuntu validation."
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index 092e39b..c0aa72e 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -2244,3 +2244,40 @@ Next action: generate patch artifacts, commit/push Subtask 5.5a, then request Cl
+   - `.venv/bin/python -m pytest tests/ -q` -> 578 passed.
+ 
+ Next action: begin Subtask 5.3 compile skill.
++
++## 2026-06-04T21:50:10+08:00 - Phase 05 / Subtask 5.3 implemented
++
++- Added the Phase 05 compile skill:
++  - `src/agent/skills/compile.py`,
++  - `compile_candidate()`,
++  - `CompileSkillResult`,
++  - `CompileSkillError`.
++- Wrapped compile in workspace protection:
++  - pre snapshot,
++  - spec backup,
++  - spec injection,
++  - fake_gbs compile,
++  - spec restore,
++  - workspace verify.
++- Added fake_gbs `on_spawn` hook so compile skill can enforce recovery ordering immediately after process lease creation:
++  - process is spawned,
++  - lease is written,
++  - `process_started` trace is appended with full ProcessRecord and ProcessLease payload,
++  - checkpoint operation ledger receives the lease ref.
++- Added exception-path cleanup:
++  - if trace/checkpoint write fails after lease creation,
++    fake_gbs calls `cleanup_process_lease(force_suspected=True)`,
++    terminalizes the lease,
++    and leaves no live process group.
++- Kept process authority in `current_trial.operations[].process_refs` only:
++  - deprecated `current_trial.process` is forced to None.
++- Compile failures use 5.5a `FailureClassification` objects conservatively:
++  - no classifier rules,
++  - no log pattern matching,
++  - `write_failed_combos=False`.
++- Validation:
++  - `.venv/bin/python -m pytest tests/test_compile_skill.py -q` -> 3 passed.
++  - `.venv/bin/python -m pytest tests/test_compile_skill.py tests/test_fake_gbs.py tests/test_spec_skills.py tests/test_workspace_skills.py tests/test_process_runner.py tests/test_process_cleaner.py -q` -> 55 passed.
++  - `.venv/bin/python -m pytest tests/ -q` -> 581 passed.
++
++Next action: generate patch artifacts, commit/push Subtask 5.3, then request Claude review.
+diff --git a/dev_memory/ROADMAP.yaml b/dev_memory/ROADMAP.yaml
+index eb36209..28fd380 100644
+--- a/dev_memory/ROADMAP.yaml
++++ b/dev_memory/ROADMAP.yaml
+@@ -160,7 +160,7 @@ planned_phases:
+     title: "Compile / Benchmark Skills"
+     status: in_progress
+     started_at: 2026-06-04T10:05:00+08:00
+-    actual_subtasks_done: 3
++    actual_subtasks_done: 4
+     milestone: "M1 end / M2 start"
+     requirement_sections: ["4.7.1 (gbs_compile, build_only_check, error_analyzer, benchmark_runner, quick_benchmark, score_aggregator)"]
+     dependencies: ["04", "06"]
+diff --git a/dev_memory/phases/phase_05_compile_benchmark/CHECKLIST.yaml b/dev_memory/phases/phase_05_compile_benchmark/CHECKLIST.yaml
+index 01ed8e1..431b16f 100644
+--- a/dev_memory/phases/phase_05_compile_benchmark/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_05_compile_benchmark/CHECKLIST.yaml
+@@ -28,7 +28,12 @@ subtasks:
+     ubuntu_validation: pending
+   - id: "5.3"
+     title: "compile skill"
+-    status: pending
++    status: done
++    implementation_complete: true
++    tests_passed: true
++    patch_artifacts_generated: true
++    external_review: pending
++    ubuntu_validation: pending
+   - id: "5.4"
+     title: "benchmark skill"
+     status: pending
+diff --git a/dev_memory/phases/phase_05_compile_benchmark/REVIEW_NOTES.md b/dev_memory/phases/phase_05_compile_benchmark/REVIEW_NOTES.md
+index eb62d34..8c38ca5 100644
+--- a/dev_memory/phases/phase_05_compile_benchmark/REVIEW_NOTES.md
++++ b/dev_memory/phases/phase_05_compile_benchmark/REVIEW_NOTES.md
+@@ -38,3 +38,15 @@
+ - [x] `score_parse_failed` invalid runs require score_source_ref.
+ - [x] Subtask remains schema-only; no classifier rule matching or log parsing is implemented.
+ - [x] Targeted, adjacent, and full test suites pass.
++
++## Subtask 5.3 - compile skill
++
++- [x] `compile_candidate()` consumes fake_gbs through the real process-backed harness.
++- [x] Workspace protection wraps compile with snapshot, spec backup, spec injection, spec restore, and workspace verify.
++- [x] fake_gbs `on_spawn` hook lets compile skill write canonical trace/checkpoint state immediately after lease creation.
++- [x] `process_started` trace contains full ProcessRecord and ProcessLease payloads.
++- [x] Checkpoint operation ledger receives compile process_refs and does not write deprecated `current_trial.process`.
++- [x] Successful compile records artifact_ref and artifact_hash.
++- [x] Trace failure after lease creation kills the process group and terminalizes the lease.
++- [x] Failure classifications use 5.5a schema and keep `write_failed_combos=False`.
++- [x] Targeted, adjacent, and full test suites pass.
+diff --git a/dev_memory/phases/phase_05_compile_benchmark/SUMMARY.md b/dev_memory/phases/phase_05_compile_benchmark/SUMMARY.md
+index 1954026..345bb91 100644
+--- a/dev_memory/phases/phase_05_compile_benchmark/SUMMARY.md
++++ b/dev_memory/phases/phase_05_compile_benchmark/SUMMARY.md
+@@ -56,3 +56,30 @@ Validation:
+ - `.venv/bin/python -m pytest tests/test_result_schema.py -q` -> 19 passed.
+ - `.venv/bin/python -m pytest tests/test_fake_gbs.py tests/test_result_schema.py -q` -> 28 passed.
+ - `.venv/bin/python -m pytest tests/ -q` -> 578 passed.
++
++## 5.3 compile skill
++
++- Added `src/agent/skills/compile.py`.
++- Added `compile_candidate()` as the Phase 05 compile skill entry point.
++- The skill runs workspace protection around compile:
++  - `workspace_snapshot(pre)`,
++  - `spec_backup`,
++  - `spec_injector`,
++  - fake_gbs compile,
++  - `spec_restore`,
++  - `workspace_verify`.
++- Extended fake_gbs with an `on_spawn` hook so the skill can write canonical state immediately after `spawn_process()` creates the lease.
++- Enforced spawn recovery ordering:
++  - spawn process,
++  - write lease,
++  - trace `process_started` with full `ProcessRecord` and `ProcessLease` payload,
++  - checkpoint operation ledger `process_refs`.
++- If trace/checkpoint writing fails after lease creation, fake_gbs invokes `cleanup_process_lease(force_suspected=True)` and terminalizes the lease.
++- The checkpoint operation ledger is the process authority; the deprecated `current_trial.process` field is not written.
++- Compile failures return 5.5a `FailureClassification` objects with `write_failed_combos=False`; classifier rules remain deferred to 5.5b.
++
++Validation:
++
++- `.venv/bin/python -m pytest tests/test_compile_skill.py -q` -> 3 passed.
++- `.venv/bin/python -m pytest tests/test_compile_skill.py tests/test_fake_gbs.py tests/test_spec_skills.py tests/test_workspace_skills.py tests/test_process_runner.py tests/test_process_cleaner.py -q` -> 55 passed.
++- `.venv/bin/python -m pytest tests/ -q` -> 581 passed.
+diff --git a/dev_memory/phases/phase_05_compile_benchmark/UT_RESULTS.md b/dev_memory/phases/phase_05_compile_benchmark/UT_RESULTS.md
+index efece09..85ccecf 100644
+--- a/dev_memory/phases/phase_05_compile_benchmark/UT_RESULTS.md
++++ b/dev_memory/phases/phase_05_compile_benchmark/UT_RESULTS.md
+@@ -34,3 +34,15 @@
+ - Full:
+   - Command: `.venv/bin/python -m pytest tests/ -q`
+   - Result: 578 passed, 0 failed
++
++## Subtask 5.3
++
++- Targeted:
++  - Command: `.venv/bin/python -m pytest tests/test_compile_skill.py -q`
++  - Result: 3 passed, 0 failed
++- Adjacent:
++  - Command: `.venv/bin/python -m pytest tests/test_compile_skill.py tests/test_fake_gbs.py tests/test_spec_skills.py tests/test_workspace_skills.py tests/test_process_runner.py tests/test_process_cleaner.py -q`
++  - Result: 55 passed, 0 failed
++- Full:
++  - Command: `.venv/bin/python -m pytest tests/ -q`
++  - Result: 581 passed, 0 failed
+diff --git a/src/agent/__init__.py b/src/agent/__init__.py
+index 941c4a0..860f02b 100644
+--- a/src/agent/__init__.py
++++ b/src/agent/__init__.py
+@@ -210,6 +210,8 @@ from .registry import (
+     validate_project_against_registry,
+ )
+ from .skills import (
++    CompileSkillError,
++    CompileSkillResult,
+     DEFAULT_BURSTY_TRANSITIONS,
+     EvidenceLine,
+     FailureCategory,
+@@ -240,6 +242,7 @@ from .skills import (
+     spec_restore,
+     workspace_snapshot,
+     workspace_verify,
++    compile_candidate,
+     compute_combo_hash as compute_result_combo_hash,
+ )
+ from .trace import (
+@@ -299,6 +302,8 @@ __all__ = [
+     "CleanResult",
+     "Combo",
+     "ConfigLoadError",
++    "CompileSkillError",
++    "CompileSkillResult",
+     "CREATE_TIME_TOLERANCE_SECONDS",
+     "CleanupTarget",
+     "DEFAULT_BURSTY_TRANSITIONS",
+@@ -439,6 +444,7 @@ __all__ = [
+     "cleanup_process_lease",
+     "collect_history_summary",
+     "collect_trial_startup_validation_inputs",
++    "compile_candidate",
+     "compute_combo_hash",
+     "compute_cmdline_hash",
+     "compute_clean_plan",
+diff --git a/src/agent/skills/__init__.py b/src/agent/skills/__init__.py
+index 833c178..0241719 100644
+--- a/src/agent/skills/__init__.py
++++ b/src/agent/skills/__init__.py
+@@ -1,5 +1,6 @@
+ """Deterministic skill helpers for the local agent workflow."""
+ 
++from .compile import CompileSkillError, CompileSkillResult, compile_candidate
+ from .fake_gbs import (
+     DEFAULT_BURSTY_TRANSITIONS,
+     FakeGbsBenchmarkResult,
+@@ -36,6 +37,8 @@ from .workspace_verify import WorkspaceVerifyResult, workspace_verify
+ 
+ __all__ = [
+     "DEFAULT_BURSTY_TRANSITIONS",
++    "CompileSkillError",
++    "CompileSkillResult",
+     "FakeGbsBenchmarkResult",
+     "FakeGbsCompileResult",
+     "FakeGbsHarness",
+@@ -59,6 +62,7 @@ __all__ = [
+     "WorkspaceSnapshotPhase",
+     "WorkspaceSnapshotResult",
+     "WorkspaceVerifyResult",
++    "compile_candidate",
+     "compute_combo_hash",
+     "load_workspace_snapshot",
+     "spec_backup",
+diff --git a/src/agent/skills/compile.py b/src/agent/skills/compile.py
+new file mode 100644
+index 0000000..17218d7
+--- /dev/null
++++ b/src/agent/skills/compile.py
+@@ -0,0 +1,385 @@
++"""Compile skill orchestration for Phase 05 fake_gbs-backed runs."""
++
++from __future__ import annotations
++
++from collections.abc import Sequence
++from dataclasses import dataclass
++from datetime import UTC, datetime
++from pathlib import Path
++from typing import Any
++
++from agent.config import AgentConfig
++from agent.errors import AgentError, EXIT_EXECUTION_REFUSED
++from agent.fs_memory import (
++    CheckpointState,
++    CheckpointTrialOperation,
++    NamespaceLayout,
++    checkpoint_payload,
++)
++from agent.process_registry import process_lease_path, process_lease_payload
++from agent.process_runner import ProcessSpawnResult
++from agent.trace import TraceCheckpointWriter
++
++from .fake_gbs import FakeGbsCompileResult, FakeGbsFailureMode, FakeGbsHarness
++from .result_schema import FailureClassification
++from .spec_backup import SpecBackupResult, spec_backup
++from .spec_injector import SpecInjectResult, spec_injector
++from .spec_restore import SpecRestoreResult, spec_restore
++from .workspace_snapshot import WorkspaceSnapshotResult, workspace_snapshot
++from .workspace_verify import WorkspaceVerifyResult, workspace_verify
++
++
++class CompileSkillError(AgentError):
++    """Raised when the compile skill cannot preserve recovery semantics."""
++
++    exit_code = EXIT_EXECUTION_REFUSED
++
++
++@dataclass(frozen=True)
++class CompileSkillResult:
++    """Result of one protected compile skill invocation."""
++
++    trial_id: str
++    combo: tuple[str, ...]
++    status: str
++    artifact_ref: str | None
++    artifact_hash: str | None
++    failure_classification: FailureClassification | None
++    stdout_ref: str
++    stderr_ref: str
++    result_ref: str
++    lease_ref: str
++    process_started_trace_id: str
++    compile_result_trace_id: str
++    checkpoint: CheckpointState
++    workspace_snapshot_pre: WorkspaceSnapshotResult
++    spec_backup: SpecBackupResult
++    spec_inject: SpecInjectResult
++    spec_restore: SpecRestoreResult
++    workspace_verify: WorkspaceVerifyResult
++    fake_gbs_result: FakeGbsCompileResult
++
++    @property
++    def success(self) -> bool:
++        return self.status == "success"
++
++
++def compile_candidate(
++    config: AgentConfig,
++    layout: NamespaceLayout,
++    checkpoint: CheckpointState | dict[str, Any],
++    *,
++    combo: Sequence[str],
++    trial_id: str,
++    harness: FakeGbsHarness,
++    failure_mode: FakeGbsFailureMode | None = None,
++    timeout_seconds: float = 2.0,
++    now: datetime | None = None,
++) -> CompileSkillResult:
++    """Compile one candidate combo through fake_gbs and canonical recovery state."""
++
++    safe_combo = _validate_combo(combo)
++    state = CheckpointState.model_validate(checkpoint)
++    _validate_checkpoint_for_trial(state, trial_id)
++    timestamp = _normalize_now(now)
++
++    pre_snapshot = workspace_snapshot(
++        config,
++        layout,
++        trial_id=trial_id,
++        phase="pre",
++        now=timestamp,
++    )
++    backup = spec_backup(config, layout, trial_id=trial_id, now=timestamp)
++    injected: SpecInjectResult | None = None
++    restored: SpecRestoreResult | None = None
++    verified: WorkspaceVerifyResult | None = None
++    started_trace_id: str | None = None
++    lease_ref: str | None = None
++    trace_checkpoint = TraceCheckpointWriter.for_checkpoint(layout, state)
++
++    def on_spawn(spawn: ProcessSpawnResult) -> None:
++        nonlocal started_trace_id, lease_ref, trace_checkpoint
++        lease = spawn.lease
++        lease_ref = _lease_ref(layout, lease)
++        process_record = spawn.record.model_dump(mode="json")
++        running_checkpoint = _checkpoint_with_compile_operation(
++            trace_checkpoint.checkpoint,
++            lease_ref=lease_ref,
++            status="running",
++            output_ref=None,
++            details={
++                "combo": list(safe_combo),
++                "lease_id": lease.lease_id,
++            },
++        )
++        result = trace_checkpoint.append_and_checkpoint(
++            "process_started",
++            checkpoint=running_checkpoint,
++            trial_id=trial_id,
++            operation="compile",
++            lease_ref=lease_ref,
++            process_record=process_record,
++            process_lease=process_lease_payload(lease),
++        )
++        started_trace_id = result.trace.trace_id
++        trace_checkpoint.checkpoint = result.checkpoint
++
++    try:
++        injected = spec_injector(
++            config,
++            layout,
++            trial_id=trial_id,
++            combo=safe_combo,
++            now=timestamp,
++        )
++        fake_result = harness.compile(
++            safe_combo,
++            trial_id=trial_id,
++            failure_mode=failure_mode,
++            timeout_seconds=timeout_seconds,
++            on_spawn=on_spawn,
++        )
++    finally:
++        restored = spec_restore(
++            config,
++            layout,
++            backup=backup,
++            trial_id=trial_id,
++            expected_hash=backup.original_hash,
++            now=timestamp,
++        )
++        verified = workspace_verify(
++            config,
++            layout,
++            trial_id=trial_id,
++            pre_snapshot=pre_snapshot,
++            now=timestamp,
++        )
++
++    if injected is None or restored is None or verified is None:
++        raise CompileSkillError("compile workspace protection did not complete")
++    if started_trace_id is None or lease_ref is None:
++        raise CompileSkillError("compile process did not emit process_started trace")
++
++    artifact_ref = _optional_namespace_ref(layout, fake_result.artifact_path)
++    stdout_ref = _namespace_ref(layout, fake_result.stdout_path)
++    stderr_ref = _namespace_ref(layout, fake_result.stderr_path)
++    result_ref = _namespace_ref(layout, fake_result.result_json_path)
++    classification = _failure_classification_for_compile(fake_result)
++    terminal_status = "completed" if fake_result.status == "success" else "failed"
++    final_checkpoint = _checkpoint_with_compile_operation(
++        trace_checkpoint.checkpoint,
++        lease_ref=lease_ref,
++        status=terminal_status,
++        output_ref=artifact_ref,
++        details={
++            "status": fake_result.status,
++            "artifact_hash": fake_result.artifact_hash,
++            "stdout_ref": stdout_ref,
++            "stderr_ref": stderr_ref,
++            "result_ref": result_ref,
++            "exit_code": fake_result.exit_code,
++            "signal": fake_result.signal,
++            "failure_classification": (
++                None
++                if classification is None
++                else classification.model_dump(mode="json", exclude_none=True)
++            ),
++        },
++    )
++    trace_result = trace_checkpoint.append_and_checkpoint(
++        "compile_result",
++        checkpoint=final_checkpoint,
++        trial_id=trial_id,
++        status=fake_result.status,
++        artifact_ref=artifact_ref,
++        artifact_hash=fake_result.artifact_hash,
++        failure_classification=(
++            None
++            if classification is None
++            else classification.model_dump(mode="json", exclude_none=True)
++        ),
++        stdout_ref=stdout_ref,
++        stderr_ref=stderr_ref,
++        result_ref=result_ref,
++        lease_ref=lease_ref,
++    )
++
++    return CompileSkillResult(
++        trial_id=trial_id,
++        combo=safe_combo,
++        status=fake_result.status,
++        artifact_ref=artifact_ref,
++        artifact_hash=fake_result.artifact_hash,
++        failure_classification=classification,
++        stdout_ref=stdout_ref,
++        stderr_ref=stderr_ref,
++        result_ref=result_ref,
++        lease_ref=lease_ref,
++        process_started_trace_id=started_trace_id,
++        compile_result_trace_id=trace_result.trace.trace_id,
++        checkpoint=trace_result.checkpoint,
++        workspace_snapshot_pre=pre_snapshot,
++        spec_backup=backup,
++        spec_inject=injected,
++        spec_restore=restored,
++        workspace_verify=verified,
++        fake_gbs_result=fake_result,
++    )
++
++
++def _checkpoint_with_compile_operation(
++    checkpoint: CheckpointState,
++    *,
++    lease_ref: str,
++    status: str,
++    output_ref: str | None,
++    details: dict[str, Any],
++) -> CheckpointState:
++    payload = checkpoint_payload(checkpoint)
++    current_trial = payload.get("current_trial")
++    if not isinstance(current_trial, dict):
++        raise CompileSkillError("checkpoint.current_trial is required for compile")
++    operations = [
++        dict(operation) for operation in (current_trial.get("operations") or [])
++    ]
++    replaced = False
++    for index, operation in enumerate(operations):
++        if (
++            operation.get("op") == "compile"
++            and lease_ref in tuple(operation.get("process_refs") or ())
++        ):
++            operations[index] = _compile_operation_payload(
++                status=status,
++                process_refs=(lease_ref,),
++                output_ref=output_ref,
++                details=details,
++            )
++            replaced = True
++            break
++    if not replaced:
++        operations.append(
++            _compile_operation_payload(
++                status=status,
++                process_refs=(lease_ref,),
++                output_ref=output_ref,
++                details=details,
++            )
++        )
++    current_trial["operations"] = operations
++    current_trial["current_stage"] = "compiling"
++    current_trial["process"] = None
++    current_trial["stage_started_at"] = datetime.now(UTC).isoformat()
++    payload["last_updated"] = datetime.now(UTC).isoformat()
++    return CheckpointState.model_validate(payload)
++
++
++def _compile_operation_payload(
++    *,
++    status: str,
++    process_refs: tuple[str, ...],
++    output_ref: str | None,
++    details: dict[str, Any],
++) -> dict[str, Any]:
++    operation = CheckpointTrialOperation(
++        op="compile",
++        status=status,  # type: ignore[arg-type]
++        process_refs=process_refs,
++        output_ref=output_ref,
++        details=details,
++    )
++    return operation.model_dump(mode="json", exclude_none=True)
++
++
++def _failure_classification_for_compile(
++    result: FakeGbsCompileResult,
++) -> FailureClassification | None:
++    if result.status == "success":
++        return None
++    category_by_status = {
++        "invalid_option": "invalid_option",
++        "timeout": "build_timeout",
++        "crash_signal": "compiler_crash",
++        "oom_like_exit": "oom_killed",
++        "artifact_missing": "artifact_missing",
++        "infra_failure": "infra_failure",
++    }
++    route_by_status = {
++        "timeout": "environment_related",
++        "oom_like_exit": "environment_related",
++        "infra_failure": "environment_related",
++    }
++    retryable = result.status in {"timeout", "oom_like_exit", "infra_failure"}
++    affected_options = (
++        tuple(option for option in result.combo if "invalid" in option)
++        if result.status == "invalid_option"
++        else ()
++    )
++    return FailureClassification(
++        category=category_by_status.get(result.status, "unknown_failure"),  # type: ignore[arg-type]
++        route=route_by_status.get(result.status, "unknown"),  # type: ignore[arg-type]
++        confidence="LOW",
++        affected_options=affected_options,
++        retryable=retryable,
++        write_failed_combos=False,
++    )
++
++
++def _validate_checkpoint_for_trial(checkpoint: CheckpointState, trial_id: str) -> None:
++    current_trial = checkpoint.current_trial
++    if current_trial is None:
++        raise CompileSkillError("checkpoint.current_trial is required for compile")
++    if current_trial.trial_id != trial_id:
++        raise CompileSkillError(
++            "checkpoint.current_trial.trial_id must match compile trial_id"
++        )
++    if current_trial.current_trial_start_line is None:
++        raise CompileSkillError(
++            "current_trial_start_line is required before compile operation ledger writes"
++        )
++
++
++def _validate_combo(combo: Sequence[str]) -> tuple[str, ...]:
++    if isinstance(combo, str):
++        raise CompileSkillError("combo must be a sequence of option strings")
++    values = tuple(str(option).strip() for option in combo)
++    if not values:
++        raise CompileSkillError("combo must contain at least one option")
++    for option in values:
++        if not option:
++            raise CompileSkillError("combo options must be non-empty")
++        if "\x00" in option or "\n" in option or "\r" in option:
++            raise CompileSkillError("combo options must not contain NUL or newline")
++    return values
++
++
++def _lease_ref(layout: NamespaceLayout, lease: Any) -> str:
++    path = process_lease_path(
++        layout,
++        session_id=lease.session_id,
++        trial_id=lease.trial_id,
++        role=lease.role,
++        pid=lease.record.pid,
++    )
++    return _namespace_ref(layout, path)
++
++
++def _namespace_ref(layout: NamespaceLayout, path: Path) -> str:
++    try:
++        return path.relative_to(layout.namespace_dir).as_posix()
++    except ValueError as exc:
++        raise CompileSkillError(f"path is outside namespace: {path}") from exc
++
++
++def _optional_namespace_ref(layout: NamespaceLayout, path: Path | None) -> str | None:
++    if path is None:
++        return None
++    return _namespace_ref(layout, path)
++
++
++def _normalize_now(now: datetime | None) -> datetime:
++    value = now or datetime.now(UTC)
++    if value.tzinfo is None or value.utcoffset() is None:
++        raise CompileSkillError("now must be timezone-aware")
++    return value.astimezone(UTC)
+diff --git a/src/agent/skills/fake_gbs.py b/src/agent/skills/fake_gbs.py
+index a079ec4..6a2ea79 100644
+--- a/src/agent/skills/fake_gbs.py
++++ b/src/agent/skills/fake_gbs.py
+@@ -15,7 +15,7 @@ import signal
+ import subprocess
+ import sys
+ import time
+-from collections.abc import Mapping, Sequence
++from collections.abc import Callable, Mapping, Sequence
+ from dataclasses import dataclass
+ from pathlib import Path
+ from random import Random
+@@ -184,6 +184,7 @@ class FakeGbsHarness:
+         trial_id: str,
+         failure_mode: FakeGbsFailureMode | None = None,
+         timeout_seconds: float = 2.0,
++        on_spawn: Callable[[ProcessSpawnResult], None] | None = None,
+     ) -> FakeGbsCompileResult:
+         safe_combo = tuple(str(option) for option in combo)
+         effective_failure = failure_mode
+@@ -205,6 +206,7 @@ class FakeGbsHarness:
+                 effective_failure or "none",
+             ],
+             timeout_seconds=timeout_seconds,
++            on_spawn=on_spawn,
+         )
+         payload = _load_result_payload(context.result_json_path)
+         artifact_hash = _sha256_file(artifact_path) if artifact_path.exists() else None
+@@ -236,6 +238,7 @@ class FakeGbsHarness:
+         noise_profile: FakeGbsNoiseProfile = "gaussian",
+         failure_mode: FakeGbsFailureMode | None = None,
+         timeout_seconds: float = 2.0,
++        on_spawn: Callable[[ProcessSpawnResult], None] | None = None,
+     ) -> FakeGbsBenchmarkResult:
+         artifact = Path(artifact_path)
+         artifact_hash = _sha256_file(artifact) if artifact.exists() else None
+@@ -259,6 +262,7 @@ class FakeGbsHarness:
+                 failure_mode or "none",
+             ],
+             timeout_seconds=timeout_seconds,
++            on_spawn=on_spawn,
+         )
+         payload = _load_result_payload(context.result_json_path)
+         status = _benchmark_status(context, payload, artifact)
+@@ -295,6 +299,7 @@ class FakeGbsHarness:
+         run_id: str,
+         extra_args: Sequence[str],
+         timeout_seconds: float,
++        on_spawn: Callable[[ProcessSpawnResult], None] | None = None,
+     ) -> _RunContext:
+         stdout_path = self.logs_dir / f"{run_id}.stdout.log"
+         stderr_path = self.logs_dir / f"{run_id}.stderr.log"
+@@ -318,6 +323,21 @@ class FakeGbsHarness:
+                 stdout=stdout,  # type: ignore[arg-type]
+                 stderr=stderr,  # type: ignore[arg-type]
+             )
++            if on_spawn is not None:
++                try:
++                    on_spawn(spawn)
++                except Exception:
++                    cleanup_process_lease(
++                        self.layout,
++                        spawn.lease,
++                        force_suspected=True,
++                        kill_timeout_seconds=timeout_seconds,
++                    )
++                    try:
++                        spawn.popen.wait(timeout=timeout_seconds + 2.0)
++                    except subprocess.TimeoutExpired:
++                        pass
++                    raise
+         cleanup: ProcessCleanupResult | None = None
+         updated_lease: ProcessLease | None = None
+         timed_out = False
+diff --git a/tests/test_compile_skill.py b/tests/test_compile_skill.py
+new file mode 100644
+index 0000000..9b84d59
+--- /dev/null
++++ b/tests/test_compile_skill.py
+@@ -0,0 +1,230 @@
++from __future__ import annotations
++
++import os
++from datetime import UTC, datetime
++from pathlib import Path
++
++import psutil
++import pytest
++
++import agent.trace as trace_module
++from agent import (
++    TraceWriteError,
++    append_trace_event,
++    load_checkpoint_for_layout,
++    load_process_lease,
++    load_process_leases,
++    load_trace_events,
++    trace_event_payload,
++)
++from agent.skills.compile import compile_candidate
++from agent.skills.fake_gbs import FakeGbsHarness
++from tests.fixtures.fake_workspace import create_fake_workspace
++
++
++pytestmark = pytest.mark.skipif(os.name != "posix", reason="compile skill uses fake_gbs")
++
++SESSION_ID = "sess_compile_skill"
++TRIAL_ID = "trial_compile_1"
++NOW = datetime(2026, 6, 4, 13, 0, tzinfo=UTC)
++
++
++def test_compile_skill_success_records_trace_checkpoint_and_restores_spec(tmp_path) -> None:
++    fake = create_fake_workspace(tmp_path)
++    checkpoint = _checkpoint(fake)
++    harness = FakeGbsHarness(
++        layout=fake.layout,
++        root=fake.layout.namespace_dir / "fake_gbs",
++        session_id=SESSION_ID,
++        seed=101,
++    )
++
++    result = compile_candidate(
++        fake.config,
++        fake.layout,
++        checkpoint,
++        combo=["-O3", "-funroll-loops"],
++        trial_id=TRIAL_ID,
++        harness=harness,
++        now=NOW,
++    )
++
++    assert result.success is True
++    assert result.artifact_ref is not None
++    assert result.artifact_hash is not None
++    assert result.failure_classification is None
++    assert "{{AGENT_COMBO}}" in fake.spec_path.read_text(encoding="utf-8")
++    assert result.workspace_verify.ok is True
++
++    trace_payloads = [trace_event_payload(event) for event in load_trace_events(fake.layout.trace_path)]
++    assert [payload["kind"] for payload in trace_payloads] == [
++        "trial_start",
++        "process_started",
++        "compile_result",
++    ]
++    process_started = trace_payloads[1]
++    assert process_started["trial_id"] == TRIAL_ID
++    assert process_started["operation"] == "compile"
++    assert process_started["lease_ref"] == result.lease_ref
++    assert process_started["process_record"]["lease_id"]
++    assert process_started["process_record"]["trial_id"] == TRIAL_ID
++    assert process_started["process_lease"]["record"]["pgid"] == (
++        process_started["process_lease"]["record"]["pid"]
++    )
++
++    checkpoint_after = load_checkpoint_for_layout(fake.layout)
++    assert checkpoint_after.trace_line_count == 3
++    assert checkpoint_after.current_trial is not None
++    assert checkpoint_after.current_trial.process is None
++    assert checkpoint_after.current_trial.operations[-1].op == "compile"
++    assert checkpoint_after.current_trial.operations[-1].status == "completed"
++    assert checkpoint_after.current_trial.operations[-1].process_refs == (result.lease_ref,)
++    assert checkpoint_after.current_trial.operations[-1].output_ref == result.artifact_ref
++
++    lease = load_process_lease(fake.layout.namespace_dir / result.lease_ref)
++    assert lease.status == "exited"
++    assert lease.lease_id == lease.record.lease_id
++
++
++def test_compile_skill_trace_failure_kills_process_and_terminalizes_lease(
++    tmp_path,
++    monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    fake = create_fake_workspace(tmp_path)
++    checkpoint = _checkpoint(fake)
++    harness = FakeGbsHarness(
++        layout=fake.layout,
++        root=fake.layout.namespace_dir / "fake_gbs",
++        session_id=SESSION_ID,
++        seed=102,
++    )
++    original_append = trace_module.append_trace_event
++
++    def fail_process_started(layout, event, *, expected_line_number=None):
++        payload = trace_event_payload(event)
++        if payload["kind"] == "process_started":
++            raise TraceWriteError("injected process_started failure")
++        return original_append(
++            layout,
++            event,
++            expected_line_number=expected_line_number,
++        )
++
++    monkeypatch.setattr(trace_module, "append_trace_event", fail_process_started)
++
++    with pytest.raises(TraceWriteError, match="process_started"):
++        compile_candidate(
++            fake.config,
++            fake.layout,
++            checkpoint,
++            combo=["-O3"],
++            trial_id=TRIAL_ID,
++            harness=harness,
++            failure_mode="timeout",
++            timeout_seconds=0.1,
++            now=NOW,
++        )
++
++    leases = load_process_leases(fake.layout)
++    assert len(leases) == 1
++    assert leases[0].status == "killed"
++    assert not _pgid_has_members(leases[0].record.pgid)
++    assert "{{AGENT_COMBO}}" in fake.spec_path.read_text(encoding="utf-8")
++    assert [event.kind for event in load_trace_events(fake.layout.trace_path)] == [
++        "trial_start",
++    ]
++    assert not fake.layout.checkpoint_path.exists()
++
++
++def test_compile_skill_failure_uses_result_schema_and_operation_ledger(tmp_path) -> None:
++    fake = create_fake_workspace(tmp_path)
++    checkpoint = _checkpoint(fake)
++    harness = FakeGbsHarness(
++        layout=fake.layout,
++        root=fake.layout.namespace_dir / "fake_gbs",
++        session_id=SESSION_ID,
++        seed=103,
++    )
++
++    result = compile_candidate(
++        fake.config,
++        fake.layout,
++        checkpoint,
++        combo=["-finvalid-option"],
++        trial_id=TRIAL_ID,
++        harness=harness,
++        failure_mode="invalid_option",
++        now=NOW,
++    )
++
++    assert result.success is False
++    assert result.failure_classification is not None
++    assert result.failure_classification.category == "invalid_option"
++    assert result.failure_classification.write_failed_combos is False
++    assert result.failure_classification.affected_options == ("-finvalid-option",)
++
++    checkpoint_after = load_checkpoint_for_layout(fake.layout)
++    assert checkpoint_after.current_trial is not None
++    assert checkpoint_after.current_trial.process is None
++    operation = checkpoint_after.current_trial.operations[-1]
++    assert operation.op == "compile"
++    assert operation.status == "failed"
++    assert operation.output_ref is None
++    assert operation.details["failure_classification"]["category"] == "invalid_option"
++    assert operation.details["failure_classification"]["write_failed_combos"] is False
++
++
++def _checkpoint(fake) -> dict[str, object]:
++    append_trace_event(
++        fake.layout,
++        {
++            "ts": NOW,
++            "kind": "trial_start",
++            "session_id": SESSION_ID,
++            "namespace": str(fake.layout.namespace),
++            "trial_id": TRIAL_ID,
++            "combo": ["-O3"],
++            "mode": "test",
++        },
++        expected_line_number=1,
++    )
++    return {
++        "session_id": SESSION_ID,
++        "namespace": str(fake.layout.namespace),
++        "last_completed_trial": None,
++        "current_trial": {
++            "trial_id": TRIAL_ID,
++            "started_at": NOW,
++            "current_stage": "compiling",
++            "stage_started_at": NOW,
++            "spec_backup_path": None,
++            "workspace_snapshot_pre": None,
++            "build_dir": str(
++                Path(fake.config.workspace_protection.build_dir_root) / TRIAL_ID
++            ),
++            "artifact_staging": str(
++                Path(fake.config.workspace_protection.artifact_staging_dir) / TRIAL_ID
++            ),
++            "process": None,
++            "operations": [],
++            "current_trial_start_line": 1,
++        },
++        "current_best": None,
++        "explorer_state": {},
++        "random_seed": 1,
++        "total_tokens_consumed": 0,
++        "trace_line_count": 1,
++        "last_updated": NOW,
++    }
++
++
++def _pgid_has_members(pgid: int) -> bool:
++    for proc in psutil.process_iter(["pid", "status"]):
++        try:
++            if proc.info.get("status") == psutil.STATUS_ZOMBIE:
++                continue
++            if os.getpgid(proc.info["pid"]) == pgid:
++                return True
++        except (ProcessLookupError, psutil.NoSuchProcess, psutil.AccessDenied):
++            continue
++    return False

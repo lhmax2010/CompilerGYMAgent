@@ -34,3 +34,15 @@
 - Full:
   - Command: `.venv/bin/python -m pytest tests/ -q`
   - Result: 578 passed, 0 failed
+
+## Subtask 5.3
+
+- Targeted:
+  - Command: `.venv/bin/python -m pytest tests/test_compile_skill.py -q`
+  - Result: 3 passed, 0 failed
+- Adjacent:
+  - Command: `.venv/bin/python -m pytest tests/test_compile_skill.py tests/test_fake_gbs.py tests/test_spec_skills.py tests/test_workspace_skills.py tests/test_process_runner.py tests/test_process_cleaner.py -q`
+  - Result: 55 passed, 0 failed
+- Full:
+  - Command: `.venv/bin/python -m pytest tests/ -q`
+  - Result: 581 passed, 0 failed

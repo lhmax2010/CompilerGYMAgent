@@ -1,7 +1,7 @@
 phase_id: phase_05_compile_benchmark
 phase_title: "Compile / Benchmark Skills"
 started_at: 2026-06-04T10:05:00+08:00
-last_updated: 2026-06-04T21:43:21+08:00
+last_updated: 2026-06-04T21:50:10+08:00
 target_milestone: "M1 end / M2 start"
 related_requirements:
   - REQUIREMENTS.md section 4.7.1 gbs_compile
@@ -140,4 +140,45 @@ subtasks:
     external_review_verdict: approve
     external_reviewed_at: 2026-06-04T21:43:21+08:00
     external_review_tests: "578 passed; write_failed_combos gate, objective_direction, scoring/failure consistency, and pure-schema boundary verified"
-next_action: "Subtask 5.5a approved; next planned subtask is 5.3 compile skill."
+  - id: "5.3"
+    title: "compile skill"
+    status: done
+    related_requirements:
+      - ROADMAP.yaml Phase 05 deliverable compile skill
+      - DECISIONS.md "Lease rebuildability requires trace process_started with full payload"
+      - DECISIONS.md "Failure classification: confidence + evidence + three-way routing"
+    files_created:
+      - src/agent/skills/compile.py
+      - tests/test_compile_skill.py
+    files_modified:
+      - src/agent/skills/fake_gbs.py
+      - src/agent/skills/__init__.py
+      - src/agent/__init__.py
+      - dev_memory/CURRENT_PHASE.yaml
+      - dev_memory/ROADMAP.yaml
+      - dev_memory/PROGRESS.md
+      - dev_memory/phases/phase_05_compile_benchmark/CHECKLIST.yaml
+      - dev_memory/phases/phase_05_compile_benchmark/REVIEW_NOTES.md
+      - dev_memory/phases/phase_05_compile_benchmark/SUMMARY.md
+      - dev_memory/phases/phase_05_compile_benchmark/UT_RESULTS.md
+    behavior_notes:
+      - "compile_candidate runs workspace_snapshot(pre), spec_backup, spec_injector, fake_gbs compile, spec_restore, and workspace_verify."
+      - "fake_gbs accepts an on_spawn hook so compile_candidate can write process_started trace and checkpoint process_refs immediately after lease creation and before waiting for the process."
+      - "process_started trace carries full ProcessRecord and ProcessLease payload sufficient for lease rebuild."
+      - "Checkpoint operation ledger is the process authority; deprecated current_trial.process is forced to None."
+      - "If process_started trace/checkpoint write fails after lease creation, fake_gbs immediately invokes cleaner killpg and terminalizes the lease."
+      - "Compile failures return the shared FailureClassification schema conservatively with write_failed_combos=False; classifier rules remain deferred to 5.5b."
+    ut_required: true
+    ut_passed: true
+    targeted_ut: "3 tests passed, 0 failed (test_compile_skill.py)"
+    adjacent_ut: "55 tests passed, 0 failed (compile/fake_gbs/workspace/spec/process)"
+    production_regression_ut: "581 tests passed, 0 failed"
+    self_review_required: true
+    self_reviewed: true
+    patch_required: true
+    patch_file: dev_memory/phases/phase_05_compile_benchmark/patches/04_compile_skill.patch
+    patch_generated: true
+    commit_required: true
+    commit_pending: true
+    external_review_verdict: pending
+next_action: "Push Subtask 5.3 and request Claude review; next planned subtask is 5.4 benchmark skill after review/Ubuntu validation."

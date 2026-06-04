@@ -210,6 +210,8 @@ from .registry import (
     validate_project_against_registry,
 )
 from .skills import (
+    CompileSkillError,
+    CompileSkillResult,
     DEFAULT_BURSTY_TRANSITIONS,
     EvidenceLine,
     FailureCategory,
@@ -240,6 +242,7 @@ from .skills import (
     spec_restore,
     workspace_snapshot,
     workspace_verify,
+    compile_candidate,
     compute_combo_hash as compute_result_combo_hash,
 )
 from .trace import (
@@ -299,6 +302,8 @@ __all__ = [
     "CleanResult",
     "Combo",
     "ConfigLoadError",
+    "CompileSkillError",
+    "CompileSkillResult",
     "CREATE_TIME_TOLERANCE_SECONDS",
     "CleanupTarget",
     "DEFAULT_BURSTY_TRANSITIONS",
@@ -439,6 +444,7 @@ __all__ = [
     "cleanup_process_lease",
     "collect_history_summary",
     "collect_trial_startup_validation_inputs",
+    "compile_candidate",
     "compute_combo_hash",
     "compute_cmdline_hash",
     "compute_clean_plan",

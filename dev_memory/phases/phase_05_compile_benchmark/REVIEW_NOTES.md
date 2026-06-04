@@ -38,3 +38,15 @@
 - [x] `score_parse_failed` invalid runs require score_source_ref.
 - [x] Subtask remains schema-only; no classifier rule matching or log parsing is implemented.
 - [x] Targeted, adjacent, and full test suites pass.
+
+## Subtask 5.3 - compile skill
+
+- [x] `compile_candidate()` consumes fake_gbs through the real process-backed harness.
+- [x] Workspace protection wraps compile with snapshot, spec backup, spec injection, spec restore, and workspace verify.
+- [x] fake_gbs `on_spawn` hook lets compile skill write canonical trace/checkpoint state immediately after lease creation.
+- [x] `process_started` trace contains full ProcessRecord and ProcessLease payloads.
+- [x] Checkpoint operation ledger receives compile process_refs and does not write deprecated `current_trial.process`.
+- [x] Successful compile records artifact_ref and artifact_hash.
+- [x] Trace failure after lease creation kills the process group and terminalizes the lease.
+- [x] Failure classifications use 5.5a schema and keep `write_failed_combos=False`.
+- [x] Targeted, adjacent, and full test suites pass.
