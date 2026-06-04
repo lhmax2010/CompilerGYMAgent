@@ -14,10 +14,15 @@ import psutil
 
 from .errors import AgentError, EXIT_GENERIC
 from .fs_memory import NamespaceLayout
+from .identifiers import validate_session_id_atom
 from .process_identity import (
+    AGENT_LEASE_ID_ENV,
+    AGENT_PROCESS_ROLE_ENV,
     AGENT_SESSION_ID_ENV,
+    AGENT_TRIAL_ID_ENV,
     ProcessRecord,
     compute_cmdline_hash,
+    generate_lease_id,
 )
 from .process_registry import (
     ProcessLease,
@@ -51,6 +56,7 @@ def spawn_process(
     session_id: str,
     trial_id: str,
     role: str,
+    lease_id: str | None = None,
     cwd: str | os.PathLike[str] | None = None,
     env: Mapping[str, str] | None = None,
     stdin: int | None = subprocess.DEVNULL,
@@ -62,10 +68,18 @@ def spawn_process(
     argv = [os.fspath(arg) for arg in args]
     if not argv:
         raise ProcessRunnerError("process args must not be empty")
+    resolved_lease_id = (
+        generate_lease_id(role)
+        if lease_id is None
+        else validate_session_id_atom(lease_id, "lease_id")
+    )
     child_env = os.environ.copy()
     if env is not None:
         child_env.update({str(key): str(value) for key, value in env.items()})
     child_env[AGENT_SESSION_ID_ENV] = session_id
+    child_env[AGENT_TRIAL_ID_ENV] = trial_id
+    child_env[AGENT_LEASE_ID_ENV] = resolved_lease_id
+    child_env[AGENT_PROCESS_ROLE_ENV] = role
 
     try:
         popen = subprocess.Popen(
@@ -84,6 +98,8 @@ def spawn_process(
         record = process_record_for_pid(
             popen.pid,
             session_id=session_id,
+            trial_id=trial_id,
+            lease_id=resolved_lease_id,
             fallback_cmdline=argv,
         )
         lease = register_process_lease(
@@ -91,6 +107,7 @@ def spawn_process(
             record=record,
             trial_id=trial_id,
             role=role,
+            lease_id=resolved_lease_id,
         )
     except Exception as exc:
         _terminate_started_process_group(popen)
@@ -107,6 +124,8 @@ def process_record_for_pid(
     pid: int,
     *,
     session_id: str,
+    trial_id: str | None = None,
+    lease_id: str | None = None,
     fallback_cmdline: Sequence[str] = (),
     cgroup_path: str | None = None,
 ) -> ProcessRecord:
@@ -131,8 +150,15 @@ def process_record_for_pid(
         pgid=pgid,
         create_time=create_time,
         session_id=session_id,
+        trial_id=trial_id,
+        lease_id=lease_id,
         cmdline_hash=compute_cmdline_hash(cmdline),
-        env_marker_visible_at_spawn=_env_marker_visible(proc, session_id),
+        env_marker_visible_at_spawn=_env_marker_visible(
+            proc,
+            session_id,
+            trial_id=trial_id,
+            lease_id=lease_id,
+        ),
         cgroup_path=cgroup_path,
     )
 
@@ -163,12 +189,23 @@ def _env_marker_visible(
     proc: psutil.Process,
     session_id: str,
     *,
+    trial_id: str | None = None,
+    lease_id: str | None = None,
     timeout_seconds: float = 1.0,
 ) -> bool:
     deadline = time.monotonic() + timeout_seconds
     while True:
         try:
-            if proc.environ().get(AGENT_SESSION_ID_ENV) == session_id:
+            environ = proc.environ()
+            if environ.get(AGENT_SESSION_ID_ENV) != session_id:
+                marker_visible = False
+            elif trial_id is not None and environ.get(AGENT_TRIAL_ID_ENV) != trial_id:
+                marker_visible = False
+            elif lease_id is not None and environ.get(AGENT_LEASE_ID_ENV) != lease_id:
+                marker_visible = False
+            else:
+                marker_visible = True
+            if marker_visible:
                 return True
         except (psutil.AccessDenied, psutil.NoSuchProcess):
             return False

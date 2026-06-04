@@ -70,6 +70,30 @@ def test_register_process_lease_writes_derived_yaml(tmp_path) -> None:
     assert process_leases_dir(fake.layout) == fake.layout.state_dir / "processes"
 
 
+def test_register_process_lease_persists_lease_id_and_updates_record(tmp_path) -> None:
+    fake = create_fake_workspace(tmp_path)
+    record = _record(pid=124)
+
+    lease = register_process_lease(
+        fake.layout,
+        record=record,
+        trial_id="trial_lease",
+        role="compile",
+        lease_id="compile-fixedlease",
+    )
+
+    assert lease.lease_id == "compile-fixedlease"
+    assert lease.record.trial_id == "trial_lease"
+    assert lease.record.lease_id == "compile-fixedlease"
+    assert load_process_lease_for_layout(
+        fake.layout,
+        session_id="sess_1",
+        trial_id="trial_lease",
+        role="compile",
+        pid=124,
+    ) == lease
+
+
 def test_process_lease_status_transitions(tmp_path) -> None:
     fake = create_fake_workspace(tmp_path)
     now = datetime(2026, 6, 1, 8, 0, tzinfo=UTC)
@@ -154,6 +178,16 @@ def test_process_lease_rejects_unsafe_path_atoms(field: str, value: str) -> None
         data["record"]["session_id"] = value
 
     with pytest.raises(ValidationError):
+        ProcessLease.model_validate(data)
+
+
+def test_process_lease_rejects_record_lease_id_mismatch() -> None:
+    data = _running_lease(pid=402).model_dump(mode="json")
+    data["lease_id"] = "compile-one"
+    data["record"]["trial_id"] = data["trial_id"]
+    data["record"]["lease_id"] = "compile-two"
+
+    with pytest.raises(ValidationError, match="record.lease_id"):
         ProcessLease.model_validate(data)
 
 

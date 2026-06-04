@@ -1,0 +1,1304 @@
+diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index 1c62bd0..63f1703 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -1,432 +1,55 @@
+-phase_id: phase_06_process_management
+-phase_title: "Process Management (runner + cleaner + monitor)"
+-started_at: 2026-06-01T15:30:36+08:00
+-last_updated: 2026-06-04T09:10:00+08:00
+-closed_at: 2026-06-03T15:44:39+08:00
+-target_milestone: "M3 (advanced)"
++phase_id: phase_05_compile_benchmark
++phase_title: "Compile / Benchmark Skills"
++started_at: 2026-06-04T10:05:00+08:00
++last_updated: 2026-06-04T10:05:00+08:00
++target_milestone: "M1 end / M2 start"
+ related_requirements:
+-  - REQUIREMENTS.md section 3.3.5
+-  - REQUIREMENTS.md section 4.7.1 process_cleaner
+-  - REQUIREMENTS.md section 4.11.x
+-status: done
+-roadmap_reference: dev_memory/ROADMAP.yaml completed_phases[id=06]
++  - REQUIREMENTS.md section 4.7.1 gbs_compile
++  - REQUIREMENTS.md section 4.7.1 benchmark_runner
++  - REQUIREMENTS.md section 4.8
++status: in_progress
++roadmap_reference: dev_memory/ROADMAP.yaml planned_phases[id=05]
+ subtasks:
+-  - id: "6.1"
+-    title: "process_identity.py + process_lab fixture"
++  - id: "5.1"
++    title: "env marker refinement + pid-independent lease_id"
+     status: done
+     related_requirements:
+-      - ROADMAP.yaml Phase 06 deliverable process_identity.py
+-      - ROADMAP.yaml Phase 06 deliverable process_lab fixture
+-    files_created:
+-      - src/agent/process_identity.py
+-      - tests/fixtures/process_lab.py
+-      - tests/test_process_identity.py
+-      - tests/test_process_lab.py
+-      - dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
+-      - dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
+-      - dev_memory/phases/phase_06_process_management/SUMMARY.md
+-      - dev_memory/phases/phase_06_process_management/UT_RESULTS.md
++      - ROADMAP.yaml Phase 05 deliverable env marker enhancement
++      - DECISIONS.md "AGENT_LEASE_ID generated before spawn, pid-independent"
++    files_created: []
+     files_modified:
+-      - src/agent/__init__.py
+-      - dev_memory/CURRENT_PHASE.yaml
+-      - dev_memory/DECISIONS.md
+-      - dev_memory/PROGRESS.md
+-      - dev_memory/ROADMAP.yaml
+-    behavior_notes:
+-      - "ProcessIdentity and ProcessRecord are additive Pydantic models; existing CheckpointProcess and WorkspaceLockHolder schemas are unchanged."
+-      - "cmdline_hash is validated but diagnostic-only per Phase 06 design."
+-      - "process_lab uses controlled Python subprocesses with start_new_session=True, not raw fork."
+-      - "process_lab covers live process groups, pid_gone records, create_time drift, pgid mismatch, env_marker_missing, simulated AccessDenied, leader-dead child survival, and double-fork-style escaped child sessions."
+-    ut_required: true
+-    ut_passed: true
+-    targeted_ut: "20 tests passed, 0 failed (test_process_identity.py + test_process_lab.py)"
+-    production_regression_ut: "471 tests passed, 0 failed"
+-    self_review_required: true
+-    self_reviewed: true
+-    patch_required: true
+-    patch_file: dev_memory/phases/phase_06_process_management/patches/01_process_identity_lab.patch
+-    patch_generated: true
+-    commit_required: true
+-    commit_pending: false
+-    implementation_commit: 2ff1342
+-    external_review_verdict: approve
+-    external_reviewed_at: 2026-06-01T16:00:35+08:00
+-    external_review_tests: "471 passed; targeted 20 passed; 0 residual process leak"
+-    ubuntu_validation_status: passed
+-    ubuntu_validation_tests:
+-      targeted: "20 passed"
+-      full: "471 passed"
+-  - id: "6.2"
+-    title: "process_runner.py + Process Lease Registry"
+-    status: done
+-    related_requirements:
+-      - ROADMAP.yaml Phase 06 deliverable process_runner.py
+-      - ROADMAP.yaml Phase 06 deliverable process_registry.py
+-    files_created:
+-      - src/agent/process_registry.py
++      - src/agent/process_identity.py
+       - src/agent/process_runner.py
+-      - tests/test_process_registry.py
+-      - tests/test_process_runner.py
+-    files_modified:
+-      - src/agent/__init__.py
+-      - tests/test_errors.py
+-      - dev_memory/CURRENT_PHASE.yaml
+-      - dev_memory/DECISIONS.md
+-      - dev_memory/PROGRESS.md
+-      - dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
+-      - dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
+-      - dev_memory/phases/phase_06_process_management/SUMMARY.md
+-      - dev_memory/phases/phase_06_process_management/UT_RESULTS.md
+-    behavior_notes:
+-      - "Process Lease Registry writes derived YAML files under state/processes/<session_id>/<trial_id>/<role>-<pid>.yaml."
+-      - "Lease states support running -> exited | killed | unsafe_skip | unknown; terminal leases include ended_at."
+-      - "Leases intentionally omit integrity hashes because they are derived state."
+-      - "process_runner starts subprocesses with start_new_session=True and injects AGENT_SESSION_ID."
+-      - "If lease registration fails after spawn, process_runner terminates the started process group."
+-    ut_required: true
+-    ut_passed: true
+-    targeted_ut: "29 tests passed, 0 failed (registry/runner/errors/identity)"
+-    production_regression_ut: "484 tests passed, 0 failed"
+-    self_review_required: true
+-    self_reviewed: true
+-    patch_required: true
+-    patch_file: dev_memory/phases/phase_06_process_management/patches/02_process_runner_registry.patch
+-    patch_generated: true
+-    commit_required: true
+-    commit_pending: false
+-    implementation_commit: e55a79d
+-    hardening_commit: d38567e
+-    external_review_verdict: approve
+-    external_reviewed_at: 2026-06-01T18:01:36+08:00
+-    external_review_tests: "484 passed; 0 residual process leak"
+-    external_review_follow_up:
+-      - "6.3 cleaner must not reuse process_runner._env_marker_visible because it has spawn-only retry semantics; cleaner must use single-read env marker probing."
+-    ubuntu_validation_status: passed
+-    ubuntu_validation_tests:
+-      targeted: "29 passed"
+-      full: "484 passed"
+-  - id: "6.3"
+-    title: "process_cleaner.py"
+-    status: done
+-    related_requirements:
+-      - ROADMAP.yaml Phase 06 deliverable process_cleaner.py
+-      - DECISIONS.md process attribution graded scoring
+-      - DECISIONS.md process cleanup authority
+-    files_created:
++      - src/agent/process_registry.py
+       - src/agent/process_cleaner.py
+-      - tests/test_process_cleaner.py
+-    files_modified:
+       - src/agent/__init__.py
+-      - tests/test_errors.py
+-      - dev_memory/CURRENT_PHASE.yaml
+-      - dev_memory/DECISIONS.md
+-      - dev_memory/PROGRESS.md
+-      - dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
+-      - dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
+-      - dev_memory/phases/phase_06_process_management/SUMMARY.md
+-      - dev_memory/phases/phase_06_process_management/UT_RESULTS.md
+-    behavior_notes:
+-      - "Cleaner uses graded scoring: pid+create_time +3, pgid +3, env_marker +4."
+-      - "Score >=7 is owned and killable; score >=4 is suspected and skipped unless force_suspected=True."
+-      - "Cleaner env marker reads are single-shot and do not reuse process_runner's retry helper."
+-      - "leader_dead_children_alive is found through pgid scanning; double_fork_escape is found through env_marker scanning and needs force to kill."
+-      - "Lease GC deletes orphan leases only when no live cleanup targets remain."
+-    ut_required: true
+-    ut_passed: true
+-    targeted_ut: "31 tests passed, 0 failed (cleaner/registry/runner/lab/errors)"
+-    production_regression_ut: "492 tests passed, 0 failed"
+-    self_review_required: true
+-    self_reviewed: true
+-    patch_required: true
+-    patch_file: dev_memory/phases/phase_06_process_management/patches/03_process_cleaner.patch
+-    patch_generated: true
+-    commit_required: true
+-    commit_pending: false
+-    implementation_commit: ca9373a
+-    external_review_verdict: approve
+-    external_reviewed_at: 2026-06-01T19:51:24+08:00
+-    external_review_tests: "492 passed; targeted cleaner-adjacent set 31 passed"
+-    external_review_notes:
+-      - "read_env_marker is single-shot and avoids the process_runner retry helper."
+-      - "leader-dead children-alive cleanup works through pgid scan."
+-      - "double-fork escape discovery works through env-marker scan."
+-      - "Lease GC may conservatively retain an orphan under rare pid/pgid reuse; nonblocking Low follow-up."
+-    ubuntu_validation_status: passed
+-    ubuntu_validation_tests:
+-      targeted: "31 passed"
+-      full: "492 passed"
+-  - id: "6.4"
+-    title: "workspace lock hardening (probe flock + LockStatus unknown)"
+-    status: done
+-    related_requirements:
+-      - ROADMAP.yaml Phase 06 deliverable workspace lock hardening
+-      - REQUIREMENTS.md section 4.14.7a
+-      - REQUIREMENTS.md section 4.15
+-    files_created: []
+-    files_modified:
+-      - src/agent/workspace_lock.py
+-      - src/agent/trace_cleanup.py
+-      - src/agent/__init__.py
+-      - tests/test_workspace_lock.py
+-      - tests/test_trace_cleanup.py
+-      - dev_memory/CURRENT_PHASE.yaml
+-      - dev_memory/DECISIONS.md
+-      - dev_memory/PROGRESS.md
+-      - dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
+-      - dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
+-      - dev_memory/phases/phase_06_process_management/SUMMARY.md
+-      - dev_memory/phases/phase_06_process_management/UT_RESULTS.md
+-    behavior_notes:
+-      - "WorkspaceLock.probe_lock performs a read-only nonblocking flock probe and does not alter holder metadata."
+-      - "trace cleanup uses the probe as the source of truth for free vs busy; holder metadata only explains the holder."
+-      - "Unreadable holder metadata now yields lock_status=unknown and clean execution remains refused."
+-      - "Released-but-live holder metadata is no longer misclassified as held_by_other when the real flock is free."
+-    ut_required: true
+-    ut_passed: true
+-    targeted_ut: "78 tests passed, 0 failed (workspace_lock/trace_cleanup/trace_cleanup_execute/cli_clean_trace)"
+-    production_regression_ut: "496 tests passed, 0 failed"
+-    self_review_required: true
+-    self_reviewed: true
+-    patch_required: true
+-    patch_file: dev_memory/phases/phase_06_process_management/patches/04_workspace_lock_probe.patch
+-    patch_generated: true
+-    commit_required: true
+-    commit_pending: false
+-    implementation_commit: 03ca715
+-    external_review_verdict: approve
+-    external_reviewed_at: 2026-06-01T20:12:12+08:00
+-    external_review_tests: "496 passed; lock/cleanup/cli targeted set 78 passed"
+-    external_review_notes:
+-      - "probe_lock correctly distinguishes free/busy with real flock."
+-      - "released-but-live holder metadata now reports free when the flock is free."
+-      - "holder metadata corruption reports lock_status=unknown and refuses normal/force clean."
+-      - "never os.replace run.lock red line remains intact; _write_holder unchanged."
+-    ubuntu_validation_status: passed
+-    ubuntu_validation_tests:
+-      targeted: "78 passed"
+-      full: "496 passed"
+-  - id: "6.5"
+-    title: "TrialState operation ledger checkpoint schema extension"
+-    status: done
+-    related_requirements:
+-      - ROADMAP.yaml Phase 06 deliverable TrialState operation ledger
+-      - REQUIREMENTS.md section 3.3.3
+-      - REQUIREMENTS.md section 3.3.5
+-      - REQUIREMENTS.md section 4.11.x
+-    files_created: []
+-    files_modified:
+-      - src/agent/fs_memory.py
+-      - src/agent/__init__.py
+-      - tests/test_fs_memory.py
+-      - dev_memory/CURRENT_PHASE.yaml
+-      - dev_memory/DECISIONS.md
+-      - dev_memory/PROGRESS.md
+-      - dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
+-      - dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
+-      - dev_memory/phases/phase_06_process_management/SUMMARY.md
+-      - dev_memory/phases/phase_06_process_management/UT_RESULTS.md
+-    behavior_notes:
+-      - "CheckpointCurrentTrial now supports an additive operations ledger with op/status/output_ref/process_refs/details."
+-      - "Legacy checkpoints without operations load with operations=() and current_trial_start_line=None."
+-      - "Operation ledgers require current_trial_start_line so later Layer D trace protection has a boundary."
+-      - "process_refs must point to state/processes/<session>/<trial>/<lease>.yaml and must match checkpoint session_id/current_trial.trial_id."
+-    ut_required: true
+-    ut_passed: true
+-    targeted_ut: "164 tests passed, 0 failed (test_fs_memory.py + test_identifiers.py); 3 error framework tests passed"
+-    production_regression_ut: "508 tests passed, 0 failed"
+-    self_review_required: true
+-    self_reviewed: true
+-    patch_required: true
+-    patch_file: dev_memory/phases/phase_06_process_management/patches/05_trial_operation_ledger.patch
+-    patch_generated: true
+-    commit_required: true
+-    commit_pending: false
+-    implementation_commit: 4bde11a
+-    external_review_verdict: approve
+-    external_reviewed_at: 2026-06-01T20:37:50+08:00
+-    external_review_tests: "508 passed; targeted checkpoint tests 164 passed"
+-    external_review_notes:
+-      - "Legacy checkpoints without operations load with empty operations and no current_trial_start_line."
+-      - "process_refs path/session/trial validation passed independent review."
+-      - "Checkpoint has no integrity hash by design; operation ledger does not require hash recomputation."
+-      - "Low-1 process_lab double-fork flaky was resolved in follow-up hardening: worker/grandchild JSON IPC now uses atomic temp+replace writes, JSON readers wait until payload parsing succeeds, and escaped child pgid/env readiness is polled before returning from the fixture."
+-      - "The earlier timeout-only hardening was not sufficient under process-suite load; the final fix removes the half-written JSON window."
+-    review_hardening_commit: a196c52
+-    review_hardening_commit_pending: false
+-    ubuntu_validation_status: passed
+-    ubuntu_validation_tests:
+-      targeted: "164 passed; process_lab/process_cleaner 15 passed; process suite stress 20/20 passed; double-fork stress 50/50 passed"
+-      full: "508 passed"
+-  - id: "6.6"
+-    title: "doctor/state_consistency.py checkpoint-trace-process validator"
+-    status: done
+-    related_requirements:
+-      - ROADMAP.yaml Phase 06 deliverable doctor/state_consistency.py
+-      - REQUIREMENTS.md section 3.3.3
+-      - REQUIREMENTS.md section 3.3.5
+-      - REQUIREMENTS.md section 4.11.x
+-    files_created:
+-      - src/agent/doctor/__init__.py
+-      - src/agent/doctor/state_consistency.py
+-      - tests/test_state_consistency.py
+-    files_modified:
+-      - src/agent/__init__.py
+-      - tests/test_errors.py
+-      - dev_memory/CURRENT_PHASE.yaml
+-      - dev_memory/DECISIONS.md
+-      - dev_memory/PROGRESS.md
+-      - dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
+-      - dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
+-      - dev_memory/phases/phase_06_process_management/SUMMARY.md
+-      - dev_memory/phases/phase_06_process_management/UT_RESULTS.md
+-    behavior_notes:
+-      - "inspect_state_consistency is read-only and does not reconcile, delete leases, or inspect/kill live processes."
+-      - "Trace/checkpoint alignment uses the existing inspect_trace_checkpoint_alignment helper from 3.8."
+-      - "Trace session coverage uses the existing inspect_trace_session_spans helper from 3.9."
+-      - "Operation process_refs are checked against the derived process lease registry for existence and status consistency."
+-      - "Unreferenced process leases are reported as orphan_process_lease findings, with running leases warning and terminal leases info."
+-    ut_required: true
+-    ut_passed: true
+-    targeted_ut: "203 tests passed, 0 failed (state_consistency/trace_session/process_registry/fs_memory/errors)"
+-    production_regression_ut: "515 tests passed, 0 failed"
+-    self_review_required: true
+-    self_reviewed: true
+-    patch_required: true
+-    patch_file: dev_memory/phases/phase_06_process_management/patches/06_state_consistency.patch
+-    patch_generated: true
+-    commit_required: true
+-    commit_pending: false
+-    implementation_commit: b109e45
+-    external_review_verdict: approve
+-    external_reviewed_at: 2026-06-03T00:00:00+08:00
+-    external_review_tests: "515 passed; adjacent targeted set 203 passed"
+-    external_review_notes:
+-      - "Reviewer confirmed inspect_state_consistency reuses 3.8 inspect_trace_checkpoint_alignment and 3.9 inspect_trace_session_spans."
+-      - "Reviewer independently verified process_ref_missing, orphan_process_lease, process_lease_invalid, operation/lease status mismatch, and current_trial_start_line diagnostics."
+-      - "Reviewer verified the inspector is pure read-only: repeated runs do not change checkpoint, trace, lease files, or process state."
+-      - "Every issue carries repair_suggestion and structured details."
+-    ubuntu_validation_status: passed
+-    ubuntu_validation_tests:
+-      targeted: "203 passed"
+-      full: "515 passed"
+-  - id: "6.7"
+-    title: "clean trace hardening (CleanPlan hashes + Layer D current-trial protection)"
+-    status: done
+-    related_requirements:
+-      - ROADMAP.yaml Phase 06 deliverable clean trace hardening
+-      - REQUIREMENTS.md section 4.14.7a
+-      - REQUIREMENTS.md section 4.13
+-      - REQUIREMENTS.md section 3.3.3
+-    files_created: []
+-    files_modified:
+-      - src/agent/trace_cleanup.py
+-      - tests/test_trace_cleanup.py
+-      - tests/test_trace_cleanup_execute.py
+-      - dev_memory/CURRENT_PHASE.yaml
+-      - dev_memory/DECISIONS.md
+-      - dev_memory/PROGRESS.md
+-      - dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
+-      - dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
+-      - dev_memory/phases/phase_06_process_management/SUMMARY.md
+-      - dev_memory/phases/phase_06_process_management/UT_RESULTS.md
+-    behavior_notes:
+-      - "CleanPlan now records checkpoint_hash and protected_sessions_hash snapshots."
+-      - "execute_clean_plan revalidates trace size/line count, checkpoint_hash, and protected session boundaries while holding the workspace lock."
+-      - "Layer D protects current-trial trace lines from current_trial_start_line through the current trace end when checkpoint operations indicate a trial is in progress."
+-      - "If current_trial_start_line is ahead of validated trace events, planning refuses execution."
+-    ut_required: true
+-    ut_passed: true
+-    targeted_ut: "95 tests passed, 0 failed (trace_cleanup/execute/cli/trace_session/state_consistency); 3 error tests passed"
+-    production_regression_ut: "519 tests passed, 0 failed"
+-    self_review_required: true
+-    self_reviewed: true
+-    patch_required: true
+-    patch_file: dev_memory/phases/phase_06_process_management/patches/07_clean_trace_hardening.patch
+-    patch_generated: true
+-    commit_required: true
+-    commit_pending: false
+-    implementation_commit: 379309f
+-    external_review_verdict: approve
+-    external_reviewed_at: 2026-06-03T13:55:50+08:00
+-    external_review_tests: "519 passed; trace cleanup targeted set 34 passed; adjacent targeted set 95 passed"
+-    external_review_notes:
+-      - "Reviewer independently verified checkpoint hash staleness: checkpoint content changes with unchanged trace size/line count cause StaleCleanPlanError."
+-      - "Reviewer independently verified Layer D protects current-trial lines from current_trial_start_line through trace end."
+-      - "Reviewer independently verified current_trial_start_line ahead of trace refuses execution."
+-      - "Existing trace cleanup tests remained compatible: targeted trace cleanup set 34 passed."
+-    ubuntu_validation_status: passed
+-    ubuntu_validation_tests:
+-      targeted: "34 passed; adjacent targeted set 95 passed; error smoke 3 passed"
+-      full: "519 passed"
+-  - id: "6.8"
+-    title: "NFS/FUSE runtime warning + CheckpointState LangGraph comment reservation"
+-    status: done
+-    related_requirements:
+-      - ROADMAP.yaml Phase 06 deliverable NFS runtime detection + warning
+-      - ROADMAP.yaml Phase 06 deliverable CheckpointState langgraph comment reservation
+-      - REQUIREMENTS.md section 3.3.4
+-      - REQUIREMENTS.md section 4.15
+-    files_created:
+-      - src/agent/filesystem.py
+-      - tests/test_filesystem.py
+-    files_modified:
+-      - src/agent/__init__.py
+-      - src/agent/fs_memory.py
+-      - src/agent/init.py
+-      - src/agent/workspace_lock.py
+-      - tests/test_fs_memory.py
+-      - tests/test_init.py
+-      - tests/test_workspace_lock.py
++      - tests/test_process_identity.py
++      - tests/test_process_runner.py
++      - tests/test_process_registry.py
++      - tests/test_process_cleaner.py
+       - dev_memory/CURRENT_PHASE.yaml
+-      - dev_memory/DECISIONS.md
++      - dev_memory/ROADMAP.yaml
+       - dev_memory/PROGRESS.md
+-      - dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
+-      - dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
+-      - dev_memory/phases/phase_06_process_management/SUMMARY.md
+-      - dev_memory/phases/phase_06_process_management/UT_RESULTS.md
++      - dev_memory/phases/phase_05_compile_benchmark/CHECKLIST.yaml
++      - dev_memory/phases/phase_05_compile_benchmark/REVIEW_NOTES.md
++      - dev_memory/phases/phase_05_compile_benchmark/SUMMARY.md
++      - dev_memory/phases/phase_05_compile_benchmark/UT_RESULTS.md
+     behavior_notes:
+-      - "Filesystem inspection parses /proc/self/mountinfo and warns for NFS/FUSE/remote-like filesystem types."
+-      - "Warnings are emitted during agent init context preparation and workspace lock acquisition, but they do not block execution."
+-      - "CheckpointState has a comment-only LangGraph reservation; langgraph_state_snapshot remains rejected by the strict schema."
++      - "process_runner generates lease_id before Popen, independent of pid, and injects AGENT_SESSION_ID, AGENT_TRIAL_ID, AGENT_LEASE_ID, and AGENT_PROCESS_ROLE."
++      - "ProcessRecord adds backward-compatible trial_id and lease_id optional fields."
++      - "ProcessLease persists lease_id and keeps legacy leases with lease_id=None loadable."
++      - "process_cleaner env_scan filters new records by session + trial + lease, while legacy records fall back to session-only matching."
++      - "read_env_marker remains single-shot and no-retry for cleaner scans."
+     ut_required: true
+     ut_passed: true
+-    targeted_ut: "234 tests passed, 0 failed (filesystem/workspace_lock/init/fs_memory); 3 error tests passed"
+-    production_regression_ut: "538 tests passed, 0 failed"
++    targeted_ut: "44 tests passed, 0 failed (process identity/registry/runner/cleaner)"
++    production_regression_ut: "550 tests passed, 0 failed"
+     self_review_required: true
+     self_reviewed: true
+     patch_required: true
+-    patch_file: dev_memory/phases/phase_06_process_management/patches/08_nfs_warning_langgraph_reservation.patch
++    patch_file: dev_memory/phases/phase_05_compile_benchmark/patches/01_env_marker_lease_id.patch
+     patch_generated: true
+     commit_required: true
+-    commit_pending: false
+-    implementation_commit: c62954e
+-    external_review_verdict: approve
+-    external_reviewed_at: 2026-06-03T15:44:39+08:00
+-    external_review_tests: "538 passed; targeted filesystem/workspace_lock/init/fs_memory set 234 passed"
+-    external_review_notes:
+-      - "Reviewer independently verified NFS/FUSE/remote-like filesystem detection with injected mountinfo."
+-      - "Reviewer independently verified warning-only behavior: NFS paths emit RemoteFilesystemWarning and continue."
+-      - "Reviewer independently verified langgraph_state_snapshot remains rejected by strict CheckpointState schema."
+-      - "Reviewer confirmed _write_holder was untouched and run.lock is not replaced."
+-    ubuntu_validation_status: passed
+-    ubuntu_validation_tests:
+-      targeted: "234 passed; error smoke 3 passed"
+-      full: "538 passed"
+-phase_summary:
+-  actual_subtasks_done: 9
+-  implementation_commits:
+-    - 2ff1342
+-    - e55a79d
+-    - d38567e
+-    - ca9373a
+-    - 03ca715
+-    - 4bde11a
+-    - f7b63a6
+-    - 2655d6f
+-    - a196c52
+-    - b109e45
+-    - 379309f
+-    - c62954e
+-  final_test_result: "538 passed"
+-  external_review_verdict: approve
+-next_action: "Phase 06 closed; next: begin Phase 05 (Compile / Benchmark Skills) per ROADMAP.yaml."
++    commit_pending: true
++    external_review_verdict: pending
++next_action: "Push Subtask 5.1 and request Claude review; next planned subtask is 5.2 fake_gbs mock harness after review/Ubuntu validation."
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index ad4e9fb..12ef3a5 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -2152,3 +2152,22 @@ Next action: generate patch artifacts, commit/push Subtask 6.5, then request Cla
+   - `.venv/bin/python -m pytest tests/ -q` -> 508 passed.
+ 
+ Next action: begin Subtask 6.6 doctor/state_consistency.py.
++
++## 2026-06-04T10:05:00+08:00 - Phase 05 / Subtask 5.1 implemented
++
++- Started Phase 05 (Compile / Benchmark Skills).
++- Implemented pid-independent process lease ids:
++  - `generate_lease_id(role)` creates `<role>-<uuid>` before `Popen`,
++  - `spawn_process()` injects `AGENT_SESSION_ID`, `AGENT_TRIAL_ID`,
++    `AGENT_LEASE_ID`, and `AGENT_PROCESS_ROLE`,
++  - `ProcessRecord` now carries optional `trial_id` and `lease_id`,
++  - `ProcessLease` persists `lease_id` and validates nested record consistency.
++- Updated cleaner env scanning:
++  - new records require session + trial + lease matches,
++  - legacy records with no trial/lease marker continue session-only matching,
++  - env reads remain single-shot with no retry.
++- Validation:
++  - `.venv/bin/python -m pytest tests/test_process_identity.py tests/test_process_registry.py tests/test_process_runner.py tests/test_process_cleaner.py -q` -> 44 passed.
++  - `.venv/bin/python -m pytest tests/ -q` -> 550 passed.
++
++Next action: generate patch artifacts, commit/push Subtask 5.1, then request Claude review.
+diff --git a/dev_memory/ROADMAP.yaml b/dev_memory/ROADMAP.yaml
+index f7d99c3..729a8ab 100644
+--- a/dev_memory/ROADMAP.yaml
++++ b/dev_memory/ROADMAP.yaml
+@@ -158,7 +158,9 @@ planned_phases:
+ 
+   - id: "05"
+     title: "Compile / Benchmark Skills"
+-    status: planned
++    status: in_progress
++    started_at: 2026-06-04T10:05:00+08:00
++    actual_subtasks_done: 1
+     milestone: "M1 end / M2 start"
+     requirement_sections: ["4.7.1 (gbs_compile, build_only_check, error_analyzer, benchmark_runner, quick_benchmark, score_aggregator)"]
+     dependencies: ["04", "06"]
+diff --git a/src/agent/__init__.py b/src/agent/__init__.py
+index ef1909f..d63fc0d 100644
+--- a/src/agent/__init__.py
++++ b/src/agent/__init__.py
+@@ -146,10 +146,14 @@ from .init import (
+     write_initialized_state,
+ )
+ from .process_identity import (
++    AGENT_LEASE_ID_ENV,
++    AGENT_PROCESS_ROLE_ENV,
+     AGENT_SESSION_ID_ENV,
++    AGENT_TRIAL_ID_ENV,
+     ProcessIdentity,
+     ProcessRecord,
+     compute_cmdline_hash,
++    generate_lease_id,
+ )
+ from .process_cleaner import (
+     CREATE_TIME_TOLERANCE_SECONDS,
+@@ -260,7 +264,10 @@ from .workspace_lock import (
+ __all__ = [
+     "AgentConfig",
+     "AgentError",
++    "AGENT_LEASE_ID_ENV",
++    "AGENT_PROCESS_ROLE_ENV",
+     "AGENT_SESSION_ID_ENV",
++    "AGENT_TRIAL_ID_ENV",
+     "AtomicWriteError",
+     "ByteRange",
+     "CanaryRecord",
+@@ -416,6 +423,7 @@ __all__ = [
+     "ensure_trial_index_current",
+     "find_cleanup_targets",
+     "garbage_collect_process_leases",
++    "generate_lease_id",
+     "iter_process_lease_paths",
+     "iter_trial_record_paths",
+     "iter_trace_events",
+diff --git a/src/agent/process_cleaner.py b/src/agent/process_cleaner.py
+index 4c00f16..1fe47a3 100644
+--- a/src/agent/process_cleaner.py
++++ b/src/agent/process_cleaner.py
+@@ -12,7 +12,13 @@ import psutil
+ 
+ from .errors import AgentError, EXIT_GENERIC
+ from .fs_memory import NamespaceLayout
+-from .process_identity import AGENT_SESSION_ID_ENV, ProcessRecord
++from .process_identity import (
++    AGENT_LEASE_ID_ENV,
++    AGENT_PROCESS_ROLE_ENV,
++    AGENT_SESSION_ID_ENV,
++    AGENT_TRIAL_ID_ENV,
++    ProcessRecord,
++)
+ from .process_registry import (
+     ProcessLease,
+     load_process_leases,
+@@ -42,6 +48,10 @@ class ProcessCleanerError(AgentError):
+ class EnvMarkerRead:
+     value: str | None
+     status: EnvMarkerStatus
++    session_id: str | None = None
++    trial_id: str | None = None
++    lease_id: str | None = None
++    process_role: str | None = None
+ 
+ 
+ @dataclass(frozen=True)
+@@ -81,21 +91,29 @@ class LeaseGcResult:
+ 
+ 
+ def read_env_marker(proc: psutil.Process) -> EnvMarkerRead:
+-    """Read AGENT_SESSION_ID once.
++    """Read agent process marker environment variables once.
+ 
+     This function intentionally does not retry. Cleaner scans arbitrary
+     processes, so a missing marker means "not present", not "wait for spawn".
+     """
+ 
+     try:
+-        value = proc.environ().get(AGENT_SESSION_ID_ENV)
++        environ = proc.environ()
+     except psutil.NoSuchProcess:
+         return EnvMarkerRead(value=None, status="gone")
+     except psutil.AccessDenied:
+         return EnvMarkerRead(value=None, status="unavailable")
+-    if value is None:
++    session_id = environ.get(AGENT_SESSION_ID_ENV)
++    if session_id is None:
+         return EnvMarkerRead(value=None, status="missing")
+-    return EnvMarkerRead(value=value, status="matched")
++    return EnvMarkerRead(
++        value=session_id,
++        status="matched",
++        session_id=session_id,
++        trial_id=environ.get(AGENT_TRIAL_ID_ENV),
++        lease_id=environ.get(AGENT_LEASE_ID_ENV),
++        process_role=environ.get(AGENT_PROCESS_ROLE_ENV),
++    )
+ 
+ 
+ def attribute_process(
+@@ -134,7 +152,7 @@ def attribute_process(
+             source=source,
+         )
+ 
+-    marker = _read_env_marker_for_session(proc, record.session_id)
++    marker = _read_env_marker_for_record(proc, record)
+     if marker.status == "matched":
+         env_marker_match = True
+         score += 4
+@@ -275,16 +293,48 @@ def garbage_collect_process_leases(layout: NamespaceLayout) -> LeaseGcResult:
+     return LeaseGcResult(deleted_paths=tuple(deleted), kept_paths=tuple(kept))
+ 
+ 
+-def _read_env_marker_for_session(
++def _read_env_marker_for_record(
+     proc: psutil.Process,
+-    session_id: str,
++    record: ProcessRecord,
+ ) -> EnvMarkerRead:
+     marker = read_env_marker(proc)
+     if marker.value is None:
+         return marker
+-    if marker.value == session_id:
+-        return EnvMarkerRead(value=marker.value, status="matched")
+-    return EnvMarkerRead(value=marker.value, status="mismatch")
++    if marker.session_id != record.session_id:
++        return EnvMarkerRead(
++            value=marker.value,
++            status="mismatch",
++            session_id=marker.session_id,
++            trial_id=marker.trial_id,
++            lease_id=marker.lease_id,
++            process_role=marker.process_role,
++        )
++    if record.trial_id is not None and marker.trial_id != record.trial_id:
++        return EnvMarkerRead(
++            value=marker.value,
++            status="mismatch",
++            session_id=marker.session_id,
++            trial_id=marker.trial_id,
++            lease_id=marker.lease_id,
++            process_role=marker.process_role,
++        )
++    if record.lease_id is not None and marker.lease_id != record.lease_id:
++        return EnvMarkerRead(
++            value=marker.value,
++            status="mismatch",
++            session_id=marker.session_id,
++            trial_id=marker.trial_id,
++            lease_id=marker.lease_id,
++            process_role=marker.process_role,
++        )
++    return EnvMarkerRead(
++        value=marker.value,
++        status="matched",
++        session_id=marker.session_id,
++        trial_id=marker.trial_id,
++        lease_id=marker.lease_id,
++        process_role=marker.process_role,
++    )
+ 
+ 
+ def _verdict_for_score(score: int) -> OwnershipVerdict:
+@@ -302,7 +352,7 @@ def _scan_source(proc: psutil.Process, record: ProcessRecord) -> str | None:
+             sources.append("pgid_scan")
+     except (ProcessLookupError, psutil.NoSuchProcess, psutil.AccessDenied):
+         pass
+-    marker = _read_env_marker_for_session(proc, record.session_id)
++    marker = _read_env_marker_for_record(proc, record)
+     if marker.status == "matched":
+         sources.append("env_scan")
+     if not sources:
+diff --git a/src/agent/process_identity.py b/src/agent/process_identity.py
+index 1e8f2de..7e3877e 100644
+--- a/src/agent/process_identity.py
++++ b/src/agent/process_identity.py
+@@ -3,6 +3,7 @@
+ from __future__ import annotations
+ 
+ import hashlib
++import uuid
+ from collections.abc import Sequence
+ from typing import Any
+ 
+@@ -14,6 +15,9 @@ from .identifiers import validate_session_id_atom
+ 
+ 
+ AGENT_SESSION_ID_ENV = "AGENT_SESSION_ID"
++AGENT_TRIAL_ID_ENV = "AGENT_TRIAL_ID"
++AGENT_LEASE_ID_ENV = "AGENT_LEASE_ID"
++AGENT_PROCESS_ROLE_ENV = "AGENT_PROCESS_ROLE"
+ 
+ 
+ class StrictProcessIdentityModel(BaseModel):
+@@ -32,6 +36,8 @@ class ProcessIdentity(StrictProcessIdentityModel):
+     pgid: int = Field(ge=0)
+     create_time: float = Field(ge=0)
+     session_id: NonEmptyStr
++    trial_id: str | None = None
++    lease_id: str | None = None
+     cmdline_hash: NonEmptyStr
+     env_marker_visible_at_spawn: bool
+     cgroup_path: str | None = None
+@@ -49,6 +55,20 @@ class ProcessIdentity(StrictProcessIdentityModel):
+         validate_session_id_atom(value, "session_id")
+         return value
+ 
++    @field_validator("trial_id", "lease_id", mode="before")
++    @classmethod
++    def optional_atom_must_not_be_trimmed(cls, value: Any, info: Any) -> Any:
++        if isinstance(value, str) and value != value.strip():
++            raise ValueError(f"{info.field_name} cannot contain surrounding whitespace")
++        return value
++
++    @field_validator("trial_id", "lease_id")
++    @classmethod
++    def optional_atom_must_be_safe(cls, value: str | None, info: Any) -> str | None:
++        if value is not None:
++            validate_session_id_atom(value, info.field_name)
++        return value
++
+     @field_validator("cmdline_hash")
+     @classmethod
+     def cmdline_hash_must_be_sha256(cls, value: str) -> str:
+@@ -67,6 +87,13 @@ class ProcessRecord(ProcessIdentity):
+     """Concrete process lease/checkpoint identity record."""
+ 
+ 
++def generate_lease_id(role: str) -> str:
++    """Generate a pid-independent process lease id before spawning a child."""
++
++    safe_role = validate_session_id_atom(role, "role")
++    return f"{safe_role}-{uuid.uuid4().hex}"
++
++
+ def compute_cmdline_hash(cmdline: Sequence[str]) -> str:
+     """Return a stable diagnostic hash for a process command line."""
+ 
+diff --git a/src/agent/process_registry.py b/src/agent/process_registry.py
+index 43e1bd5..1b8c3f3 100644
+--- a/src/agent/process_registry.py
++++ b/src/agent/process_registry.py
+@@ -49,6 +49,7 @@ class ProcessLease(StrictProcessRegistryModel):
+     session_id: NonEmptyStr
+     trial_id: NonEmptyStr
+     role: NonEmptyStr
++    lease_id: str | None = None
+     record: ProcessRecord
+     status: ProcessLeaseStatus = "running"
+     created_at: NonEmptyStr
+@@ -80,6 +81,20 @@ class ProcessLease(StrictProcessRegistryModel):
+         validate_session_id_atom(value, info.field_name)
+         return value
+ 
++    @field_validator("lease_id", mode="before")
++    @classmethod
++    def optional_lease_id_must_not_be_trimmed(cls, value: Any) -> Any:
++        if isinstance(value, str) and value != value.strip():
++            raise ValueError("lease_id cannot contain surrounding whitespace")
++        return value
++
++    @field_validator("lease_id")
++    @classmethod
++    def optional_lease_id_must_be_safe(cls, value: str | None) -> str | None:
++        if value is not None:
++            validate_session_id_atom(value, "lease_id")
++        return value
++
+     @field_validator("created_at", "updated_at", "ended_at")
+     @classmethod
+     def timestamp_must_be_utc_isoformat(cls, value: str | None, info: Any) -> str | None:
+@@ -91,6 +106,14 @@ class ProcessLease(StrictProcessRegistryModel):
+     def lease_consistency(self) -> ProcessLease:
+         if self.record.session_id != self.session_id:
+             raise ValueError("record.session_id must match lease session_id")
++        if self.record.trial_id is not None and self.record.trial_id != self.trial_id:
++            raise ValueError("record.trial_id must match lease trial_id")
++        if self.lease_id is not None and self.record.trial_id != self.trial_id:
++            raise ValueError("record.trial_id must match lease trial_id")
++        if (
++            self.record.lease_id is not None or self.lease_id is not None
++        ) and self.record.lease_id != self.lease_id:
++            raise ValueError("record.lease_id must match lease lease_id")
+         created_at = _parse_utc_isoformat(self.created_at, "created_at")
+         updated_at = _parse_utc_isoformat(self.updated_at, "updated_at")
+         if updated_at < created_at:
+@@ -171,14 +194,35 @@ def register_process_lease(
+     record: ProcessRecord,
+     trial_id: str,
+     role: str,
++    lease_id: str | None = None,
+     now: datetime | None = None,
+ ) -> ProcessLease:
+     timestamp = _utc_now_isoformat(now)
++    resolved_lease_id = lease_id if lease_id is not None else record.lease_id
++    record_for_lease = record
++    updates: dict[str, str] = {}
++    if resolved_lease_id is not None:
++        validate_session_id_atom(resolved_lease_id, "lease_id")
++        if record.lease_id is None:
++            updates["lease_id"] = resolved_lease_id
++        elif record.lease_id != resolved_lease_id:
++            raise ProcessRegistryError("record.lease_id must match lease_id")
++        if record.trial_id is None:
++            updates["trial_id"] = trial_id
++        elif record.trial_id != trial_id:
++            raise ProcessRegistryError("record.trial_id must match trial_id")
++    elif record.trial_id is not None and record.trial_id != trial_id:
++        raise ProcessRegistryError("record.trial_id must match trial_id")
++    if updates:
++        record_for_lease = ProcessRecord.model_validate(
++            {**record.model_dump(mode="json"), **updates}
++        )
+     lease = ProcessLease(
+-        session_id=record.session_id,
++        session_id=record_for_lease.session_id,
+         trial_id=trial_id,
+         role=role,
+-        record=record,
++        lease_id=resolved_lease_id,
++        record=record_for_lease,
+         status="running",
+         created_at=timestamp,
+         updated_at=timestamp,
+diff --git a/src/agent/process_runner.py b/src/agent/process_runner.py
+index 86112e0..32d15b0 100644
+--- a/src/agent/process_runner.py
++++ b/src/agent/process_runner.py
+@@ -14,10 +14,15 @@ import psutil
+ 
+ from .errors import AgentError, EXIT_GENERIC
+ from .fs_memory import NamespaceLayout
++from .identifiers import validate_session_id_atom
+ from .process_identity import (
++    AGENT_LEASE_ID_ENV,
++    AGENT_PROCESS_ROLE_ENV,
+     AGENT_SESSION_ID_ENV,
++    AGENT_TRIAL_ID_ENV,
+     ProcessRecord,
+     compute_cmdline_hash,
++    generate_lease_id,
+ )
+ from .process_registry import (
+     ProcessLease,
+@@ -51,6 +56,7 @@ def spawn_process(
+     session_id: str,
+     trial_id: str,
+     role: str,
++    lease_id: str | None = None,
+     cwd: str | os.PathLike[str] | None = None,
+     env: Mapping[str, str] | None = None,
+     stdin: int | None = subprocess.DEVNULL,
+@@ -62,10 +68,18 @@ def spawn_process(
+     argv = [os.fspath(arg) for arg in args]
+     if not argv:
+         raise ProcessRunnerError("process args must not be empty")
++    resolved_lease_id = (
++        generate_lease_id(role)
++        if lease_id is None
++        else validate_session_id_atom(lease_id, "lease_id")
++    )
+     child_env = os.environ.copy()
+     if env is not None:
+         child_env.update({str(key): str(value) for key, value in env.items()})
+     child_env[AGENT_SESSION_ID_ENV] = session_id
++    child_env[AGENT_TRIAL_ID_ENV] = trial_id
++    child_env[AGENT_LEASE_ID_ENV] = resolved_lease_id
++    child_env[AGENT_PROCESS_ROLE_ENV] = role
+ 
+     try:
+         popen = subprocess.Popen(
+@@ -84,6 +98,8 @@ def spawn_process(
+         record = process_record_for_pid(
+             popen.pid,
+             session_id=session_id,
++            trial_id=trial_id,
++            lease_id=resolved_lease_id,
+             fallback_cmdline=argv,
+         )
+         lease = register_process_lease(
+@@ -91,6 +107,7 @@ def spawn_process(
+             record=record,
+             trial_id=trial_id,
+             role=role,
++            lease_id=resolved_lease_id,
+         )
+     except Exception as exc:
+         _terminate_started_process_group(popen)
+@@ -107,6 +124,8 @@ def process_record_for_pid(
+     pid: int,
+     *,
+     session_id: str,
++    trial_id: str | None = None,
++    lease_id: str | None = None,
+     fallback_cmdline: Sequence[str] = (),
+     cgroup_path: str | None = None,
+ ) -> ProcessRecord:
+@@ -131,8 +150,15 @@ def process_record_for_pid(
+         pgid=pgid,
+         create_time=create_time,
+         session_id=session_id,
++        trial_id=trial_id,
++        lease_id=lease_id,
+         cmdline_hash=compute_cmdline_hash(cmdline),
+-        env_marker_visible_at_spawn=_env_marker_visible(proc, session_id),
++        env_marker_visible_at_spawn=_env_marker_visible(
++            proc,
++            session_id,
++            trial_id=trial_id,
++            lease_id=lease_id,
++        ),
+         cgroup_path=cgroup_path,
+     )
+ 
+@@ -163,12 +189,23 @@ def _env_marker_visible(
+     proc: psutil.Process,
+     session_id: str,
+     *,
++    trial_id: str | None = None,
++    lease_id: str | None = None,
+     timeout_seconds: float = 1.0,
+ ) -> bool:
+     deadline = time.monotonic() + timeout_seconds
+     while True:
+         try:
+-            if proc.environ().get(AGENT_SESSION_ID_ENV) == session_id:
++            environ = proc.environ()
++            if environ.get(AGENT_SESSION_ID_ENV) != session_id:
++                marker_visible = False
++            elif trial_id is not None and environ.get(AGENT_TRIAL_ID_ENV) != trial_id:
++                marker_visible = False
++            elif lease_id is not None and environ.get(AGENT_LEASE_ID_ENV) != lease_id:
++                marker_visible = False
++            else:
++                marker_visible = True
++            if marker_visible:
+                 return True
+         except (psutil.AccessDenied, psutil.NoSuchProcess):
+             return False
+diff --git a/tests/test_process_cleaner.py b/tests/test_process_cleaner.py
+index 32b2910..dba0788 100644
+--- a/tests/test_process_cleaner.py
++++ b/tests/test_process_cleaner.py
+@@ -2,6 +2,7 @@ from __future__ import annotations
+ 
+ import os
+ import signal
++import sys
+ import time
+ 
+ import psutil
+@@ -19,6 +20,7 @@ from agent import (
+     mark_process_exited,
+     read_env_marker,
+     register_process_lease,
++    spawn_process,
+ )
+ from tests.fixtures.fake_workspace import create_fake_workspace
+ from tests.fixtures.process_lab import create_process_lab
+@@ -28,6 +30,35 @@ pytestmark = pytest.mark.skipif(os.name != "posix", reason="process cleaner is P
+ 
+ 
+ def test_read_env_marker_is_single_read_without_retry() -> None:
++    class FakeProc:
++        pid = 123
++
++        def __init__(self) -> None:
++            self.calls = 0
++
++        def environ(self) -> dict[str, str]:
++            self.calls += 1
++            return {
++                "AGENT_SESSION_ID": "sess_marker",
++                "AGENT_TRIAL_ID": "trial_marker",
++                "AGENT_LEASE_ID": "compile-marker",
++                "AGENT_PROCESS_ROLE": "compile",
++            }
++
++    proc = FakeProc()
++
++    marker = read_env_marker(proc)  # type: ignore[arg-type]
++
++    assert marker.value == "sess_marker"
++    assert marker.status == "matched"
++    assert marker.session_id == "sess_marker"
++    assert marker.trial_id == "trial_marker"
++    assert marker.lease_id == "compile-marker"
++    assert marker.process_role == "compile"
++    assert proc.calls == 1
++
++
++def test_read_env_marker_reports_missing_without_retry() -> None:
+     class FakeProc:
+         pid = 123
+ 
+@@ -133,6 +164,8 @@ def test_cleanup_mixed_targets_kills_only_owned_process_group(tmp_path) -> None:
+             role="compile",
+         )
+ 
++        assert owned.record.trial_id is None
++        assert owned.record.lease_id is None
+         result = cleanup_process_lease(fake.layout, lease)
+ 
+         by_pid = {target.pid: target for target in result.targets}
+@@ -147,6 +180,42 @@ def test_cleanup_mixed_targets_kills_only_owned_process_group(tmp_path) -> None:
+         lab.cleanup()
+ 
+ 
++def test_new_lease_env_scan_filters_same_session_to_lease_granularity(tmp_path) -> None:
++    fake = create_fake_workspace(tmp_path)
++    first = spawn_process(
++        fake.layout,
++        [sys.executable, "-c", "import time; time.sleep(60)"],
++        session_id="sess_clean_precise",
++        trial_id="trial_precise",
++        role="compile",
++    )
++    second = spawn_process(
++        fake.layout,
++        [sys.executable, "-c", "import time; time.sleep(60)"],
++        session_id="sess_clean_precise",
++        trial_id="trial_precise",
++        role="benchmark",
++    )
++    try:
++        assert first.record.lease_id is not None
++        assert second.record.lease_id is not None
++        assert first.record.lease_id != second.record.lease_id
++
++        targets = find_cleanup_targets(first.record)
++        assert tuple(target.pid for target in targets) == (first.record.pid,)
++
++        result = cleanup_process_lease(fake.layout, first.lease)
++
++        assert result.action == "killed"
++        assert first.record.pgid in result.killed_pgids
++        assert second.record.pgid not in result.killed_pgids
++        _wait_until(lambda: not _pid_alive(first.record.pid))
++        assert _pid_alive(second.record.pid)
++    finally:
++        _terminate_spawned(second)
++        _terminate_spawned(first)
++
++
+ def test_force_cleanup_mixed_targets_kills_owned_and_suspected(tmp_path) -> None:
+     fake = create_fake_workspace(tmp_path)
+     lab = create_process_lab(tmp_path)
+@@ -363,3 +432,25 @@ def _wait_until(predicate, *, timeout: float = 3.0) -> None:
+             return
+         time.sleep(0.02)
+     raise AssertionError("condition did not become true before timeout")
++
++
++def _terminate_spawned(result) -> None:
++    if result.popen.poll() is not None:
++        return
++    try:
++        os.killpg(result.record.pgid, signal.SIGTERM)
++    except ProcessLookupError:
++        return
++    deadline = time.monotonic() + 2.0
++    while time.monotonic() < deadline:
++        if result.popen.poll() is not None:
++            return
++        time.sleep(0.02)
++    try:
++        os.killpg(result.record.pgid, signal.SIGKILL)
++    except ProcessLookupError:
++        return
++    try:
++        result.popen.wait(timeout=2)
++    except Exception:
++        return
+diff --git a/tests/test_process_identity.py b/tests/test_process_identity.py
+index 6529cc9..2d36523 100644
+--- a/tests/test_process_identity.py
++++ b/tests/test_process_identity.py
+@@ -4,10 +4,14 @@ import pytest
+ from pydantic import ValidationError
+ 
+ from agent import (
++    AGENT_LEASE_ID_ENV,
++    AGENT_PROCESS_ROLE_ENV,
+     AGENT_SESSION_ID_ENV,
++    AGENT_TRIAL_ID_ENV,
+     ProcessIdentity,
+     ProcessRecord,
+     compute_cmdline_hash,
++    generate_lease_id,
+ )
+ 
+ 
+@@ -25,11 +29,16 @@ def test_process_record_accepts_expected_fields() -> None:
+     assert record.pid == 123
+     assert record.pgid == 456
+     assert record.session_id == "sess_process_1"
++    assert record.trial_id is None
++    assert record.lease_id is None
+     assert record.env_marker_visible_at_spawn is True
+     assert ProcessIdentity.model_validate(record.model_dump()).model_dump() == (
+         record.model_dump()
+     )
+     assert AGENT_SESSION_ID_ENV == "AGENT_SESSION_ID"
++    assert AGENT_TRIAL_ID_ENV == "AGENT_TRIAL_ID"
++    assert AGENT_LEASE_ID_ENV == "AGENT_LEASE_ID"
++    assert AGENT_PROCESS_ROLE_ENV == "AGENT_PROCESS_ROLE"
+ 
+ 
+ @pytest.mark.parametrize(
+@@ -39,6 +48,8 @@ def test_process_record_accepts_expected_fields() -> None:
+         ("pgid", -1),
+         ("create_time", -0.1),
+         ("cmdline_hash", "not-a-sha"),
++        ("trial_id", "../escape"),
++        ("lease_id", "bad/slash"),
+         ("cgroup_path", ""),
+     ],
+ )
+@@ -79,3 +90,13 @@ def test_process_record_reuses_safe_session_id_contract(session_id: str) -> None
+ def test_compute_cmdline_hash_is_stable_and_boundary_sensitive() -> None:
+     assert compute_cmdline_hash(["ab", "c"]) == compute_cmdline_hash(["ab", "c"])
+     assert compute_cmdline_hash(["ab", "c"]) != compute_cmdline_hash(["a", "bc"])
++
++
++def test_generate_lease_id_is_pid_independent_and_role_prefixed() -> None:
++    lease_id = generate_lease_id("compile")
++
++    assert lease_id.startswith("compile-")
++    assert len(lease_id.removeprefix("compile-")) == 32
++
++    with pytest.raises(ValueError):
++        generate_lease_id("bad/slash")
+diff --git a/tests/test_process_registry.py b/tests/test_process_registry.py
+index 60ad11a..71118c5 100644
+--- a/tests/test_process_registry.py
++++ b/tests/test_process_registry.py
+@@ -70,6 +70,30 @@ def test_register_process_lease_writes_derived_yaml(tmp_path) -> None:
+     assert process_leases_dir(fake.layout) == fake.layout.state_dir / "processes"
+ 
+ 
++def test_register_process_lease_persists_lease_id_and_updates_record(tmp_path) -> None:
++    fake = create_fake_workspace(tmp_path)
++    record = _record(pid=124)
++
++    lease = register_process_lease(
++        fake.layout,
++        record=record,
++        trial_id="trial_lease",
++        role="compile",
++        lease_id="compile-fixedlease",
++    )
++
++    assert lease.lease_id == "compile-fixedlease"
++    assert lease.record.trial_id == "trial_lease"
++    assert lease.record.lease_id == "compile-fixedlease"
++    assert load_process_lease_for_layout(
++        fake.layout,
++        session_id="sess_1",
++        trial_id="trial_lease",
++        role="compile",
++        pid=124,
++    ) == lease
++
++
+ def test_process_lease_status_transitions(tmp_path) -> None:
+     fake = create_fake_workspace(tmp_path)
+     now = datetime(2026, 6, 1, 8, 0, tzinfo=UTC)
+@@ -157,6 +181,16 @@ def test_process_lease_rejects_unsafe_path_atoms(field: str, value: str) -> None
+         ProcessLease.model_validate(data)
+ 
+ 
++def test_process_lease_rejects_record_lease_id_mismatch() -> None:
++    data = _running_lease(pid=402).model_dump(mode="json")
++    data["lease_id"] = "compile-one"
++    data["record"]["trial_id"] = data["trial_id"]
++    data["record"]["lease_id"] = "compile-two"
++
++    with pytest.raises(ValidationError, match="record.lease_id"):
++        ProcessLease.model_validate(data)
++
++
+ def test_process_lease_loader_rejects_alias_and_symlink(tmp_path) -> None:
+     fake = create_fake_workspace(tmp_path)
+     lease = _register(fake.layout, pid=501)
+diff --git a/tests/test_process_runner.py b/tests/test_process_runner.py
+index 5697988..6f4b8b8 100644
+--- a/tests/test_process_runner.py
++++ b/tests/test_process_runner.py
+@@ -1,15 +1,20 @@
+ from __future__ import annotations
+ 
+ import os
++import json
+ import signal
+ import subprocess
+ import sys
+ import time
++from pathlib import Path
+ 
+ import pytest
+ 
+ from agent import (
++    AGENT_LEASE_ID_ENV,
++    AGENT_PROCESS_ROLE_ENV,
+     AGENT_SESSION_ID_ENV,
++    AGENT_TRIAL_ID_ENV,
+     ProcessRunnerError,
+     load_process_lease_for_layout,
+     refresh_process_lease_from_popen,
+@@ -33,6 +38,9 @@ def test_spawn_process_starts_new_session_and_writes_running_lease(tmp_path) ->
+     try:
+         assert result.record.pid == result.popen.pid
+         assert result.record.pgid == result.record.pid
++        assert result.record.trial_id == "trial_1"
++        assert result.record.lease_id is not None
++        assert result.lease.lease_id == result.record.lease_id
+         assert os.getpgid(result.popen.pid) == result.record.pgid
+         assert result.record.env_marker_visible_at_spawn is True
+         assert result.lease.status == "running"
+@@ -66,6 +74,53 @@ def test_spawn_process_overrides_env_marker(tmp_path) -> None:
+         _terminate_result(result)
+ 
+ 
++def test_spawn_process_injects_pid_independent_lease_markers(
++    tmp_path, monkeypatch: pytest.MonkeyPatch
++) -> None:
++    fake = create_fake_workspace(tmp_path)
++    marker_path = tmp_path / "markers.json"
++    monkeypatch.setattr(
++        "agent.process_runner.generate_lease_id",
++        lambda role: f"{role}-fixedlease",
++    )
++    result = spawn_process(
++        fake.layout,
++        [
++            sys.executable,
++            "-c",
++            (
++                "import json, os, pathlib, sys, time; "
++                "pathlib.Path(sys.argv[1]).write_text(json.dumps({"
++                f"'{AGENT_SESSION_ID_ENV}': os.environ.get('{AGENT_SESSION_ID_ENV}'), "
++                f"'{AGENT_TRIAL_ID_ENV}': os.environ.get('{AGENT_TRIAL_ID_ENV}'), "
++                f"'{AGENT_LEASE_ID_ENV}': os.environ.get('{AGENT_LEASE_ID_ENV}'), "
++                f"'{AGENT_PROCESS_ROLE_ENV}': os.environ.get('{AGENT_PROCESS_ROLE_ENV}')"
++                "}), encoding='utf-8'); "
++                "time.sleep(60)"
++            ),
++            str(marker_path),
++        ],
++        session_id="sess_runner_marker",
++        trial_id="trial_marker",
++        role="compile",
++    )
++    try:
++        markers = _wait_for_json(marker_path)
++        assert result.record.lease_id == "compile-fixedlease"
++        assert result.lease.lease_id == "compile-fixedlease"
++        assert result.lease.record.lease_id == "compile-fixedlease"
++        assert result.record.pid == result.popen.pid
++        assert result.record.lease_id != str(result.record.pid)
++        assert markers == {
++            AGENT_SESSION_ID_ENV: "sess_runner_marker",
++            AGENT_TRIAL_ID_ENV: "trial_marker",
++            AGENT_LEASE_ID_ENV: "compile-fixedlease",
++            AGENT_PROCESS_ROLE_ENV: "compile",
++        }
++    finally:
++        _terminate_result(result)
++
++
+ def test_refresh_process_lease_marks_exit_code(tmp_path) -> None:
+     fake = create_fake_workspace(tmp_path)
+     result = spawn_process(
+@@ -154,3 +209,12 @@ def _terminate_result(result) -> None:
+         result.popen.wait(timeout=2)
+     except subprocess.TimeoutExpired:
+         return
++
++
++def _wait_for_json(path: Path, *, timeout: float = 5.0) -> dict[str, str]:
++    deadline = time.monotonic() + timeout
++    while time.monotonic() < deadline:
++        if path.exists():
++            return json.loads(path.read_text(encoding="utf-8"))
++        time.sleep(0.02)
++    raise AssertionError(f"timed out waiting for {path}")

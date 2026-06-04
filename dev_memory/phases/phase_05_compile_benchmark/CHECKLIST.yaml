@@ -1,0 +1,28 @@
+phase_id: phase_05_compile_benchmark
+phase_title: "Compile / Benchmark Skills"
+status: in_progress
+subtasks:
+  - id: "5.1"
+    title: "env marker refinement + pid-independent lease_id"
+    status: done
+    implementation_complete: true
+    tests_passed: true
+    patch_artifacts_generated: true
+    external_review: pending
+    ubuntu_validation: pending
+  - id: "5.2"
+    title: "fake_gbs mock harness"
+    status: pending
+  - id: "5.5a"
+    title: "failure/result schema skeleton"
+    status: pending
+  - id: "5.3"
+    title: "compile skill"
+    status: pending
+  - id: "5.4"
+    title: "benchmark skill"
+    status: pending
+  - id: "5.5b"
+    title: "failure classifier rules + routing tests"
+    status: pending
+

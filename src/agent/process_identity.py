@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import uuid
 from collections.abc import Sequence
 from typing import Any
 
@@ -14,6 +15,9 @@ from .identifiers import validate_session_id_atom
 
 
 AGENT_SESSION_ID_ENV = "AGENT_SESSION_ID"
+AGENT_TRIAL_ID_ENV = "AGENT_TRIAL_ID"
+AGENT_LEASE_ID_ENV = "AGENT_LEASE_ID"
+AGENT_PROCESS_ROLE_ENV = "AGENT_PROCESS_ROLE"
 
 
 class StrictProcessIdentityModel(BaseModel):
@@ -32,6 +36,8 @@ class ProcessIdentity(StrictProcessIdentityModel):
     pgid: int = Field(ge=0)
     create_time: float = Field(ge=0)
     session_id: NonEmptyStr
+    trial_id: str | None = None
+    lease_id: str | None = None
     cmdline_hash: NonEmptyStr
     env_marker_visible_at_spawn: bool
     cgroup_path: str | None = None
@@ -47,6 +53,20 @@ class ProcessIdentity(StrictProcessIdentityModel):
     @classmethod
     def session_id_must_be_safe(cls, value: str) -> str:
         validate_session_id_atom(value, "session_id")
+        return value
+
+    @field_validator("trial_id", "lease_id", mode="before")
+    @classmethod
+    def optional_atom_must_not_be_trimmed(cls, value: Any, info: Any) -> Any:
+        if isinstance(value, str) and value != value.strip():
+            raise ValueError(f"{info.field_name} cannot contain surrounding whitespace")
+        return value
+
+    @field_validator("trial_id", "lease_id")
+    @classmethod
+    def optional_atom_must_be_safe(cls, value: str | None, info: Any) -> str | None:
+        if value is not None:
+            validate_session_id_atom(value, info.field_name)
         return value
 
     @field_validator("cmdline_hash")
@@ -65,6 +85,13 @@ class ProcessIdentity(StrictProcessIdentityModel):
 
 class ProcessRecord(ProcessIdentity):
     """Concrete process lease/checkpoint identity record."""
+
+
+def generate_lease_id(role: str) -> str:
+    """Generate a pid-independent process lease id before spawning a child."""
+
+    safe_role = validate_session_id_atom(role, "role")
+    return f"{safe_role}-{uuid.uuid4().hex}"
 
 
 def compute_cmdline_hash(cmdline: Sequence[str]) -> str:

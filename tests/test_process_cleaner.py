@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import signal
+import sys
 import time
 
 import psutil
@@ -19,6 +20,7 @@ from agent import (
     mark_process_exited,
     read_env_marker,
     register_process_lease,
+    spawn_process,
 )
 from tests.fixtures.fake_workspace import create_fake_workspace
 from tests.fixtures.process_lab import create_process_lab
@@ -28,6 +30,35 @@ pytestmark = pytest.mark.skipif(os.name != "posix", reason="process cleaner is P
 
 
 def test_read_env_marker_is_single_read_without_retry() -> None:
+    class FakeProc:
+        pid = 123
+
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def environ(self) -> dict[str, str]:
+            self.calls += 1
+            return {
+                "AGENT_SESSION_ID": "sess_marker",
+                "AGENT_TRIAL_ID": "trial_marker",
+                "AGENT_LEASE_ID": "compile-marker",
+                "AGENT_PROCESS_ROLE": "compile",
+            }
+
+    proc = FakeProc()
+
+    marker = read_env_marker(proc)  # type: ignore[arg-type]
+
+    assert marker.value == "sess_marker"
+    assert marker.status == "matched"
+    assert marker.session_id == "sess_marker"
+    assert marker.trial_id == "trial_marker"
+    assert marker.lease_id == "compile-marker"
+    assert marker.process_role == "compile"
+    assert proc.calls == 1
+
+
+def test_read_env_marker_reports_missing_without_retry() -> None:
     class FakeProc:
         pid = 123
 
@@ -133,6 +164,8 @@ def test_cleanup_mixed_targets_kills_only_owned_process_group(tmp_path) -> None:
             role="compile",
         )
 
+        assert owned.record.trial_id is None
+        assert owned.record.lease_id is None
         result = cleanup_process_lease(fake.layout, lease)
 
         by_pid = {target.pid: target for target in result.targets}
@@ -145,6 +178,42 @@ def test_cleanup_mixed_targets_kills_only_owned_process_group(tmp_path) -> None:
         assert _pid_alive(same_session_suspected.pid)
     finally:
         lab.cleanup()
+
+
+def test_new_lease_env_scan_filters_same_session_to_lease_granularity(tmp_path) -> None:
+    fake = create_fake_workspace(tmp_path)
+    first = spawn_process(
+        fake.layout,
+        [sys.executable, "-c", "import time; time.sleep(60)"],
+        session_id="sess_clean_precise",
+        trial_id="trial_precise",
+        role="compile",
+    )
+    second = spawn_process(
+        fake.layout,
+        [sys.executable, "-c", "import time; time.sleep(60)"],
+        session_id="sess_clean_precise",
+        trial_id="trial_precise",
+        role="benchmark",
+    )
+    try:
+        assert first.record.lease_id is not None
+        assert second.record.lease_id is not None
+        assert first.record.lease_id != second.record.lease_id
+
+        targets = find_cleanup_targets(first.record)
+        assert tuple(target.pid for target in targets) == (first.record.pid,)
+
+        result = cleanup_process_lease(fake.layout, first.lease)
+
+        assert result.action == "killed"
+        assert first.record.pgid in result.killed_pgids
+        assert second.record.pgid not in result.killed_pgids
+        _wait_until(lambda: not _pid_alive(first.record.pid))
+        assert _pid_alive(second.record.pid)
+    finally:
+        _terminate_spawned(second)
+        _terminate_spawned(first)
 
 
 def test_force_cleanup_mixed_targets_kills_owned_and_suspected(tmp_path) -> None:
@@ -363,3 +432,25 @@ def _wait_until(predicate, *, timeout: float = 3.0) -> None:
             return
         time.sleep(0.02)
     raise AssertionError("condition did not become true before timeout")
+
+
+def _terminate_spawned(result) -> None:
+    if result.popen.poll() is not None:
+        return
+    try:
+        os.killpg(result.record.pgid, signal.SIGTERM)
+    except ProcessLookupError:
+        return
+    deadline = time.monotonic() + 2.0
+    while time.monotonic() < deadline:
+        if result.popen.poll() is not None:
+            return
+        time.sleep(0.02)
+    try:
+        os.killpg(result.record.pgid, signal.SIGKILL)
+    except ProcessLookupError:
+        return
+    try:
+        result.popen.wait(timeout=2)
+    except Exception:
+        return

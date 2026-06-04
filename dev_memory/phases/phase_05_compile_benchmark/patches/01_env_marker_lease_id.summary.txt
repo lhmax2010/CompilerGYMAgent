@@ -1,0 +1,15 @@
+Phase 05 / Subtask 5.1 - env marker refinement + pid-independent lease_id
+
+Implemented:
+- Added AGENT_TRIAL_ID, AGENT_LEASE_ID, AGENT_PROCESS_ROLE constants.
+- Added ProcessRecord.trial_id and ProcessRecord.lease_id as optional fields.
+- Added generate_lease_id(role), producing <role>-<uuid> before Popen.
+- Updated spawn_process() to inject session/trial/lease/role env markers.
+- Persisted lease_id in ProcessLease while keeping legacy lease_id=None records loadable.
+- Tightened ProcessLease consistency for new leases so nested record trial/lease metadata matches top-level lease metadata.
+- Updated cleaner env_scan to match new records by session + trial + lease and old records by session only.
+
+Validation:
+- Targeted process tests: 44 passed.
+- Full suite: 550 passed.
+

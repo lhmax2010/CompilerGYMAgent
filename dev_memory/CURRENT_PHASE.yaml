@@ -1,432 +1,55 @@
-phase_id: phase_06_process_management
-phase_title: "Process Management (runner + cleaner + monitor)"
-started_at: 2026-06-01T15:30:36+08:00
-last_updated: 2026-06-04T09:10:00+08:00
-closed_at: 2026-06-03T15:44:39+08:00
-target_milestone: "M3 (advanced)"
+phase_id: phase_05_compile_benchmark
+phase_title: "Compile / Benchmark Skills"
+started_at: 2026-06-04T10:05:00+08:00
+last_updated: 2026-06-04T10:05:00+08:00
+target_milestone: "M1 end / M2 start"
 related_requirements:
-  - REQUIREMENTS.md section 3.3.5
-  - REQUIREMENTS.md section 4.7.1 process_cleaner
-  - REQUIREMENTS.md section 4.11.x
-status: done
-roadmap_reference: dev_memory/ROADMAP.yaml completed_phases[id=06]
+  - REQUIREMENTS.md section 4.7.1 gbs_compile
+  - REQUIREMENTS.md section 4.7.1 benchmark_runner
+  - REQUIREMENTS.md section 4.8
+status: in_progress
+roadmap_reference: dev_memory/ROADMAP.yaml planned_phases[id=05]
 subtasks:
-  - id: "6.1"
-    title: "process_identity.py + process_lab fixture"
+  - id: "5.1"
+    title: "env marker refinement + pid-independent lease_id"
     status: done
     related_requirements:
-      - ROADMAP.yaml Phase 06 deliverable process_identity.py
-      - ROADMAP.yaml Phase 06 deliverable process_lab fixture
-    files_created:
+      - ROADMAP.yaml Phase 05 deliverable env marker enhancement
+      - DECISIONS.md "AGENT_LEASE_ID generated before spawn, pid-independent"
+    files_created: []
+    files_modified:
       - src/agent/process_identity.py
-      - tests/fixtures/process_lab.py
-      - tests/test_process_identity.py
-      - tests/test_process_lab.py
-      - dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
-      - dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
-      - dev_memory/phases/phase_06_process_management/SUMMARY.md
-      - dev_memory/phases/phase_06_process_management/UT_RESULTS.md
-    files_modified:
-      - src/agent/__init__.py
-      - dev_memory/CURRENT_PHASE.yaml
-      - dev_memory/DECISIONS.md
-      - dev_memory/PROGRESS.md
-      - dev_memory/ROADMAP.yaml
-    behavior_notes:
-      - "ProcessIdentity and ProcessRecord are additive Pydantic models; existing CheckpointProcess and WorkspaceLockHolder schemas are unchanged."
-      - "cmdline_hash is validated but diagnostic-only per Phase 06 design."
-      - "process_lab uses controlled Python subprocesses with start_new_session=True, not raw fork."
-      - "process_lab covers live process groups, pid_gone records, create_time drift, pgid mismatch, env_marker_missing, simulated AccessDenied, leader-dead child survival, and double-fork-style escaped child sessions."
-    ut_required: true
-    ut_passed: true
-    targeted_ut: "20 tests passed, 0 failed (test_process_identity.py + test_process_lab.py)"
-    production_regression_ut: "471 tests passed, 0 failed"
-    self_review_required: true
-    self_reviewed: true
-    patch_required: true
-    patch_file: dev_memory/phases/phase_06_process_management/patches/01_process_identity_lab.patch
-    patch_generated: true
-    commit_required: true
-    commit_pending: false
-    implementation_commit: 2ff1342
-    external_review_verdict: approve
-    external_reviewed_at: 2026-06-01T16:00:35+08:00
-    external_review_tests: "471 passed; targeted 20 passed; 0 residual process leak"
-    ubuntu_validation_status: passed
-    ubuntu_validation_tests:
-      targeted: "20 passed"
-      full: "471 passed"
-  - id: "6.2"
-    title: "process_runner.py + Process Lease Registry"
-    status: done
-    related_requirements:
-      - ROADMAP.yaml Phase 06 deliverable process_runner.py
-      - ROADMAP.yaml Phase 06 deliverable process_registry.py
-    files_created:
-      - src/agent/process_registry.py
       - src/agent/process_runner.py
-      - tests/test_process_registry.py
-      - tests/test_process_runner.py
-    files_modified:
-      - src/agent/__init__.py
-      - tests/test_errors.py
-      - dev_memory/CURRENT_PHASE.yaml
-      - dev_memory/DECISIONS.md
-      - dev_memory/PROGRESS.md
-      - dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
-      - dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
-      - dev_memory/phases/phase_06_process_management/SUMMARY.md
-      - dev_memory/phases/phase_06_process_management/UT_RESULTS.md
-    behavior_notes:
-      - "Process Lease Registry writes derived YAML files under state/processes/<session_id>/<trial_id>/<role>-<pid>.yaml."
-      - "Lease states support running -> exited | killed | unsafe_skip | unknown; terminal leases include ended_at."
-      - "Leases intentionally omit integrity hashes because they are derived state."
-      - "process_runner starts subprocesses with start_new_session=True and injects AGENT_SESSION_ID."
-      - "If lease registration fails after spawn, process_runner terminates the started process group."
-    ut_required: true
-    ut_passed: true
-    targeted_ut: "29 tests passed, 0 failed (registry/runner/errors/identity)"
-    production_regression_ut: "484 tests passed, 0 failed"
-    self_review_required: true
-    self_reviewed: true
-    patch_required: true
-    patch_file: dev_memory/phases/phase_06_process_management/patches/02_process_runner_registry.patch
-    patch_generated: true
-    commit_required: true
-    commit_pending: false
-    implementation_commit: e55a79d
-    hardening_commit: d38567e
-    external_review_verdict: approve
-    external_reviewed_at: 2026-06-01T18:01:36+08:00
-    external_review_tests: "484 passed; 0 residual process leak"
-    external_review_follow_up:
-      - "6.3 cleaner must not reuse process_runner._env_marker_visible because it has spawn-only retry semantics; cleaner must use single-read env marker probing."
-    ubuntu_validation_status: passed
-    ubuntu_validation_tests:
-      targeted: "29 passed"
-      full: "484 passed"
-  - id: "6.3"
-    title: "process_cleaner.py"
-    status: done
-    related_requirements:
-      - ROADMAP.yaml Phase 06 deliverable process_cleaner.py
-      - DECISIONS.md process attribution graded scoring
-      - DECISIONS.md process cleanup authority
-    files_created:
+      - src/agent/process_registry.py
       - src/agent/process_cleaner.py
+      - src/agent/__init__.py
+      - tests/test_process_identity.py
+      - tests/test_process_runner.py
+      - tests/test_process_registry.py
       - tests/test_process_cleaner.py
-    files_modified:
-      - src/agent/__init__.py
-      - tests/test_errors.py
       - dev_memory/CURRENT_PHASE.yaml
-      - dev_memory/DECISIONS.md
+      - dev_memory/ROADMAP.yaml
       - dev_memory/PROGRESS.md
-      - dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
-      - dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
-      - dev_memory/phases/phase_06_process_management/SUMMARY.md
-      - dev_memory/phases/phase_06_process_management/UT_RESULTS.md
+      - dev_memory/phases/phase_05_compile_benchmark/CHECKLIST.yaml
+      - dev_memory/phases/phase_05_compile_benchmark/REVIEW_NOTES.md
+      - dev_memory/phases/phase_05_compile_benchmark/SUMMARY.md
+      - dev_memory/phases/phase_05_compile_benchmark/UT_RESULTS.md
     behavior_notes:
-      - "Cleaner uses graded scoring: pid+create_time +3, pgid +3, env_marker +4."
-      - "Score >=7 is owned and killable; score >=4 is suspected and skipped unless force_suspected=True."
-      - "Cleaner env marker reads are single-shot and do not reuse process_runner's retry helper."
-      - "leader_dead_children_alive is found through pgid scanning; double_fork_escape is found through env_marker scanning and needs force to kill."
-      - "Lease GC deletes orphan leases only when no live cleanup targets remain."
+      - "process_runner generates lease_id before Popen, independent of pid, and injects AGENT_SESSION_ID, AGENT_TRIAL_ID, AGENT_LEASE_ID, and AGENT_PROCESS_ROLE."
+      - "ProcessRecord adds backward-compatible trial_id and lease_id optional fields."
+      - "ProcessLease persists lease_id and keeps legacy leases with lease_id=None loadable."
+      - "process_cleaner env_scan filters new records by session + trial + lease, while legacy records fall back to session-only matching."
+      - "read_env_marker remains single-shot and no-retry for cleaner scans."
     ut_required: true
     ut_passed: true
-    targeted_ut: "31 tests passed, 0 failed (cleaner/registry/runner/lab/errors)"
-    production_regression_ut: "492 tests passed, 0 failed"
+    targeted_ut: "44 tests passed, 0 failed (process identity/registry/runner/cleaner)"
+    production_regression_ut: "550 tests passed, 0 failed"
     self_review_required: true
     self_reviewed: true
     patch_required: true
-    patch_file: dev_memory/phases/phase_06_process_management/patches/03_process_cleaner.patch
+    patch_file: dev_memory/phases/phase_05_compile_benchmark/patches/01_env_marker_lease_id.patch
     patch_generated: true
     commit_required: true
-    commit_pending: false
-    implementation_commit: ca9373a
-    external_review_verdict: approve
-    external_reviewed_at: 2026-06-01T19:51:24+08:00
-    external_review_tests: "492 passed; targeted cleaner-adjacent set 31 passed"
-    external_review_notes:
-      - "read_env_marker is single-shot and avoids the process_runner retry helper."
-      - "leader-dead children-alive cleanup works through pgid scan."
-      - "double-fork escape discovery works through env-marker scan."
-      - "Lease GC may conservatively retain an orphan under rare pid/pgid reuse; nonblocking Low follow-up."
-    ubuntu_validation_status: passed
-    ubuntu_validation_tests:
-      targeted: "31 passed"
-      full: "492 passed"
-  - id: "6.4"
-    title: "workspace lock hardening (probe flock + LockStatus unknown)"
-    status: done
-    related_requirements:
-      - ROADMAP.yaml Phase 06 deliverable workspace lock hardening
-      - REQUIREMENTS.md section 4.14.7a
-      - REQUIREMENTS.md section 4.15
-    files_created: []
-    files_modified:
-      - src/agent/workspace_lock.py
-      - src/agent/trace_cleanup.py
-      - src/agent/__init__.py
-      - tests/test_workspace_lock.py
-      - tests/test_trace_cleanup.py
-      - dev_memory/CURRENT_PHASE.yaml
-      - dev_memory/DECISIONS.md
-      - dev_memory/PROGRESS.md
-      - dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
-      - dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
-      - dev_memory/phases/phase_06_process_management/SUMMARY.md
-      - dev_memory/phases/phase_06_process_management/UT_RESULTS.md
-    behavior_notes:
-      - "WorkspaceLock.probe_lock performs a read-only nonblocking flock probe and does not alter holder metadata."
-      - "trace cleanup uses the probe as the source of truth for free vs busy; holder metadata only explains the holder."
-      - "Unreadable holder metadata now yields lock_status=unknown and clean execution remains refused."
-      - "Released-but-live holder metadata is no longer misclassified as held_by_other when the real flock is free."
-    ut_required: true
-    ut_passed: true
-    targeted_ut: "78 tests passed, 0 failed (workspace_lock/trace_cleanup/trace_cleanup_execute/cli_clean_trace)"
-    production_regression_ut: "496 tests passed, 0 failed"
-    self_review_required: true
-    self_reviewed: true
-    patch_required: true
-    patch_file: dev_memory/phases/phase_06_process_management/patches/04_workspace_lock_probe.patch
-    patch_generated: true
-    commit_required: true
-    commit_pending: false
-    implementation_commit: 03ca715
-    external_review_verdict: approve
-    external_reviewed_at: 2026-06-01T20:12:12+08:00
-    external_review_tests: "496 passed; lock/cleanup/cli targeted set 78 passed"
-    external_review_notes:
-      - "probe_lock correctly distinguishes free/busy with real flock."
-      - "released-but-live holder metadata now reports free when the flock is free."
-      - "holder metadata corruption reports lock_status=unknown and refuses normal/force clean."
-      - "never os.replace run.lock red line remains intact; _write_holder unchanged."
-    ubuntu_validation_status: passed
-    ubuntu_validation_tests:
-      targeted: "78 passed"
-      full: "496 passed"
-  - id: "6.5"
-    title: "TrialState operation ledger checkpoint schema extension"
-    status: done
-    related_requirements:
-      - ROADMAP.yaml Phase 06 deliverable TrialState operation ledger
-      - REQUIREMENTS.md section 3.3.3
-      - REQUIREMENTS.md section 3.3.5
-      - REQUIREMENTS.md section 4.11.x
-    files_created: []
-    files_modified:
-      - src/agent/fs_memory.py
-      - src/agent/__init__.py
-      - tests/test_fs_memory.py
-      - dev_memory/CURRENT_PHASE.yaml
-      - dev_memory/DECISIONS.md
-      - dev_memory/PROGRESS.md
-      - dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
-      - dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
-      - dev_memory/phases/phase_06_process_management/SUMMARY.md
-      - dev_memory/phases/phase_06_process_management/UT_RESULTS.md
-    behavior_notes:
-      - "CheckpointCurrentTrial now supports an additive operations ledger with op/status/output_ref/process_refs/details."
-      - "Legacy checkpoints without operations load with operations=() and current_trial_start_line=None."
-      - "Operation ledgers require current_trial_start_line so later Layer D trace protection has a boundary."
-      - "process_refs must point to state/processes/<session>/<trial>/<lease>.yaml and must match checkpoint session_id/current_trial.trial_id."
-    ut_required: true
-    ut_passed: true
-    targeted_ut: "164 tests passed, 0 failed (test_fs_memory.py + test_identifiers.py); 3 error framework tests passed"
-    production_regression_ut: "508 tests passed, 0 failed"
-    self_review_required: true
-    self_reviewed: true
-    patch_required: true
-    patch_file: dev_memory/phases/phase_06_process_management/patches/05_trial_operation_ledger.patch
-    patch_generated: true
-    commit_required: true
-    commit_pending: false
-    implementation_commit: 4bde11a
-    external_review_verdict: approve
-    external_reviewed_at: 2026-06-01T20:37:50+08:00
-    external_review_tests: "508 passed; targeted checkpoint tests 164 passed"
-    external_review_notes:
-      - "Legacy checkpoints without operations load with empty operations and no current_trial_start_line."
-      - "process_refs path/session/trial validation passed independent review."
-      - "Checkpoint has no integrity hash by design; operation ledger does not require hash recomputation."
-      - "Low-1 process_lab double-fork flaky was resolved in follow-up hardening: worker/grandchild JSON IPC now uses atomic temp+replace writes, JSON readers wait until payload parsing succeeds, and escaped child pgid/env readiness is polled before returning from the fixture."
-      - "The earlier timeout-only hardening was not sufficient under process-suite load; the final fix removes the half-written JSON window."
-    review_hardening_commit: a196c52
-    review_hardening_commit_pending: false
-    ubuntu_validation_status: passed
-    ubuntu_validation_tests:
-      targeted: "164 passed; process_lab/process_cleaner 15 passed; process suite stress 20/20 passed; double-fork stress 50/50 passed"
-      full: "508 passed"
-  - id: "6.6"
-    title: "doctor/state_consistency.py checkpoint-trace-process validator"
-    status: done
-    related_requirements:
-      - ROADMAP.yaml Phase 06 deliverable doctor/state_consistency.py
-      - REQUIREMENTS.md section 3.3.3
-      - REQUIREMENTS.md section 3.3.5
-      - REQUIREMENTS.md section 4.11.x
-    files_created:
-      - src/agent/doctor/__init__.py
-      - src/agent/doctor/state_consistency.py
-      - tests/test_state_consistency.py
-    files_modified:
-      - src/agent/__init__.py
-      - tests/test_errors.py
-      - dev_memory/CURRENT_PHASE.yaml
-      - dev_memory/DECISIONS.md
-      - dev_memory/PROGRESS.md
-      - dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
-      - dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
-      - dev_memory/phases/phase_06_process_management/SUMMARY.md
-      - dev_memory/phases/phase_06_process_management/UT_RESULTS.md
-    behavior_notes:
-      - "inspect_state_consistency is read-only and does not reconcile, delete leases, or inspect/kill live processes."
-      - "Trace/checkpoint alignment uses the existing inspect_trace_checkpoint_alignment helper from 3.8."
-      - "Trace session coverage uses the existing inspect_trace_session_spans helper from 3.9."
-      - "Operation process_refs are checked against the derived process lease registry for existence and status consistency."
-      - "Unreferenced process leases are reported as orphan_process_lease findings, with running leases warning and terminal leases info."
-    ut_required: true
-    ut_passed: true
-    targeted_ut: "203 tests passed, 0 failed (state_consistency/trace_session/process_registry/fs_memory/errors)"
-    production_regression_ut: "515 tests passed, 0 failed"
-    self_review_required: true
-    self_reviewed: true
-    patch_required: true
-    patch_file: dev_memory/phases/phase_06_process_management/patches/06_state_consistency.patch
-    patch_generated: true
-    commit_required: true
-    commit_pending: false
-    implementation_commit: b109e45
-    external_review_verdict: approve
-    external_reviewed_at: 2026-06-03T00:00:00+08:00
-    external_review_tests: "515 passed; adjacent targeted set 203 passed"
-    external_review_notes:
-      - "Reviewer confirmed inspect_state_consistency reuses 3.8 inspect_trace_checkpoint_alignment and 3.9 inspect_trace_session_spans."
-      - "Reviewer independently verified process_ref_missing, orphan_process_lease, process_lease_invalid, operation/lease status mismatch, and current_trial_start_line diagnostics."
-      - "Reviewer verified the inspector is pure read-only: repeated runs do not change checkpoint, trace, lease files, or process state."
-      - "Every issue carries repair_suggestion and structured details."
-    ubuntu_validation_status: passed
-    ubuntu_validation_tests:
-      targeted: "203 passed"
-      full: "515 passed"
-  - id: "6.7"
-    title: "clean trace hardening (CleanPlan hashes + Layer D current-trial protection)"
-    status: done
-    related_requirements:
-      - ROADMAP.yaml Phase 06 deliverable clean trace hardening
-      - REQUIREMENTS.md section 4.14.7a
-      - REQUIREMENTS.md section 4.13
-      - REQUIREMENTS.md section 3.3.3
-    files_created: []
-    files_modified:
-      - src/agent/trace_cleanup.py
-      - tests/test_trace_cleanup.py
-      - tests/test_trace_cleanup_execute.py
-      - dev_memory/CURRENT_PHASE.yaml
-      - dev_memory/DECISIONS.md
-      - dev_memory/PROGRESS.md
-      - dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
-      - dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
-      - dev_memory/phases/phase_06_process_management/SUMMARY.md
-      - dev_memory/phases/phase_06_process_management/UT_RESULTS.md
-    behavior_notes:
-      - "CleanPlan now records checkpoint_hash and protected_sessions_hash snapshots."
-      - "execute_clean_plan revalidates trace size/line count, checkpoint_hash, and protected session boundaries while holding the workspace lock."
-      - "Layer D protects current-trial trace lines from current_trial_start_line through the current trace end when checkpoint operations indicate a trial is in progress."
-      - "If current_trial_start_line is ahead of validated trace events, planning refuses execution."
-    ut_required: true
-    ut_passed: true
-    targeted_ut: "95 tests passed, 0 failed (trace_cleanup/execute/cli/trace_session/state_consistency); 3 error tests passed"
-    production_regression_ut: "519 tests passed, 0 failed"
-    self_review_required: true
-    self_reviewed: true
-    patch_required: true
-    patch_file: dev_memory/phases/phase_06_process_management/patches/07_clean_trace_hardening.patch
-    patch_generated: true
-    commit_required: true
-    commit_pending: false
-    implementation_commit: 379309f
-    external_review_verdict: approve
-    external_reviewed_at: 2026-06-03T13:55:50+08:00
-    external_review_tests: "519 passed; trace cleanup targeted set 34 passed; adjacent targeted set 95 passed"
-    external_review_notes:
-      - "Reviewer independently verified checkpoint hash staleness: checkpoint content changes with unchanged trace size/line count cause StaleCleanPlanError."
-      - "Reviewer independently verified Layer D protects current-trial lines from current_trial_start_line through trace end."
-      - "Reviewer independently verified current_trial_start_line ahead of trace refuses execution."
-      - "Existing trace cleanup tests remained compatible: targeted trace cleanup set 34 passed."
-    ubuntu_validation_status: passed
-    ubuntu_validation_tests:
-      targeted: "34 passed; adjacent targeted set 95 passed; error smoke 3 passed"
-      full: "519 passed"
-  - id: "6.8"
-    title: "NFS/FUSE runtime warning + CheckpointState LangGraph comment reservation"
-    status: done
-    related_requirements:
-      - ROADMAP.yaml Phase 06 deliverable NFS runtime detection + warning
-      - ROADMAP.yaml Phase 06 deliverable CheckpointState langgraph comment reservation
-      - REQUIREMENTS.md section 3.3.4
-      - REQUIREMENTS.md section 4.15
-    files_created:
-      - src/agent/filesystem.py
-      - tests/test_filesystem.py
-    files_modified:
-      - src/agent/__init__.py
-      - src/agent/fs_memory.py
-      - src/agent/init.py
-      - src/agent/workspace_lock.py
-      - tests/test_fs_memory.py
-      - tests/test_init.py
-      - tests/test_workspace_lock.py
-      - dev_memory/CURRENT_PHASE.yaml
-      - dev_memory/DECISIONS.md
-      - dev_memory/PROGRESS.md
-      - dev_memory/phases/phase_06_process_management/CHECKLIST.yaml
-      - dev_memory/phases/phase_06_process_management/REVIEW_NOTES.md
-      - dev_memory/phases/phase_06_process_management/SUMMARY.md
-      - dev_memory/phases/phase_06_process_management/UT_RESULTS.md
-    behavior_notes:
-      - "Filesystem inspection parses /proc/self/mountinfo and warns for NFS/FUSE/remote-like filesystem types."
-      - "Warnings are emitted during agent init context preparation and workspace lock acquisition, but they do not block execution."
-      - "CheckpointState has a comment-only LangGraph reservation; langgraph_state_snapshot remains rejected by the strict schema."
-    ut_required: true
-    ut_passed: true
-    targeted_ut: "234 tests passed, 0 failed (filesystem/workspace_lock/init/fs_memory); 3 error tests passed"
-    production_regression_ut: "538 tests passed, 0 failed"
-    self_review_required: true
-    self_reviewed: true
-    patch_required: true
-    patch_file: dev_memory/phases/phase_06_process_management/patches/08_nfs_warning_langgraph_reservation.patch
-    patch_generated: true
-    commit_required: true
-    commit_pending: false
-    implementation_commit: c62954e
-    external_review_verdict: approve
-    external_reviewed_at: 2026-06-03T15:44:39+08:00
-    external_review_tests: "538 passed; targeted filesystem/workspace_lock/init/fs_memory set 234 passed"
-    external_review_notes:
-      - "Reviewer independently verified NFS/FUSE/remote-like filesystem detection with injected mountinfo."
-      - "Reviewer independently verified warning-only behavior: NFS paths emit RemoteFilesystemWarning and continue."
-      - "Reviewer independently verified langgraph_state_snapshot remains rejected by strict CheckpointState schema."
-      - "Reviewer confirmed _write_holder was untouched and run.lock is not replaced."
-    ubuntu_validation_status: passed
-    ubuntu_validation_tests:
-      targeted: "234 passed; error smoke 3 passed"
-      full: "538 passed"
-phase_summary:
-  actual_subtasks_done: 9
-  implementation_commits:
-    - 2ff1342
-    - e55a79d
-    - d38567e
-    - ca9373a
-    - 03ca715
-    - 4bde11a
-    - f7b63a6
-    - 2655d6f
-    - a196c52
-    - b109e45
-    - 379309f
-    - c62954e
-  final_test_result: "538 passed"
-  external_review_verdict: approve
-next_action: "Phase 06 closed; next: begin Phase 05 (Compile / Benchmark Skills) per ROADMAP.yaml."
+    commit_pending: true
+    external_review_verdict: pending
+next_action: "Push Subtask 5.1 and request Claude review; next planned subtask is 5.2 fake_gbs mock harness after review/Ubuntu validation."

@@ -49,6 +49,7 @@ class ProcessLease(StrictProcessRegistryModel):
     session_id: NonEmptyStr
     trial_id: NonEmptyStr
     role: NonEmptyStr
+    lease_id: str | None = None
     record: ProcessRecord
     status: ProcessLeaseStatus = "running"
     created_at: NonEmptyStr
@@ -80,6 +81,20 @@ class ProcessLease(StrictProcessRegistryModel):
         validate_session_id_atom(value, info.field_name)
         return value
 
+    @field_validator("lease_id", mode="before")
+    @classmethod
+    def optional_lease_id_must_not_be_trimmed(cls, value: Any) -> Any:
+        if isinstance(value, str) and value != value.strip():
+            raise ValueError("lease_id cannot contain surrounding whitespace")
+        return value
+
+    @field_validator("lease_id")
+    @classmethod
+    def optional_lease_id_must_be_safe(cls, value: str | None) -> str | None:
+        if value is not None:
+            validate_session_id_atom(value, "lease_id")
+        return value
+
     @field_validator("created_at", "updated_at", "ended_at")
     @classmethod
     def timestamp_must_be_utc_isoformat(cls, value: str | None, info: Any) -> str | None:
@@ -91,6 +106,14 @@ class ProcessLease(StrictProcessRegistryModel):
     def lease_consistency(self) -> ProcessLease:
         if self.record.session_id != self.session_id:
             raise ValueError("record.session_id must match lease session_id")
+        if self.record.trial_id is not None and self.record.trial_id != self.trial_id:
+            raise ValueError("record.trial_id must match lease trial_id")
+        if self.lease_id is not None and self.record.trial_id != self.trial_id:
+            raise ValueError("record.trial_id must match lease trial_id")
+        if (
+            self.record.lease_id is not None or self.lease_id is not None
+        ) and self.record.lease_id != self.lease_id:
+            raise ValueError("record.lease_id must match lease lease_id")
         created_at = _parse_utc_isoformat(self.created_at, "created_at")
         updated_at = _parse_utc_isoformat(self.updated_at, "updated_at")
         if updated_at < created_at:
@@ -171,14 +194,35 @@ def register_process_lease(
     record: ProcessRecord,
     trial_id: str,
     role: str,
+    lease_id: str | None = None,
     now: datetime | None = None,
 ) -> ProcessLease:
     timestamp = _utc_now_isoformat(now)
+    resolved_lease_id = lease_id if lease_id is not None else record.lease_id
+    record_for_lease = record
+    updates: dict[str, str] = {}
+    if resolved_lease_id is not None:
+        validate_session_id_atom(resolved_lease_id, "lease_id")
+        if record.lease_id is None:
+            updates["lease_id"] = resolved_lease_id
+        elif record.lease_id != resolved_lease_id:
+            raise ProcessRegistryError("record.lease_id must match lease_id")
+        if record.trial_id is None:
+            updates["trial_id"] = trial_id
+        elif record.trial_id != trial_id:
+            raise ProcessRegistryError("record.trial_id must match trial_id")
+    elif record.trial_id is not None and record.trial_id != trial_id:
+        raise ProcessRegistryError("record.trial_id must match trial_id")
+    if updates:
+        record_for_lease = ProcessRecord.model_validate(
+            {**record.model_dump(mode="json"), **updates}
+        )
     lease = ProcessLease(
-        session_id=record.session_id,
+        session_id=record_for_lease.session_id,
         trial_id=trial_id,
         role=role,
-        record=record,
+        lease_id=resolved_lease_id,
+        record=record_for_lease,
         status="running",
         created_at=timestamp,
         updated_at=timestamp,

@@ -2152,3 +2152,22 @@ Next action: generate patch artifacts, commit/push Subtask 6.5, then request Cla
   - `.venv/bin/python -m pytest tests/ -q` -> 508 passed.
 
 Next action: begin Subtask 6.6 doctor/state_consistency.py.
+
+## 2026-06-04T10:05:00+08:00 - Phase 05 / Subtask 5.1 implemented
+
+- Started Phase 05 (Compile / Benchmark Skills).
+- Implemented pid-independent process lease ids:
+  - `generate_lease_id(role)` creates `<role>-<uuid>` before `Popen`,
+  - `spawn_process()` injects `AGENT_SESSION_ID`, `AGENT_TRIAL_ID`,
+    `AGENT_LEASE_ID`, and `AGENT_PROCESS_ROLE`,
+  - `ProcessRecord` now carries optional `trial_id` and `lease_id`,
+  - `ProcessLease` persists `lease_id` and validates nested record consistency.
+- Updated cleaner env scanning:
+  - new records require session + trial + lease matches,
+  - legacy records with no trial/lease marker continue session-only matching,
+  - env reads remain single-shot with no retry.
+- Validation:
+  - `.venv/bin/python -m pytest tests/test_process_identity.py tests/test_process_registry.py tests/test_process_runner.py tests/test_process_cleaner.py -q` -> 44 passed.
+  - `.venv/bin/python -m pytest tests/ -q` -> 550 passed.
+
+Next action: generate patch artifacts, commit/push Subtask 5.1, then request Claude review.

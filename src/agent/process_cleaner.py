@@ -12,7 +12,13 @@ import psutil
 
 from .errors import AgentError, EXIT_GENERIC
 from .fs_memory import NamespaceLayout
-from .process_identity import AGENT_SESSION_ID_ENV, ProcessRecord
+from .process_identity import (
+    AGENT_LEASE_ID_ENV,
+    AGENT_PROCESS_ROLE_ENV,
+    AGENT_SESSION_ID_ENV,
+    AGENT_TRIAL_ID_ENV,
+    ProcessRecord,
+)
 from .process_registry import (
     ProcessLease,
     load_process_leases,
@@ -42,6 +48,10 @@ class ProcessCleanerError(AgentError):
 class EnvMarkerRead:
     value: str | None
     status: EnvMarkerStatus
+    session_id: str | None = None
+    trial_id: str | None = None
+    lease_id: str | None = None
+    process_role: str | None = None
 
 
 @dataclass(frozen=True)
@@ -81,21 +91,29 @@ class LeaseGcResult:
 
 
 def read_env_marker(proc: psutil.Process) -> EnvMarkerRead:
-    """Read AGENT_SESSION_ID once.
+    """Read agent process marker environment variables once.
 
     This function intentionally does not retry. Cleaner scans arbitrary
     processes, so a missing marker means "not present", not "wait for spawn".
     """
 
     try:
-        value = proc.environ().get(AGENT_SESSION_ID_ENV)
+        environ = proc.environ()
     except psutil.NoSuchProcess:
         return EnvMarkerRead(value=None, status="gone")
     except psutil.AccessDenied:
         return EnvMarkerRead(value=None, status="unavailable")
-    if value is None:
+    session_id = environ.get(AGENT_SESSION_ID_ENV)
+    if session_id is None:
         return EnvMarkerRead(value=None, status="missing")
-    return EnvMarkerRead(value=value, status="matched")
+    return EnvMarkerRead(
+        value=session_id,
+        status="matched",
+        session_id=session_id,
+        trial_id=environ.get(AGENT_TRIAL_ID_ENV),
+        lease_id=environ.get(AGENT_LEASE_ID_ENV),
+        process_role=environ.get(AGENT_PROCESS_ROLE_ENV),
+    )
 
 
 def attribute_process(
@@ -134,7 +152,7 @@ def attribute_process(
             source=source,
         )
 
-    marker = _read_env_marker_for_session(proc, record.session_id)
+    marker = _read_env_marker_for_record(proc, record)
     if marker.status == "matched":
         env_marker_match = True
         score += 4
@@ -275,16 +293,48 @@ def garbage_collect_process_leases(layout: NamespaceLayout) -> LeaseGcResult:
     return LeaseGcResult(deleted_paths=tuple(deleted), kept_paths=tuple(kept))
 
 
-def _read_env_marker_for_session(
+def _read_env_marker_for_record(
     proc: psutil.Process,
-    session_id: str,
+    record: ProcessRecord,
 ) -> EnvMarkerRead:
     marker = read_env_marker(proc)
     if marker.value is None:
         return marker
-    if marker.value == session_id:
-        return EnvMarkerRead(value=marker.value, status="matched")
-    return EnvMarkerRead(value=marker.value, status="mismatch")
+    if marker.session_id != record.session_id:
+        return EnvMarkerRead(
+            value=marker.value,
+            status="mismatch",
+            session_id=marker.session_id,
+            trial_id=marker.trial_id,
+            lease_id=marker.lease_id,
+            process_role=marker.process_role,
+        )
+    if record.trial_id is not None and marker.trial_id != record.trial_id:
+        return EnvMarkerRead(
+            value=marker.value,
+            status="mismatch",
+            session_id=marker.session_id,
+            trial_id=marker.trial_id,
+            lease_id=marker.lease_id,
+            process_role=marker.process_role,
+        )
+    if record.lease_id is not None and marker.lease_id != record.lease_id:
+        return EnvMarkerRead(
+            value=marker.value,
+            status="mismatch",
+            session_id=marker.session_id,
+            trial_id=marker.trial_id,
+            lease_id=marker.lease_id,
+            process_role=marker.process_role,
+        )
+    return EnvMarkerRead(
+        value=marker.value,
+        status="matched",
+        session_id=marker.session_id,
+        trial_id=marker.trial_id,
+        lease_id=marker.lease_id,
+        process_role=marker.process_role,
+    )
 
 
 def _verdict_for_score(score: int) -> OwnershipVerdict:
@@ -302,7 +352,7 @@ def _scan_source(proc: psutil.Process, record: ProcessRecord) -> str | None:
             sources.append("pgid_scan")
     except (ProcessLookupError, psutil.NoSuchProcess, psutil.AccessDenied):
         pass
-    marker = _read_env_marker_for_session(proc, record.session_id)
+    marker = _read_env_marker_for_record(proc, record)
     if marker.status == "matched":
         sources.append("env_scan")
     if not sources:

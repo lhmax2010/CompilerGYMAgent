@@ -146,10 +146,14 @@ from .init import (
     write_initialized_state,
 )
 from .process_identity import (
+    AGENT_LEASE_ID_ENV,
+    AGENT_PROCESS_ROLE_ENV,
     AGENT_SESSION_ID_ENV,
+    AGENT_TRIAL_ID_ENV,
     ProcessIdentity,
     ProcessRecord,
     compute_cmdline_hash,
+    generate_lease_id,
 )
 from .process_cleaner import (
     CREATE_TIME_TOLERANCE_SECONDS,
@@ -260,7 +264,10 @@ from .workspace_lock import (
 __all__ = [
     "AgentConfig",
     "AgentError",
+    "AGENT_LEASE_ID_ENV",
+    "AGENT_PROCESS_ROLE_ENV",
     "AGENT_SESSION_ID_ENV",
+    "AGENT_TRIAL_ID_ENV",
     "AtomicWriteError",
     "ByteRange",
     "CanaryRecord",
@@ -416,6 +423,7 @@ __all__ = [
     "ensure_trial_index_current",
     "find_cleanup_targets",
     "garbage_collect_process_leases",
+    "generate_lease_id",
     "iter_process_lease_paths",
     "iter_trial_record_paths",
     "iter_trace_events",
