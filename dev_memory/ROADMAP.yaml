@@ -1,6 +1,6 @@
 # dev_memory/ROADMAP.yaml
 roadmap_version: 1
-last_updated: 2026-06-05T08:48:36+08:00
+last_updated: 2026-06-05T11:57:23+08:00
 status: active
 
 # ============================================================
@@ -170,33 +170,77 @@ planned_phases:
     requirement_sections: ["4.8", "4.9", "4.6.4 (convergence detector)"]
     dependencies: ["05"]
     can_parallel_with: []
-    estimate_subtasks: { low: 4, high: 6 }
-    risk: medium
+    estimate_subtasks: { low: 6, high: 8 }
+    risk: high
     goals:
-      - "Minimal statistics core required before Candidate Engine"
-      - "raw_runs schema consuming Phase 05 run-level benchmark records"
-      - "Baseline snapshot + environment hash (hard/soft fields split)"
-      - "Mean/median/stddev/CV summary"
-      - "Baseline-normalized score support"
-      - "Basic bootstrap CI"
-      - "Paired/unpaired test interface"
-      - "High-variance flagging"
+      - "Pure side-effect-free statistics core required before Candidate Engine"
+      - "Consume Phase 05 RunLevelRecord objects with phase=measured and valid_for_scoring=True"
+      - "Compute descriptive statistics: mean, median, sample stddev (n-1), CV with mean≈0 -> None"
+      - "Provide IID/right-skewed percentile bootstrap CI with seeded reproducibility"
+      - "Detect lag-1 autocorrelation and correct effective sample size (ESS)"
+      - "Use moving block bootstrap for autocorrelated sequences"
+      - "Compare candidate vs baseline with objective_direction-aware normalized improvement"
+      - "Prefer paired design via pair_key when available; mark unpaired high-autocorrelation data inconclusive"
+      - "Provide StatisticalResult verdicts for candidate-engine convergence decisions"
       - "Provide statistical machinery needed for noise-robust near-miss / interaction discovery (05.5 handoff)"
     deliverables:
-      - "src/agent/baseline.py"
-      - "src/agent/environment_snapshot.py"
-      - "src/agent/stats/bootstrap.py"
-      - "src/agent/stats/significance.py"
-      - "src/agent/stats/raw_runs.py"
+      - path: "src/agent/stats_core.py"
+        description: "Minimal side-effect-free statistics core consuming Phase 05 RunLevelRecord data."
+        requirements:
+          - "Select only measured runs with valid_for_scoring=True for scoring statistics"
+          - "Compute mean, median, sample stddev (n-1), and CV; CV is None when mean is effectively zero"
+          - "Implement percentile bootstrap CI for IID/right-skewed data with configurable B (default 2000), confidence_level (default 0.95), and seeded RNG"
+          - "Compute lag-1 autocorrelation rho1=corr(x_t, x_{t-1})"
+          - "Compute ESS as n * (1-rho1)/(1+rho1) when rho1>0, else n"
+          - "Set autocorrelation_detected when rho1 > 0.3 and iid_assumption_valid to the inverse"
+          - "If ESS < ESS_MIN (default 3), return verdict=inconclusive and never significant_improvement/significant_regression"
+          - "When autocorrelation is detected, use moving block bootstrap instead of IID bootstrap"
+          - "Moving block bootstrap block_size = max(2, round(n ** (1/3)))"
+          - "For measured_runs <= 5, mark low_power/inconclusive instead of pretending statistical significance"
+          - "Compute baseline-normalized relative improvement with correct objective_direction sign"
+          - "When pair_key is available for baseline/candidate records, use paired differences before bootstrap"
+          - "When pair_key is absent and high autocorrelation is detected, lower confidence or return inconclusive"
+      - path: "src/agent/skills/result_schema.py"
+        description: "Extend RunSummaryHint and add StatisticalResult schema used by stats_core."
+        requirements:
+          - "RunSummaryHint adds n_measured, n_valid, n_invalid"
+          - "RunSummaryHint adds effective_sample_size, lag1_autocorrelation, autocorrelation_warning"
+          - "All new numeric fields use finite validation consistent with existing score/summary fields"
+          - "StatisticalResult includes comparison, point_estimate, ci_low, ci_high, confidence_level, verdict, method, sample counts, ESS, rho1, autocorrelation flags, low_power, and notes"
+          - "StatisticalResult verdict enum: significant_improvement / significant_regression / inconclusive / no_difference"
+          - "StatisticalResult method enum: iid_bootstrap / moving_block_bootstrap / paired_bootstrap"
+      - path: "src/agent/skills/fake_gbs.py"
+        description: "Expose fake_gbs bursty state in benchmark env snapshots during 08a.6."
+        requirements:
+          - "RunLevelRecord.env_snapshot records fake_gbs_state=healthy|degraded|failed when bursty profile is used"
+          - "State exposure distinguishes within-trial pseudoreplicates from between-trial autocorrelation"
+          - "No code for this item lands during design; implement in 08a.6"
+    subtask_order:
+      - "08a.1 descriptive statistics + RunSummaryHint extension: mean/median/sample stddev/CV, n_measured/n_valid/n_invalid, ESS/rho1 fields"
+      - "08a.2 IID/right-skewed percentile bootstrap CI with seeded reproducibility"
+      - "08a.3 lag-1 autocorrelation detection + ESS correction + low-power/inconclusive rules"
+      - "08a.4 moving block bootstrap for autocorrelated sequences"
+      - "08a.5 baseline normalized comparison + pair_key paired design + StatisticalResult verdict schema"
+      - "08a.6 fake_gbs bursty state exposure in env_snapshot + phase closeout"
     exit_criteria:
-      - "raw_runs schema accepts Phase 05 benchmark run-level records"
-      - "Bootstrap CI basic path matches scipy/reference implementation within 1% on synthetic data"
-      - "Mean/median/stddev/CV and baseline-normalized scores are tested"
-      - "High-variance flag fires on synthetic noisy profiles"
-      - "Statistical checks pass on fake_gbs gaussian, right_skewed, and bursty noise profiles, not only synthetic gaussian"
-      - "fake_gbs bursty Markov profile is stable enough that 08a tests are not flaky"
-      - "Document how repeated combo evaluation and bootstrap/CI decisions feed candidate-engine near-miss detection"
+      - "Descriptive statistics and bootstrap CI are checked against an independent implementation (numpy/scipy or hand calculation) and match within documented tolerance"
+      - "IID/right-skewed percentile bootstrap 95% CI has coverage approximately at nominal confidence on known-truth simulations"
+      - "ESS-corrected/block-bootstrap CI reaches >=90% coverage on bursty simulations, while naive IID bootstrap demonstrates the expected undercoverage (~75-80%)"
+      - "ESS too low (n_eff < ESS_MIN) returns verdict=inconclusive and never significant_improvement/significant_regression"
+      - "Autocorrelation detection tests cover rho1<=0, weak positive rho1, and rho1>0.3"
+      - "Moving block bootstrap preserves autocorrelation structure and is selected when autocorrelation_detected=True"
+      - "Baseline-normalized improvement sign is correct for higher_is_better and lower_is_better objectives"
+      - "Paired design via pair_key produces narrower/more accurate CI than unpaired comparison under bursty common-mode noise"
+      - "Unpaired high-autocorrelation data is marked inconclusive or low-confidence rather than significant"
+      - "fake_gbs bursty state is exposed in RunLevelRecord.env_snapshot and used to distinguish pseudoreplicates from autocorrelation"
+      - "Document how repeated combo evaluation, ESS, block bootstrap, and paired design feed candidate-engine near-miss detection"
     validation_plan: ["Synthetic and fake_gbs non-Gaussian data benchmarks", "Ubuntu fcntl regression"]
+    scope_boundaries:
+      - "No adaptive rerun policy; defer to 08b"
+      - "No outlier deletion policy; defer to 08b"
+      - "No sequential testing; defer to 08b"
+      - "No stationary bootstrap or Bayesian model; defer to 08b"
+      - "No Hall-Horowitz-Jing automatic block-size selection; 08a uses n^(1/3), adaptive block sizing deferred to 08b"
 
   - id: "08b"
     title: "Baseline + Statistical Significance - Advanced Noise Policy"

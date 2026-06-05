@@ -1121,3 +1121,59 @@ Decision records must include:
   - Allow benchmark option-looking logs to write failed_combos when confidence is HIGH. Rejected because benchmark-domain option attribution is not reliable enough in Phase 05/08a.
   - Remove compile-rule diagnostics from benchmark classification entirely. Rejected because those patterns can still improve diagnostics, as long as they cannot write failed_combos.
   - Let the schema gate handle benchmark writes indirectly. Rejected because benchmark-specific no-write behavior should be explicit at the classifier-domain boundary, not an accidental outcome of empty affected_options.
+
+## 2026-06-05T11:57:23+08:00 - 08a handles autocorrelation via ESS correction, not naive IID
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 08a
+  - ROADMAP.yaml Phase 7.0
+  - REQUIREMENTS.md section 4.8
+  - REQUIREMENTS.md section 4.9
+  - REQUIREMENTS.md section 4.6.4
+- decision: Phase 08a must detect lag-1 autocorrelation, compute an effective sample size (ESS), and use moving block bootstrap when autocorrelation is detected. Naive IID bootstrap is only acceptable when the IID assumption is not flagged.
+- rationale: fake_gbs bursty Markov profiles have sticky degraded/failed states, so adjacent benchmark scores are not independent. Naive IID bootstrap underestimates variance, produces too-narrow confidence intervals, and can inflate nominal alpha=0.05 into a much higher false-positive rate. Candidate search would then learn from false confidence intervals.
+- alternatives_considered:
+  - Use naive IID bootstrap for all profiles. Rejected because bursty/autocorrelated sequences become systematically overconfident.
+  - Defer autocorrelation handling to 08b. Rejected because Phase 7.0 depends on 08a and would otherwise validate search strategy on fake significance.
+  - Only warn on high variance without adjusting CI. Rejected because variance alone does not correct the effective degrees of freedom.
+
+## 2026-06-05T11:57:23+08:00 - ESS too low means inconclusive, never significant
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 08a
+  - REQUIREMENTS.md section 4.8
+  - REQUIREMENTS.md section 4.9
+  - REQUIREMENTS.md section 4.6.4
+- decision: If the effective sample size is below `ESS_MIN` (default 3), Phase 08a must return `verdict=inconclusive` and must not emit significant_improvement or significant_regression.
+- rationale: Claiming significance with too few effective samples is statistical overreach. The safe behavior is to surface low power and let later policy request more runs or defer the decision.
+- alternatives_considered:
+  - Report significance whenever the bootstrap CI excludes zero, regardless of ESS. Rejected because the CI itself is unreliable when effective degrees of freedom are too small.
+  - Hard-fail the pipeline on low ESS. Rejected because low ESS is a data-quality result, not an execution failure.
+  - Silently widen the CI but still allow significant verdicts. Rejected because low-power decisions should be explicit and machine-readable.
+
+## 2026-06-05T11:57:23+08:00 - Paired design via pair_key is the strongest anti-bursty method
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 08a
+  - REQUIREMENTS.md section 4.8
+  - REQUIREMENTS.md section 4.9
+- decision: When baseline and candidate run-level records contain matching `pair_key` values, Phase 08a must use paired differences before bootstrap. Without pair_key, high-autocorrelation comparisons should be downgraded or marked inconclusive.
+- rationale: Interleaved baseline/candidate measurements with shared pair keys experience the same burst state, so paired differencing removes common-mode noise better than unpaired comparisons. This is the cleanest minimal defense against bursty benchmark environments.
+- alternatives_considered:
+  - Always compare unpaired baseline and candidate distributions. Rejected because bursty common-mode noise can dominate the signal and produce misleading intervals.
+  - Require paired measurements for every Phase 08a result. Rejected because old or simple experiments may not have pair_key; the result can still be reported as unpaired when IID assumptions hold.
+  - Defer paired support to 08b. Rejected because pair_key already exists in Phase 05 run-level records and is the most direct way to make bursty comparisons usable before Phase 07.
+
+## 2026-06-05T11:57:23+08:00 - Distinguish pseudoreplicates from autocorrelation with fake_gbs state
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 08a
+  - ROADMAP.yaml Phase 05
+  - REQUIREMENTS.md section 4.8
+  - REQUIREMENTS.md section 4.9
+- decision: Phase 08a will make fake_gbs expose the current bursty state in each run's environment snapshot (for example `fake_gbs_state=healthy|degraded|failed`) so statistics can distinguish within-trial pseudoreplicates from between-trial autocorrelation.
+- rationale: Multiple measured runs within one trial can share the same system state and therefore should not automatically count as independent samples. Between-trial state transitions are autocorrelation and can be handled with ESS/block bootstrap, but within-state repeats are pseudoreplicates that overstate effective degrees of freedom if treated as independent.
+- alternatives_considered:
+  - Treat every measured run as an independent sample. Rejected because trial-internal repeated runs can share burst state and inflate confidence.
+  - Infer burst state only from scores. Rejected because score-based inference confuses performance signal with environment state.
+  - Leave fake_gbs state hidden because real gbs will not expose it. Rejected because fake_gbs is the Phase 08a validation harness; exposing its state lets tests prove the statistics distinguish pseudoreplicates from true autocorrelation.
