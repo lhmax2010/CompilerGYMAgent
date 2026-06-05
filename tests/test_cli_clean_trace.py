@@ -3,11 +3,13 @@ from __future__ import annotations
 import subprocess
 import sys
 import tomllib
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 import yaml
 
+import agent.trace_cleanup as trace_cleanup_module
 from agent.cli import clean_trace
 from agent.cli.__main__ import main
 from agent.config import load_config
@@ -58,12 +60,19 @@ def append_event(
     )
 
 
-def old_recent_trace(current_layout: NamespaceLayout) -> None:
-    append_event(current_layout, 1, ts="2026-04-01T00:00:00Z", session_id="sess_old")
+def old_recent_trace(
+    current_layout: NamespaceLayout,
+    *,
+    now: datetime | None = None,
+) -> None:
+    base = (now or datetime.now(UTC)).astimezone(UTC)
+    old_ts = (base - timedelta(days=60)).isoformat()
+    recent_ts = (base - timedelta(days=1)).isoformat()
+    append_event(current_layout, 1, ts=old_ts, session_id="sess_old")
     append_event(
         current_layout,
         2,
-        ts="2026-05-29T00:00:00Z",
+        ts=recent_ts,
         session_id="sess_recent",
     )
 
@@ -200,6 +209,32 @@ def test_doctor_trace_cli_renders_plan_without_writing(
     assert "TRACE DOCTOR" in captured.out
     assert "removable_event_count: 1" in captured.out
     assert current_layout.trace_path.read_bytes() == before
+
+
+def test_clean_trace_cli_keep_days_is_not_system_date_brittle(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys,
+) -> None:
+    future_now = datetime(2027, 6, 5, 12, 0, tzinfo=UTC)
+
+    class FrozenDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):  # type: ignore[no-untyped-def]
+            if tz is None:
+                return future_now.replace(tzinfo=None)
+            return future_now.astimezone(tz)
+
+    monkeypatch.setattr(trace_cleanup_module, "datetime", FrozenDatetime)
+    config_path = write_config(tmp_path)
+    current_layout = layout_for_config(config_path)
+    old_recent_trace(current_layout, now=future_now)
+
+    exit_code = main(["clean", "trace", "--config", str(config_path), "--keep-days", "7"])
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert "removable_event_count: 1" in captured.out
 
 
 def test_cli_dispatcher_returns_agent_error_exit_code(
