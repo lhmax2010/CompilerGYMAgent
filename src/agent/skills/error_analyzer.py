@@ -289,6 +289,7 @@ def classify_compile_failure(
         logs=tuple(log for log in (stdout, stderr) if log is not None),
         result_json_ref=result_json_ref,
         unknown_category="unknown_failure",
+        allow_failed_combo_write=True,
     )
 
 
@@ -312,6 +313,7 @@ def classify_benchmark_failure(
         logs=tuple(log for log in (stdout, stderr) if log is not None),
         result_json_ref=result_json_ref,
         unknown_category="unknown_failure",
+        allow_failed_combo_write=False,
     )
 
 
@@ -325,6 +327,7 @@ def _classify(
     logs: tuple[LogContent, ...],
     result_json_ref: str | None,
     unknown_category: FailureCategory,
+    allow_failed_combo_write: bool,
 ) -> FailureClassification:
     candidates: list[_Candidate] = []
     if status in status_rules:
@@ -361,7 +364,10 @@ def _classify(
     merged = _merge_candidates(candidates)
     selected = _select_candidate(merged)
     write_failed = (
-        selected.route == "option_related" and selected.confidence == "HIGH"
+        allow_failed_combo_write
+        and selected.route == "option_related"
+        and selected.confidence == "HIGH"
+        and bool(selected.affected_options)
     )
     return FailureClassification(
         category=selected.category,

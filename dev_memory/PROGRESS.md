@@ -1,5 +1,24 @@
 # Development Progress
 
+## 2026-06-05T09:51:48+08:00 - Pre-08a scoring/classification blockers fixed
+
+- Blocked non-finite benchmark values at both ingress points:
+  - fake_gbs score parsing rejects `nan`, `inf`, and `-inf`,
+  - `RunLevelRecord.score` and `RunSummaryHint` aggregate fields reject
+    non-finite values.
+- Strengthened run-record schema invariants:
+  - valid scoring runs require `artifact_hash_verified=true`,
+  - failed-combo writes require non-empty `affected_options`,
+  - summary CV is `None` when mean is effectively zero.
+- Hardened classifier domain routing so benchmark failures never write
+  `failed_combos` in Phase 05/08a.
+- Added DECISIONS entry for benchmark-domain no-write behavior.
+- Targeted UT passed: result schema / fake_gbs / benchmark skill /
+  error analyzer -> 57 passed.
+- Full UT passed: `.venv/bin/python -m pytest tests/ -q` -> 611 passed.
+
+Next action: push blocker fix for Claude review, then begin Phase 08a.
+
 ## 2026-06-05T08:48:36+08:00 - Phase 05 approved, validated, and closed
 
 - Phase 05 Compile / Benchmark Skills closed after all six planned subtasks

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import re
+
+import agent.skills.error_analyzer as analyzer_module
 from agent import (
     CLASSIFIER_VERSION,
     LogContent,
@@ -196,5 +199,33 @@ def test_benchmark_environment_failure_is_routed_without_failed_combo_write() ->
     assert failure is not None
     assert failure.category == "environment_unstable"
     assert failure.route == "environment_related"
+    assert failure.confidence == "HIGH"
+    assert failure.write_failed_combos is False
+
+
+def test_benchmark_domain_never_writes_failed_combos_even_for_option_route(
+    monkeypatch,
+) -> None:
+    option_rule = analyzer_module._Rule(
+        pattern_id="benchmark_option_like_v1",
+        category="invalid_option",
+        route="option_related",
+        retryable=False,
+        pattern=re.compile(r"benchmark option-looking failure"),
+        domains=("benchmark",),
+        base_confidence="HIGH",
+    )
+    monkeypatch.setattr(analyzer_module, "_BENCHMARK_RULES", (option_rule,))
+
+    failure = classify_benchmark_failure(
+        "mysterious",
+        stderr=LogContent(
+            ref="logs/benchmark.stderr",
+            text="benchmark option-looking failure\n",
+        ),
+    )
+
+    assert failure is not None
+    assert failure.route == "option_related"
     assert failure.confidence == "HIGH"
     assert failure.write_failed_combos is False

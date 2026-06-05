@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -52,6 +53,24 @@ def test_failure_classification_allows_high_confidence_option_memory_write() -> 
 
     assert failure.write_failed_combos is True
     assert failure.affected_options == ("-fnope",)
+
+
+def test_write_failed_combos_requires_affected_options() -> None:
+    with pytest.raises(ValidationError, match="affected_options"):
+        FailureClassification(
+            category="invalid_option",
+            route="option_related",
+            confidence="HIGH",
+            evidence=(
+                EvidenceLine(
+                    log_ref="logs/compile.stderr#L120",
+                    text="gcc: error: unrecognized command-line option",
+                    pattern_id="gcc_unknown_option_v1",
+                ),
+            ),
+            write_failed_combos=True,
+            matched_rule_id="gcc_unknown_option_v1",
+        )
 
 
 @pytest.mark.parametrize(
@@ -146,6 +165,7 @@ def test_run_level_record_accepts_invalid_score_parse_failure() -> None:
         {"valid_for_scoring": False, "invalid_reason": None},
         {"exit_code": 1, "signal": 9},
         {"artifact_hash": None, "artifact_hash_verified": True},
+        {"artifact_hash_verified": False},
     ],
 )
 def test_run_level_record_rejects_inconsistent_states(update: dict[str, object]) -> None:
@@ -156,6 +176,55 @@ def test_run_level_record_rejects_inconsistent_states(update: dict[str, object])
 
     with pytest.raises(ValidationError):
         RunLevelRecord.model_validate(payload)
+
+
+@pytest.mark.parametrize("score", [math.nan, math.inf, -math.inf])
+def test_run_level_record_rejects_non_finite_scores(score: float) -> None:
+    payload = _record_payload(valid_for_scoring=True)
+    payload["score"] = score
+
+    with pytest.raises(ValidationError, match="score"):
+        RunLevelRecord.model_validate(payload)
+
+
+@pytest.mark.parametrize("duration_sec", [math.nan, math.inf, -math.inf])
+def test_run_level_record_rejects_non_finite_duration(duration_sec: float) -> None:
+    payload = _record_payload(valid_for_scoring=True)
+    payload["duration_sec"] = duration_sec
+
+    with pytest.raises(ValidationError, match="duration_sec"):
+        RunLevelRecord.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    "field",
+    ["loadavg_1m", "loadavg_5m", "loadavg_15m", "cpu_freq_mhz"],
+)
+def test_environment_snapshot_rejects_non_finite_floats(field: str) -> None:
+    payload = {
+        "loadavg_1m": 0.5,
+        "loadavg_5m": 0.4,
+        "loadavg_15m": 0.3,
+        "cpu_freq_mhz": 3200.0,
+    }
+    payload[field] = math.inf
+
+    with pytest.raises(ValidationError, match=field):
+        RunEnvironmentSnapshot.model_validate(payload)
+
+
+@pytest.mark.parametrize("field", ["mean", "median", "stddev", "cv"])
+def test_run_summary_hint_rejects_non_finite_values(field: str) -> None:
+    payload = {
+        "mean": 1.0,
+        "median": 1.0,
+        "stddev": 0.0,
+        "cv": 0.0,
+    }
+    payload[field] = math.nan
+
+    with pytest.raises(ValidationError, match=field):
+        RunSummaryHint.model_validate(payload)
 
 
 def test_score_parse_failed_requires_score_source_ref() -> None:

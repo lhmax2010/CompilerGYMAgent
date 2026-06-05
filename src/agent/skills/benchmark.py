@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import math
 import os
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -472,7 +473,7 @@ def _summary_hint(records: Sequence[RunLevelRecord]) -> RunSummaryHint | None:
         return None
     average = mean(scores)
     stddev = stdev(scores) if len(scores) > 1 else 0.0
-    cv = 0.0 if average == 0 else abs(stddev / average)
+    cv = None if math.isclose(average, 0.0, abs_tol=1e-12) else abs(stddev / average)
     return RunSummaryHint(
         mean=average,
         median=median(scores),

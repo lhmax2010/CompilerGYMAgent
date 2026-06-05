@@ -6,7 +6,12 @@ import signal
 import psutil
 import pytest
 
-from agent.skills.fake_gbs import FakeGbsHarness, FakeGbsNoiseModel
+from agent.skills.fake_gbs import (
+    FakeGbsHarness,
+    FakeGbsNoiseModel,
+    FakeGbsNoiseSample,
+    _parse_score,
+)
 from tests.fixtures.fake_workspace import create_fake_workspace
 
 
@@ -118,6 +123,45 @@ def test_fake_gbs_failure_modes_use_real_process_exit_paths(
     elif failure_mode == "score_parse_failed":
         assert result.exit_code == 0
         assert getattr(result, "score") is None
+
+
+@pytest.mark.parametrize("non_finite_score", [float("nan"), float("inf")])
+def test_fake_gbs_non_finite_score_is_parse_failure(
+    tmp_path, monkeypatch: pytest.MonkeyPatch, non_finite_score: float
+) -> None:
+    fake = create_fake_workspace(tmp_path)
+    harness = FakeGbsHarness(
+        layout=fake.layout,
+        root=tmp_path / "fake_gbs_non_finite",
+        session_id="sess_fake_non_finite",
+        seed=19,
+    )
+    compile_result = harness.compile(["-O2"], trial_id="trial_non_finite")
+    assert compile_result.artifact_path is not None
+
+    def non_finite_sample(profile):
+        return FakeGbsNoiseSample(profile=profile, value=non_finite_score)
+
+    monkeypatch.setattr(harness.noise_model, "sample", non_finite_sample)
+
+    result = harness.benchmark(
+        compile_result.artifact_path,
+        trial_id="trial_non_finite",
+        run_index=0,
+        noise_profile="gaussian",
+    )
+
+    assert result.status == "score_parse_failed"
+    assert result.score is None
+    assert result.exit_code == 0
+
+
+@pytest.mark.parametrize("score_token", ["nan", "inf", "-inf"])
+def test_parse_score_rejects_non_finite_stdout(tmp_path, score_token: str) -> None:
+    stdout_path = tmp_path / "bench.stdout"
+    stdout_path.write_text(f"SCORE {score_token}\n", encoding="utf-8")
+
+    assert _parse_score(stdout_path) is None
 
 
 def test_fake_gbs_seed_replay_includes_bursty_state(tmp_path) -> None:

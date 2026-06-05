@@ -9,14 +9,16 @@ import pytest
 
 import agent.trace as trace_module
 from agent import (
+    RunLevelRecord,
     TraceWriteError,
     append_trace_event,
+    compute_result_combo_hash,
     load_checkpoint_for_layout,
     load_process_leases,
     load_trace_events,
     trace_event_payload,
 )
-from agent.skills.benchmark import benchmark_candidate
+from agent.skills.benchmark import _summary_hint, benchmark_candidate
 from agent.skills.fake_gbs import FakeGbsHarness
 from tests.fixtures.fake_workspace import create_fake_workspace
 
@@ -190,6 +192,19 @@ def test_benchmark_skill_artifact_hash_mismatch_does_not_spawn(tmp_path) -> None
     assert benchmark_leases == []
 
 
+def test_summary_hint_uses_none_cv_when_mean_is_near_zero() -> None:
+    records = (
+        _run_record(score=-1.0, run_index=0),
+        _run_record(score=1.0, run_index=1),
+    )
+
+    summary = _summary_hint(records)
+
+    assert summary is not None
+    assert summary.mean == 0.0
+    assert summary.cv is None
+
+
 def test_benchmark_skill_trace_failure_kills_process_and_terminalizes_lease(
     tmp_path,
     monkeypatch: pytest.MonkeyPatch,
@@ -289,6 +304,31 @@ def _checkpoint(fake) -> dict[str, object]:
         "trace_line_count": 1,
         "last_updated": NOW,
     }
+
+
+def _run_record(*, score: float, run_index: int) -> RunLevelRecord:
+    return RunLevelRecord(
+        run_id=f"run_{run_index}",
+        run_index=run_index,
+        combo_hash=compute_result_combo_hash(["-O2"]),
+        score=score,
+        phase="measured",
+        metric_name="throughput",
+        metric_unit="items/sec",
+        objective_direction="higher_is_better",
+        duration_sec=0.1,
+        started_at=NOW,
+        ended_at=NOW,
+        exit_code=0,
+        stdout_ref="logs/bench.stdout#L1",
+        stderr_ref="logs/bench.stderr#L1",
+        valid_for_scoring=True,
+        benchmark_cmd=("fake-gbs", "benchmark"),
+        artifact_ref="artifacts/fake/run.artifact",
+        artifact_hash="sha256:" + "a" * 64,
+        artifact_hash_verified=True,
+        score_source_ref="logs/bench.stdout#L1",
+    )
 
 
 def _pgid_has_members(pgid: int) -> bool:

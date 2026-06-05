@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import signal
 import subprocess
@@ -429,9 +430,10 @@ def _parse_score(stdout_path: Path) -> float | None:
     for line in stdout_path.read_text(encoding="utf-8", errors="replace").splitlines():
         if line.startswith("SCORE "):
             try:
-                return float(line.split(maxsplit=1)[1])
+                score = float(line.split(maxsplit=1)[1])
             except (IndexError, ValueError):
                 return None
+            return score if math.isfinite(score) else None
     return None
 
 

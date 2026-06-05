@@ -1107,3 +1107,17 @@ Decision records must include:
   - Always apply option_related > environment_related tie-break. Rejected because it can convert OOM/disk/network failures into hard candidate constraints.
   - Always route mixed evidence to unknown. Rejected because high-confidence environment evidence is actionable and retryable; hiding it as unknown would reduce useful diagnostics.
   - Let downstream candidate memory decide whether to write failed_combos. Rejected because routing safety belongs in the classifier contract and is already enforced by the 5.5a schema.
+
+## 2026-06-05T09:51:48+08:00 - Benchmark failures never write failed_combos in Phase 05/08a
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 05
+  - ROADMAP.yaml Phase 08a
+  - REQUIREMENTS.md section 4.7.1
+  - REQUIREMENTS.md section 4.7.3
+- decision: `classify_benchmark_failure()` must always return `write_failed_combos=false` in Phase 05 and Phase 08a, even if a benchmark log matches an option-looking pattern and the selected route is `option_related`.
+- rationale: Phase 05/08a benchmark failures are not yet a reliable source of durable candidate constraints. A benchmark failure can reflect artifact corruption, environment instability, score parsing, functional correctness, or other runtime effects that are not attributable to a compiler option. Writing failed_combos from benchmark evidence would risk permanently poisoning candidate memory before Phase 07+ has stronger option attribution and correctness analysis.
+- alternatives_considered:
+  - Allow benchmark option-looking logs to write failed_combos when confidence is HIGH. Rejected because benchmark-domain option attribution is not reliable enough in Phase 05/08a.
+  - Remove compile-rule diagnostics from benchmark classification entirely. Rejected because those patterns can still improve diagnostics, as long as they cannot write failed_combos.
+  - Let the schema gate handle benchmark writes indirectly. Rejected because benchmark-specific no-write behavior should be explicit at the classifier-domain boundary, not an accidental outcome of empty affected_options.

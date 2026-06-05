@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import math
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
@@ -77,6 +78,8 @@ class FailureClassification(StrictResultSchemaModel):
                 "write_failed_combos requires route='option_related' "
                 "and confidence='HIGH'"
             )
+        if self.write_failed_combos and not self.affected_options:
+            raise ValueError("write_failed_combos requires affected_options")
         return self
 
 
@@ -91,6 +94,13 @@ class RunEnvironmentSnapshot(StrictResultSchemaModel):
     thermal_throttle: bool | None = None
     mem_available_bytes: int | None = Field(default=None, ge=0)
 
+    @field_validator("loadavg_1m", "loadavg_5m", "loadavg_15m", "cpu_freq_mhz")
+    @classmethod
+    def environment_floats_must_be_finite(
+        cls, value: float | None, info: Any
+    ) -> float | None:
+        return _validate_optional_finite(value, info.field_name)
+
 
 class RunSummaryHint(StrictResultSchemaModel):
     """Optional aggregate hint; Phase 08 owns final statistical decisions."""
@@ -99,6 +109,13 @@ class RunSummaryHint(StrictResultSchemaModel):
     median: float | None = None
     stddev: float | None = Field(default=None, ge=0)
     cv: float | None = Field(default=None, ge=0)
+
+    @field_validator("mean", "median", "stddev", "cv")
+    @classmethod
+    def summary_numbers_must_be_finite(
+        cls, value: float | None, info: Any
+    ) -> float | None:
+        return _validate_optional_finite(value, info.field_name)
 
 
 class RunLevelRecord(StrictResultSchemaModel):
@@ -138,6 +155,16 @@ class RunLevelRecord(StrictResultSchemaModel):
             _validate_sha256_digest(value, info.field_name)
         return value
 
+    @field_validator("score")
+    @classmethod
+    def score_must_be_finite(cls, value: float | None, info: Any) -> float | None:
+        return _validate_optional_finite(value, info.field_name)
+
+    @field_validator("duration_sec")
+    @classmethod
+    def duration_must_be_finite(cls, value: float, info: Any) -> float:
+        return _validate_finite(value, info.field_name)
+
     @field_validator("started_at", "ended_at", mode="before")
     @classmethod
     def datetime_to_utc_string(cls, value: Any, info: Any) -> Any:
@@ -162,6 +189,8 @@ class RunLevelRecord(StrictResultSchemaModel):
         if self.valid_for_scoring:
             if self.score is None:
                 raise ValueError("valid scoring runs must include score")
+            if not self.artifact_hash_verified:
+                raise ValueError("valid scoring runs require artifact_hash_verified")
             if self.failure_classification is not None:
                 raise ValueError("valid scoring runs must not include failure_classification")
             if self.invalid_reason is not None:
@@ -198,6 +227,18 @@ def _validate_sha256_digest(value: str, label: str) -> None:
         int(digest, 16)
     except ValueError as exc:
         raise ValueError(f"{label} must be hexadecimal") from exc
+
+
+def _validate_optional_finite(value: float | None, label: str) -> float | None:
+    if value is not None and not math.isfinite(value):
+        raise ValueError(f"{label} must be finite")
+    return value
+
+
+def _validate_finite(value: float, label: str) -> float:
+    if not math.isfinite(value):
+        raise ValueError(f"{label} must be finite")
+    return value
 
 
 def _datetime_to_utc_isoformat(value: Any, label: str) -> Any:
