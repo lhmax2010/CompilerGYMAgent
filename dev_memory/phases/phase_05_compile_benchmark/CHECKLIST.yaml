@@ -1,6 +1,7 @@
 phase_id: phase_05_compile_benchmark
 phase_title: "Compile / Benchmark Skills"
-status: in_progress
+status: done
+closed_at: 2026-06-05T08:48:36+08:00
 subtasks:
   - id: "5.1"
     title: "env marker refinement + pid-independent lease_id"
@@ -48,5 +49,13 @@ subtasks:
     implementation_complete: true
     tests_passed: true
     patch_artifacts_generated: true
-    external_review: pending
+    external_review: approve
     ubuntu_validation: pending
+phase_closeout:
+  roadmap_completed: true
+  removed_from_planned_phases: true
+  clean_trace_time_flakiness_fix:
+    commit: 6252761
+    status: approved
+    validation: "595 passed; future-date regression verifies keep-days tests are no longer calendar brittle"
+  next_phase: "08a"

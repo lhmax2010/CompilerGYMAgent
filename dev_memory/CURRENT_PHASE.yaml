@@ -1,14 +1,15 @@
 phase_id: phase_05_compile_benchmark
 phase_title: "Compile / Benchmark Skills"
 started_at: 2026-06-04T10:05:00+08:00
-last_updated: 2026-06-04T22:23:35+08:00
+closed_at: 2026-06-05T08:48:36+08:00
+last_updated: 2026-06-05T08:48:36+08:00
 target_milestone: "M1 end / M2 start"
 related_requirements:
   - REQUIREMENTS.md section 4.7.1 gbs_compile
   - REQUIREMENTS.md section 4.7.1 benchmark_runner
   - REQUIREMENTS.md section 4.8
-status: in_progress
-roadmap_reference: dev_memory/ROADMAP.yaml planned_phases[id=05]
+status: done
+roadmap_reference: dev_memory/ROADMAP.yaml completed_phases[id=05]
 subtasks:
   - id: "5.1"
     title: "env marker refinement + pid-independent lease_id"
@@ -270,5 +271,19 @@ subtasks:
     patch_file: dev_memory/phases/phase_05_compile_benchmark/patches/06_failure_classifier_rules.patch
     patch_generated: true
     commit_required: true
-    commit_pending: true
-next_action: "Subtask 5.5b failure classifier rules implemented; generate patch artifacts, commit/push, then request Claude review."
+    commit_pending: false
+    implementation_commit: 4ccf5c5
+    external_review_verdict: approve
+    external_reviewed_at: 2026-06-05T08:48:36+08:00
+    external_review_tests: "594 passed for 5.5b; environment override, conservative routing, affected_options, and failure-schema guardrails verified"
+phase_closeout:
+  status: done
+  closed_at: 2026-06-05T08:48:36+08:00
+  closeout_commit: "this commit"
+  clean_trace_time_flakiness_fix_commit: "6252761"
+  closeout_validation:
+    - "Full suite: 595 passed after clean trace CLI relative-date regression"
+    - "tests/test_cli_clean_trace.py: 11 passed"
+    - "Future-date regression verified: removable_event_count remains stable as system date advances"
+  next_phase: "08a - Baseline + Statistical Significance - Minimal Stats Core"
+next_action: "Phase 05 closed; begin Phase 08a after closeout sync review."

@@ -1,5 +1,24 @@
 # Development Progress
 
+## 2026-06-05T08:48:36+08:00 - Phase 05 approved, validated, and closed
+
+- Phase 05 Compile / Benchmark Skills closed after all six planned subtasks
+  were implemented and externally approved:
+  - 5.1 env marker refinement + pid-independent lease_id,
+  - 5.2 process-backed fake_gbs harness,
+  - 5.5a failure/result schema skeleton,
+  - 5.3 compile skill,
+  - 5.4 benchmark skill,
+  - 5.5b failure classifier rules + routing tests.
+- Clean trace CLI time-brittle keep-days fixtures were fixed with relative
+  old/recent timestamps and a future-date regression.
+- Final validation: `tests/test_cli_clean_trace.py` -> 11 passed; full suite
+  -> 595 passed.
+- ROADMAP updated: Phase 05 moved into `completed_phases` and removed from
+  `planned_phases`; Phase 05.5 remains planned/done as a completed spike.
+
+Next action: begin Phase 08a minimal statistics core.
+
 ## 2026-06-04T09:10:00+08:00 - Phase 06 pre-Phase 05 blocker hardening completed
 
 - Locked `force_suspected=True` semantics to force cleanup mode: mixed owned +

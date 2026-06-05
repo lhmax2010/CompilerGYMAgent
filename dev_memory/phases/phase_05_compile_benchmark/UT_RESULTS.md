@@ -70,3 +70,16 @@
 - Full:
   - Command: `.venv/bin/python -m pytest tests/ -q`
   - Result: 594 passed, 0 failed
+
+## Closeout Test Hygiene
+
+- Targeted:
+  - Command: `.venv/bin/python -m pytest tests/test_cli_clean_trace.py -q`
+  - Result: 11 passed, 0 failed
+- Future-date regression:
+  - Scope: clean trace CLI `--keep-days` fixtures use relative event timestamps.
+  - Result: removable event count remains stable when the test baseline is
+    moved into a future year.
+- Full:
+  - Command: `.venv/bin/python -m pytest tests/ -q`
+  - Result: 595 passed, 0 failed

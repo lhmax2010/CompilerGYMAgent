@@ -13,24 +13,24 @@ Completed:
 | 03 | Trace lifecycle | 2026-05-29 | 15 |
 | 04 | Workspace Protection Skills + CLI Entrypoint Skeleton | 2026-05-30 | 5 |
 | 06 | Process Management (runner + cleaner + monitor) | 2026-06-03 | 11 |
+| 05 | Compile / Benchmark Skills | 2026-06-05 | 6 |
 
 Current handoff:
 
 | State | Next phase | Why next |
 |---|---|---|
-| Phase 06 closed | Phase 05 - Compile / Benchmark Skills | Process runner, lease registry, cleaner, state consistency, and clean-trace hardening are now in place. Compile/benchmark skills can build on the stable process substrate instead of inventing subprocess rules. |
+| Phase 05 closed | Phase 08a - Baseline + Statistical Significance - Minimal Stats Core | Compile/benchmark skills now emit process-backed artifacts and run-level benchmark records. 08a can consume those records and validate minimal statistics on gaussian, right-skewed, and bursty fake_gbs profiles. |
 
-Next three implementation phases:
+Next implementation phases:
 
 | Order | Phase | Estimate | Main risk |
 |---:|---|---:|---|
-| 1 | 05 - Compile / Benchmark Skills | 8-12 subtasks | fake_gbs harness quality and process_runner integration determine how trustworthy later benchmark loops are. |
-| 2 | 08a - Baseline + Statistical Significance - Minimal Stats Core | 4-6 subtasks | Must consume Phase 05 run-level records and validate statistics on gaussian, right-skewed, and bursty fake_gbs profiles before candidate engine work. |
-| 3 | 7.0 - Candidate Search Strategy + Constraint Solver Spike | 2-3 subtasks | Must turn 05.5's noise-robust interaction-discovery risk into concrete Phase 07 search requirements. |
-| 4 | 07 - Candidate Engine + Constraint + Schedule | 10-16 subtasks | LLM integration and non-bruteforce search strategy remain the largest algorithmic risk. |
-| 5 | 08b - Baseline + Statistical Significance - Advanced Noise Policy | 3-4 subtasks | Runs alongside/after 07 to add adaptive rerun, outlier policy, sequential testing, and noise diagnostics before orchestration. |
+| 1 | 08a - Baseline + Statistical Significance - Minimal Stats Core | 4-6 subtasks | Must consume Phase 05 run-level records and validate statistics on gaussian, right-skewed, and bursty fake_gbs profiles before candidate engine work. |
+| 2 | 7.0 - Candidate Search Strategy + Constraint Solver Spike | 2-3 subtasks | Must turn 05.5's noise-robust interaction-discovery risk into concrete Phase 07 search requirements. |
+| 3 | 07 - Candidate Engine + Constraint + Schedule | 10-16 subtasks | LLM integration and non-bruteforce search strategy remain the largest algorithmic risk. |
+| 4 | 08b - Baseline + Statistical Significance - Advanced Noise Policy | 3-4 subtasks | Runs alongside/after 07 to add adaptive rerun, outlier policy, sequential testing, and noise diagnostics before orchestration. |
 
-The planned order intentionally ran Phase 06 before Phase 05, even though the numbering is not sequential. That dependency is now satisfied: compile and benchmark skills should use the Phase 06 process runner/cleaner and lease registry.
+The planned order intentionally ran Phase 06 before Phase 05, even though the numbering is not sequential. That dependency has now paid off: Phase 05 compile and benchmark skills use the Phase 06 process runner/cleaner and lease registry instead of inventing subprocess rules.
 
 Phase 05.5 closed as a mock-only spike. It showed that the integration plumbing
 is viable but that noise-robust second-order interaction discovery is the top
@@ -53,6 +53,8 @@ Calibration:
   including post-close blocker fixes before Phase 05. This is faster than the
   calibrated planning rate, so no downward recalibration is needed before Phase
   05.
+- Phase 05 closed with 6 planned subtasks plus one test-hygiene fix for
+  clean-trace CLI date brittleness. The final full suite is 595 passed.
 
 This count includes implementation commits, Claude review, review-fix loops, Ubuntu validation, patch artifacts, and sync commits. It should be used directly for planning; raw feature counts are too optimistic.
 
@@ -60,8 +62,8 @@ Remaining estimate:
 
 | Scope | Phases | Subtasks | Workdays | Weeks |
 |---|---|---:|---:|---:|
-| v1-minimal remaining | 05/08a/7.0/07/08b/09/10/11/12/13 | 72-115 | 55-88 | 11-18 |
-| v1-full remaining | 05/08a/7.0/07/08b/9.0/9.1/09/10/11/12/13/14/15a/15b/16 | 97-155 | 75-119 | 15-24 |
+| v1-minimal remaining | 08a/7.0/07/08b/09/10/11/12/13 | 64-103 | 49-79 | 10-16 |
+| v1-full remaining | 08a/7.0/07/08b/9.0/9.1/09/10/11/12/13/14/15a/15b/16 | 89-143 | 68-110 | 14-22 |
 
 The roadmap is deliberately slower than `doc/REQUIREMENTS.md` section 9's nominal schedule because this project is using a high-assurance loop: Codex implementation, Claude review, review fixes, Linux validation, and explicit dev_memory provenance.
 

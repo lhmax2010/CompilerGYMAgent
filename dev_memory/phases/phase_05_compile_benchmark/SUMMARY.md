@@ -141,3 +141,17 @@ Validation:
 - `.venv/bin/python -m pytest tests/test_error_analyzer.py -q` -> 9 passed.
 - `.venv/bin/python -m pytest tests/test_error_analyzer.py tests/test_compile_skill.py tests/test_benchmark_skill.py tests/test_result_schema.py tests/test_fake_gbs.py -q` -> 44 passed.
 - `.venv/bin/python -m pytest tests/ -q` -> 594 passed.
+
+## Closeout
+
+- Phase 05 closed after all six planned subtasks were implemented and approved.
+- The final test-hygiene fix made `test_cli_clean_trace.py` keep-days fixtures
+  relative to the current date instead of hard-coding 2026-05-29.
+- The future-date regression confirms the CLI cleanup tests remain stable as
+  the system date advances.
+- Final full validation after closeout hygiene: `.venv/bin/python -m pytest tests/ -q`
+  -> 595 passed.
+- Phase 05 is now mirrored into `completed_phases` and removed from
+  `planned_phases`; Phase 05.5 remains in planned as a completed spike.
+- Next phase: 08a minimal statistics core, consuming Phase 05 run-level
+  benchmark records and fake_gbs non-Gaussian profiles.

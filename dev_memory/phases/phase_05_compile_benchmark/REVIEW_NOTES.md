@@ -77,3 +77,20 @@
 - [x] matched_rule_id and classifier_version are populated.
 - [x] score_parse_failed is classified as a first-class benchmark failure.
 - [x] Targeted, adjacent, and full test suites pass.
+
+## Phase Closeout
+
+- [x] Phase 05 all planned subtasks approved.
+- [x] Compile and benchmark skills both use process-backed fake_gbs rather than
+  function-level mocks.
+- [x] Compile and benchmark skills write operation-ledger process refs, not the
+  deprecated `current_trial.process` authority.
+- [x] Benchmark outputs run-level records with warmup/measured separation for
+  Phase 08.
+- [x] Failure classification has schema-level and rule-level guards against
+  poisoning candidate memory.
+- [x] clean trace CLI keep-days tests use relative timestamps and include a
+  future-date regression.
+- [x] Final full test suite passes at 595 tests.
+- [x] Phase 05 is removed from `planned_phases` and added to `completed_phases`;
+  Phase 05.5 remains planned/done as the completed spike.
