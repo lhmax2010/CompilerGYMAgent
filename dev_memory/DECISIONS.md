@@ -1246,3 +1246,17 @@ Decision records must include:
   - Rely only on deterministic unit tests. Rejected because point tests cannot prove estimator behavior or CI coverage under noise distributions.
   - Reuse process-backed fake_gbs integration tests as the main review gate. Rejected because 08a correctness is numerical and side-effect-free; process execution adds noise without improving formula validation.
   - Defer coverage simulation to 08b. Rejected because 08a.2/08a.4 explicitly own bootstrap CI behavior and must be validated before candidate-engine consumers rely on it.
+
+## 2026-06-10T18:51:59+08:00 - 08a.2 uses clean IID percentile bootstrap for mean CI
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 08a
+  - REQUIREMENTS.md section 4.8
+  - REQUIREMENTS.md section 4.9
+- decision: 08a.2 implements only the IID percentile bootstrap confidence interval for the sample mean. It resamples B full-size samples with replacement, computes each resampled mean, sorts the bootstrap means, and uses percentile quantiles for `ci_low`/`ci_high`. Defaults are B=2000 and confidence_level=0.95, with seeded RNG reproducibility. It does not adjust CI width using ESS, does not select moving block bootstrap, and does not emit verdicts.
+- rationale: The 08a sequence needs a clean baseline: first the IID percentile CI, then autocorrelation/ESS diagnostics, then moving block bootstrap, then comparison/verdict gates. Keeping 08a.2 IID-only makes coverage simulation interpretable and prevents later autocorrelation policy from being hidden inside the initial bootstrap helper.
+- alternatives_considered:
+  - Implement normal-approximation or t-interval CI. Rejected because the roadmap requires percentile bootstrap and right-skewed data should not assume symmetry.
+  - Apply ESS adjustment immediately. Rejected because ESS-to-CI policy belongs to 08a.3/08a.4 after autocorrelation detection is explicit.
+  - Implement block bootstrap now. Rejected because block bootstrap and correlation-length behavior are 08a.4 scope.
+  - Attach verdict/significance fields now. Rejected because StatisticalResult and verdict gates are 08a.5 scope.

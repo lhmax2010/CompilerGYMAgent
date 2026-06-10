@@ -1,5 +1,29 @@
 # Development Progress
 
+## 2026-06-10T18:51:59+08:00 - 08a.2 IID percentile bootstrap CI implemented
+
+- Added side-effect-free IID percentile bootstrap CI for the sample mean:
+  - `BootstrapConfidenceInterval`,
+  - `iid_percentile_bootstrap_ci()`,
+  - method string `iid_percentile_bootstrap`,
+  - defaults B=2000 and confidence_level=0.95,
+  - seeded RNG reproducibility.
+- Preserved 08a.2 scope boundaries:
+  - no ESS-adjusted CI width,
+  - no moving/block bootstrap,
+  - no paired bootstrap,
+  - no StatisticalResult/verdict gates.
+- Added tests for seeded reproducibility, single-sample boundary, invalid
+  inputs, and lightweight Gaussian/right-skewed coverage smoke.
+- Local validation:
+  - `tests/test_stats_core.py` -> 13 passed in 1.26s,
+  - targeted 08a group -> 52 passed, 5 skipped in 1.30s,
+  - Windows full suite -> 24 failed, 558 passed, 51 skipped, 4 errors; failures
+    are the known Windows/platform-sensitive non-08a paths.
+
+Next action: push 08a.2 and request coverage-simulation review plus Ubuntu
+validation.
+
 ## 2026-06-10T18:38:14+08:00 - 08a.1 statistical correctness review approved
 
 - External review approved 08a.1 for range `7fe810b..ee0fe4b`, with validation

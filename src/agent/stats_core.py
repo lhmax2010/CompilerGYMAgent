@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import random
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from statistics import median
@@ -16,6 +17,23 @@ MEAN_ZERO_ABS_TOL = 1e-12
 AUTOCORRELATION_RHO_THRESHOLD = 0.3
 ESS_MIN = 3.0
 LOW_POWER_MEASURED_RUNS_MAX = 5
+DEFAULT_BOOTSTRAP_SAMPLES = 2000
+DEFAULT_CONFIDENCE_LEVEL = 0.95
+IID_PERCENTILE_BOOTSTRAP_METHOD = "iid_percentile_bootstrap"
+
+
+@dataclass(frozen=True)
+class BootstrapConfidenceInterval:
+    """Percentile bootstrap CI for a scalar statistic."""
+
+    point_estimate: float
+    ci_low: float
+    ci_high: float
+    confidence_level: float
+    bootstrap_samples: int
+    method: str
+    statistic: str
+    n: int
 
 
 @dataclass(frozen=True)
@@ -64,9 +82,9 @@ def summarize_run_records(
 ) -> DescriptiveStatistics:
     """Summarize measured run records without mutating external state.
 
-    Bootstrap CIs and final verdicts are later 08a subtasks. This layer still
-    computes lag-1 rho and ESS so those later subtasks cannot accidentally treat
-    bursty data as IID-only.
+    CI attachment to comparisons and final verdicts are later 08a subtasks.
+    This layer still computes lag-1 rho and ESS so those later subtasks cannot
+    accidentally treat bursty data as IID-only.
     """
 
     measured = tuple(record for record in records if record.phase == "measured")
@@ -148,6 +166,52 @@ def measured_valid_scores(records: Iterable[RunLevelRecord]) -> tuple[float, ...
         scores.append(float(record.score))
     _validate_finite_sequence(scores)
     return tuple(scores)
+
+
+def iid_percentile_bootstrap_ci(
+    values: Sequence[float],
+    *,
+    confidence_level: float = DEFAULT_CONFIDENCE_LEVEL,
+    bootstrap_samples: int = DEFAULT_BOOTSTRAP_SAMPLES,
+    seed: int | str | bytes | bytearray | None = None,
+) -> BootstrapConfidenceInterval:
+    """Return an IID percentile bootstrap CI for the sample mean.
+
+    This is the clean IID bootstrap used by 08a.2. Autocorrelation/ESS-aware CI
+    widening and moving block bootstrap selection belong to 08a.3/08a.4.
+    """
+
+    scores = tuple(float(value) for value in values)
+    _validate_finite_sequence(scores)
+    if not scores:
+        raise ValueError("values must not be empty")
+    _validate_confidence_level(confidence_level)
+    if bootstrap_samples <= 0:
+        raise ValueError("bootstrap_samples must be positive")
+
+    n = len(scores)
+    rng = random.Random(seed)
+    bootstrap_means: list[float] = []
+    for _ in range(bootstrap_samples):
+        sample_sum = 0.0
+        for _ in range(n):
+            sample_sum += scores[rng.randrange(n)]
+        bootstrap_means.append(sample_sum / n)
+    bootstrap_means.sort()
+
+    alpha = 1.0 - confidence_level
+    ci_low = _quantile_sorted(bootstrap_means, alpha / 2.0)
+    ci_high = _quantile_sorted(bootstrap_means, 1.0 - alpha / 2.0)
+    return BootstrapConfidenceInterval(
+        point_estimate=_mean(scores),
+        ci_low=ci_low,
+        ci_high=ci_high,
+        confidence_level=confidence_level,
+        bootstrap_samples=bootstrap_samples,
+        method=IID_PERCENTILE_BOOTSTRAP_METHOD,
+        statistic="mean",
+        n=n,
+    )
 
 
 def compute_lag1_autocorrelation(scores: Sequence[float]) -> float | None:
@@ -282,6 +346,29 @@ def _sample_stddev(values: Sequence[float], average: float) -> float:
         return 0.0
     variance = sum((value - average) ** 2 for value in values) / (len(values) - 1)
     return math.sqrt(variance)
+
+
+def _quantile_sorted(sorted_values: Sequence[float], q: float) -> float:
+    if not sorted_values:
+        raise ValueError("sorted_values must not be empty")
+    if q < 0.0 or q > 1.0:
+        raise ValueError("q must be between 0 and 1")
+    position = (len(sorted_values) - 1) * q
+    lower_index = math.floor(position)
+    upper_index = math.ceil(position)
+    if lower_index == upper_index:
+        return sorted_values[lower_index]
+    lower = sorted_values[lower_index]
+    upper = sorted_values[upper_index]
+    weight = position - lower_index
+    return lower + (upper - lower) * weight
+
+
+def _validate_confidence_level(confidence_level: float) -> None:
+    if not math.isfinite(confidence_level):
+        raise ValueError("confidence_level must be finite")
+    if confidence_level <= 0.0 or confidence_level >= 1.0:
+        raise ValueError("confidence_level must be between 0 and 1")
 
 
 def _validate_finite_sequence(values: Iterable[float]) -> None:

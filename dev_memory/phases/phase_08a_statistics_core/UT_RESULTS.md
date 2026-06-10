@@ -40,3 +40,27 @@
     n>=8.
   - `ess_preliminary` added for n<8 lag-1 fallback.
   - 08a single-comparison/no-multiple-correction boundary recorded.
+
+## Subtask 08a.2
+
+- Implementation status: complete locally, pending external coverage-simulation
+  review and Ubuntu validation.
+- Added tests:
+  - seeded reproducibility and deterministic percentile CI output,
+  - single-sample bootstrap boundary,
+  - IID Gaussian and right-skewed exponential coverage smoke tests,
+  - invalid empty/non-finite/confidence/B inputs.
+- Local stats-core validation:
+  - Command: `.venv\Scripts\python.exe -m pytest tests\test_stats_core.py -q`
+  - Result: `13 passed in 1.26s`.
+- Targeted local validation:
+  - Command: `.venv\Scripts\python.exe -m pytest tests\test_stats_core.py tests\test_result_schema.py tests\test_benchmark_skill.py -q`
+  - Result: `52 passed, 5 skipped in 1.30s`.
+- Full Windows validation:
+  - Command: `.venv\Scripts\python.exe -m pytest tests\ -q`
+  - Result: `24 failed, 558 passed, 51 skipped, 4 errors`.
+  - Scope note: failures are the known Windows/platform-sensitive paths outside
+    08a, concentrated in clean-trace CLI, filesystem mount inspection,
+    process registry/state consistency, and trace cleanup tests.
+- Ubuntu validation:
+  - Pending external/server run after push.

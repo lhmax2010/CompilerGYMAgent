@@ -64,3 +64,32 @@ Validation status:
 - Review methodology for 08a is now numerical simulation against known-truth
   data. 08a.2 bootstrap CI review must use coverage simulation on IID and
   right-skewed data.
+
+## Subtask 08a.2 - IID/right-skewed percentile bootstrap CI
+
+Implemented scope:
+
+- Add `BootstrapConfidenceInterval` in `src/agent/stats_core.py`.
+- Add `iid_percentile_bootstrap_ci()` for side-effect-free IID percentile
+  bootstrap CI over the sample mean.
+- Use seeded RNG for deterministic reproducibility.
+- Default to B=2000 and confidence_level=0.95, with caller overrides.
+- Export the bootstrap CI helper and constants from `agent`.
+- Add tests for seeded reproducibility, exact deterministic CI values,
+  single-sample behavior, invalid input validation, and lightweight Gaussian /
+  right-skewed coverage smoke.
+
+Exclusions:
+
+- No ESS-adjusted CI width.
+- No moving block bootstrap.
+- No paired bootstrap.
+- No StatisticalResult schema or verdict gates.
+
+Validation status:
+
+- `tests/test_stats_core.py` -> 13 passed in 1.26s.
+- Targeted 08a group -> 52 passed, 5 skipped in 1.30s.
+- Full Windows pytest -> 24 failed, 558 passed, 51 skipped, 4 errors. Failures
+  are existing Windows/platform-sensitive paths outside 08a; Ubuntu validation
+  remains pending.

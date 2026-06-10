@@ -141,3 +141,28 @@ Review methodology established for 08a:
   95% on IID data.
 - 08a.3/08a.4 review must compare naive IID bootstrap undercoverage against
   ESS/block-bootstrap corrected coverage on bursty/autocorrelated simulations.
+
+## Subtask 08a.2 implementation notes - pending external review
+
+- Scope: side-effect-free IID percentile bootstrap CI for the sample mean.
+- Output: `BootstrapConfidenceInterval` with point estimate, `ci_low`,
+  `ci_high`, `confidence_level`, `bootstrap_samples`, method,
+  statistic name, and n.
+- Method: `iid_percentile_bootstrap`.
+- Defaults: B=2000, confidence_level=0.95.
+- Reproducibility: seeded Python RNG; same seed and input produce identical CI.
+- Percentile rule:
+  - resample B full-size samples with replacement,
+  - compute each resampled mean,
+  - sort bootstrap means,
+  - use percentile quantiles for the two-sided CI.
+- Local validation includes a lightweight coverage smoke test over IID Gaussian
+  and right-skewed exponential data. The external review gate should run the
+  stronger coverage simulation described in ROADMAP.
+
+Scope exclusions preserved:
+
+- No ESS-adjusted CI width in 08a.2.
+- No moving block bootstrap in 08a.2.
+- No paired bootstrap in 08a.2.
+- No StatisticalResult schema, verdict gates, or multiple-comparison correction.

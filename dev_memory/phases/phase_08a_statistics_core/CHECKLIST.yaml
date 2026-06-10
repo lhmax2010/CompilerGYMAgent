@@ -41,12 +41,24 @@ subtasks:
       info_note: "ESS<1 is valid for high-rho small samples and protected by preliminary=True plus later ESS_MIN gates."
   - id: "08a.2"
     title: "IID/right-skewed percentile bootstrap CI with seeded reproducibility"
-    status: planned
-    implementation_complete: false
-    tests_passed: false
+    status: in_progress
+    implementation_complete: true
+    tests_passed: true
     patch_artifacts_generated: false
     external_review: pending
     ubuntu_validation: pending
+    targeted_validation: "52 passed, 5 skipped on Windows Python 3.11"
+    stats_core_validation: "13 passed in 1.26s"
+    full_windows_validation: "24 failed, 558 passed, 51 skipped, 4 errors; failures are existing Windows/platform-sensitive non-08a paths."
+    review_gate:
+      seeded_reproducibility: implemented
+      iid_gaussian_coverage_smoke: implemented
+      right_skewed_coverage_smoke: implemented
+      small_sample_boundary: implemented
+      scope_clean:
+        block_bootstrap: deferred_08a_4
+        ess_ci_adjustment: deferred_08a_3_08a_4
+        verdict_gates: deferred_08a_5
   - id: "08a.3"
     title: "lag-1 autocorrelation detection + ESS correction + low-power/inconclusive rules"
     status: planned

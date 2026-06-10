@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import math
+import random
 from datetime import UTC, datetime, timedelta
 
 import pytest
 
 from agent import (
     FailureClassification,
+    IID_PERCENTILE_BOOTSTRAP_METHOD,
     RunLevelRecord,
     compute_acf_effective_sample_size,
     compute_effective_sample_size,
@@ -14,6 +16,7 @@ from agent import (
     compute_lag1_autocorrelation,
     compute_summary_effective_sample_size,
     compute_result_combo_hash,
+    iid_percentile_bootstrap_ci,
     measured_valid_scores,
     run_summary_hint,
     summarize_run_records,
@@ -141,6 +144,70 @@ def test_run_summary_hint_returns_none_when_no_valid_measured_scores() -> None:
     assert stats.low_power is True
 
 
+def test_iid_percentile_bootstrap_ci_is_seeded_and_reports_mean_ci() -> None:
+    scores = (1.0, 2.0, 3.0, 4.0)
+
+    first = iid_percentile_bootstrap_ci(
+        scores,
+        confidence_level=0.90,
+        bootstrap_samples=20,
+        seed=123,
+    )
+    second = iid_percentile_bootstrap_ci(
+        scores,
+        confidence_level=0.90,
+        bootstrap_samples=20,
+        seed=123,
+    )
+
+    assert first == second
+    assert first.point_estimate == 2.5
+    assert first.ci_low == pytest.approx(1.75)
+    assert first.ci_high == pytest.approx(3.75)
+    assert first.confidence_level == 0.90
+    assert first.bootstrap_samples == 20
+    assert first.method == IID_PERCENTILE_BOOTSTRAP_METHOD
+    assert first.statistic == "mean"
+    assert first.n == len(scores)
+
+
+def test_iid_percentile_bootstrap_ci_handles_single_sample() -> None:
+    ci = iid_percentile_bootstrap_ci(
+        (4.2,),
+        bootstrap_samples=25,
+        seed=7,
+    )
+
+    assert ci.point_estimate == 4.2
+    assert ci.ci_low == 4.2
+    assert ci.ci_high == 4.2
+
+
+def test_iid_percentile_bootstrap_ci_coverage_smoke_for_iid_distributions() -> None:
+    reps = 120
+    bootstrap_samples = 300
+
+    gaussian_coverage = _bootstrap_mean_coverage(
+        truth=3.0,
+        reps=reps,
+        sample_size=40,
+        bootstrap_samples=bootstrap_samples,
+        seed=20260610,
+        sampler=lambda rng: rng.gauss(3.0, 2.0),
+    )
+    right_skewed_coverage = _bootstrap_mean_coverage(
+        truth=1.0,
+        reps=reps,
+        sample_size=40,
+        bootstrap_samples=bootstrap_samples,
+        seed=20260611,
+        sampler=lambda rng: rng.expovariate(1.0),
+    )
+
+    assert 0.90 <= gaussian_coverage <= 0.99
+    assert 0.86 <= right_skewed_coverage <= 0.98
+
+
 def test_lag1_and_ess_helpers_reject_invalid_inputs() -> None:
     with pytest.raises(ValueError, match="finite"):
         compute_lag1_autocorrelation((1.0, math.nan))
@@ -158,6 +225,19 @@ def test_lag1_and_ess_helpers_reject_invalid_inputs() -> None:
     assert compute_summary_effective_sample_size(()) == (None, True)
 
 
+def test_iid_percentile_bootstrap_ci_rejects_invalid_inputs() -> None:
+    with pytest.raises(ValueError, match="empty"):
+        iid_percentile_bootstrap_ci(())
+    with pytest.raises(ValueError, match="finite"):
+        iid_percentile_bootstrap_ci((1.0, math.nan))
+    with pytest.raises(ValueError, match="finite"):
+        iid_percentile_bootstrap_ci((1.0, 2.0), confidence_level=math.inf)
+    with pytest.raises(ValueError, match="between 0 and 1"):
+        iid_percentile_bootstrap_ci((1.0, 2.0), confidence_level=1.0)
+    with pytest.raises(ValueError, match="positive"):
+        iid_percentile_bootstrap_ci((1.0, 2.0), bootstrap_samples=0)
+
+
 def test_valid_measured_record_without_score_is_rejected_defensively() -> None:
     class ScorelessRecord:
         phase = "measured"
@@ -166,6 +246,29 @@ def test_valid_measured_record_without_score_is_rejected_defensively() -> None:
 
     with pytest.raises(ValueError, match="valid measured records"):
         measured_valid_scores((ScorelessRecord(),))  # type: ignore[arg-type]
+
+
+def _bootstrap_mean_coverage(
+    *,
+    truth: float,
+    reps: int,
+    sample_size: int,
+    bootstrap_samples: int,
+    seed: int,
+    sampler,
+) -> float:
+    rng = random.Random(seed)
+    covered = 0
+    for rep in range(reps):
+        values = tuple(sampler(rng) for _ in range(sample_size))
+        ci = iid_percentile_bootstrap_ci(
+            values,
+            bootstrap_samples=bootstrap_samples,
+            seed=seed + rep,
+        )
+        if ci.ci_low <= truth <= ci.ci_high:
+            covered += 1
+    return covered / reps
 
 
 def _record(

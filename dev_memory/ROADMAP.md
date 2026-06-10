@@ -19,7 +19,7 @@ Current phase:
 
 | State | Next phase | Why next |
 |---|---|---|
-| Phase 08a in progress | 08a.1 descriptive statistics + RunSummaryHint extension | Claude external design review for `f34c28d..6b72d43` is recorded as Approve. Compile/benchmark skills now emit process-backed artifacts and run-level benchmark records that 08a can consume. |
+| Phase 08a in progress | 08a.2 IID/right-skewed percentile bootstrap CI | 08a.1 is implemented, Ubuntu validated, and statistically reviewed. 08a.2 adds the clean IID percentile bootstrap baseline before autocorrelation/block-bootstrap/verdict subtasks. |
 
 08a review-alignment boundaries:
 
