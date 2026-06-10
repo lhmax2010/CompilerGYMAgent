@@ -2,7 +2,7 @@ phase_id: phase_05_compile_benchmark
 phase_title: "Compile / Benchmark Skills"
 started_at: 2026-06-04T10:05:00+08:00
 closed_at: 2026-06-05T08:48:36+08:00
-last_updated: 2026-06-05T08:48:36+08:00
+last_updated: 2026-06-10T13:34:37+08:00
 target_milestone: "M1 end / M2 start"
 related_requirements:
   - REQUIREMENTS.md section 4.7.1 gbs_compile
@@ -286,4 +286,11 @@ phase_closeout:
     - "tests/test_cli_clean_trace.py: 11 passed"
     - "Future-date regression verified: removable_event_count remains stable as system date advances"
   next_phase: "08a - Baseline + Statistical Significance - Minimal Stats Core"
-next_action: "Phase 05 closed; begin Phase 08a after closeout sync review."
+handoff:
+  status: ready_for_server_migration
+  latest_design_commit: 6b72d43
+  handoff_prompt: dev_memory/HANDOFF_PROMPT.md
+  next_phase: "08a - Baseline + Statistical Significance - Minimal Stats Core"
+  first_subtask: "08a.1 descriptive statistics + RunSummaryHint extension"
+  prerequisite: "Confirm and record Claude/external review for 08a design before coding."
+next_action: "Move to the new server, pull main, verify clean worktree, then confirm 08a design review before starting Phase 08a.1."

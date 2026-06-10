@@ -1,5 +1,24 @@
 # Development Progress
 
+## 2026-06-10T13:34:37+08:00 - Server migration handoff prepared after 08a design finalization
+
+- Confirmed Phase 08a design is recorded in `dev_memory/ROADMAP.yaml` and
+  `dev_memory/DECISIONS.md` at commit
+  `6b72d43 dev_memory: finalize 08a statistics core design`.
+- Confirmed `dev_memory/BLOCKERS.md` has no active blockers.
+- Refreshed `dev_memory/HANDOFF_PROMPT.md` from the stale Phase 03 handoff to a
+  current server-migration prompt covering:
+  - completed phases 01/02/03/04/06/05,
+  - Phase 05.5 spike status,
+  - Phase 08a as the next real implementation phase,
+  - 08a design-review checkpoint before coding,
+  - 08a.1 startup instructions and statistical guardrails.
+- Synced the human-readable roadmap summary with the YAML 08a estimate.
+
+Next action: move to the new server, pull `main`, verify a clean worktree, and
+confirm/record Claude + external review for the 08a design before starting
+Phase 08a.1.
+
 ## 2026-06-05T09:51:48+08:00 - Pre-08a scoring/classification blockers fixed
 
 - Blocked non-finite benchmark values at both ingress points:

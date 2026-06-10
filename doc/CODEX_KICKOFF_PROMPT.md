@@ -1,5 +1,10 @@
 # Codex 启动 Prompt — 编译器选项调优 Agent 开发任务
 
+> **当前服务器迁移交接请优先使用 `dev_memory/HANDOFF_PROMPT.md`。**
+> 本文件保留为项目初始启动/流程说明，里面的历史阶段拆分已经不是当前
+> roadmap 的实时状态。实时状态以 `dev_memory/ROADMAP.yaml`、
+> `dev_memory/CURRENT_PHASE.yaml` 和 `dev_memory/HANDOFF_PROMPT.md` 为准。
+
 > 把这份内容作为 system / project instruction 喂给 Codex。  
 > 同时把 `doc/REQUIREMENTS.md` (v0.5.4) 和 `doc/USER_REQUIREMENTS.md` (v0.5) 放到 workspace 的 `doc/` 目录下。
 

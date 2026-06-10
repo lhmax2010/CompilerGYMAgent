@@ -25,7 +25,7 @@ Next implementation phases:
 
 | Order | Phase | Estimate | Main risk |
 |---:|---|---:|---|
-| 1 | 08a - Baseline + Statistical Significance - Minimal Stats Core | 4-6 subtasks | Must consume Phase 05 run-level records and validate statistics on gaussian, right-skewed, and bursty fake_gbs profiles before candidate engine work. |
+| 1 | 08a - Baseline + Statistical Significance - Minimal Stats Core | 6-8 subtasks | Must consume Phase 05 run-level records and validate statistics on gaussian, right-skewed, and bursty fake_gbs profiles before candidate engine work. |
 | 2 | 7.0 - Candidate Search Strategy + Constraint Solver Spike | 2-3 subtasks | Must turn 05.5's noise-robust interaction-discovery risk into concrete Phase 07 search requirements. |
 | 3 | 07 - Candidate Engine + Constraint + Schedule | 10-16 subtasks | LLM integration and non-bruteforce search strategy remain the largest algorithmic risk. |
 | 4 | 08b - Baseline + Statistical Significance - Advanced Noise Policy | 3-4 subtasks | Runs alongside/after 07 to add adaptive rerun, outlier policy, sequential testing, and noise diagnostics before orchestration. |
@@ -54,7 +54,8 @@ Calibration:
   calibrated planning rate, so no downward recalibration is needed before Phase
   05.
 - Phase 05 closed with 6 planned subtasks plus one test-hygiene fix for
-  clean-trace CLI date brittleness. The final full suite is 595 passed.
+  clean-trace CLI date brittleness. Follow-up pre-08a blockers hardened numeric
+  hygiene and benchmark failure routing before the 08a statistics work.
 
 This count includes implementation commits, Claude review, review-fix loops, Ubuntu validation, patch artifacts, and sync commits. It should be used directly for planning; raw feature counts are too optimistic.
 
