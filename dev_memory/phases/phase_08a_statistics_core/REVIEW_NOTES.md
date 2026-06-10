@@ -203,3 +203,55 @@ Review takeaway:
 - 08a.2 passes the bootstrap correctness gold standard for this subtask:
   coverage simulation on known-truth IID data is close to nominal 95%, and the
   right-skewed percentile bootstrap behavior is within expected tolerance.
+
+## Subtask 08a.3 implementation notes - pending numerical review
+
+- Scope: side-effect-free IID-assumption diagnostics for measured score
+  sequences and IID bootstrap CI outputs.
+- Added `AutocorrelationDiagnostics` and `diagnose_iid_assumption()`.
+- Detection rule: `autocorrelation_detected=True` when lag-1 rho exceeds 0.3.
+- `iid_assumption_valid` is the inverse of detected autocorrelation.
+- Low-power diagnostic rule:
+  - measured run count <=5, or
+  - conservative ESS below `ESS_MIN`.
+- Diagnostic notes include:
+  - `autocorrelation_detected`,
+  - `iid_ci_may_undercover`,
+  - `ess_preliminary`,
+  - `low_effective_sample_size`,
+  - `low_measured_run_count`,
+  - `low_power`.
+- `iid_percentile_bootstrap_ci()` now attaches diagnostics but still reports
+  `method=iid_percentile_bootstrap` and does not widen or otherwise adjust the
+  percentile CI.
+- `RunSummaryHint` now carries `autocorrelation_detected`,
+  `iid_assumption_valid`, and `low_power`.
+
+Scope exclusions preserved:
+
+- No moving block bootstrap; 08a.4 owns corrected resampling for autocorrelated
+  sequences.
+- No ESS-adjusted CI width; 08a.3 only surfaces risk.
+- No paired comparison or paired bootstrap.
+- No StatisticalResult schema or verdict gates.
+- No candidate engine.
+
+Local validation:
+
+- Targeted 08a group:
+  `.venv\Scripts\python.exe -m pytest tests\test_stats_core.py tests\test_result_schema.py tests\test_benchmark_skill.py -q`
+  -> 57 passed, 5 skipped in 1.35s.
+- Windows full suite:
+  `.venv\Scripts\python.exe -m pytest tests\ -q`
+  -> 24 failed, 563 passed, 51 skipped, 4 errors. Failures remain the known
+  Windows/platform-sensitive non-08a paths.
+
+Expected numerical review gate:
+
+- Known high-autocorrelation sequences should trigger `rho1 > 0.3`,
+  `autocorrelation_detected=True`, `iid_assumption_valid=False`, and confidence
+  warnings.
+- Weak positive autocorrelation below threshold should not trigger the
+  autocorrelation flag.
+- Bursty simulations should demonstrate why the attached warning matters:
+  naive IID bootstrap may undercover, motivating 08a.4 moving block bootstrap.

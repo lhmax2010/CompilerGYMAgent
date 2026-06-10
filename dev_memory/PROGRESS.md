@@ -1,5 +1,33 @@
 # Development Progress
 
+## 2026-06-10T21:54:46+08:00 - 08a.3 IID-assumption diagnostics implemented
+
+- Added side-effect-free autocorrelation/ESS diagnostics:
+  - `AutocorrelationDiagnostics`,
+  - `diagnose_iid_assumption()`,
+  - lag-1 detection threshold `rho1 > 0.3`,
+  - `iid_assumption_valid` as the inverse of detected autocorrelation,
+  - low-power diagnostics when measured run count is <=5 or ESS < `ESS_MIN`.
+- Attached diagnostics to `iid_percentile_bootstrap_ci()` without changing the
+  IID percentile CI method or widening the CI. This intentionally leaves moving
+  block bootstrap to 08a.4.
+- Extended `RunSummaryHint` with `autocorrelation_detected`,
+  `iid_assumption_valid`, and `low_power` so Phase 05 summaries can carry the
+  same confidence-risk signal.
+- Preserved 08a.3 scope boundaries:
+  - no moving block bootstrap,
+  - no ESS-adjusted CI width,
+  - no paired bootstrap/comparison,
+  - no StatisticalResult schema or verdict gates,
+  - no candidate engine.
+- Local validation:
+  - targeted 08a group -> 57 passed, 5 skipped in 1.35s,
+  - Windows full suite -> 24 failed, 563 passed, 51 skipped, 4 errors; failures
+    remain the known platform-sensitive non-08a paths.
+
+Next action: commit/push 08a.3 and request numerical review plus Ubuntu
+validation for range `aafa406..HEAD`.
+
 ## 2026-06-10T21:43:51+08:00 - 08a.2 coverage-simulation review approved
 
 - External review approved 08a.2 for range `91cc187..457caa4`.

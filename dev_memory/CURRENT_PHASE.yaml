@@ -1,7 +1,7 @@
 phase_id: phase_08a_statistics_core
 phase_title: "Baseline + Statistical Significance - Minimal Stats Core"
 started_at: 2026-06-10T15:15:45+08:00
-last_updated: 2026-06-10T21:43:51+08:00
+last_updated: 2026-06-10T21:54:46+08:00
 target_milestone: "M2 + M4 (partial)"
 related_requirements:
   - REQUIREMENTS.md section 4.8
@@ -190,7 +190,50 @@ subtasks:
     external_review_verdict: approve
   - id: "08a.3"
     title: "lag-1 autocorrelation detection + ESS correction + low-power/inconclusive rules"
-    status: planned
+    status: in_progress
+    files_created: []
+    files_modified:
+      - src/agent/stats_core.py
+      - src/agent/skills/result_schema.py
+      - src/agent/__init__.py
+      - tests/test_stats_core.py
+      - tests/test_result_schema.py
+      - dev_memory/CURRENT_PHASE.yaml
+      - dev_memory/DECISIONS.md
+      - dev_memory/PROGRESS.md
+      - dev_memory/ROADMAP.yaml
+      - dev_memory/ROADMAP.md
+      - dev_memory/phases/phase_08a_statistics_core/CHECKLIST.yaml
+      - dev_memory/phases/phase_08a_statistics_core/REVIEW_NOTES.md
+      - dev_memory/phases/phase_08a_statistics_core/SUMMARY.md
+      - dev_memory/phases/phase_08a_statistics_core/UT_RESULTS.md
+    scope:
+      - "Add AutocorrelationDiagnostics for side-effect-free IID-assumption diagnostics."
+      - "Detect autocorrelation when lag-1 rho > 0.3 and expose iid_assumption_valid as the inverse."
+      - "Reuse conservative ESS from 08a.1 and mark low_power when measured run count is <=5 or ESS < ESS_MIN."
+      - "Attach diagnostics to IID percentile bootstrap CI without widening or changing the CI."
+      - "Extend RunSummaryHint with autocorrelation_detected, iid_assumption_valid, and low_power."
+      - "Emit diagnostic notes such as autocorrelation_detected, iid_ci_may_undercover, ess_preliminary, low_effective_sample_size, and low_power."
+    exclusions:
+      - "No moving block bootstrap; defer to 08a.4."
+      - "No ESS-adjusted CI width; 08a.3 only marks confidence risk."
+      - "No StatisticalResult schema or verdict gates; defer to 08a.5."
+      - "No paired bootstrap or paired comparison logic; defer to 08a.5."
+      - "No candidate engine."
+    implementation_complete: true
+    implementation_commit: 7b27eef
+    ut_required: true
+    ut_passed: true
+    local_validation:
+      - "Targeted pytest passed: .venv\\Scripts\\python.exe -m pytest tests\\test_stats_core.py tests\\test_result_schema.py tests\\test_benchmark_skill.py -q -> 57 passed, 5 skipped in 1.35s."
+      - "Full Windows pytest was run and remains platform-blocked outside 08a: .venv\\Scripts\\python.exe -m pytest tests\\ -q -> 24 failed, 563 passed, 51 skipped, 4 errors."
+    review_gate:
+      - "Known autocorrelated monotone sequence: rho1 ~= 1.0, autocorrelation_detected=True, iid_assumption_valid=False, ESS=0.0, confidence_warning=True."
+      - "Weak positive autocorrelation sequence: rho1 ~= 0.1, autocorrelation_detected=False, iid_assumption_valid=True, confidence_warning=False."
+      - "IID percentile bootstrap keeps method=iid_percentile_bootstrap while attaching diagnostics for autocorrelated data."
+    external_review_verdict: pending
+    ubuntu_validation:
+      status: pending
   - id: "08a.4"
     title: "moving block bootstrap for autocorrelated sequences"
     status: planned
@@ -200,4 +243,4 @@ subtasks:
   - id: "08a.6"
     title: "fake_gbs bursty state exposure in env_snapshot + phase closeout"
     status: planned
-next_action: "Start 08a.3 lag-1 autocorrelation detection + ESS diagnostic/CI confidence marking without block bootstrap or verdict gates."
+next_action: "Commit/push 08a.3 and request numerical review plus Ubuntu validation for range aafa406..HEAD."

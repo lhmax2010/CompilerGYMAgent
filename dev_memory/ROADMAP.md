@@ -19,7 +19,7 @@ Current phase:
 
 | State | Next phase | Why next |
 |---|---|---|
-| Phase 08a in progress | 08a.3 lag-1 autocorrelation detection + ESS diagnostic integration | 08a.2 is implemented and coverage-simulation reviewed. 08a.3 connects autocorrelation/ESS diagnostics to CI confidence marking before 08a.4 block bootstrap and 08a.5 verdict gates. |
+| Phase 08a in progress | 08a.3 numerical review + Ubuntu validation | 08a.3 is implemented locally. It connects autocorrelation/ESS diagnostics to CI confidence marking without block bootstrap, ESS CI-width adjustment, or verdict gates. |
 
 08a review-alignment boundaries:
 
@@ -34,6 +34,9 @@ Current phase:
 - Statistical subtask reviews use side-effect-free numerical simulations
   against known-truth data. For 08a.2, the review gate is bootstrap CI coverage
   simulation on IID/right-skewed sequences.
+- 08a.3 attaches autocorrelation/ESS diagnostics to IID CI outputs but does not
+  correct CI width. Moving block bootstrap remains 08a.4; verdict gates remain
+  08a.5.
 
 Next implementation phases:
 

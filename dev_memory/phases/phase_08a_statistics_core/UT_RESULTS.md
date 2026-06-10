@@ -73,3 +73,25 @@
   - Right-skewed lognormal coverage: n=30 -> 92.0%, n=60 -> 93.2%.
   - Seeded reproducibility, different-seed behavior, normal CI bounds, and
     small-sample behavior all passed.
+
+## Subtask 08a.3
+
+- Implementation status: complete locally, pending external numerical review
+  and Ubuntu validation.
+- Added tests:
+  - high lag-1 autocorrelation detection (`rho1 > 0.3`),
+  - weak positive autocorrelation below threshold,
+  - IID bootstrap CI diagnostics without changing method,
+  - `RunSummaryHint` diagnostic fields,
+  - invalid diagnostic inputs.
+- Targeted local validation:
+  - Command: `.venv\Scripts\python.exe -m pytest tests\test_stats_core.py tests\test_result_schema.py tests\test_benchmark_skill.py -q`
+  - Result: `57 passed, 5 skipped in 1.35s`.
+- Full Windows validation:
+  - Command: `.venv\Scripts\python.exe -m pytest tests\ -q`
+  - Result: `24 failed, 563 passed, 51 skipped, 4 errors`.
+  - Scope note: failures are the known Windows/platform-sensitive paths outside
+    08a, concentrated in clean-trace CLI, filesystem mount inspection,
+    process registry/state consistency, and trace cleanup tests.
+- Ubuntu validation:
+  - Pending for 08a.3 after push.

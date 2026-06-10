@@ -101,3 +101,40 @@ Validation status:
   - right-skewed lognormal coverage n=30 -> 92.0%, n=60 -> 93.2%,
   - seeded reproducibility, different-seed behavior, normal CI bounds, and
     small-sample boundaries passed.
+
+## Subtask 08a.3 - autocorrelation/ESS diagnostics for CI confidence
+
+Implemented scope:
+
+- Add `AutocorrelationDiagnostics` in `src/agent/stats_core.py`.
+- Add `diagnose_iid_assumption()` for side-effect-free diagnostics over a score
+  sequence.
+- Detect autocorrelation when lag-1 rho exceeds 0.3.
+- Report `iid_assumption_valid` as the inverse of detected autocorrelation.
+- Reuse the conservative ESS from 08a.1 and mark low power when measured run
+  count is <=5 or ESS is below `ESS_MIN`.
+- Attach diagnostics to `iid_percentile_bootstrap_ci()` while preserving
+  `method=iid_percentile_bootstrap` and the unadjusted percentile CI.
+- Extend `RunSummaryHint` with `autocorrelation_detected`,
+  `iid_assumption_valid`, and `low_power`.
+- Add tests for high autocorrelation detection, weak positive autocorrelation
+  below threshold, bootstrap diagnostics, schema propagation, and invalid
+  diagnostic inputs.
+
+Exclusions:
+
+- No moving block bootstrap; deferred to 08a.4.
+- No ESS-adjusted CI width.
+- No paired comparison/bootstrap.
+- No StatisticalResult schema or verdict gates; deferred to 08a.5.
+- No candidate engine.
+
+Validation status:
+
+- Targeted 08a group -> 57 passed, 5 skipped in 1.35s.
+- Full Windows pytest -> 24 failed, 563 passed, 51 skipped, 4 errors. Failures
+  are existing Windows/platform-sensitive paths outside 08a; Ubuntu validation
+  remains pending.
+- External numerical review remains pending. Review should focus on known-rho
+  autocorrelation detection and bursty naive-IID undercoverage motivation for
+  08a.4.

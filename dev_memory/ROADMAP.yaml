@@ -1,6 +1,6 @@
 # dev_memory/ROADMAP.yaml
 roadmap_version: 1
-last_updated: 2026-06-10T21:43:51+08:00
+last_updated: 2026-06-10T21:54:46+08:00
 status: active
 
 # ============================================================
@@ -234,6 +234,7 @@ planned_phases:
       "08a.3":
         - "Connect autocorrelation detection and ESS diagnostics to CI confidence metadata only; do not implement block bootstrap or verdict gates."
         - "Review gate uses known-rho sequences for rho1>0.3 detection and bursty simulations to demonstrate naive IID bootstrap undercoverage motivation for 08a.4."
+        - "Implementation attaches diagnostics to IID percentile bootstrap outputs but preserves method=iid_percentile_bootstrap and does not widen CI."
       "08a.5":
         - "Full StatisticalResult schema must use single_comparison naming, including comparison_scope='single_comparison' and adjusted_for_multiple_testing=False."
         - "If exposing significance booleans, use significant_single_comparison, not bare significant."

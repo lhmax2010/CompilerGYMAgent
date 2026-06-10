@@ -71,12 +71,33 @@ subtasks:
         verdict_gates: deferred_08a_5
   - id: "08a.3"
     title: "lag-1 autocorrelation detection + ESS correction + low-power/inconclusive rules"
-    status: planned
-    implementation_complete: false
-    tests_passed: false
+    status: in_progress
+    implementation_complete: true
+    implementation_commit: 7b27eef
+    tests_passed: true
     patch_artifacts_generated: false
     external_review: pending
     ubuntu_validation: pending
+    targeted_validation: "57 passed, 5 skipped on Windows Python 3.11"
+    full_windows_validation: "24 failed, 563 passed, 51 skipped, 4 errors; failures are existing Windows/platform-sensitive non-08a paths."
+    scope:
+      diagnostics: implemented
+      autocorrelation_threshold: "rho1 > 0.3"
+      iid_assumption_valid: implemented
+      low_power_diagnostic: implemented
+      bootstrap_ci_diagnostics: implemented_without_width_adjustment
+      run_summary_hint_fields: implemented
+      block_bootstrap: deferred_08a_4
+      statistical_result_verdicts: deferred_08a_5
+      paired_comparison: deferred_08a_5
+    review_gate:
+      known_high_autocorrelation_detection: implemented
+      weak_autocorrelation_not_detected: implemented
+      iid_bootstrap_method_preserved: implemented
+      scope_clean:
+        block_bootstrap: deferred_08a_4
+        ess_ci_adjustment: deferred_08a_4
+        verdict_gates: deferred_08a_5
   - id: "08a.4"
     title: "moving block bootstrap for autocorrelated sequences"
     status: planned

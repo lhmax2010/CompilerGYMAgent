@@ -1260,3 +1260,18 @@ Decision records must include:
   - Apply ESS adjustment immediately. Rejected because ESS-to-CI policy belongs to 08a.3/08a.4 after autocorrelation detection is explicit.
   - Implement block bootstrap now. Rejected because block bootstrap and correlation-length behavior are 08a.4 scope.
   - Attach verdict/significance fields now. Rejected because StatisticalResult and verdict gates are 08a.5 scope.
+
+## 2026-06-10T21:54:46+08:00 - 08a.3 marks IID confidence risk before correcting CI
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 08a
+  - REQUIREMENTS.md section 4.8
+  - REQUIREMENTS.md section 4.9
+  - REQUIREMENTS.md section 4.6.4
+- decision: 08a.3 connects lag-1 autocorrelation detection and conservative ESS to machine-readable confidence diagnostics, but does not adjust the IID percentile bootstrap CI width and does not emit verdicts. Autocorrelation is detected when `rho1 > 0.3`; `iid_assumption_valid` is the inverse of that flag. Low-power diagnostics are raised when measured run count is <=5 or ESS is below `ESS_MIN`. The IID bootstrap helper keeps `method="iid_percentile_bootstrap"` and attaches diagnostics so callers can see when the IID CI may undercover.
+- rationale: 08a.2 intentionally established a clean IID bootstrap baseline. 08a.3 should make IID-assumption risk visible before 08a.4 replaces the resampling method for autocorrelated sequences. Widening CI using ESS inside the IID helper would mix policy layers and make it harder to prove the later block-bootstrap correction with naive-vs-corrected coverage simulations. Verdict semantics also require comparison context and belong to 08a.5.
+- alternatives_considered:
+  - Immediately widen IID bootstrap CI when ESS is low. Rejected because the roadmap assigns autocorrelated CI correction to moving block bootstrap in 08a.4, and a partial width heuristic would obscure coverage validation.
+  - Switch to moving block bootstrap inside `iid_percentile_bootstrap_ci()` when autocorrelation is detected. Rejected because it would make a method named IID choose a different resampling model and would collapse 08a.3/08a.4 boundaries.
+  - Emit `inconclusive` verdicts directly from diagnostics. Rejected because verdict gates require baseline/candidate comparison semantics, no-difference handling, and single-comparison result schema from 08a.5.
+  - Treat low measured run count as an execution failure. Rejected because low power is a statistical confidence condition, not a failed benchmark run.
