@@ -96,3 +96,48 @@ Validation gap:
     `pair_order`, and base approximately zero defense.
   - fake_gbs burst state remains test-only instrumentation, not a production
     statistical signal.
+
+## Subtask 08a.1 statistical correctness review - approve
+
+- Reviewed at: `2026-06-10T18:38:14+08:00`.
+- Code range: `7fe810b..ee0fe4b`.
+- Validation range including Ubuntu result notes: `7fe810b..f791e35`.
+- Verdict: Approve.
+- Findings: no Critical, High, Medium, or Low findings.
+- Scope review:
+  - no block bootstrap implementation,
+  - no paired comparison implementation,
+  - no verdict gates or StatisticalResult implementation,
+  - no multiple-comparison correction,
+  - bootstrap/verdict references are comments or roadmap notes for later
+    08a subtasks.
+
+Numerical validation results:
+
+| Check | Result |
+|---|---|
+| lag-1 autocorrelation against AR(1) truth | Passed: phi=0.4 -> ~0.392, phi=0.7 -> ~0.678 |
+| ESS formula | Passed: n=100,rho=0.5 -> 33.3; rho<=0 -> n |
+| conservative min(lag1, ACF) | Passed on synthetic n=50 and fake_gbs bursty checks |
+| n<8 preliminary fallback | Passed: n=6 marks `ess_preliminary=True` |
+| finite validation | Passed: non-finite ESS inputs reject |
+| scope boundary | Passed: 08a.1 remains diagnostic-only |
+
+Info note:
+
+- ESS below 1 is mathematically valid for high-autocorrelation small samples.
+  Example: n=6 with estimated rho1 around 0.737 yields ESS around 0.91.
+  This is not a bug; as rho approaches 1, lag-1 ESS approaches 0. The safety
+  behavior is that n<8 marks `ess_preliminary=True`, and later 08a.5 verdict
+  gates must combine this with `ESS_MIN` to return inconclusive instead of
+  significant.
+
+Review methodology established for 08a:
+
+- Statistical subtasks should be reviewed with side-effect-free numerical
+  simulations against known-truth data, not by process/integration execution.
+- 08a.2 bootstrap CI review must use coverage simulations on known-truth IID
+  and right-skewed sequences; nominal 95% CI coverage should be approximately
+  95% on IID data.
+- 08a.3/08a.4 review must compare naive IID bootstrap undercoverage against
+  ESS/block-bootstrap corrected coverage on bursty/autocorrelated simulations.

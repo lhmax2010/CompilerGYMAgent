@@ -17,7 +17,8 @@ subtasks:
     implementation_commit: ee0fe4b
     tests_passed: true
     patch_artifacts_generated: false
-    external_review: approve_with_alignment_patch
+    external_review: approve
+    statistical_correctness_review: approve
     ubuntu_validation: passed
     targeted_validation: "48 passed, 5 skipped on Windows Python 3.11"
     full_windows_validation: "24 failed, 554 passed, 51 skipped, 4 errors; failures are existing Windows/platform-sensitive non-08a paths."
@@ -30,6 +31,14 @@ subtasks:
       multiple_comparison_boundary_recorded: true
       paired_autocorrelation_boundary_recorded: true
       fake_gbs_state_test_only_recorded: true
+    numerical_review:
+      lag1_autocorrelation_known_truth: passed
+      ess_formula_theory_match: passed
+      conservative_min_lag1_acf: passed
+      n_lt_8_preliminary: passed
+      finite_validation: passed
+      scope_clean: passed
+      info_note: "ESS<1 is valid for high-rho small samples and protected by preliminary=True plus later ESS_MIN gates."
   - id: "08a.2"
     title: "IID/right-skewed percentile bootstrap CI with seeded reproducibility"
     status: planned

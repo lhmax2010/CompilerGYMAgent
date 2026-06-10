@@ -57,3 +57,10 @@ Validation status:
   follow-ups were addressed before handoff.
 - External review alignment was applied and recorded in `DECISIONS.md`,
   `ROADMAP.yaml`, and `REVIEW_NOTES.md`.
+- External statistical correctness review approved 08a.1 with no Critical,
+  High, Medium, or Low findings. Numerical checks covered AR(1) lag-1
+  autocorrelation, ESS theory, conservative min(lag1, ACF), n<8 preliminary
+  fallback, finite validation, and scope cleanliness.
+- Review methodology for 08a is now numerical simulation against known-truth
+  data. 08a.2 bootstrap CI review must use coverage simulation on IID and
+  right-skewed data.

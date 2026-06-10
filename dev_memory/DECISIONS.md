@@ -1232,3 +1232,17 @@ Decision records must include:
   - Keep lag-1-only ESS until 08a.3. Rejected because `effective_sample_size` is already exposed in 08a.1 and downstream users could rely on the optimistic value.
   - Always use multi-lag ACF, even for very small samples. Rejected because n < 8 has too little information for stable multi-lag ACF.
   - Remove ESS from 08a.1. Rejected because the Phase 08a design requires early autocorrelation risk visibility in `RunSummaryHint`.
+
+## 2026-06-10T18:38:14+08:00 - Review 08a statistical code with numerical simulations
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 08a
+  - REQUIREMENTS.md section 4.8
+  - REQUIREMENTS.md section 4.9
+  - REQUIREMENTS.md section 4.6.4
+- decision: Phase 08a statistical correctness review must use side-effect-free numerical simulations against known-truth data in addition to unit tests. 08a.1 uses AR(1) autocorrelation and ESS formula checks; 08a.2 must use bootstrap CI coverage simulation on known-truth IID/right-skewed data; 08a.3/08a.4 must compare naive IID undercoverage against ESS/block-bootstrap corrected coverage on bursty/autocorrelated data.
+- rationale: Statistics code can pass ordinary unit tests while still producing biased estimates or wrong coverage. Phase 08 is pure computation with no process side effects, so generating synthetic data with known truth is the strongest review method and directly validates the project risk around noisy benchmark decisions.
+- alternatives_considered:
+  - Rely only on deterministic unit tests. Rejected because point tests cannot prove estimator behavior or CI coverage under noise distributions.
+  - Reuse process-backed fake_gbs integration tests as the main review gate. Rejected because 08a correctness is numerical and side-effect-free; process execution adds noise without improving formula validation.
+  - Defer coverage simulation to 08b. Rejected because 08a.2/08a.4 explicitly own bootstrap CI behavior and must be validated before candidate-engine consumers rely on it.

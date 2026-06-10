@@ -1,7 +1,7 @@
 phase_id: phase_08a_statistics_core
 phase_title: "Baseline + Statistical Significance - Minimal Stats Core"
 started_at: 2026-06-10T15:15:45+08:00
-last_updated: 2026-06-10T18:24:19+08:00
+last_updated: 2026-06-10T18:38:14+08:00
 target_milestone: "M2 + M4 (partial)"
 related_requirements:
   - REQUIREMENTS.md section 4.8
@@ -104,7 +104,26 @@ subtasks:
       deferred_followups:
         - "08a.4 owns moving block bootstrap correlation-length/block-size behavior."
         - "08a.5 owns StatisticalResult full schema, verdict gates, pair_order, and base approximately zero defense."
-    external_review_verdict: approve_with_alignment_patch
+    statistical_correctness_review:
+      reviewer: external
+      reviewed_at: 2026-06-10T18:38:14+08:00
+      range: "7fe810b..ee0fe4b"
+      validation_range: "7fe810b..f791e35"
+      verdict: approve
+      critical_findings: 0
+      high_findings: 0
+      medium_findings: 0
+      low_findings: 0
+      info_findings:
+        - "ESS can be below 1 for high-autocorrelation small samples; this is mathematically valid and protected by ess_preliminary=True plus later ESS_MIN/inconclusive gates."
+      numerical_validation:
+        - "lag-1 autocorrelation matched AR(1) known-truth simulations closely: phi=0.4 -> ~0.392, phi=0.7 -> ~0.678."
+        - "lag-1 autocorrelation estimator uses Pearson over lagged pairs with current/previous means, which is the standard estimator form."
+        - "ESS formula matched theory: n=100,rho=0.5 -> 33.3; rho<=0 returns n."
+        - "Conservative ESS uses min(lag1, ACF) for n>=8 and was <= lag1-only ESS on synthetic and fake_gbs bursty checks."
+        - "n<8 falls back to lag-1 ESS and sets ess_preliminary=True."
+      review_methodology: "08a statistical subtasks should be reviewed with side-effect-free numerical simulations against known-truth synthetic data and fake_gbs noise profiles."
+    external_review_verdict: approve
   - id: "08a.2"
     title: "IID/right-skewed percentile bootstrap CI with seeded reproducibility"
     status: planned
@@ -120,4 +139,4 @@ subtasks:
   - id: "08a.6"
     title: "fake_gbs bursty state exposure in env_snapshot + phase closeout"
     status: planned
-next_action: "Give Claude review range 7fe810b..ee0fe4b for 08a.1, then wait for approval before starting 08a.2."
+next_action: "Next subtask is 08a.2 IID/right-skewed percentile bootstrap CI; review gate will use coverage simulation on known-truth IID/right-skewed data."

@@ -31,6 +31,9 @@ Current phase:
   make the difference sequence IID.
 - `fake_gbs` burst state is test-only instrumentation, not a production
   statistical signal.
+- Statistical subtask reviews use side-effect-free numerical simulations
+  against known-truth data. For 08a.2, the review gate is bootstrap CI coverage
+  simulation on IID/right-skewed sequences.
 
 Next implementation phases:
 

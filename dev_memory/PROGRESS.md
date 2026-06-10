@@ -1,5 +1,26 @@
 # Development Progress
 
+## 2026-06-10T18:38:14+08:00 - 08a.1 statistical correctness review approved
+
+- External review approved 08a.1 for range `7fe810b..ee0fe4b`, with validation
+  notes through `7fe810b..f791e35`.
+- Findings: no Critical, High, Medium, or Low findings.
+- Numerical validation passed:
+  - AR(1) lag-1 autocorrelation matched known truth closely,
+  - ESS formula matched theory (`n=100,rho=0.5 -> 33.3`, rho<=0 -> n),
+  - conservative `min(lag1, ACF)` ESS was no larger than lag-1-only ESS,
+  - n<8 fallback marked `ess_preliminary=True`,
+  - finite validation and scope boundary checks passed.
+- Info note recorded: ESS below 1 is valid for high-autocorrelation small
+  samples and is protected by `ess_preliminary=True` plus later ESS_MIN
+  inconclusive gates.
+- Established 08a review methodology: side-effect-free numerical simulations
+  against known-truth data. 08a.2 review will use bootstrap CI coverage
+  simulation on IID/right-skewed sequences.
+
+Next action: 08a.2 IID/right-skewed percentile bootstrap CI is the next
+implementation target when development resumes.
+
 ## 2026-06-10T18:24:19+08:00 - 08a.1 Ubuntu validation passed
 
 - User validated `main` at `ee0fe4b77cf546bcea170734464265980481842a` on
