@@ -1,7 +1,7 @@
 phase_id: phase_08a_statistics_core
 phase_title: "Baseline + Statistical Significance - Minimal Stats Core"
 started_at: 2026-06-10T15:15:45+08:00
-last_updated: 2026-06-10T18:51:59+08:00
+last_updated: 2026-06-10T21:43:51+08:00
 target_milestone: "M2 + M4 (partial)"
 related_requirements:
   - REQUIREMENTS.md section 4.8
@@ -126,7 +126,7 @@ subtasks:
     external_review_verdict: approve
   - id: "08a.2"
     title: "IID/right-skewed percentile bootstrap CI with seeded reproducibility"
-    status: in_progress
+    status: done
     files_created: []
     files_modified:
       - src/agent/stats_core.py
@@ -152,14 +152,42 @@ subtasks:
       - "No StatisticalResult schema or verdict gates; defer to 08a.5."
       - "No candidate engine."
     implementation_complete: true
+    implementation_commit: 457caa4
     ut_required: true
     ut_passed: true
     local_validation:
       - "tests/test_stats_core.py -> 13 passed in 1.26s."
       - "Targeted pytest passed: .venv\\Scripts\\python.exe -m pytest tests\\test_stats_core.py tests\\test_result_schema.py tests\\test_benchmark_skill.py -q -> 52 passed, 5 skipped."
       - "Full Windows pytest was run and remains platform-blocked outside 08a: .venv\\Scripts\\python.exe -m pytest tests\\ -q -> 24 failed, 558 passed, 51 skipped, 4 errors."
-    ubuntu_validation: pending
-    external_review_verdict: pending
+    ubuntu_validation:
+      status: passed
+      validated_at: 2026-06-10T21:43:51+08:00
+      head: 457caa46d5597da9b010e3f8e20920695facef8e
+      full: "Linux container full suite -> 635 passed; confirms Windows full failures are platform-specific and not 08a.2 regressions."
+    statistical_correctness_review:
+      reviewer: external
+      reviewed_at: 2026-06-10T21:43:51+08:00
+      range: "91cc187..457caa4"
+      verdict: approve
+      critical_findings: 0
+      high_findings: 0
+      medium_findings: 0
+      low_findings: 0
+      info_findings:
+        - "Windows 24 failed + 4 errors are existing platform-sensitive non-08a paths; Linux full suite passed with 635 tests."
+      coverage_validation:
+        - "IID gaussian 95% CI coverage: n=20 -> 94.8%, n=50 -> 93.8%."
+        - "Right-skewed lognormal coverage: n=30 -> 92.0%, n=60 -> 93.2%, acceptable for percentile bootstrap on skewed data."
+        - "CI bounds normal on corrected probe: ci_low < ci_high, sample mean in CI."
+        - "Seeded reproducibility passed: same seed identical, different seed different."
+        - "Small n=2/3/5 boundaries do not crash."
+        - "method=iid_percentile_bootstrap and B=2000 confirmed."
+      scope_review:
+        - "No block bootstrap."
+        - "No ESS-adjusted CI width."
+        - "No paired bootstrap."
+        - "No StatisticalResult or verdict gates."
+    external_review_verdict: approve
   - id: "08a.3"
     title: "lag-1 autocorrelation detection + ESS correction + low-power/inconclusive rules"
     status: planned
@@ -172,4 +200,4 @@ subtasks:
   - id: "08a.6"
     title: "fake_gbs bursty state exposure in env_snapshot + phase closeout"
     status: planned
-next_action: "Commit/push 08a.2 IID percentile bootstrap CI, then request coverage-simulation review and Ubuntu validation."
+next_action: "Start 08a.3 lag-1 autocorrelation detection + ESS diagnostic/CI confidence marking without block bootstrap or verdict gates."

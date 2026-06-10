@@ -93,3 +93,11 @@ Validation status:
 - Full Windows pytest -> 24 failed, 558 passed, 51 skipped, 4 errors. Failures
   are existing Windows/platform-sensitive paths outside 08a; Ubuntu validation
   remains pending.
+- Linux container full suite at `457caa46d5597da9b010e3f8e20920695facef8e`
+  -> 635 passed, confirming no 08a.2 regression behind the Windows-only
+  failures.
+- External coverage-simulation review approved 08a.2:
+  - IID gaussian 95% CI coverage n=20 -> 94.8%, n=50 -> 93.8%,
+  - right-skewed lognormal coverage n=30 -> 92.0%, n=60 -> 93.2%,
+  - seeded reproducibility, different-seed behavior, normal CI bounds, and
+    small-sample boundaries passed.

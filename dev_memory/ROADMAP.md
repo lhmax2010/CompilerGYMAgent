@@ -19,7 +19,7 @@ Current phase:
 
 | State | Next phase | Why next |
 |---|---|---|
-| Phase 08a in progress | 08a.2 IID/right-skewed percentile bootstrap CI | 08a.1 is implemented, Ubuntu validated, and statistically reviewed. 08a.2 adds the clean IID percentile bootstrap baseline before autocorrelation/block-bootstrap/verdict subtasks. |
+| Phase 08a in progress | 08a.3 lag-1 autocorrelation detection + ESS diagnostic integration | 08a.2 is implemented and coverage-simulation reviewed. 08a.3 connects autocorrelation/ESS diagnostics to CI confidence marking before 08a.4 block bootstrap and 08a.5 verdict gates. |
 
 08a review-alignment boundaries:
 

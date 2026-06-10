@@ -63,4 +63,13 @@
     08a, concentrated in clean-trace CLI, filesystem mount inspection,
     process registry/state consistency, and trace cleanup tests.
 - Ubuntu validation:
-  - Pending external/server run after push.
+  - Linux container full suite passed at
+    `457caa46d5597da9b010e3f8e20920695facef8e`.
+  - Full result: `635 passed`.
+  - Scope note: full Linux pass confirms the Windows full-suite failures are
+    existing platform-sensitive non-08a paths, not 08a.2 regressions.
+- External coverage-simulation review:
+  - IID gaussian 95% CI coverage: n=20 -> 94.8%, n=50 -> 93.8%.
+  - Right-skewed lognormal coverage: n=30 -> 92.0%, n=60 -> 93.2%.
+  - Seeded reproducibility, different-seed behavior, normal CI bounds, and
+    small-sample behavior all passed.

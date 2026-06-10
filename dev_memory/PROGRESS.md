@@ -1,5 +1,26 @@
 # Development Progress
 
+## 2026-06-10T21:43:51+08:00 - 08a.2 coverage-simulation review approved
+
+- External review approved 08a.2 for range `91cc187..457caa4`.
+- Findings: no Critical, High, Medium, or Low findings.
+- Linux container full suite passed at
+  `457caa46d5597da9b010e3f8e20920695facef8e`: 635 passed. This confirms the
+  Windows full-suite failures are existing platform-sensitive non-08a paths.
+- Coverage simulation passed:
+  - IID gaussian 95% CI coverage n=20 -> 94.8%, n=50 -> 93.8%,
+  - right-skewed lognormal coverage n=30 -> 92.0%, n=60 -> 93.2%,
+  - CI bounds normal after correcting a review-script RNG bug,
+  - same seed reproducible, different seed changes CI,
+  - n=2/3/5 small samples do not crash.
+- Scope confirmed clean: no block bootstrap, ESS-adjusted CI width, paired
+  bootstrap, StatisticalResult, or verdict gates.
+- Marked 08a.2 as done/approved in phase memory.
+
+Next action: implement 08a.3 lag-1 autocorrelation detection + ESS diagnostic
+and CI confidence marking. Keep block bootstrap in 08a.4 and verdict gates in
+08a.5.
+
 ## 2026-06-10T18:51:59+08:00 - 08a.2 IID percentile bootstrap CI implemented
 
 - Added side-effect-free IID percentile bootstrap CI for the sample mean:

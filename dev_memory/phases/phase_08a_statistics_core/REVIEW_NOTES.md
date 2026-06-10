@@ -166,3 +166,40 @@ Scope exclusions preserved:
 - No moving block bootstrap in 08a.2.
 - No paired bootstrap in 08a.2.
 - No StatisticalResult schema, verdict gates, or multiple-comparison correction.
+
+## Subtask 08a.2 coverage-simulation review - approve
+
+- Reviewed at: `2026-06-10T21:43:51+08:00`.
+- Range: `91cc187..457caa4`.
+- Verdict: Approve.
+- Findings: no Critical, High, Medium, or Low findings.
+- Info:
+  - Windows full pytest failures remain existing platform-sensitive non-08a
+    paths. Linux container full suite passed with 635 tests, up from 631 before
+    08a.2, matching the four new 08a.2 tests and showing no regression.
+
+Coverage simulation results:
+
+| Check | Result |
+|---|---|
+| IID gaussian 95% CI coverage | Passed: n=20 -> 94.8%, n=50 -> 93.8% |
+| Right-skewed lognormal coverage | Passed: n=30 -> 92.0%, n=60 -> 93.2% |
+| CI bounds | Passed: corrected probe had ci_low < ci_high |
+| Seeded reproducibility | Passed: same seed identical |
+| Different seed behavior | Passed: different seed changes CI |
+| Small samples | Passed: n=2/3/5 do not crash |
+| Method/samples | Passed: method=`iid_percentile_bootstrap`, B=2000 |
+| Scope boundary | Passed: no block bootstrap, ESS width adjustment, paired bootstrap, or verdict gates |
+
+Process note:
+
+- A first probe showed equal CI bounds because the review script recreated
+  `random.Random(1)` inside the sample-generation loop, producing identical
+  values. After correcting the probe to reuse one RNG, CI bounds were normal.
+  This was a review-script bug, not an implementation issue.
+
+Review takeaway:
+
+- 08a.2 passes the bootstrap correctness gold standard for this subtask:
+  coverage simulation on known-truth IID data is close to nominal 95%, and the
+  right-skewed percentile bootstrap behavior is within expected tolerance.

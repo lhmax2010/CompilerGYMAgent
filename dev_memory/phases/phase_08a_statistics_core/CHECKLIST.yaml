@@ -41,15 +41,25 @@ subtasks:
       info_note: "ESS<1 is valid for high-rho small samples and protected by preliminary=True plus later ESS_MIN gates."
   - id: "08a.2"
     title: "IID/right-skewed percentile bootstrap CI with seeded reproducibility"
-    status: in_progress
+    status: done
     implementation_complete: true
+    implementation_commit: 457caa4
     tests_passed: true
     patch_artifacts_generated: false
-    external_review: pending
-    ubuntu_validation: pending
+    external_review: approve
+    statistical_correctness_review: approve
+    ubuntu_validation: passed
     targeted_validation: "52 passed, 5 skipped on Windows Python 3.11"
     stats_core_validation: "13 passed in 1.26s"
     full_windows_validation: "24 failed, 558 passed, 51 skipped, 4 errors; failures are existing Windows/platform-sensitive non-08a paths."
+    linux_full_validation: "635 passed at 457caa46d5597da9b010e3f8e20920695facef8e"
+    coverage_review:
+      iid_gaussian: "95% CI coverage n=20 -> 94.8%, n=50 -> 93.8%"
+      right_skewed_lognormal: "95% CI coverage n=30 -> 92.0%, n=60 -> 93.2%"
+      seeded_reproducibility: passed
+      different_seed_changes_ci: passed
+      small_sample_boundary: passed
+      scope_clean: passed
     review_gate:
       seeded_reproducibility: implemented
       iid_gaussian_coverage_smoke: implemented
