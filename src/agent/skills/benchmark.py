@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 import hashlib
-import math
 import os
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from statistics import mean, median, stdev
 from typing import Any, Literal
 
 import psutil
@@ -23,6 +21,7 @@ from agent.fs_memory import (
 )
 from agent.process_registry import process_lease_path, process_lease_payload
 from agent.process_runner import ProcessSpawnResult
+from agent.stats_core import run_summary_hint
 from agent.trace import TraceCheckpointWriter
 
 from .error_analyzer import LogContent, classify_benchmark_failure
@@ -464,22 +463,7 @@ def _checkpoint_with_benchmark_operation(
 
 
 def _summary_hint(records: Sequence[RunLevelRecord]) -> RunSummaryHint | None:
-    scores = [
-        record.score
-        for record in records
-        if record.phase == "measured" and record.valid_for_scoring and record.score is not None
-    ]
-    if not scores:
-        return None
-    average = mean(scores)
-    stddev = stdev(scores) if len(scores) > 1 else 0.0
-    cv = None if math.isclose(average, 0.0, abs_tol=1e-12) else abs(stddev / average)
-    return RunSummaryHint(
-        mean=average,
-        median=median(scores),
-        stddev=stddev,
-        cv=cv,
-    )
+    return run_summary_hint(records)
 
 
 def _run_plan(

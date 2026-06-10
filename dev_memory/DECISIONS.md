@@ -1177,3 +1177,58 @@ Decision records must include:
   - Treat every measured run as an independent sample. Rejected because trial-internal repeated runs can share burst state and inflate confidence.
   - Infer burst state only from scores. Rejected because score-based inference confuses performance signal with environment state.
   - Leave fake_gbs state hidden because real gbs will not expose it. Rejected because fake_gbs is the Phase 08a validation harness; exposing its state lets tests prove the statistics distinguish pseudoreplicates from true autocorrelation.
+
+## 2026-06-10T18:03:41+08:00 - 08a reports single-comparison statistics only
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 08a
+  - ROADMAP.yaml Phase 07
+  - REQUIREMENTS.md section 4.8
+  - REQUIREMENTS.md section 4.9
+- decision: Phase 08a must not apply Bonferroni, FDR, or any other multiple-comparison correction. Its comparison outputs are scoped as `comparison_scope="single_comparison"` and `adjusted_for_multiple_testing=false`. Multiple-comparison correction requires the global number and family of comparisons, which belongs to Phase 07 candidate-engine policy. 08a provides confirmatory-rerun semantics, not global search-family correction.
+- rationale: 08a is a side-effect-free, stateless statistics core. It can evaluate the baseline/candidate records it is given, but it cannot see how many other candidates were proposed, rejected, rerun, or compared in the search window. Applying a fake local correction would either under-correct or over-correct and make downstream convergence decisions less reliable.
+- alternatives_considered:
+  - Apply Bonferroni inside 08a using only the current comparison. Rejected because the required comparison count is not locally available.
+  - Apply FDR inside 08a. Rejected because FDR needs the full family of p-values/results, not a single comparison.
+  - Leave the scope implicit. Rejected because downstream code could treat single-comparison significance as globally search-corrected.
+
+## 2026-06-10T18:03:41+08:00 - Paired differences still require autocorrelation checks
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 08a
+  - REQUIREMENTS.md section 4.8
+  - REQUIREMENTS.md section 4.9
+- decision: Pairing baseline and candidate records by `pair_key` reduces common-mode burst noise, but the paired difference sequence must still be checked for autocorrelation and low effective sample size.
+- rationale: Pairing does not make the resulting difference series IID. If the environment has persistent burst states or drift, adjacent paired differences can remain dependent even after common-mode cancellation. Treating paired differences as automatically independent would recreate the same overconfidence that ESS and block bootstrap are meant to avoid.
+- alternatives_considered:
+  - Treat paired differences as IID once pair keys match. Rejected because pairing removes one source of noise but not temporal dependence.
+  - Disable paired design to avoid this edge case. Rejected because paired differences are still the strongest minimal defense against bursty common-mode noise.
+  - Only warn on paired autocorrelation. Rejected because downstream verdicts must be able to mark low-power/autocorrelated paired data inconclusive.
+
+## 2026-06-10T18:03:41+08:00 - fake_gbs burst state is test-only instrumentation
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 08a
+  - ROADMAP.yaml Phase 05
+  - REQUIREMENTS.md section 3.3.5
+  - REQUIREMENTS.md section 4.8
+- decision: Any exposed `fake_gbs` burst state such as healthy/degraded/failed is a test-harness signal only. Production statistics must not depend on real systems exposing equivalent environment labels.
+- rationale: The real benchmark environment will usually not provide a clean latent-state label. `fake_gbs` state exists to validate pseudoreplication and autocorrelation behavior under known-truth simulations, not to become an input required by production statistical decisions.
+- alternatives_considered:
+  - Make burst state part of the production statistical schema. Rejected because the real system has no guaranteed healthy/degraded/failed label.
+  - Hide fake_gbs state entirely. Rejected because the test harness needs known-truth state to prove the statistics distinguish pseudoreplicates from autocorrelation.
+  - Infer production state from scores. Rejected because score-derived state would confound real performance changes with environment noise.
+
+## 2026-06-10T18:03:41+08:00 - ESS uses conservative min(lag-1, multi-lag ACF) shape
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 08a
+  - REQUIREMENTS.md section 4.8
+  - REQUIREMENTS.md section 4.9
+  - REQUIREMENTS.md section 4.6.4
+- decision: Because 08a.1 exposes `effective_sample_size`, it must use a conservative estimate now. For n >= 8, report `min(n_eff_lag1, n_eff_acf)`, where `n_eff_lag1 = n*(1-rho1)/(1+rho1)` for positive rho1 and n otherwise, and `n_eff_acf = n/(1+2*sum_pos)` over the initial positive sequence of rho_k for k=1..min(n//2,10). For n < 8, report lag-1 ESS and set `ess_preliminary=true`.
+- rationale: External review and Claude numeric checks showed bursty Markov data can have a longer dependency tail than AR(1), so lag-1-only ESS can be optimistic. The initial-positive-sequence ACF path is still simple enough for 08a.1 but avoids publishing an overly confident ESS field before 08a.4 block bootstrap lands.
+- alternatives_considered:
+  - Keep lag-1-only ESS until 08a.3. Rejected because `effective_sample_size` is already exposed in 08a.1 and downstream users could rely on the optimistic value.
+  - Always use multi-lag ACF, even for very small samples. Rejected because n < 8 has too little information for stable multi-lag ACF.
+  - Remove ESS from 08a.1. Rejected because the Phase 08a design requires early autocorrelation risk visibility in `RunSummaryHint`.

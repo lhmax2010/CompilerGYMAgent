@@ -15,17 +15,28 @@ Completed:
 | 06 | Process Management (runner + cleaner + monitor) | 2026-06-03 | 11 |
 | 05 | Compile / Benchmark Skills | 2026-06-05 | 6 |
 
-Current handoff:
+Current phase:
 
 | State | Next phase | Why next |
 |---|---|---|
-| Phase 05 closed | Phase 08a - Baseline + Statistical Significance - Minimal Stats Core | Compile/benchmark skills now emit process-backed artifacts and run-level benchmark records. 08a can consume those records and validate minimal statistics on gaussian, right-skewed, and bursty fake_gbs profiles. |
+| Phase 08a in progress | 08a.1 descriptive statistics + RunSummaryHint extension | Claude external design review for `f34c28d..6b72d43` is recorded as Approve. Compile/benchmark skills now emit process-backed artifacts and run-level benchmark records that 08a can consume. |
+
+08a review-alignment boundaries:
+
+- 08a produces single-comparison statistics only. Multiple-comparison correction
+  needs the global comparison family/count and belongs to Phase 07 policy.
+- Published ESS is conservative: n>=8 uses the lower of lag-1 ESS and
+  multi-lag ACF ESS; n<8 uses lag-1 ESS with `ess_preliminary=true`.
+- Paired differences still require autocorrelation/ESS checks; pairing does not
+  make the difference sequence IID.
+- `fake_gbs` burst state is test-only instrumentation, not a production
+  statistical signal.
 
 Next implementation phases:
 
 | Order | Phase | Estimate | Main risk |
 |---:|---|---:|---|
-| 1 | 08a - Baseline + Statistical Significance - Minimal Stats Core | 6-8 subtasks | Must consume Phase 05 run-level records and validate statistics on gaussian, right-skewed, and bursty fake_gbs profiles before candidate engine work. |
+| 1 | 08a - Baseline + Statistical Significance - Minimal Stats Core | 6-8 subtasks | In progress. Must consume Phase 05 run-level records and validate statistics on gaussian, right-skewed, and bursty fake_gbs profiles before candidate engine work. |
 | 2 | 7.0 - Candidate Search Strategy + Constraint Solver Spike | 2-3 subtasks | Must turn 05.5's noise-robust interaction-discovery risk into concrete Phase 07 search requirements. |
 | 3 | 07 - Candidate Engine + Constraint + Schedule | 10-16 subtasks | LLM integration and non-bruteforce search strategy remain the largest algorithmic risk. |
 | 4 | 08b - Baseline + Statistical Significance - Advanced Noise Policy | 3-4 subtasks | Runs alongside/after 07 to add adaptive rerun, outlier policy, sequential testing, and noise diagnostics before orchestration. |

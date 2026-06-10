@@ -213,18 +213,43 @@ def test_environment_snapshot_rejects_non_finite_floats(field: str) -> None:
         RunEnvironmentSnapshot.model_validate(payload)
 
 
-@pytest.mark.parametrize("field", ["mean", "median", "stddev", "cv"])
+@pytest.mark.parametrize(
+    "field",
+    [
+        "mean",
+        "median",
+        "stddev",
+        "cv",
+        "effective_sample_size",
+        "lag1_autocorrelation",
+    ],
+)
 def test_run_summary_hint_rejects_non_finite_values(field: str) -> None:
     payload = {
         "mean": 1.0,
         "median": 1.0,
         "stddev": 0.0,
         "cv": 0.0,
+        "n_measured": 3,
+        "n_valid": 3,
+        "n_invalid": 0,
+        "effective_sample_size": 3.0,
+        "lag1_autocorrelation": 0.1,
     }
     payload[field] = math.nan
 
     with pytest.raises(ValidationError, match=field):
         RunSummaryHint.model_validate(payload)
+
+
+def test_run_summary_hint_rejects_inconsistent_counts() -> None:
+    with pytest.raises(ValidationError, match="n_valid"):
+        RunSummaryHint(n_measured=2, n_valid=2, n_invalid=1)
+
+
+def test_run_summary_hint_rejects_ess_above_valid_count() -> None:
+    with pytest.raises(ValidationError, match="effective_sample_size"):
+        RunSummaryHint(n_measured=2, n_valid=2, effective_sample_size=2.5)
 
 
 def test_score_parse_failed_requires_score_source_ref() -> None:
@@ -309,5 +334,9 @@ def _record_payload(*, valid_for_scoring: bool) -> dict[str, object]:
             median=123.4,
             stddev=0.0,
             cv=0.0,
+            n_measured=1,
+            n_valid=1,
+            n_invalid=0,
+            effective_sample_size=1.0,
         ),
     }

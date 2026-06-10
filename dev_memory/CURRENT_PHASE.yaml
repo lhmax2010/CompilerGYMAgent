@@ -1,296 +1,117 @@
-phase_id: phase_05_compile_benchmark
-phase_title: "Compile / Benchmark Skills"
-started_at: 2026-06-04T10:05:00+08:00
-closed_at: 2026-06-05T08:48:36+08:00
-last_updated: 2026-06-10T13:34:37+08:00
-target_milestone: "M1 end / M2 start"
+phase_id: phase_08a_statistics_core
+phase_title: "Baseline + Statistical Significance - Minimal Stats Core"
+started_at: 2026-06-10T15:15:45+08:00
+last_updated: 2026-06-10T18:03:41+08:00
+target_milestone: "M2 + M4 (partial)"
 related_requirements:
-  - REQUIREMENTS.md section 4.7.1 gbs_compile
-  - REQUIREMENTS.md section 4.7.1 benchmark_runner
   - REQUIREMENTS.md section 4.8
-status: done
-roadmap_reference: dev_memory/ROADMAP.yaml completed_phases[id=05]
+  - REQUIREMENTS.md section 4.9
+  - REQUIREMENTS.md section 4.6.4 convergence detector
+status: in_progress
+roadmap_reference: dev_memory/ROADMAP.yaml planned_phases[id=08a]
+dependencies_satisfied:
+  - "Phase 05 Compile / Benchmark Skills is complete and emits RunLevelRecord values."
+  - "RunLevelRecord carries measured/warmup phase, valid_for_scoring, objective_direction, pair_key, artifact verification, env_snapshot, and summary_hint."
+  - "Pre-08a numeric hygiene blockers are fixed: benchmark NaN/Inf ingress rejected and summary fields require finite values."
+  - "Benchmark failure routing cannot write failed_combos in Phase 05/08a."
+  - "dev_memory/BLOCKERS.md records no active blockers."
+pre_implementation_design_review:
+  range: "f34c28d..6b72d43"
+  reviewer: Claude
+  reviewed_at: 2026-06-10T15:14:00+08:00
+  verdict: approve
+  critical_findings: 0
+  high_findings: 0
+  summary: "08a design approved as a pure statistics core with autocorrelation defenses; no candidate-engine or workspace/process side effects before the appropriate later phases."
+  medium_followups:
+    - "08a.5 must explicitly distinguish no_difference from inconclusive when CI includes zero with adequate vs inadequate power."
+    - "08a.3 must reconcile or document the gap between rho1>0 ESS correction and rho1>0.3 autocorrelation detection/bootstrap selection."
+    - "08a.3/08a.4 must document lag-1 ESS limitations and rely on bursty simulation coverage as the real guard."
+    - "08a.1 must pre-flight the Phase 05 RunLevelRecord contract fields before consuming records."
+    - "08a.5 must define partial pair_key behavior when only some baseline/candidate records match."
+  low_followups:
+    - "Keep RunSummaryHint ESS/rho1/autocorrelation fields optional while computation lands across subtasks."
+    - "Define the epsilon used for CV when mean is effectively zero."
+    - "Phrase side-effect-free scope as applying to stats_core; fake_gbs state exposure remains 08a.6 harness instrumentation."
 subtasks:
-  - id: "5.1"
-    title: "env marker refinement + pid-independent lease_id"
-    status: done
-    related_requirements:
-      - ROADMAP.yaml Phase 05 deliverable env marker enhancement
-      - DECISIONS.md "AGENT_LEASE_ID generated before spawn, pid-independent"
-    files_created: []
-    files_modified:
-      - src/agent/process_identity.py
-      - src/agent/process_runner.py
-      - src/agent/process_registry.py
-      - src/agent/process_cleaner.py
-      - src/agent/__init__.py
-      - tests/test_process_identity.py
-      - tests/test_process_runner.py
-      - tests/test_process_registry.py
-      - tests/test_process_cleaner.py
-      - dev_memory/CURRENT_PHASE.yaml
-      - dev_memory/ROADMAP.yaml
-      - dev_memory/PROGRESS.md
-      - dev_memory/phases/phase_05_compile_benchmark/CHECKLIST.yaml
-      - dev_memory/phases/phase_05_compile_benchmark/REVIEW_NOTES.md
-      - dev_memory/phases/phase_05_compile_benchmark/SUMMARY.md
-      - dev_memory/phases/phase_05_compile_benchmark/UT_RESULTS.md
-    behavior_notes:
-      - "process_runner generates lease_id before Popen, independent of pid, and injects AGENT_SESSION_ID, AGENT_TRIAL_ID, AGENT_LEASE_ID, and AGENT_PROCESS_ROLE."
-      - "ProcessRecord adds backward-compatible trial_id and lease_id optional fields."
-      - "ProcessLease persists lease_id and keeps legacy leases with lease_id=None loadable."
-      - "process_cleaner env_scan filters new records by session + trial + lease, while legacy records fall back to session-only matching."
-      - "read_env_marker remains single-shot and no-retry for cleaner scans."
-    ut_required: true
-    ut_passed: true
-    targeted_ut: "44 tests passed, 0 failed (process identity/registry/runner/cleaner)"
-    production_regression_ut: "550 tests passed, 0 failed"
-    self_review_required: true
-    self_reviewed: true
-    patch_required: true
-    patch_file: dev_memory/phases/phase_05_compile_benchmark/patches/01_env_marker_lease_id.patch
-    patch_generated: true
-    commit_required: true
-    commit_pending: false
-    implementation_commit: 85a5063
-    external_review_verdict: approve
-    external_reviewed_at: 2026-06-04T10:20:00+08:00
-    external_review_tests: "550 passed; 0 residual process leak"
-  - id: "5.2"
-    title: "fake_gbs mock harness"
-    status: done
-    related_requirements:
-      - ROADMAP.yaml Phase 05 deliverable fake_gbs mock harness
-      - DECISIONS.md "Mock must use real process_runner + Markov bursty noise"
+  - id: "08a.1"
+    title: "descriptive statistics + RunSummaryHint extension"
+    status: in_progress
     files_created:
-      - src/agent/skills/fake_gbs.py
-      - tests/test_fake_gbs.py
+      - src/agent/stats_core.py
+      - tests/test_stats_core.py
     files_modified:
-      - src/agent/skills/__init__.py
-      - src/agent/__init__.py
-      - dev_memory/CURRENT_PHASE.yaml
-      - dev_memory/ROADMAP.yaml
-      - dev_memory/PROGRESS.md
-      - dev_memory/phases/phase_05_compile_benchmark/CHECKLIST.yaml
-      - dev_memory/phases/phase_05_compile_benchmark/REVIEW_NOTES.md
-      - dev_memory/phases/phase_05_compile_benchmark/SUMMARY.md
-      - dev_memory/phases/phase_05_compile_benchmark/UT_RESULTS.md
-    behavior_notes:
-      - "fake_gbs compile and benchmark run through process_runner, creating real subprocesses, process leases, pgids, and env markers."
-      - "Compile success writes a real artifact with sha256 hash; benchmark consumes and verifies the artifact."
-      - "Failure modes cover invalid_option, timeout, crash_signal, oom_like_exit, artifact_missing, and score_parse_failed."
-      - "Noise profiles include gaussian, right_skewed, and stateful bursty Markov with seeded replay."
-      - "Bursty profile has explicit transition matrix and 100-round pressure coverage."
-    ut_required: true
-    ut_passed: true
-    targeted_ut: "9 tests passed, 0 failed (test_fake_gbs.py)"
-    adjacent_ut: "28 tests passed, 0 failed (fake_gbs/process_runner/process_cleaner)"
-    production_regression_ut: "559 tests passed, 0 failed"
-    self_review_required: true
-    self_reviewed: true
-    patch_required: true
-    patch_file: dev_memory/phases/phase_05_compile_benchmark/patches/02_fake_gbs_harness.patch
-    patch_generated: true
-    commit_required: true
-    commit_pending: false
-    implementation_commit: aa8f2a2
-    external_review_verdict: approve
-    external_reviewed_at: 2026-06-04T11:15:00+08:00
-    external_review_tests: "559 passed; bursty Markov probe verified; 0 residual process leak"
-  - id: "5.5a"
-    title: "failure/result schema skeleton"
-    status: done
-    related_requirements:
-      - ROADMAP.yaml Phase 05 deliverable failure/result schema skeleton
-      - DECISIONS.md "Failure classification: confidence + evidence + three-way routing"
-      - DECISIONS.md "Benchmark returns run-level records, not just scores"
-      - DECISIONS.md "score_parse_failed is a first-class failure outcome"
-    files_created:
       - src/agent/skills/result_schema.py
+      - src/agent/skills/benchmark.py
+      - src/agent/__init__.py
       - tests/test_result_schema.py
-    files_modified:
-      - src/agent/skills/__init__.py
-      - src/agent/__init__.py
-      - dev_memory/CURRENT_PHASE.yaml
-      - dev_memory/ROADMAP.yaml
-      - dev_memory/DECISIONS.md
-      - dev_memory/PROGRESS.md
-      - dev_memory/phases/phase_05_compile_benchmark/CHECKLIST.yaml
-      - dev_memory/phases/phase_05_compile_benchmark/REVIEW_NOTES.md
-      - dev_memory/phases/phase_05_compile_benchmark/SUMMARY.md
-      - dev_memory/phases/phase_05_compile_benchmark/UT_RESULTS.md
-    behavior_notes:
-      - "Added pure schema-only failure classification and run-level benchmark record models; no classifier rules or log pattern matching."
-      - "FailureClassification defaults to route=unknown and write_failed_combos=False."
-      - "Model validation rejects write_failed_combos=True unless route=option_related and confidence=HIGH."
-      - "RunLevelRecord requires objective_direction, run_index, combo_hash, artifact verification fields, env snapshot, and scoring validity metadata."
-      - "score_parse_failed invalid runs require score_source_ref so parse failures point back to logs."
-    ut_required: true
-    ut_passed: true
-    targeted_ut: "19 tests passed, 0 failed (test_result_schema.py)"
-    adjacent_ut: "28 tests passed, 0 failed (fake_gbs/result_schema)"
-    production_regression_ut: "578 tests passed, 0 failed"
-    self_review_required: true
-    self_reviewed: true
-    patch_required: true
-    patch_file: dev_memory/phases/phase_05_compile_benchmark/patches/03_result_schema_skeleton.patch
-    patch_generated: true
-    commit_required: true
-    commit_pending: false
-    implementation_commit: 69c9fb7
-    external_review_verdict: approve
-    external_reviewed_at: 2026-06-04T21:43:21+08:00
-    external_review_tests: "578 passed; write_failed_combos gate, objective_direction, scoring/failure consistency, and pure-schema boundary verified"
-  - id: "5.3"
-    title: "compile skill"
-    status: done
-    related_requirements:
-      - ROADMAP.yaml Phase 05 deliverable compile skill
-      - DECISIONS.md "Lease rebuildability requires trace process_started with full payload"
-      - DECISIONS.md "Failure classification: confidence + evidence + three-way routing"
-    files_created:
-      - src/agent/skills/compile.py
-      - tests/test_compile_skill.py
-    files_modified:
-      - src/agent/skills/fake_gbs.py
-      - src/agent/skills/__init__.py
-      - src/agent/__init__.py
-      - dev_memory/CURRENT_PHASE.yaml
-      - dev_memory/ROADMAP.yaml
-      - dev_memory/PROGRESS.md
-      - dev_memory/phases/phase_05_compile_benchmark/CHECKLIST.yaml
-      - dev_memory/phases/phase_05_compile_benchmark/REVIEW_NOTES.md
-      - dev_memory/phases/phase_05_compile_benchmark/SUMMARY.md
-      - dev_memory/phases/phase_05_compile_benchmark/UT_RESULTS.md
-    behavior_notes:
-      - "compile_candidate runs workspace_snapshot(pre), spec_backup, spec_injector, fake_gbs compile, spec_restore, and workspace_verify."
-      - "fake_gbs accepts an on_spawn hook so compile_candidate can write process_started trace and checkpoint process_refs immediately after lease creation and before waiting for the process."
-      - "process_started trace carries full ProcessRecord and ProcessLease payload sufficient for lease rebuild."
-      - "Checkpoint operation ledger is the process authority; deprecated current_trial.process is forced to None."
-      - "If process_started trace/checkpoint write fails after lease creation, fake_gbs immediately invokes cleaner killpg and terminalizes the lease."
-      - "Compile failures return the shared FailureClassification schema; 5.5b classifier rules may write failed_combos only for HIGH-confidence option_related evidence."
-    ut_required: true
-    ut_passed: true
-    targeted_ut: "3 tests passed, 0 failed (test_compile_skill.py)"
-    adjacent_ut: "55 tests passed, 0 failed (compile/fake_gbs/workspace/spec/process)"
-    production_regression_ut: "581 tests passed, 0 failed"
-    self_review_required: true
-    self_reviewed: true
-    patch_required: true
-    patch_file: dev_memory/phases/phase_05_compile_benchmark/patches/04_compile_skill.patch
-    patch_generated: true
-    commit_required: true
-    commit_pending: false
-    implementation_commit: b32cb33
-    external_review_verdict: approve
-    external_reviewed_at: 2026-06-04T22:01:59+08:00
-    external_review_tests: "581 passed; spawn ordering, trace failure cleanup, FailureClassification, operation ledger, and 0 residual processes verified"
-  - id: "5.4"
-    title: "benchmark skill"
-    status: done
-    related_requirements:
-      - ROADMAP.yaml Phase 05 deliverable benchmark skill
-      - DECISIONS.md "Benchmark returns run-level records, not just scores"
-      - DECISIONS.md "score_parse_failed is a first-class failure outcome"
-      - DECISIONS.md "Lease rebuildability requires trace process_started with full payload"
-    files_created:
-      - src/agent/skills/benchmark.py
       - tests/test_benchmark_skill.py
-    files_modified:
-      - src/agent/skills/__init__.py
-      - src/agent/__init__.py
       - dev_memory/CURRENT_PHASE.yaml
-      - dev_memory/ROADMAP.yaml
-      - dev_memory/PROGRESS.md
-      - dev_memory/phases/phase_05_compile_benchmark/CHECKLIST.yaml
-      - dev_memory/phases/phase_05_compile_benchmark/REVIEW_NOTES.md
-      - dev_memory/phases/phase_05_compile_benchmark/SUMMARY.md
-      - dev_memory/phases/phase_05_compile_benchmark/UT_RESULTS.md
-    behavior_notes:
-      - "benchmark_candidate consumes fake_gbs through the real process-backed harness and emits 5.5a RunLevelRecord objects."
-      - "Warmup and measured runs are explicit phases with stable measured run_index ordering."
-      - "The skill verifies artifact hashes before benchmark; artifact mismatch produces a hard invalid artifact_invalid run without spawning a benchmark process."
-      - "process_started trace events carry full ProcessRecord and ProcessLease payloads; checkpoint operation.process_refs are the process authority."
-      - "Trace/checkpoint failure after lease creation is handled by fake_gbs cleanup_process_lease(force_suspected=True), terminalizing the lease and leaving no live process group."
-      - "Hard benchmark failures use FailureClassification with write_failed_combos=False; outlier/statistical judgment remains deferred to Phase 08."
-    ut_required: true
-    ut_passed: true
-    targeted_ut: "4 tests passed, 0 failed (test_benchmark_skill.py)"
-    adjacent_ut: "54 tests passed, 0 failed (benchmark/compile/fake_gbs/result_schema/process)"
-    production_regression_ut: "585 tests passed, 0 failed"
-    self_review_required: true
-    self_reviewed: true
-    patch_required: true
-    patch_file: dev_memory/phases/phase_05_compile_benchmark/patches/05_benchmark_skill.patch
-    patch_generated: true
-    commit_required: true
-    commit_pending: false
-    implementation_commit: a0cce66
-    external_review_verdict: approve
-    external_reviewed_at: 2026-06-04T22:12:00+08:00
-    external_review_tests: "585 passed; RunLevelRecord fields, warmup/measured split, artifact verification, hard failures, and 0 residual processes verified"
-  - id: "5.5b"
-    title: "failure classifier rules + routing tests"
-    status: done
-    related_requirements:
-      - ROADMAP.yaml Phase 05 deliverable failure classifier rules
-      - DECISIONS.md "Failure classification: confidence + evidence + three-way routing"
-      - DECISIONS.md "Failure classifier routing: high-confidence environment evidence overrides option matches"
-    files_created:
-      - src/agent/skills/error_analyzer.py
-      - tests/test_error_analyzer.py
-    files_modified:
-      - src/agent/skills/compile.py
-      - src/agent/skills/benchmark.py
-      - src/agent/skills/__init__.py
-      - src/agent/__init__.py
-      - tests/test_compile_skill.py
-      - dev_memory/CURRENT_PHASE.yaml
-      - dev_memory/ROADMAP.yaml
       - dev_memory/DECISIONS.md
+      - dev_memory/ROADMAP.yaml
+      - dev_memory/ROADMAP.md
       - dev_memory/PROGRESS.md
-      - dev_memory/phases/phase_05_compile_benchmark/CHECKLIST.yaml
-      - dev_memory/phases/phase_05_compile_benchmark/REVIEW_NOTES.md
-      - dev_memory/phases/phase_05_compile_benchmark/SUMMARY.md
-      - dev_memory/phases/phase_05_compile_benchmark/UT_RESULTS.md
-    behavior_notes:
-      - "Added a shared error_analyzer classifier consumed by compile and benchmark skills."
-      - "Rules map log/status evidence to category, route, confidence, affected_options, retryable, matched_rule_id, and classifier_version."
-      - "invalid_option and option_conflict become write_failed_combos=True only when HIGH-confidence option_related evidence is present."
-      - "environment_related categories such as disk_full_or_quota, oom_killed, build_timeout, network_failure, and permission_denied never write failed_combos."
-      - "High-confidence environment evidence overrides option matches to avoid poisoning candidate memory during OOM/disk/network failures."
-      - "Unmatched failures default to unknown/LOW/write_failed_combos=False."
+      - dev_memory/phases/phase_08a_statistics_core/CHECKLIST.yaml
+      - dev_memory/phases/phase_08a_statistics_core/REVIEW_NOTES.md
+      - dev_memory/phases/phase_08a_statistics_core/SUMMARY.md
+      - dev_memory/phases/phase_08a_statistics_core/UT_RESULTS.md
+    scope:
+      - "Add side-effect-free descriptive statistics in src/agent/stats_core.py."
+      - "Consume only RunLevelRecord values with phase=measured and valid_for_scoring=True."
+      - "Compute mean, median, sample stddev (n-1), CV with near-zero mean returning None, lag-1 rho, and conservative ESS."
+      - "For n>=8, ESS is min(lag-1 ESS, initial-positive-sequence multi-lag ACF ESS); for n<8, ESS falls back to lag-1 and sets ess_preliminary=True."
+      - "Extend RunSummaryHint with n_measured, n_valid, n_invalid, effective_sample_size, ess_preliminary, lag1_autocorrelation, autocorrelation_warning."
+      - "Reject NaN/Inf in all new numeric schema fields."
+    exclusions:
+      - "No candidate engine."
+      - "No bootstrap CI implementation yet."
+      - "No StatisticalResult verdict logic unless explicitly required by later 08a split."
+      - "No fake_gbs bursty state exposure until 08a.6."
+    design_review_cleared: true
+    implementation_complete: true
     ut_required: true
     ut_passed: true
-    targeted_ut: "9 tests passed, 0 failed (test_error_analyzer.py)"
-    adjacent_ut: "44 tests passed, 0 failed (error_analyzer/compile/benchmark/result_schema/fake_gbs)"
-    production_regression_ut: "594 tests passed, 0 failed"
-    self_review_required: true
-    self_reviewed: true
-    patch_required: true
-    patch_file: dev_memory/phases/phase_05_compile_benchmark/patches/06_failure_classifier_rules.patch
-    patch_generated: true
-    commit_required: true
-    commit_pending: false
-    implementation_commit: 4ccf5c5
-    external_review_verdict: approve
-    external_reviewed_at: 2026-06-05T08:48:36+08:00
-    external_review_tests: "594 passed for 5.5b; environment override, conservative routing, affected_options, and failure-schema guardrails verified"
-phase_closeout:
-  status: done
-  closed_at: 2026-06-05T08:48:36+08:00
-  closeout_commit: "this commit"
-  clean_trace_time_flakiness_fix_commit: "6252761"
-  closeout_validation:
-    - "Full suite: 595 passed after clean trace CLI relative-date regression"
-    - "tests/test_cli_clean_trace.py: 11 passed"
-    - "Future-date regression verified: removable_event_count remains stable as system date advances"
-  next_phase: "08a - Baseline + Statistical Significance - Minimal Stats Core"
-handoff:
-  status: ready_for_server_migration
-  latest_design_commit: 6b72d43
-  handoff_prompt: dev_memory/HANDOFF_PROMPT.md
-  next_phase: "08a - Baseline + Statistical Significance - Minimal Stats Core"
-  first_subtask: "08a.1 descriptive statistics + RunSummaryHint extension"
-  prerequisite: "Confirm and record Claude/external review for 08a design before coding."
-next_action: "Move to the new server, pull main, verify clean worktree, then confirm 08a design review before starting Phase 08a.1."
+    local_validation:
+      - "git diff --check passed."
+      - "Targeted pytest passed: .venv\\Scripts\\python.exe -m pytest tests\\test_stats_core.py tests\\test_result_schema.py tests\\test_benchmark_skill.py -q -> 48 passed, 5 skipped."
+      - "Full Windows pytest was run and remains platform-blocked outside 08a: .venv\\Scripts\\python.exe -m pytest tests\\ -q -> 24 failed, 554 passed, 51 skipped, 4 errors."
+    ubuntu_validation: pending
+    static_implementation_review:
+      reviewer: Claude
+      reviewed_at: 2026-06-10T15:31:00+08:00
+      verdict: approve_with_followups
+      critical_findings: 0
+      high_findings: 0
+      addressed_followups:
+        - "Marked low_power as a diagnostic only; verdict policy remains 08a.3/08a.5 scope."
+        - "Documented lag-1 adjacent-pair Pearson estimator conservatism in code."
+        - "Added defensive rejection for valid measured records without scores."
+        - "Added tests for moderate positive rho, rho=1 ESS, and scoreless valid records."
+    external_review_alignment:
+      reviewed_at: 2026-06-10T18:03:41+08:00
+      verdict: approve_with_alignment_patch
+      addressed_followups:
+        - "Tightened exposed ESS from lag-1-only to min(lag-1, multi-lag ACF) for n>=8."
+        - "Added ess_preliminary so n<8 lag-1-only ESS is machine-readable as preliminary."
+        - "Recorded that 08a emits single_comparison semantics and does not correct multiple comparisons."
+        - "Recorded paired-difference autocorrelation checks and fake_gbs state as test-only instrumentation."
+      deferred_followups:
+        - "08a.4 owns moving block bootstrap correlation-length/block-size behavior."
+        - "08a.5 owns StatisticalResult full schema, verdict gates, pair_order, and base approximately zero defense."
+    external_review_verdict: approve_with_alignment_patch
+  - id: "08a.2"
+    title: "IID/right-skewed percentile bootstrap CI with seeded reproducibility"
+    status: planned
+  - id: "08a.3"
+    title: "lag-1 autocorrelation detection + ESS correction + low-power/inconclusive rules"
+    status: planned
+  - id: "08a.4"
+    title: "moving block bootstrap for autocorrelated sequences"
+    status: planned
+  - id: "08a.5"
+    title: "baseline normalized comparison + pair_key paired design + StatisticalResult verdict schema"
+    status: planned
+  - id: "08a.6"
+    title: "fake_gbs bursty state exposure in env_snapshot + phase closeout"
+    status: planned
+next_action: "Commit/push 08a.1 review-aligned implementation to main, then run Ubuntu full validation."

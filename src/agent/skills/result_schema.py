@@ -109,13 +109,38 @@ class RunSummaryHint(StrictResultSchemaModel):
     median: float | None = None
     stddev: float | None = Field(default=None, ge=0)
     cv: float | None = Field(default=None, ge=0)
+    n_measured: int = Field(default=0, ge=0)
+    n_valid: int = Field(default=0, ge=0)
+    n_invalid: int = Field(default=0, ge=0)
+    effective_sample_size: float | None = Field(default=None, ge=0)
+    ess_preliminary: bool = False
+    lag1_autocorrelation: float | None = Field(default=None, ge=-1, le=1)
+    autocorrelation_warning: bool = False
 
-    @field_validator("mean", "median", "stddev", "cv")
+    @field_validator(
+        "mean",
+        "median",
+        "stddev",
+        "cv",
+        "effective_sample_size",
+        "lag1_autocorrelation",
+    )
     @classmethod
     def summary_numbers_must_be_finite(
         cls, value: float | None, info: Any
     ) -> float | None:
         return _validate_optional_finite(value, info.field_name)
+
+    @model_validator(mode="after")
+    def summary_counts_must_be_consistent(self) -> RunSummaryHint:
+        if self.n_valid + self.n_invalid > self.n_measured:
+            raise ValueError("n_valid + n_invalid cannot exceed n_measured")
+        if (
+            self.effective_sample_size is not None
+            and self.effective_sample_size > self.n_valid
+        ):
+            raise ValueError("effective_sample_size cannot exceed n_valid")
+        return self
 
 
 class RunLevelRecord(StrictResultSchemaModel):

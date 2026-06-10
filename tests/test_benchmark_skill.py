@@ -69,6 +69,11 @@ def test_benchmark_skill_returns_run_level_records_and_checkpoint_refs(tmp_path)
     assert all(record.failure_classification is None for record in result.records)
     assert result.summary_hint is not None
     assert result.summary_hint.mean is not None
+    assert result.summary_hint.n_measured == 2
+    assert result.summary_hint.n_valid == 2
+    assert result.summary_hint.n_invalid == 0
+    assert result.summary_hint.effective_sample_size == 2.0
+    assert result.summary_hint.ess_preliminary is True
     assert result.records[-1].summary_hint == result.summary_hint
 
     payloads = [trace_event_payload(event) for event in load_trace_events(fake.layout.trace_path)]
@@ -203,6 +208,9 @@ def test_summary_hint_uses_none_cv_when_mean_is_near_zero() -> None:
     assert summary is not None
     assert summary.mean == 0.0
     assert summary.cv is None
+    assert summary.n_measured == 2
+    assert summary.n_valid == 2
+    assert summary.n_invalid == 0
 
 
 def test_benchmark_skill_trace_failure_kills_process_and_terminalizes_lease(

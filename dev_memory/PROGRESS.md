@@ -1,5 +1,81 @@
 # Development Progress
 
+## 2026-06-10T18:03:41+08:00 - 08a.1 review alignment applied before main push
+
+- Restored the 08a.1 implementation stash on `main`.
+- Tightened exposed ESS:
+  - n>=8 uses `min(lag-1 ESS, initial-positive-sequence multi-lag ACF ESS)`,
+  - n<8 keeps lag-1 ESS and sets `ess_preliminary=true`.
+- Extended `RunSummaryHint` with `ess_preliminary` and bounded
+  `effective_sample_size <= n_valid`.
+- Recorded 08a decision boundaries:
+  - single-comparison statistics only; no multiple-testing correction in 08a,
+  - paired differences still require autocorrelation/ESS checks,
+  - fake_gbs burst state is test-only instrumentation,
+  - future 08a.4/08a.5 notes cover block-bootstrap correlation length,
+    pair_order, StatisticalResult schema, verdict gates, and base approximately
+    zero defense.
+- Targeted pytest passed:
+  - `.venv\Scripts\python.exe -m pytest tests\test_stats_core.py tests\test_result_schema.py tests\test_benchmark_skill.py -q`
+  - Result: 48 passed, 5 skipped.
+- Windows full pytest was run and remains blocked by existing platform-specific
+  failures outside 08a:
+  - `.venv\Scripts\python.exe -m pytest tests\ -q`
+  - Result: 24 failed, 554 passed, 51 skipped, 4 errors.
+- `git diff --check` passed, with only Windows CRLF conversion warnings.
+
+Next action: commit/push 08a.1 to `main`, then run Ubuntu full validation.
+
+## 2026-06-10T15:33:41+08:00 - 08a.1 implementation drafted; pytest blocked by missing Python
+
+- Added `src/agent/stats_core.py` with side-effect-free descriptive statistics:
+  measured/valid score selection, n counts, mean, median, sample stddev, CV,
+  lag-1 autocorrelation, ESS, autocorrelation warning, and diagnostic low-power
+  signal.
+- Extended `RunSummaryHint` with:
+  - `n_measured`, `n_valid`, `n_invalid`,
+  - `effective_sample_size`, `lag1_autocorrelation`,
+  - `autocorrelation_warning`.
+- Routed benchmark `_summary_hint()` through the stats core so Phase 05
+  benchmark outputs populate the new 08a fields without duplicating formulas.
+- Added/updated tests for stats core behavior, result schema validation, and
+  benchmark summary propagation.
+- Ran Claude static implementation review. Verdict: Approve with follow-ups; no
+  Critical or High findings.
+- Addressed the Medium follow-ups by documenting `low_power` as diagnostic-only,
+  documenting the lag-1 estimator choice, rejecting valid measured records
+  without scores, and adding moderate-rho / rho=1 ESS tests.
+- `git diff --check` passed.
+- Targeted pytest is blocked on this Windows handoff machine because no
+  `python`, `py`, `python3`, or `.venv` interpreter is available.
+
+Next action: run the 08a.1 targeted pytest command once Python is available,
+then generate patch artifacts and proceed to final external review/commit.
+
+## 2026-06-10T15:15:45+08:00 - Phase 08a started after Claude design review approval
+
+- Verified local `main` is up to date and clean:
+  - `git pull --ff-only origin main` -> already up to date,
+  - `git status --short --branch` -> `## main...origin/main`,
+  - `git log --oneline -8` includes `7fe810b` and `6b72d43`.
+- Read the required handoff, phase, roadmap, progress, decisions, blockers, and
+  Phase 05 summary documents.
+- Confirmed `dev_memory/BLOCKERS.md` has no active blockers.
+- Ran Claude external pre-implementation design review for range
+  `f34c28d..6b72d43` with tools disabled.
+- Claude verdict: Approve, with no Critical or High findings.
+- Recorded Medium follow-ups for later 08a subtasks:
+  - specify `no_difference` vs `inconclusive` in 08a.5,
+  - reconcile or document the `rho1>0` ESS vs `rho1>0.3` detection threshold in
+    08a.3,
+  - document lag-1 ESS limitations and validate with bursty simulation coverage,
+  - pre-flight the Phase 05 `RunLevelRecord` contract before 08a.1,
+  - define partial `pair_key` handling in 08a.5.
+- Moved Phase 08a to `in_progress` and opened Subtask 08a.1.
+
+Next action: implement 08a.1 descriptive statistics and `RunSummaryHint`
+extension without candidate-engine work or side effects.
+
 ## 2026-06-10T13:34:37+08:00 - Server migration handoff prepared after 08a design finalization
 
 - Confirmed Phase 08a design is recorded in `dev_memory/ROADMAP.yaml` and

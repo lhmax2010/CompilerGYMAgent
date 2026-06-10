@@ -1,0 +1,98 @@
+# Phase 08a Review Notes
+
+## Pre-implementation design review - Claude approve
+
+- Range reviewed: `f34c28d..6b72d43`.
+- Reviewer: Claude.
+- Verdict: Approve.
+- Critical findings: 0.
+- High findings: 0.
+- Scope confirmed:
+  - `stats_core.py` is side-effect-free statistics code.
+  - 08a consumes Phase 05 `RunLevelRecord` values.
+  - No candidate-engine changes belong in 08a.1.
+  - No process cleanup or workspace mutation belongs in stats core.
+  - fake_gbs bursty state exposure remains deferred to 08a.6.
+- Autocorrelation safety confirmed:
+  - lag-1 autocorrelation must be measured,
+  - ESS correction must be retained,
+  - moving block bootstrap must be used for detected autocorrelation,
+  - low-power / low-ESS results must be inconclusive, never significant.
+
+Medium follow-ups to preserve:
+
+- 08a.5 must explicitly distinguish `no_difference` from `inconclusive`.
+- 08a.3 must reconcile or document the gap between `rho1 > 0` ESS correction
+  and `rho1 > 0.3` autocorrelation detection/bootstrap selection.
+- 08a.3/08a.4 must document lag-1 ESS limitations and validate bursty
+  simulation coverage.
+- 08a.1 must pre-flight the Phase 05 `RunLevelRecord` contract fields before
+  consuming records.
+- 08a.5 must define behavior for partial `pair_key` matches.
+
+Low follow-ups:
+
+- Keep new `RunSummaryHint` ESS/rho fields optional while computation lands
+  across subtasks.
+- Define the epsilon used for CV when the mean is effectively zero.
+- Phrase side-effect-free scope as applying to `stats_core.py`; 08a.6 fake_gbs
+  instrumentation is test-harness support.
+
+## Subtask 08a.1 implementation static review - Claude approve with follow-ups
+
+- Reviewer: Claude.
+- Scope reviewed: uncommitted 08a.1 diff plus untracked
+  `src/agent/stats_core.py`, `tests/test_stats_core.py`, and phase memory files.
+- Verdict: Approve with follow-ups.
+- Critical findings: 0.
+- High findings: 0.
+- Confirmed:
+  - no import cycle after `stats_core` uses lazy schema imports,
+  - no schema regression because new `RunSummaryHint` fields have defaults,
+  - benchmark `_summary_hint` preserves old mean/median/sample-stddev/CV
+    behavior while adding counts and autocorrelation diagnostics,
+  - no candidate engine, bootstrap CI, or verdict engine code landed.
+
+Follow-ups addressed in this working tree:
+
+- `low_power` is documented as a diagnostic only; actual inconclusive verdict
+  policy remains 08a.3/08a.5 scope.
+- The lag-1 estimator is documented as adjacent-pair Pearson, conservative for
+  monotone drift, with threshold/block-bootstrap policy deferred to 08a.3/08a.4.
+- `measured_valid_scores()` now rejects valid measured records without scores
+  defensively instead of silently counting them invalid.
+- Tests now cover moderate positive rho with nonzero ESS, `rho1=1.0` ESS
+  collapse, and scoreless valid-record defense.
+
+Validation gap:
+
+- Python/pytest could not run on this Windows handoff machine because `python`,
+  `py`, `python3`, and `.venv` are unavailable.
+
+## Subtask 08a.1 review-alignment patch - external approve with alignment
+
+- Reviewed at: `2026-06-10T18:03:41+08:00`.
+- Scope: no candidate engine, no bootstrap CI, no StatisticalResult/verdict code.
+- ESS alignment:
+  - n>=8 now reports the conservative lower value of lag-1 ESS and
+    initial-positive-sequence multi-lag ACF ESS.
+  - n<8 keeps the lag-1 ESS fallback and marks `ess_preliminary=true`.
+  - This addresses the review concern that bursty Markov tails can make
+    lag-1-only ESS optimistic.
+- Schema alignment:
+  - `RunSummaryHint` now carries `ess_preliminary`.
+  - `effective_sample_size` remains finite, non-negative, and bounded by
+    `n_valid`.
+- Naming/scope alignment:
+  - 08a.1 still has no verdict/significance fields, so no code rename was
+    needed.
+  - Future 08a.5 significance booleans must use
+    `significant_single_comparison`, not bare `significant`.
+  - Multiple-comparison correction remains outside 08a because 08a cannot see
+    the global comparison family/count.
+- Deferred by design:
+  - 08a.4 owns block-bootstrap correlation length/block-size behavior.
+  - 08a.5 owns StatisticalResult full schema, layered verdict gates, paired
+    `pair_order`, and base approximately zero defense.
+  - fake_gbs burst state remains test-only instrumentation, not a production
+    statistical signal.

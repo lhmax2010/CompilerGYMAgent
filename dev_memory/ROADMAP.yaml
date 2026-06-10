@@ -1,6 +1,6 @@
 # dev_memory/ROADMAP.yaml
 roadmap_version: 1
-last_updated: 2026-06-05T11:57:23+08:00
+last_updated: 2026-06-10T18:03:41+08:00
 status: active
 
 # ============================================================
@@ -165,7 +165,8 @@ planned_phases:
 
   - id: "08a"
     title: "Baseline + Statistical Significance - Minimal Stats Core"
-    status: planned
+    status: in_progress
+    started_at: "2026-06-10T15:15:45+08:00"
     milestone: "M2 + M4 (partial)"
     requirement_sections: ["4.8", "4.9", "4.6.4 (convergence detector)"]
     dependencies: ["05"]
@@ -177,11 +178,11 @@ planned_phases:
       - "Consume Phase 05 RunLevelRecord objects with phase=measured and valid_for_scoring=True"
       - "Compute descriptive statistics: mean, median, sample stddev (n-1), CV with mean≈0 -> None"
       - "Provide IID/right-skewed percentile bootstrap CI with seeded reproducibility"
-      - "Detect lag-1 autocorrelation and correct effective sample size (ESS)"
+      - "Detect autocorrelation and report conservative effective sample size (ESS)"
       - "Use moving block bootstrap for autocorrelated sequences"
       - "Compare candidate vs baseline with objective_direction-aware normalized improvement"
       - "Prefer paired design via pair_key when available; mark unpaired high-autocorrelation data inconclusive"
-      - "Provide StatisticalResult verdicts for candidate-engine convergence decisions"
+      - "Provide single-comparison StatisticalResult verdicts for candidate-engine convergence decisions"
       - "Provide statistical machinery needed for noise-robust near-miss / interaction discovery (05.5 handoff)"
     deliverables:
       - path: "src/agent/stats_core.py"
@@ -191,7 +192,7 @@ planned_phases:
           - "Compute mean, median, sample stddev (n-1), and CV; CV is None when mean is effectively zero"
           - "Implement percentile bootstrap CI for IID/right-skewed data with configurable B (default 2000), confidence_level (default 0.95), and seeded RNG"
           - "Compute lag-1 autocorrelation rho1=corr(x_t, x_{t-1})"
-          - "Compute ESS as n * (1-rho1)/(1+rho1) when rho1>0, else n"
+          - "Compute conservative ESS: for n>=8 use min(lag-1 ESS, initial-positive-sequence multi-lag ACF ESS); for n<8 use lag-1 ESS with ess_preliminary=True"
           - "Set autocorrelation_detected when rho1 > 0.3 and iid_assumption_valid to the inverse"
           - "If ESS < ESS_MIN (default 3), return verdict=inconclusive and never significant_improvement/significant_regression"
           - "When autocorrelation is detected, use moving block bootstrap instead of IID bootstrap"
@@ -205,8 +206,9 @@ planned_phases:
         requirements:
           - "RunSummaryHint adds n_measured, n_valid, n_invalid"
           - "RunSummaryHint adds effective_sample_size, lag1_autocorrelation, autocorrelation_warning"
+          - "RunSummaryHint adds ess_preliminary so downstream code can tell n<8 lag-1-only ESS from conservative n>=8 ACF ESS"
           - "All new numeric fields use finite validation consistent with existing score/summary fields"
-          - "StatisticalResult includes comparison, point_estimate, ci_low, ci_high, confidence_level, verdict, method, sample counts, ESS, rho1, autocorrelation flags, low_power, and notes"
+          - "StatisticalResult includes comparison, comparison_scope='single_comparison', adjusted_for_multiple_testing=False, point_estimate, ci_low, ci_high, confidence_level, verdict, method, sample counts, ESS, rho1, autocorrelation flags, low_power, and notes"
           - "StatisticalResult verdict enum: significant_improvement / significant_regression / inconclusive / no_difference"
           - "StatisticalResult method enum: iid_bootstrap / moving_block_bootstrap / paired_bootstrap"
       - path: "src/agent/skills/fake_gbs.py"
@@ -216,12 +218,23 @@ planned_phases:
           - "State exposure distinguishes within-trial pseudoreplicates from between-trial autocorrelation"
           - "No code for this item lands during design; implement in 08a.6"
     subtask_order:
-      - "08a.1 descriptive statistics + RunSummaryHint extension: mean/median/sample stddev/CV, n_measured/n_valid/n_invalid, ESS/rho1 fields"
+      - "08a.1 descriptive statistics + RunSummaryHint extension: mean/median/sample stddev/CV, n_measured/n_valid/n_invalid, conservative ESS/rho1 fields, ess_preliminary"
       - "08a.2 IID/right-skewed percentile bootstrap CI with seeded reproducibility"
       - "08a.3 lag-1 autocorrelation detection + ESS correction + low-power/inconclusive rules"
       - "08a.4 moving block bootstrap for autocorrelated sequences"
       - "08a.5 baseline normalized comparison + pair_key paired design + StatisticalResult verdict schema"
       - "08a.6 fake_gbs bursty state exposure in env_snapshot + phase closeout"
+    subtask_deliverable_notes:
+      "08a.4":
+        - "Define moving block bootstrap correlation-length/block-size behavior; keep 08a.1 limited to ESS/rho diagnostics."
+        - "Validate bursty simulations where multi-lag dependence is longer than lag-1 AR(1) predicts."
+      "08a.5":
+        - "Full StatisticalResult schema must use single_comparison naming, including comparison_scope='single_comparison' and adjusted_for_multiple_testing=False."
+        - "If exposing significance booleans, use significant_single_comparison, not bare significant."
+        - "Paired comparisons must preserve pair_order and still run autocorrelation/ESS checks over the paired difference sequence."
+        - "Layer verdict gates explicitly: low_power/inconclusive, no_difference, significant_improvement, significant_regression."
+        - "Defend base approximately zero in normalized improvement; do not divide by an unstable baseline mean."
+        - "Multiple-comparison correction is excluded from 08a and belongs to Phase 07 policy because 08a cannot observe global comparison count M."
     exit_criteria:
       - "Descriptive statistics and bootstrap CI are checked against an independent implementation (numpy/scipy or hand calculation) and match within documented tolerance"
       - "IID/right-skewed percentile bootstrap 95% CI has coverage approximately at nominal confidence on known-truth simulations"
@@ -236,6 +249,9 @@ planned_phases:
       - "Document how repeated combo evaluation, ESS, block bootstrap, and paired design feed candidate-engine near-miss detection"
     validation_plan: ["Synthetic and fake_gbs non-Gaussian data benchmarks", "Ubuntu fcntl regression"]
     scope_boundaries:
+      - "08a is pure statistics only; no candidate engine."
+      - "08a reports single_comparison semantics only; no Bonferroni/FDR/multiple-testing correction inside 08a."
+      - "fake_gbs burst state is test-only instrumentation, not a production statistical signal."
       - "No adaptive rerun policy; defer to 08b"
       - "No outlier deletion policy; defer to 08b"
       - "No sequential testing; defer to 08b"
