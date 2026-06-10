@@ -252,6 +252,24 @@ def test_run_summary_hint_rejects_ess_above_valid_count() -> None:
         RunSummaryHint(n_measured=2, n_valid=2, effective_sample_size=2.5)
 
 
+def test_run_summary_hint_accepts_iid_diagnostics() -> None:
+    hint = RunSummaryHint(
+        n_measured=8,
+        n_valid=8,
+        effective_sample_size=2.5,
+        ess_preliminary=False,
+        lag1_autocorrelation=0.5,
+        autocorrelation_detected=True,
+        iid_assumption_valid=False,
+        autocorrelation_warning=True,
+        low_power=True,
+    )
+
+    assert hint.autocorrelation_detected is True
+    assert hint.iid_assumption_valid is False
+    assert hint.low_power is True
+
+
 def test_score_parse_failed_requires_score_source_ref() -> None:
     payload = _record_payload(valid_for_scoring=False)
     payload.update(

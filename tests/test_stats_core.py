@@ -16,6 +16,7 @@ from agent import (
     compute_lag1_autocorrelation,
     compute_summary_effective_sample_size,
     compute_result_combo_hash,
+    diagnose_iid_assumption,
     iid_percentile_bootstrap_ci,
     measured_valid_scores,
     run_summary_hint,
@@ -56,6 +57,9 @@ def test_summarize_run_records_counts_measured_records_and_scores_only_valid() -
     assert hint.n_valid == 2
     assert hint.n_invalid == 1
     assert hint.ess_preliminary is True
+    assert hint.autocorrelation_detected is False
+    assert hint.iid_assumption_valid is True
+    assert hint.low_power is True
 
 
 def test_summary_uses_sample_stddev_and_none_cv_for_near_zero_mean() -> None:
@@ -169,6 +173,9 @@ def test_iid_percentile_bootstrap_ci_is_seeded_and_reports_mean_ci() -> None:
     assert first.method == IID_PERCENTILE_BOOTSTRAP_METHOD
     assert first.statistic == "mean"
     assert first.n == len(scores)
+    assert first.diagnostics.n == len(scores)
+    assert first.diagnostics.ess_preliminary is True
+    assert first.diagnostics.low_power is True
 
 
 def test_iid_percentile_bootstrap_ci_handles_single_sample() -> None:
@@ -208,6 +215,52 @@ def test_iid_percentile_bootstrap_ci_coverage_smoke_for_iid_distributions() -> N
     assert 0.86 <= right_skewed_coverage <= 0.98
 
 
+def test_iid_diagnostics_detect_high_lag1_autocorrelation() -> None:
+    scores = tuple(float(index) for index in range(1, 13))
+
+    diagnostics = diagnose_iid_assumption(scores)
+
+    assert diagnostics.n == len(scores)
+    assert diagnostics.lag1_autocorrelation == pytest.approx(1.0)
+    assert diagnostics.effective_sample_size == 0.0
+    assert diagnostics.ess_preliminary is False
+    assert diagnostics.autocorrelation_detected is True
+    assert diagnostics.iid_assumption_valid is False
+    assert diagnostics.low_power is True
+    assert diagnostics.confidence_warning is True
+    assert "autocorrelation_detected" in diagnostics.notes
+    assert "iid_ci_may_undercover" in diagnostics.notes
+    assert "low_effective_sample_size" in diagnostics.notes
+
+
+def test_iid_diagnostics_accept_weak_positive_autocorrelation() -> None:
+    scores = (0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0)
+
+    diagnostics = diagnose_iid_assumption(scores)
+
+    assert diagnostics.lag1_autocorrelation == pytest.approx(0.1)
+    assert diagnostics.autocorrelation_detected is False
+    assert diagnostics.iid_assumption_valid is True
+    assert diagnostics.low_power is False
+    assert diagnostics.confidence_warning is False
+
+
+def test_iid_bootstrap_ci_marks_autocorrelated_data_without_changing_method() -> None:
+    scores = tuple(float(index) for index in range(1, 13))
+
+    ci = iid_percentile_bootstrap_ci(
+        scores,
+        bootstrap_samples=100,
+        seed=11,
+    )
+
+    assert ci.method == IID_PERCENTILE_BOOTSTRAP_METHOD
+    assert ci.diagnostics.autocorrelation_detected is True
+    assert ci.diagnostics.iid_assumption_valid is False
+    assert ci.diagnostics.confidence_warning is True
+    assert ci.diagnostics.effective_sample_size == 0.0
+
+
 def test_lag1_and_ess_helpers_reject_invalid_inputs() -> None:
     with pytest.raises(ValueError, match="finite"):
         compute_lag1_autocorrelation((1.0, math.nan))
@@ -236,6 +289,17 @@ def test_iid_percentile_bootstrap_ci_rejects_invalid_inputs() -> None:
         iid_percentile_bootstrap_ci((1.0, 2.0), confidence_level=1.0)
     with pytest.raises(ValueError, match="positive"):
         iid_percentile_bootstrap_ci((1.0, 2.0), bootstrap_samples=0)
+
+
+def test_iid_diagnostics_reject_invalid_inputs() -> None:
+    with pytest.raises(ValueError, match="finite"):
+        diagnose_iid_assumption((1.0, math.nan))
+    with pytest.raises(ValueError, match="autocorrelation_threshold"):
+        diagnose_iid_assumption((1.0, 2.0), autocorrelation_threshold=math.nan)
+    with pytest.raises(ValueError, match="ess_min"):
+        diagnose_iid_assumption((1.0, 2.0), ess_min=math.inf)
+    with pytest.raises(ValueError, match="low_power"):
+        diagnose_iid_assumption((1.0, 2.0), low_power_measured_runs_max=-1)
 
 
 def test_valid_measured_record_without_score_is_rejected_defensively() -> None:

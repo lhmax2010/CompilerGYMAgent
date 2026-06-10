@@ -115,7 +115,10 @@ class RunSummaryHint(StrictResultSchemaModel):
     effective_sample_size: float | None = Field(default=None, ge=0)
     ess_preliminary: bool = False
     lag1_autocorrelation: float | None = Field(default=None, ge=-1, le=1)
+    autocorrelation_detected: bool = False
+    iid_assumption_valid: bool = True
     autocorrelation_warning: bool = False
+    low_power: bool = False
 
     @field_validator(
         "mean",

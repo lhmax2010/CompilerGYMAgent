@@ -23,6 +23,21 @@ IID_PERCENTILE_BOOTSTRAP_METHOD = "iid_percentile_bootstrap"
 
 
 @dataclass(frozen=True)
+class AutocorrelationDiagnostics:
+    """IID-assumption diagnostics for a measured score sequence."""
+
+    n: int
+    lag1_autocorrelation: float | None
+    effective_sample_size: float | None
+    ess_preliminary: bool
+    autocorrelation_detected: bool
+    iid_assumption_valid: bool
+    low_power: bool
+    confidence_warning: bool
+    notes: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class BootstrapConfidenceInterval:
     """Percentile bootstrap CI for a scalar statistic."""
 
@@ -34,6 +49,7 @@ class BootstrapConfidenceInterval:
     method: str
     statistic: str
     n: int
+    diagnostics: AutocorrelationDiagnostics
 
 
 @dataclass(frozen=True)
@@ -50,6 +66,8 @@ class DescriptiveStatistics:
     effective_sample_size: float | None
     ess_preliminary: bool
     lag1_autocorrelation: float | None
+    autocorrelation_detected: bool
+    iid_assumption_valid: bool
     autocorrelation_warning: bool
     low_power: bool
 
@@ -69,7 +87,10 @@ class DescriptiveStatistics:
             effective_sample_size=self.effective_sample_size,
             ess_preliminary=self.ess_preliminary,
             lag1_autocorrelation=self.lag1_autocorrelation,
+            autocorrelation_detected=self.autocorrelation_detected,
+            iid_assumption_valid=self.iid_assumption_valid,
             autocorrelation_warning=self.autocorrelation_warning,
+            low_power=self.low_power,
         )
 
 
@@ -105,6 +126,8 @@ def summarize_run_records(
             effective_sample_size=None,
             ess_preliminary=True,
             lag1_autocorrelation=None,
+            autocorrelation_detected=False,
+            iid_assumption_valid=True,
             autocorrelation_warning=False,
             low_power=True,
         )
@@ -116,15 +139,10 @@ def summarize_run_records(
         if math.isclose(average, 0.0, abs_tol=mean_zero_abs_tol)
         else abs(sample_stddev / average)
     )
-    rho1 = compute_lag1_autocorrelation(scores)
-    ess, ess_preliminary = compute_summary_effective_sample_size(scores, rho1=rho1)
-    autocorrelation_warning = (
-        rho1 is not None and rho1 > autocorrelation_threshold
-    )
-    # 08a.1 surfaces this as a diagnostic only. Verdict ownership, including
-    # low-power inconclusive policy, lands in 08a.3/08a.5.
-    low_power = n_valid <= LOW_POWER_MEASURED_RUNS_MAX or (
-        ess is not None and ess < ess_min
+    diagnostics = diagnose_iid_assumption(
+        scores,
+        autocorrelation_threshold=autocorrelation_threshold,
+        ess_min=ess_min,
     )
 
     return DescriptiveStatistics(
@@ -135,11 +153,13 @@ def summarize_run_records(
         median=float(median(scores)),
         sample_stddev=sample_stddev,
         cv=coefficient_of_variation,
-        effective_sample_size=ess,
-        ess_preliminary=ess_preliminary,
-        lag1_autocorrelation=rho1,
-        autocorrelation_warning=autocorrelation_warning,
-        low_power=low_power,
+        effective_sample_size=diagnostics.effective_sample_size,
+        ess_preliminary=diagnostics.ess_preliminary,
+        lag1_autocorrelation=diagnostics.lag1_autocorrelation,
+        autocorrelation_detected=diagnostics.autocorrelation_detected,
+        iid_assumption_valid=diagnostics.iid_assumption_valid,
+        autocorrelation_warning=diagnostics.autocorrelation_detected,
+        low_power=diagnostics.low_power,
     )
 
 
@@ -177,8 +197,8 @@ def iid_percentile_bootstrap_ci(
 ) -> BootstrapConfidenceInterval:
     """Return an IID percentile bootstrap CI for the sample mean.
 
-    This is the clean IID bootstrap used by 08a.2. Autocorrelation/ESS-aware CI
-    widening and moving block bootstrap selection belong to 08a.3/08a.4.
+    This is the clean IID bootstrap used by 08a.2. 08a.3 attaches diagnostics
+    only; corrected resampling/wider policy belongs to 08a.4/08a.5.
     """
 
     scores = tuple(float(value) for value in values)
@@ -211,6 +231,77 @@ def iid_percentile_bootstrap_ci(
         method=IID_PERCENTILE_BOOTSTRAP_METHOD,
         statistic="mean",
         n=n,
+        diagnostics=diagnose_iid_assumption(scores),
+    )
+
+
+def diagnose_iid_assumption(
+    values: Sequence[float],
+    *,
+    autocorrelation_threshold: float = AUTOCORRELATION_RHO_THRESHOLD,
+    ess_min: float = ESS_MIN,
+    low_power_measured_runs_max: int = LOW_POWER_MEASURED_RUNS_MAX,
+) -> AutocorrelationDiagnostics:
+    """Return autocorrelation/ESS diagnostics without changing the CI."""
+
+    scores = tuple(float(value) for value in values)
+    _validate_finite_sequence(scores)
+    n = len(scores)
+    if (
+        not math.isfinite(autocorrelation_threshold)
+        or autocorrelation_threshold < -1.0
+        or autocorrelation_threshold > 1.0
+    ):
+        raise ValueError("autocorrelation_threshold must be finite and between -1 and 1")
+    if not math.isfinite(ess_min) or ess_min < 0.0:
+        raise ValueError("ess_min must be finite and non-negative")
+    if low_power_measured_runs_max < 0:
+        raise ValueError("low_power_measured_runs_max must be non-negative")
+
+    if n == 0:
+        return AutocorrelationDiagnostics(
+            n=0,
+            lag1_autocorrelation=None,
+            effective_sample_size=None,
+            ess_preliminary=True,
+            autocorrelation_detected=False,
+            iid_assumption_valid=True,
+            low_power=True,
+            confidence_warning=True,
+            notes=("no_valid_scores", "low_power"),
+        )
+
+    rho1 = compute_lag1_autocorrelation(scores)
+    ess, ess_preliminary = compute_summary_effective_sample_size(scores, rho1=rho1)
+    autocorrelation_detected = (
+        rho1 is not None and rho1 > autocorrelation_threshold
+    )
+    low_power = n <= low_power_measured_runs_max or (
+        ess is not None and ess < ess_min
+    )
+    notes: list[str] = []
+    if autocorrelation_detected:
+        notes.append("autocorrelation_detected")
+        notes.append("iid_ci_may_undercover")
+    if ess_preliminary:
+        notes.append("ess_preliminary")
+    if ess is not None and ess < ess_min:
+        notes.append("low_effective_sample_size")
+    if n <= low_power_measured_runs_max:
+        notes.append("low_measured_run_count")
+    if low_power:
+        notes.append("low_power")
+
+    return AutocorrelationDiagnostics(
+        n=n,
+        lag1_autocorrelation=rho1,
+        effective_sample_size=ess,
+        ess_preliminary=ess_preliminary,
+        autocorrelation_detected=autocorrelation_detected,
+        iid_assumption_valid=not autocorrelation_detected,
+        low_power=low_power,
+        confidence_warning=autocorrelation_detected or low_power or ess_preliminary,
+        notes=tuple(dict.fromkeys(notes)),
     )
 
 
