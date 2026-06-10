@@ -1,7 +1,7 @@
 phase_id: phase_08a_statistics_core
 phase_title: "Baseline + Statistical Significance - Minimal Stats Core"
 started_at: 2026-06-10T15:15:45+08:00
-last_updated: 2026-06-10T18:03:41+08:00
+last_updated: 2026-06-10T18:24:19+08:00
 target_milestone: "M2 + M4 (partial)"
 related_requirements:
   - REQUIREMENTS.md section 4.8
@@ -36,7 +36,7 @@ pre_implementation_design_review:
 subtasks:
   - id: "08a.1"
     title: "descriptive statistics + RunSummaryHint extension"
-    status: in_progress
+    status: done
     files_created:
       - src/agent/stats_core.py
       - tests/test_stats_core.py
@@ -69,13 +69,19 @@ subtasks:
       - "No fake_gbs bursty state exposure until 08a.6."
     design_review_cleared: true
     implementation_complete: true
+    implementation_commit: ee0fe4b
     ut_required: true
     ut_passed: true
     local_validation:
       - "git diff --check passed."
       - "Targeted pytest passed: .venv\\Scripts\\python.exe -m pytest tests\\test_stats_core.py tests\\test_result_schema.py tests\\test_benchmark_skill.py -q -> 48 passed, 5 skipped."
       - "Full Windows pytest was run and remains platform-blocked outside 08a: .venv\\Scripts\\python.exe -m pytest tests\\ -q -> 24 failed, 554 passed, 51 skipped, 4 errors."
-    ubuntu_validation: pending
+    ubuntu_validation:
+      status: passed
+      validated_at: 2026-06-10T18:24:19+08:00
+      head: ee0fe4b77cf546bcea170734464265980481842a
+      targeted: "python -m pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py -q -> 53 passed in 0.83s"
+      full: "python -m pytest tests/ -q -> 631 passed in 7.70s"
     static_implementation_review:
       reviewer: Claude
       reviewed_at: 2026-06-10T15:31:00+08:00
@@ -114,4 +120,4 @@ subtasks:
   - id: "08a.6"
     title: "fake_gbs bursty state exposure in env_snapshot + phase closeout"
     status: planned
-next_action: "Commit/push 08a.1 review-aligned implementation to main, then run Ubuntu full validation."
+next_action: "Give Claude review range 7fe810b..ee0fe4b for 08a.1, then wait for approval before starting 08a.2."

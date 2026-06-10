@@ -12,14 +12,17 @@ pre_implementation_design_review:
 subtasks:
   - id: "08a.1"
     title: "descriptive statistics + RunSummaryHint extension"
-    status: in_progress
+    status: done
     implementation_complete: true
+    implementation_commit: ee0fe4b
     tests_passed: true
     patch_artifacts_generated: false
     external_review: approve_with_alignment_patch
-    ubuntu_validation: pending
+    ubuntu_validation: passed
     targeted_validation: "48 passed, 5 skipped on Windows Python 3.11"
     full_windows_validation: "24 failed, 554 passed, 51 skipped, 4 errors; failures are existing Windows/platform-sensitive non-08a paths."
+    ubuntu_targeted_validation: "53 passed in 0.83s at ee0fe4b77cf546bcea170734464265980481842a"
+    ubuntu_full_validation: "631 passed in 7.70s at ee0fe4b77cf546bcea170734464265980481842a"
     blocked_validation: null
     review_alignment:
       ess_conservative: true

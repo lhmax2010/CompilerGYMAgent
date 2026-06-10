@@ -23,7 +23,12 @@
     08a, concentrated in clean-trace CLI, filesystem mount inspection,
     process registry/state consistency, and trace cleanup tests.
 - Ubuntu validation:
-  - Pending external/server run.
+  - Environment: Ubuntu/Linux server, Python 3.11 via `uv sync`.
+  - Head: `ee0fe4b77cf546bcea170734464265980481842a`.
+  - Targeted command: `python -m pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py -q`
+  - Targeted result: `53 passed in 0.83s`.
+  - Full command: `python -m pytest tests/ -q`
+  - Full result: `631 passed in 7.70s`.
 - Non-Python validation:
   - `git diff --check` -> passed, with only Windows CRLF conversion warnings.
 - Claude static implementation review:

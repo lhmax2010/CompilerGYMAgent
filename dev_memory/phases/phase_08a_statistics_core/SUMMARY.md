@@ -50,6 +50,9 @@ Validation status:
   `.venv\Scripts\python.exe -m pytest tests\ -q`
   -> 24 failed, 554 passed, 51 skipped, 4 errors. Failures are existing
   Windows/platform-sensitive paths outside 08a and require Ubuntu validation.
+- Ubuntu pytest passed at `ee0fe4b77cf546bcea170734464265980481842a`:
+  - targeted stats/result/benchmark tests -> 53 passed in 0.83s,
+  - full `tests/` suite -> 631 passed in 7.70s.
 - Claude static implementation review approved with follow-ups; the Medium
   follow-ups were addressed before handoff.
 - External review alignment was applied and recorded in `DECISIONS.md`,

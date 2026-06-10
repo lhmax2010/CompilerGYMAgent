@@ -1,5 +1,20 @@
 # Development Progress
 
+## 2026-06-10T18:24:19+08:00 - 08a.1 Ubuntu validation passed
+
+- User validated `main` at `ee0fe4b77cf546bcea170734464265980481842a` on
+  Ubuntu/Linux after `uv sync`.
+- Targeted 08a.1 tests passed:
+  - `python -m pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py -q`
+  - Result: 53 passed in 0.83s.
+- Full suite passed:
+  - `python -m pytest tests/ -q`
+  - Result: 631 passed in 7.70s.
+- Marked 08a.1 implementation and Ubuntu validation as done in phase memory.
+
+Next action: give Claude review range `7fe810b..ee0fe4b` for 08a.1 and wait for
+approval before starting 08a.2.
+
 ## 2026-06-10T18:03:41+08:00 - 08a.1 review alignment applied before main push
 
 - Restored the 08a.1 implementation stash on `main`.
