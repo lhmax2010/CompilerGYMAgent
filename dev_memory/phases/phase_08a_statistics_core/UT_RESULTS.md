@@ -94,4 +94,9 @@
     08a, concentrated in clean-trace CLI, filesystem mount inspection,
     process registry/state consistency, and trace cleanup tests.
 - Ubuntu validation:
-  - Pending for 08a.3 after push.
+  - Environment: Ubuntu/Linux server, Python 3.11 via `uv sync --extra dev`.
+  - Head: `12ac2bb`.
+  - Targeted command: `python -m pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py -q`
+  - Targeted result: `62 passed in 1.49s`.
+  - Full command: `python -m pytest tests/ -q`
+  - Full result: `640 passed in 9.24s`.

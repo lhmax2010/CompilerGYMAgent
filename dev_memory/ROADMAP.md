@@ -19,7 +19,7 @@ Current phase:
 
 | State | Next phase | Why next |
 |---|---|---|
-| Phase 08a in progress | 08a.3 numerical review + Ubuntu validation | 08a.3 is implemented locally. It connects autocorrelation/ESS diagnostics to CI confidence marking without block bootstrap, ESS CI-width adjustment, or verdict gates. |
+| Phase 08a in progress | 08a.3 numerical review | 08a.3 is implemented and Ubuntu validated. It connects autocorrelation/ESS diagnostics to CI confidence marking without block bootstrap, ESS CI-width adjustment, or verdict gates. |
 
 08a review-alignment boundaries:
 

@@ -77,9 +77,11 @@ subtasks:
     tests_passed: true
     patch_artifacts_generated: false
     external_review: pending
-    ubuntu_validation: pending
+    ubuntu_validation: passed
     targeted_validation: "57 passed, 5 skipped on Windows Python 3.11"
     full_windows_validation: "24 failed, 563 passed, 51 skipped, 4 errors; failures are existing Windows/platform-sensitive non-08a paths."
+    ubuntu_targeted_validation: "62 passed in 1.49s at 12ac2bb"
+    ubuntu_full_validation: "640 passed in 9.24s at 12ac2bb"
     scope:
       diagnostics: implemented
       autocorrelation_threshold: "rho1 > 0.3"

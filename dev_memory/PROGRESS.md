@@ -1,5 +1,20 @@
 # Development Progress
 
+## 2026-06-11T10:06:30+08:00 - 08a.3 Ubuntu validation passed
+
+- User validated `main` at `12ac2bb` after fast-forward pull and
+  `uv sync --extra dev`.
+- Targeted 08a.3 tests passed:
+  - `python -m pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py -q`
+  - Result: 62 passed in 1.49s.
+- Full Linux/Ubuntu suite passed:
+  - `python -m pytest tests/ -q`
+  - Result: 640 passed in 9.24s.
+- Marked 08a.3 Ubuntu validation as passed in phase memory. External numerical
+  review remains pending.
+
+Next action: request external numerical review for range `aafa406..12ac2bb`.
+
 ## 2026-06-10T21:54:46+08:00 - 08a.3 IID-assumption diagnostics implemented
 
 - Added side-effect-free autocorrelation/ESS diagnostics:

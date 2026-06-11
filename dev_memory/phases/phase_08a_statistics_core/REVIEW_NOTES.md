@@ -245,6 +245,9 @@ Local validation:
   `.venv\Scripts\python.exe -m pytest tests\ -q`
   -> 24 failed, 563 passed, 51 skipped, 4 errors. Failures remain the known
   Windows/platform-sensitive non-08a paths.
+- Ubuntu validation at `12ac2bb`:
+  targeted stats/result/benchmark tests -> 62 passed in 1.49s; full `tests/`
+  suite -> 640 passed in 9.24s.
 
 Expected numerical review gate:
 

@@ -1,7 +1,7 @@
 phase_id: phase_08a_statistics_core
 phase_title: "Baseline + Statistical Significance - Minimal Stats Core"
 started_at: 2026-06-10T15:15:45+08:00
-last_updated: 2026-06-10T21:54:46+08:00
+last_updated: 2026-06-11T10:06:30+08:00
 target_milestone: "M2 + M4 (partial)"
 related_requirements:
   - REQUIREMENTS.md section 4.8
@@ -233,7 +233,11 @@ subtasks:
       - "IID percentile bootstrap keeps method=iid_percentile_bootstrap while attaching diagnostics for autocorrelated data."
     external_review_verdict: pending
     ubuntu_validation:
-      status: pending
+      status: passed
+      validated_at: 2026-06-11T10:06:30+08:00
+      head: 12ac2bb
+      targeted: "python -m pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py -q -> 62 passed in 1.49s"
+      full: "python -m pytest tests/ -q -> 640 passed in 9.24s"
   - id: "08a.4"
     title: "moving block bootstrap for autocorrelated sequences"
     status: planned
@@ -243,4 +247,4 @@ subtasks:
   - id: "08a.6"
     title: "fake_gbs bursty state exposure in env_snapshot + phase closeout"
     status: planned
-next_action: "Commit/push 08a.3 and request numerical review plus Ubuntu validation for range aafa406..HEAD."
+next_action: "Request external numerical review for 08a.3 range aafa406..12ac2bb; Ubuntu validation is passed."

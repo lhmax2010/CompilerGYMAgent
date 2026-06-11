@@ -134,7 +134,10 @@ Validation status:
 - Targeted 08a group -> 57 passed, 5 skipped in 1.35s.
 - Full Windows pytest -> 24 failed, 563 passed, 51 skipped, 4 errors. Failures
   are existing Windows/platform-sensitive paths outside 08a; Ubuntu validation
-  remains pending.
+  is required for Linux confidence.
+- Ubuntu pytest passed at `12ac2bb`:
+  - targeted stats/result/benchmark tests -> 62 passed in 1.49s,
+  - full `tests/` suite -> 640 passed in 9.24s.
 - External numerical review remains pending. Review should focus on known-rho
   autocorrelation detection and bursty naive-IID undercoverage motivation for
   08a.4.
