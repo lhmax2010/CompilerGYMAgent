@@ -1,7 +1,7 @@
 phase_id: phase_08a_statistics_core
 phase_title: "Baseline + Statistical Significance - Minimal Stats Core"
 started_at: 2026-06-10T15:15:45+08:00
-last_updated: 2026-06-11T20:50:55+08:00
+last_updated: 2026-06-11T21:06:04+08:00
 target_milestone: "M2 + M4 (partial)"
 related_requirements:
   - REQUIREMENTS.md section 4.8
@@ -258,11 +258,52 @@ subtasks:
       full: "python -m pytest tests/ -q -> 640 passed in 9.24s"
   - id: "08a.4"
     title: "moving block bootstrap for autocorrelated sequences"
-    status: planned
+    status: in_progress
+    files_created: []
+    files_modified:
+      - src/agent/stats_core.py
+      - src/agent/__init__.py
+      - tests/test_stats_core.py
+      - dev_memory/CURRENT_PHASE.yaml
+      - dev_memory/DECISIONS.md
+      - dev_memory/PROGRESS.md
+      - dev_memory/ROADMAP.yaml
+      - dev_memory/ROADMAP.md
+      - dev_memory/phases/phase_08a_statistics_core/CHECKLIST.yaml
+      - dev_memory/phases/phase_08a_statistics_core/REVIEW_NOTES.md
+      - dev_memory/phases/phase_08a_statistics_core/SUMMARY.md
+      - dev_memory/phases/phase_08a_statistics_core/UT_RESULTS.md
+    scope:
+      - "Add moving_block_bootstrap_ci() for moving-block percentile bootstrap CI over the sample mean."
+      - "Add autocorrelation_aware_bootstrap_ci() to select moving block only when autocorrelation_detected=True and n>5; otherwise keep IID bootstrap."
+      - "Add select_moving_block_size() using max(2, ceil(n^(1/3)), ceil(1/(1-rho1))) capped at n//2, with n<=5 returning None."
+      - "Expose MOVING_BLOCK_BOOTSTRAP_METHOD and CI block_size metadata for review and downstream consumers."
+      - "Resample overlapping contiguous blocks and truncate concatenated blocks back to n observations."
+    exclusions:
+      - "No StatisticalResult schema or verdict gates; defer to 08a.5."
+      - "No paired bootstrap or paired comparison logic; defer to 08a.5."
+      - "No candidate engine."
+      - "No adaptive/stationary bootstrap or automatic Hall-Horowitz-Jing block-size selection; defer to 08b."
+    implementation_complete: true
+    implementation_commit: 81f7287
+    ut_required: true
+    ut_passed: true
+    local_validation:
+      - "tests/test_stats_core.py -> 23 passed in 1.37s."
+      - "Targeted pytest passed: .venv\\Scripts\\python.exe -m pytest tests\\test_stats_core.py tests\\test_result_schema.py tests\\test_benchmark_skill.py -q -> 63 passed, 5 skipped in 1.37s."
+      - "Full Windows pytest was run and remains platform-blocked outside 08a: .venv\\Scripts\\python.exe -m pytest tests\\ -q -> 24 failed, 569 passed, 51 skipped, 4 errors."
+    review_gate:
+      - "Block-size helper covers n<=5 no-block, cube-root floor, rho correlation length, and n//2 cap."
+      - "Moving-block bootstrap is seeded, reports method=moving_block_bootstrap and block_size, and preserves contiguous block structure."
+      - "Auto CI selects moving block for detected autocorrelation and falls back to IID for weak autocorrelation or small low-power samples."
+      - "External numerical review should compare fake_gbs bursty moving-block coverage against the 08a.3 naive 73.0%/74.4% baseline."
+    external_review_verdict: pending
+    ubuntu_validation:
+      status: pending
   - id: "08a.5"
     title: "baseline normalized comparison + pair_key paired design + StatisticalResult verdict schema"
     status: planned
   - id: "08a.6"
     title: "fake_gbs bursty state exposure in env_snapshot + phase closeout"
     status: planned
-next_action: "Start 08a.4 moving block bootstrap and validate bursty coverage against the 08a.3 naive 73-74% baseline."
+next_action: "Run full local validation, commit/push 08a.4, then request external bursty coverage review and Ubuntu validation."

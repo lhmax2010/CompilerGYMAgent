@@ -19,7 +19,7 @@ Current phase:
 
 | State | Next phase | Why next |
 |---|---|---|
-| Phase 08a in progress | 08a.4 moving block bootstrap | 08a.3 is implemented, Ubuntu validated, and numerically reviewed. It established the fake_gbs bursty naive IID bootstrap baseline at 73-74% coverage, so 08a.4 must implement corrected moving block bootstrap and improve bursty coverage. |
+| Phase 08a in progress | 08a.4 bursty coverage review + Ubuntu validation | 08a.4 is implemented locally. It adds moving block bootstrap and autocorrelation-aware CI selection; review must compare bursty coverage against the 08a.3 naive IID 73-74% baseline. |
 
 08a review-alignment boundaries:
 

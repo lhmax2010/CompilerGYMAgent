@@ -1,5 +1,33 @@
 # Development Progress
 
+## 2026-06-11T21:06:04+08:00 - 08a.4 moving block bootstrap implemented
+
+- Added moving-block bootstrap support for autocorrelated score sequences:
+  - `MOVING_BLOCK_BOOTSTRAP_METHOD`,
+  - `moving_block_bootstrap_ci()`,
+  - `autocorrelation_aware_bootstrap_ci()`,
+  - `select_moving_block_size()`.
+- Block-size rule:
+  `max(2, ceil(n^(1/3)), ceil(1/(1-rho1)))`, capped at `n//2`; n<=5 returns
+  no block and the auto helper keeps IID bootstrap with low-power diagnostics.
+- Moving-block resampling uses overlapping contiguous blocks and truncates the
+  concatenated block sample back to n observations.
+- `BootstrapConfidenceInterval` now carries optional `block_size` metadata so
+  review/downstream code can distinguish IID vs moving-block output.
+- Preserved 08a.4 scope boundaries:
+  - no StatisticalResult schema or verdict gates,
+  - no paired bootstrap/comparison,
+  - no candidate engine,
+  - no adaptive/stationary bootstrap or advanced automatic block-size policy.
+- Local validation:
+  - `tests/test_stats_core.py` -> 23 passed in 1.37s,
+  - targeted 08a group -> 63 passed, 5 skipped in 1.37s,
+  - Windows full suite -> 24 failed, 569 passed, 51 skipped, 4 errors; failures
+    remain the known platform-sensitive non-08a paths.
+
+Next action: commit/push 08a.4 and request external bursty coverage review
+against the 08a.3 naive 73-74% baseline plus Ubuntu validation.
+
 ## 2026-06-11T20:50:55+08:00 - 08a.3 statistical correctness review approved
 
 - External numerical review approved 08a.3 for range `aafa406..12ac2bb`.

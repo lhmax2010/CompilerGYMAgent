@@ -105,12 +105,31 @@ subtasks:
         verdict_gates: deferred_08a_5
   - id: "08a.4"
     title: "moving block bootstrap for autocorrelated sequences"
-    status: planned
-    implementation_complete: false
-    tests_passed: false
+    status: in_progress
+    implementation_complete: true
+    implementation_commit: 81f7287
+    tests_passed: true
     patch_artifacts_generated: false
     external_review: pending
     ubuntu_validation: pending
+    stats_core_validation: "23 passed in 1.37s"
+    targeted_validation: "63 passed, 5 skipped on Windows Python 3.11"
+    full_windows_validation: "24 failed, 569 passed, 51 skipped, 4 errors; failures are existing Windows/platform-sensitive non-08a paths."
+    scope:
+      moving_block_bootstrap_ci: implemented
+      autocorrelation_aware_bootstrap_ci: implemented
+      block_size_formula: "max(2, ceil(n^(1/3)), ceil(1/(1-rho1))) capped at n//2; n<=5 returns no block"
+      method_metadata: implemented
+      contiguous_block_resampling: implemented
+      statistical_result_verdicts: deferred_08a_5
+      paired_comparison: deferred_08a_5
+      candidate_engine: excluded
+    review_gate:
+      seeded_reproducibility: implemented
+      block_size_formula_and_cap: implemented
+      contiguous_blocks_not_single_points: implemented
+      auto_method_selection: implemented
+      bursty_coverage_review: pending_external
   - id: "08a.5"
     title: "baseline normalized comparison + pair_key paired design + StatisticalResult verdict schema"
     status: planned

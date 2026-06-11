@@ -153,3 +153,37 @@ External review status:
     `iid_assumption_valid=False`.
 - The 73-74% naive bursty baseline is the comparison target for 08a.4 moving
   block bootstrap.
+
+## Subtask 08a.4 - moving block bootstrap
+
+Implemented scope:
+
+- Add `MOVING_BLOCK_BOOTSTRAP_METHOD`.
+- Add `moving_block_bootstrap_ci()` for moving-block percentile bootstrap CI
+  over the sample mean.
+- Add `autocorrelation_aware_bootstrap_ci()` to select moving block only for
+  detected autocorrelation with enough samples.
+- Add `select_moving_block_size()`:
+  `max(2, ceil(n^(1/3)), ceil(1/(1-rho1)))`, capped at `n//2`; n<=5 returns
+  no block.
+- Add `BootstrapConfidenceInterval.block_size` metadata.
+- Resample overlapping contiguous blocks with replacement and truncate each
+  bootstrap sample to n observations.
+- Add tests for seeded reproducibility, block-size formula/cap, contiguous
+  block resampling, auto method selection, n<=5 IID fallback, and invalid
+  moving-block inputs.
+
+Exclusions:
+
+- No StatisticalResult schema or verdict gates.
+- No paired comparison/bootstrap.
+- No candidate engine.
+- No adaptive/stationary bootstrap or advanced automatic block-size policy.
+
+Validation status:
+
+- `tests/test_stats_core.py` -> 23 passed in 1.37s.
+- Targeted 08a group -> 63 passed, 5 skipped in 1.37s.
+- Full Windows pytest -> 24 failed, 569 passed, 51 skipped, 4 errors. Failures
+  are existing Windows/platform-sensitive paths outside 08a.
+- External bursty coverage review and Ubuntu validation remain pending.

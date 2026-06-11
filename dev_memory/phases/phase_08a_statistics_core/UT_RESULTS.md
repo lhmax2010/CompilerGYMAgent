@@ -107,3 +107,27 @@
   - Naive IID bootstrap control coverage: 95.0%/93.4% on IID gaussian.
   - Naive IID bootstrap bursty coverage: 73.0%/74.4%, establishing the
     08a.4 moving-block-bootstrap comparison baseline.
+
+## Subtask 08a.4
+
+- Implementation status: complete locally, pending full Windows validation,
+  external bursty coverage review, and Ubuntu validation.
+- Added tests:
+  - block-size formula, rho correlation length, n//2 cap, and n<=5 no-block,
+  - moving-block seeded reproducibility and method/block_size metadata,
+  - contiguous-block resampling behavior,
+  - autocorrelation-aware method selection,
+  - weak-autocorrelation and small-sample IID fallback,
+  - invalid moving-block inputs.
+- Local stats-core validation:
+  - Command: `.venv\Scripts\python.exe -m pytest tests\test_stats_core.py -q`
+  - Result: `23 passed in 1.37s`.
+- Targeted local validation:
+  - Command: `.venv\Scripts\python.exe -m pytest tests\test_stats_core.py tests\test_result_schema.py tests\test_benchmark_skill.py -q`
+  - Result: `63 passed, 5 skipped in 1.37s`.
+- Full Windows validation:
+  - Command: `.venv\Scripts\python.exe -m pytest tests\ -q`
+  - Result: `24 failed, 569 passed, 51 skipped, 4 errors`.
+  - Scope note: failures are the known Windows/platform-sensitive paths outside
+    08a, concentrated in clean-trace CLI, filesystem mount inspection,
+    process registry/state consistency, and trace cleanup tests.

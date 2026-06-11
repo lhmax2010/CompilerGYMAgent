@@ -286,3 +286,51 @@ Review takeaway:
   proves that naive IID bootstrap is systematically overconfident under bursty
   autocorrelation and that moving block bootstrap must improve coverage toward
   the 08a exit criterion.
+
+## Subtask 08a.4 implementation notes - pending bursty coverage review
+
+- Scope: moving block bootstrap CI for autocorrelated score sequences.
+- Added:
+  - `MOVING_BLOCK_BOOTSTRAP_METHOD`,
+  - `moving_block_bootstrap_ci()`,
+  - `autocorrelation_aware_bootstrap_ci()`,
+  - `select_moving_block_size()`,
+  - optional `BootstrapConfidenceInterval.block_size` metadata.
+- Block-size rule:
+  `max(2, ceil(n^(1/3)), ceil(1/(1-rho1)))`, capped at `n//2`.
+- Small-sample rule:
+  n<=5 does not use block bootstrap. Direct `moving_block_bootstrap_ci()` rejects
+  it; `autocorrelation_aware_bootstrap_ci()` falls back to IID and preserves
+  diagnostics.
+- Resampling rule:
+  moving block bootstrap samples overlapping contiguous blocks with replacement
+  and truncates the concatenated sample back to n observations.
+- Auto-selection rule:
+  use moving block only when `diagnostics.autocorrelation_detected=True` and a
+  block size is available; otherwise return the clean IID percentile bootstrap.
+
+Scope exclusions preserved:
+
+- No StatisticalResult schema or verdict gates.
+- No paired comparison/bootstrap.
+- No candidate engine.
+- No adaptive/stationary bootstrap or advanced automatic block-size selection.
+
+Local validation:
+
+- `tests/test_stats_core.py` -> 23 passed in 1.37s.
+- Targeted 08a group:
+  `.venv\Scripts\python.exe -m pytest tests\test_stats_core.py tests\test_result_schema.py tests\test_benchmark_skill.py -q`
+  -> 63 passed, 5 skipped in 1.37s.
+- Windows full suite:
+  `.venv\Scripts\python.exe -m pytest tests\ -q`
+  -> 24 failed, 569 passed, 51 skipped, 4 errors. Failures remain the known
+  Windows/platform-sensitive non-08a paths.
+
+Expected numerical review gate:
+
+- Compare fake_gbs bursty moving-block coverage against the 08a.3 naive IID
+  baseline of 73.0%/74.4%.
+- Confirm method=`moving_block_bootstrap` and block_size metadata on detected
+  autocorrelation.
+- Confirm IID/weak-autocorrelation and n<=5 paths keep method=`iid_percentile_bootstrap`.

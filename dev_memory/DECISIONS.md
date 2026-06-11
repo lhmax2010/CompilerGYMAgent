@@ -1275,3 +1275,18 @@ Decision records must include:
   - Switch to moving block bootstrap inside `iid_percentile_bootstrap_ci()` when autocorrelation is detected. Rejected because it would make a method named IID choose a different resampling model and would collapse 08a.3/08a.4 boundaries.
   - Emit `inconclusive` verdicts directly from diagnostics. Rejected because verdict gates require baseline/candidate comparison semantics, no-difference handling, and single-comparison result schema from 08a.5.
   - Treat low measured run count as an execution failure. Rejected because low power is a statistical confidence condition, not a failed benchmark run.
+
+## 2026-06-11T21:06:04+08:00 - 08a.4 uses explicit moving-block bootstrap selection
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 08a
+  - REQUIREMENTS.md section 4.8
+  - REQUIREMENTS.md section 4.9
+  - REQUIREMENTS.md section 4.6.4
+- decision: 08a.4 implements moving-block percentile bootstrap as a separate method (`method="moving_block_bootstrap"`) and adds an autocorrelation-aware CI helper that selects it only when `autocorrelation_detected=True` and n>5. Block size is `max(2, ceil(n^(1/3)), ceil(1/(1-rho1)))` capped at `n//2`. n<=5 does not use block bootstrap; the auto helper falls back to IID with low-power diagnostics. The CI result carries optional `block_size` metadata so review and downstream code can see which resampling model was used.
+- rationale: 08a.3 proved fake_gbs bursty naive IID bootstrap can cover only about 73-74% for nominal 95% intervals. Moving block bootstrap preserves local dependence by resampling contiguous blocks while remaining simple enough for 08a. Keeping it in a distinct method avoids hiding autocorrelation policy inside the clean IID helper and gives 08a.5 a clear method signal for later verdict gates.
+- alternatives_considered:
+  - Always use moving block bootstrap. Rejected because IID and weak-autocorrelation data already have a validated IID percentile bootstrap baseline; unnecessary block resampling can add variance and obscure method semantics.
+  - Use block bootstrap for n<=5. Rejected because there are too few observations for stable block resampling; low power should remain explicit rather than producing a pretend corrected interval.
+  - Use stationary bootstrap or automatic Hall-Horowitz-Jing block-size selection. Rejected for 08a because those add policy complexity and tuning surface; they remain 08b advanced-noise-policy scope.
+  - Change `iid_percentile_bootstrap_ci()` to auto-switch methods. Rejected because method names must describe the actual resampling model, and callers should opt into autocorrelation-aware selection explicitly.
