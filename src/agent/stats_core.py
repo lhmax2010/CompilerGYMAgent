@@ -20,6 +20,7 @@ LOW_POWER_MEASURED_RUNS_MAX = 5
 DEFAULT_BOOTSTRAP_SAMPLES = 2000
 DEFAULT_CONFIDENCE_LEVEL = 0.95
 IID_PERCENTILE_BOOTSTRAP_METHOD = "iid_percentile_bootstrap"
+MOVING_BLOCK_BOOTSTRAP_METHOD = "moving_block_bootstrap"
 
 
 @dataclass(frozen=True)
@@ -50,6 +51,7 @@ class BootstrapConfidenceInterval:
     statistic: str
     n: int
     diagnostics: AutocorrelationDiagnostics
+    block_size: int | None = None
 
 
 @dataclass(frozen=True)
@@ -197,8 +199,8 @@ def iid_percentile_bootstrap_ci(
 ) -> BootstrapConfidenceInterval:
     """Return an IID percentile bootstrap CI for the sample mean.
 
-    This is the clean IID bootstrap used by 08a.2. 08a.3 attaches diagnostics
-    only; corrected resampling/wider policy belongs to 08a.4/08a.5.
+    This is the clean IID bootstrap used by 08a.2. Autocorrelation diagnostics
+    are attached, but the resampling model remains IID.
     """
 
     scores = tuple(float(value) for value in values)
@@ -233,6 +235,130 @@ def iid_percentile_bootstrap_ci(
         n=n,
         diagnostics=diagnose_iid_assumption(scores),
     )
+
+
+def moving_block_bootstrap_ci(
+    values: Sequence[float],
+    *,
+    confidence_level: float = DEFAULT_CONFIDENCE_LEVEL,
+    bootstrap_samples: int = DEFAULT_BOOTSTRAP_SAMPLES,
+    seed: int | str | bytes | bytearray | None = None,
+    block_size: int | None = None,
+) -> BootstrapConfidenceInterval:
+    """Return a moving-block percentile bootstrap CI for the sample mean."""
+
+    scores = tuple(float(value) for value in values)
+    _validate_finite_sequence(scores)
+    if not scores:
+        raise ValueError("values must not be empty")
+    _validate_confidence_level(confidence_level)
+    if bootstrap_samples <= 0:
+        raise ValueError("bootstrap_samples must be positive")
+
+    diagnostics = diagnose_iid_assumption(scores)
+    n = len(scores)
+    if n <= LOW_POWER_MEASURED_RUNS_MAX:
+        raise ValueError("moving block bootstrap requires more than 5 values")
+    selected_block_size = block_size
+    if selected_block_size is None:
+        selected_block_size = select_moving_block_size(
+            n,
+            rho1=diagnostics.lag1_autocorrelation,
+        )
+    _validate_block_size(selected_block_size, n)
+
+    rng = random.Random(seed)
+    bootstrap_means: list[float] = []
+    max_start = n - selected_block_size
+    blocks_needed = math.ceil(n / selected_block_size)
+    for _ in range(bootstrap_samples):
+        sample_sum = 0.0
+        sampled = 0
+        for _ in range(blocks_needed):
+            start = rng.randrange(max_start + 1)
+            stop = start + selected_block_size
+            for value in scores[start:stop]:
+                if sampled >= n:
+                    break
+                sample_sum += value
+                sampled += 1
+        bootstrap_means.append(sample_sum / n)
+    bootstrap_means.sort()
+
+    alpha = 1.0 - confidence_level
+    ci_low = _quantile_sorted(bootstrap_means, alpha / 2.0)
+    ci_high = _quantile_sorted(bootstrap_means, 1.0 - alpha / 2.0)
+    return BootstrapConfidenceInterval(
+        point_estimate=_mean(scores),
+        ci_low=ci_low,
+        ci_high=ci_high,
+        confidence_level=confidence_level,
+        bootstrap_samples=bootstrap_samples,
+        method=MOVING_BLOCK_BOOTSTRAP_METHOD,
+        statistic="mean",
+        n=n,
+        diagnostics=diagnostics,
+        block_size=selected_block_size,
+    )
+
+
+def autocorrelation_aware_bootstrap_ci(
+    values: Sequence[float],
+    *,
+    confidence_level: float = DEFAULT_CONFIDENCE_LEVEL,
+    bootstrap_samples: int = DEFAULT_BOOTSTRAP_SAMPLES,
+    seed: int | str | bytes | bytearray | None = None,
+) -> BootstrapConfidenceInterval:
+    """Use moving-block bootstrap when autocorrelation diagnostics require it."""
+
+    scores = tuple(float(value) for value in values)
+    _validate_finite_sequence(scores)
+    if not scores:
+        raise ValueError("values must not be empty")
+    _validate_confidence_level(confidence_level)
+    if bootstrap_samples <= 0:
+        raise ValueError("bootstrap_samples must be positive")
+
+    diagnostics = diagnose_iid_assumption(scores)
+    block_size = select_moving_block_size(
+        len(scores),
+        rho1=diagnostics.lag1_autocorrelation,
+    )
+    if diagnostics.autocorrelation_detected and block_size is not None:
+        return moving_block_bootstrap_ci(
+            scores,
+            confidence_level=confidence_level,
+            bootstrap_samples=bootstrap_samples,
+            seed=seed,
+            block_size=block_size,
+        )
+    return iid_percentile_bootstrap_ci(
+        scores,
+        confidence_level=confidence_level,
+        bootstrap_samples=bootstrap_samples,
+        seed=seed,
+    )
+
+
+def select_moving_block_size(n: int, *, rho1: float | None = None) -> int | None:
+    """Return the 08a moving-block size, or None when n is too small."""
+
+    if n < 0:
+        raise ValueError("n must be non-negative")
+    if rho1 is not None and not math.isfinite(rho1):
+        raise ValueError("rho1 must be finite")
+    if n <= LOW_POWER_MEASURED_RUNS_MAX:
+        return None
+
+    cube_root = math.ceil(n ** (1.0 / 3.0))
+    if rho1 is None or rho1 <= 0.0:
+        correlation_length = 1
+    elif rho1 >= 1.0:
+        correlation_length = n
+    else:
+        correlation_length = math.ceil((1.0 / (1.0 - rho1)) - 1e-12)
+    uncapped = max(2, cube_root, correlation_length)
+    return min(n // 2, uncapped)
 
 
 def diagnose_iid_assumption(
@@ -460,6 +586,13 @@ def _validate_confidence_level(confidence_level: float) -> None:
         raise ValueError("confidence_level must be finite")
     if confidence_level <= 0.0 or confidence_level >= 1.0:
         raise ValueError("confidence_level must be between 0 and 1")
+
+
+def _validate_block_size(block_size: int, n: int) -> None:
+    if block_size < 2:
+        raise ValueError("block_size must be at least 2")
+    if block_size > n:
+        raise ValueError("block_size must not exceed sample size")
 
 
 def _validate_finite_sequence(values: Iterable[float]) -> None:

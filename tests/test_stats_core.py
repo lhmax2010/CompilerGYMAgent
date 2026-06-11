@@ -9,7 +9,9 @@ import pytest
 from agent import (
     FailureClassification,
     IID_PERCENTILE_BOOTSTRAP_METHOD,
+    MOVING_BLOCK_BOOTSTRAP_METHOD,
     RunLevelRecord,
+    autocorrelation_aware_bootstrap_ci,
     compute_acf_effective_sample_size,
     compute_effective_sample_size,
     compute_lag_autocorrelation,
@@ -19,7 +21,9 @@ from agent import (
     diagnose_iid_assumption,
     iid_percentile_bootstrap_ci,
     measured_valid_scores,
+    moving_block_bootstrap_ci,
     run_summary_hint,
+    select_moving_block_size,
     summarize_run_records,
 )
 
@@ -261,6 +265,95 @@ def test_iid_bootstrap_ci_marks_autocorrelated_data_without_changing_method() ->
     assert ci.diagnostics.effective_sample_size == 0.0
 
 
+def test_select_moving_block_size_uses_cube_root_rho_and_cap() -> None:
+    assert select_moving_block_size(5, rho1=0.9) is None
+    assert select_moving_block_size(64, rho1=0.0) == 4
+    assert select_moving_block_size(40, rho1=0.8) == 5
+    assert select_moving_block_size(20, rho1=0.95) == 10
+    assert select_moving_block_size(12, rho1=1.0) == 6
+
+
+def test_moving_block_bootstrap_ci_is_seeded_and_reports_block_method() -> None:
+    scores = (1.0, 2.0, 3.0, 9.0, 10.0, 11.0, 3.0, 4.0, 5.0)
+
+    first = moving_block_bootstrap_ci(
+        scores,
+        confidence_level=0.90,
+        bootstrap_samples=40,
+        seed=23,
+        block_size=3,
+    )
+    second = moving_block_bootstrap_ci(
+        scores,
+        confidence_level=0.90,
+        bootstrap_samples=40,
+        seed=23,
+        block_size=3,
+    )
+
+    assert first == second
+    assert first.method == MOVING_BLOCK_BOOTSTRAP_METHOD
+    assert first.block_size == 3
+    assert first.statistic == "mean"
+    assert first.n == len(scores)
+    assert first.point_estimate == pytest.approx(sum(scores) / len(scores))
+    assert first.ci_low <= first.point_estimate <= first.ci_high
+
+
+def test_moving_block_bootstrap_resamples_contiguous_blocks() -> None:
+    scores = (1.0, 100.0, 1.0, 100.0, 1.0, 100.0)
+
+    ci = moving_block_bootstrap_ci(
+        scores,
+        bootstrap_samples=30,
+        seed=37,
+        block_size=2,
+    )
+
+    assert ci.point_estimate == 50.5
+    assert ci.ci_low == 50.5
+    assert ci.ci_high == 50.5
+
+
+def test_autocorrelation_aware_bootstrap_ci_selects_moving_block_when_detected() -> None:
+    scores = tuple(float(index) for index in range(1, 21))
+
+    ci = autocorrelation_aware_bootstrap_ci(
+        scores,
+        bootstrap_samples=80,
+        seed=17,
+    )
+
+    assert ci.method == MOVING_BLOCK_BOOTSTRAP_METHOD
+    assert ci.block_size == 10
+    assert ci.diagnostics.autocorrelation_detected is True
+    assert ci.diagnostics.iid_assumption_valid is False
+
+
+def test_autocorrelation_aware_bootstrap_ci_keeps_iid_for_weak_or_small_samples() -> None:
+    weak_scores = (0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0)
+    small_autocorrelated_scores = (1.0, 2.0, 3.0, 4.0, 5.0)
+
+    weak_ci = autocorrelation_aware_bootstrap_ci(
+        weak_scores,
+        bootstrap_samples=40,
+        seed=29,
+    )
+    small_ci = autocorrelation_aware_bootstrap_ci(
+        small_autocorrelated_scores,
+        bootstrap_samples=40,
+        seed=31,
+    )
+
+    assert weak_ci.method == IID_PERCENTILE_BOOTSTRAP_METHOD
+    assert weak_ci.block_size is None
+    assert weak_ci.diagnostics.autocorrelation_detected is False
+    assert small_ci.method == IID_PERCENTILE_BOOTSTRAP_METHOD
+    assert small_ci.block_size is None
+    assert small_ci.diagnostics.autocorrelation_detected is True
+    assert small_ci.diagnostics.low_power is True
+
+
 def test_lag1_and_ess_helpers_reject_invalid_inputs() -> None:
     with pytest.raises(ValueError, match="finite"):
         compute_lag1_autocorrelation((1.0, math.nan))
@@ -300,6 +393,25 @@ def test_iid_diagnostics_reject_invalid_inputs() -> None:
         diagnose_iid_assumption((1.0, 2.0), ess_min=math.inf)
     with pytest.raises(ValueError, match="low_power"):
         diagnose_iid_assumption((1.0, 2.0), low_power_measured_runs_max=-1)
+
+
+def test_moving_block_bootstrap_ci_rejects_invalid_inputs() -> None:
+    with pytest.raises(ValueError, match="empty"):
+        moving_block_bootstrap_ci(())
+    with pytest.raises(ValueError, match="finite"):
+        moving_block_bootstrap_ci((1.0, math.nan))
+    with pytest.raises(ValueError, match="positive"):
+        moving_block_bootstrap_ci((1.0, 2.0, 3.0, 4.0, 5.0, 6.0), bootstrap_samples=0)
+    with pytest.raises(ValueError, match="at least 2"):
+        moving_block_bootstrap_ci((1.0, 2.0, 3.0, 4.0, 5.0, 6.0), block_size=1)
+    with pytest.raises(ValueError, match="sample size"):
+        moving_block_bootstrap_ci((1.0, 2.0, 3.0, 4.0, 5.0, 6.0), block_size=7)
+    with pytest.raises(ValueError, match="more than 5"):
+        moving_block_bootstrap_ci((1.0, 2.0, 3.0, 4.0, 5.0))
+    with pytest.raises(ValueError, match="non-negative"):
+        select_moving_block_size(-1, rho1=None)
+    with pytest.raises(ValueError, match="finite"):
+        select_moving_block_size(10, rho1=math.inf)
 
 
 def test_valid_measured_record_without_score_is_rejected_defensively() -> None:
