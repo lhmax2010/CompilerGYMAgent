@@ -19,7 +19,7 @@ Current phase:
 
 | State | Next phase | Why next |
 |---|---|---|
-| Phase 08a in progress | 08a.3 numerical review | 08a.3 is implemented and Ubuntu validated. It connects autocorrelation/ESS diagnostics to CI confidence marking without block bootstrap, ESS CI-width adjustment, or verdict gates. |
+| Phase 08a in progress | 08a.4 moving block bootstrap | 08a.3 is implemented, Ubuntu validated, and numerically reviewed. It established the fake_gbs bursty naive IID bootstrap baseline at 73-74% coverage, so 08a.4 must implement corrected moving block bootstrap and improve bursty coverage. |
 
 08a review-alignment boundaries:
 
@@ -37,6 +37,9 @@ Current phase:
 - 08a.3 attaches autocorrelation/ESS diagnostics to IID CI outputs but does not
   correct CI width. Moving block bootstrap remains 08a.4; verdict gates remain
   08a.5.
+- 08a.3 measured the naive bursty undercoverage baseline: nominal 95% IID
+  bootstrap covered only 73.0%/74.4% on fake_gbs bursty simulations. 08a.4
+  should use this as the direct before/after coverage comparison.
 
 Next implementation phases:
 

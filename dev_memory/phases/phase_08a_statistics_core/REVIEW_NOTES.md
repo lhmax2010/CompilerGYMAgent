@@ -258,3 +258,31 @@ Expected numerical review gate:
   autocorrelation flag.
 - Bursty simulations should demonstrate why the attached warning matters:
   naive IID bootstrap may undercover, motivating 08a.4 moving block bootstrap.
+
+## Subtask 08a.3 statistical correctness review - approve
+
+- Reviewed at: `2026-06-11T20:50:55+08:00`.
+- Range: `aafa406..12ac2bb`.
+- Verdict: Approve.
+- Findings: no Critical, High, Medium, or Low findings.
+- Scope review:
+  - no moving block bootstrap,
+  - no verdict gates or StatisticalResult,
+  - no candidate engine.
+
+Numerical validation results:
+
+| Check | Result |
+|---|---|
+| autocorrelation threshold | Passed: phi=0.2 produced rho ~= 0.21 and did not trigger; phi=0.5/0.7 triggered and marked IID invalid |
+| naive IID bootstrap control | Passed: IID gaussian nominal 95% coverage was 95.0%/93.4% |
+| naive bursty undercoverage | Passed: fake_gbs bursty nominal 95% IID bootstrap covered only 73.0%/74.4% |
+| bursty detection | Passed: real fake_gbs bursty rho ~= 0.333 triggered `autocorrelation_detected=True` and `iid_assumption_valid=False` |
+| ESS integration | Passed: conservative min(lag1, ACF) and preliminary marking behaved correctly |
+
+Review takeaway:
+
+- The 73-74% bursty coverage result is the empirical baseline for 08a.4. It
+  proves that naive IID bootstrap is systematically overconfident under bursty
+  autocorrelation and that moving block bootstrap must improve coverage toward
+  the 08a exit criterion.

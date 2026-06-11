@@ -1,7 +1,7 @@
 phase_id: phase_08a_statistics_core
 phase_title: "Baseline + Statistical Significance - Minimal Stats Core"
 started_at: 2026-06-10T15:15:45+08:00
-last_updated: 2026-06-11T10:06:30+08:00
+last_updated: 2026-06-11T20:50:55+08:00
 target_milestone: "M2 + M4 (partial)"
 related_requirements:
   - REQUIREMENTS.md section 4.8
@@ -190,7 +190,7 @@ subtasks:
     external_review_verdict: approve
   - id: "08a.3"
     title: "lag-1 autocorrelation detection + ESS correction + low-power/inconclusive rules"
-    status: in_progress
+    status: done
     files_created: []
     files_modified:
       - src/agent/stats_core.py
@@ -231,7 +231,25 @@ subtasks:
       - "Known autocorrelated monotone sequence: rho1 ~= 1.0, autocorrelation_detected=True, iid_assumption_valid=False, ESS=0.0, confidence_warning=True."
       - "Weak positive autocorrelation sequence: rho1 ~= 0.1, autocorrelation_detected=False, iid_assumption_valid=True, confidence_warning=False."
       - "IID percentile bootstrap keeps method=iid_percentile_bootstrap while attaching diagnostics for autocorrelated data."
-    external_review_verdict: pending
+    statistical_correctness_review:
+      reviewer: external
+      reviewed_at: 2026-06-11T20:50:55+08:00
+      range: "aafa406..12ac2bb"
+      verdict: approve
+      critical_findings: 0
+      high_findings: 0
+      medium_findings: 0
+      low_findings: 0
+      numerical_validation:
+        - "Autocorrelation threshold validated: phi=0.2 produced rho ~= 0.21 and did not trigger; phi=0.5/0.7 triggered and marked iid_assumption_valid=False."
+        - "Naive IID bootstrap undercoverage motivation validated: IID gaussian 95% CI coverage stayed near nominal at 95.0%/93.4%, while fake_gbs bursty naive coverage fell to 73.0%/74.4%."
+        - "Real fake_gbs bursty sequence with rho ~= 0.333 triggered autocorrelation_detected=True and iid_assumption_valid=False."
+        - "ESS diagnostic integration stayed conservative with min(lag1, ACF) and correct preliminary marking."
+      scope_review:
+        - "No moving block bootstrap in 08a.3."
+        - "No verdict gates or StatisticalResult in 08a.3."
+      review_takeaway: "08a.3 proves the 08a autocorrelation motivation: naive IID bootstrap can claim 95% confidence while covering only about 73-74% on bursty data."
+    external_review_verdict: approve
     ubuntu_validation:
       status: passed
       validated_at: 2026-06-11T10:06:30+08:00
@@ -247,4 +265,4 @@ subtasks:
   - id: "08a.6"
     title: "fake_gbs bursty state exposure in env_snapshot + phase closeout"
     status: planned
-next_action: "Request external numerical review for 08a.3 range aafa406..12ac2bb; Ubuntu validation is passed."
+next_action: "Start 08a.4 moving block bootstrap and validate bursty coverage against the 08a.3 naive 73-74% baseline."

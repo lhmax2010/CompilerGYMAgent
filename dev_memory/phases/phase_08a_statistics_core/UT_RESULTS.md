@@ -100,3 +100,10 @@
   - Targeted result: `62 passed in 1.49s`.
   - Full command: `python -m pytest tests/ -q`
   - Full result: `640 passed in 9.24s`.
+- External statistical correctness review:
+  - Range: `aafa406..12ac2bb`.
+  - Verdict: approve, no Critical/High/Medium/Low findings.
+  - Autocorrelation threshold check passed for phi=0.2 vs phi=0.5/0.7.
+  - Naive IID bootstrap control coverage: 95.0%/93.4% on IID gaussian.
+  - Naive IID bootstrap bursty coverage: 73.0%/74.4%, establishing the
+    08a.4 moving-block-bootstrap comparison baseline.

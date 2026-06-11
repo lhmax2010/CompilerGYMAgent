@@ -1,6 +1,6 @@
 # dev_memory/ROADMAP.yaml
 roadmap_version: 1
-last_updated: 2026-06-11T10:06:30+08:00
+last_updated: 2026-06-11T20:50:55+08:00
 status: active
 
 # ============================================================
@@ -231,6 +231,7 @@ planned_phases:
       "08a.4":
         - "Define moving block bootstrap correlation-length/block-size behavior; keep 08a.1 limited to ESS/rho diagnostics."
         - "Validate bursty simulations where multi-lag dependence is longer than lag-1 AR(1) predicts."
+        - "Use the 08a.3 fake_gbs bursty naive IID baseline of 73.0%/74.4% coverage as the before/after comparison target."
       "08a.3":
         - "Connect autocorrelation detection and ESS diagnostics to CI confidence metadata only; do not implement block bootstrap or verdict gates."
         - "Review gate uses known-rho sequences for rho1>0.3 detection and bursty simulations to demonstrate naive IID bootstrap undercoverage motivation for 08a.4."

@@ -138,6 +138,18 @@ Validation status:
 - Ubuntu pytest passed at `12ac2bb`:
   - targeted stats/result/benchmark tests -> 62 passed in 1.49s,
   - full `tests/` suite -> 640 passed in 9.24s.
-- External numerical review remains pending. Review should focus on known-rho
-  autocorrelation detection and bursty naive-IID undercoverage motivation for
-  08a.4.
+- External numerical review approved 08a.3; 08a.4 should use the same bursty
+  simulation setup to verify moving block bootstrap coverage improvement.
+
+External review status:
+
+- External statistical correctness review approved 08a.3 with no Critical,
+  High, Medium, or Low findings.
+- Numerical checks confirmed:
+  - threshold behavior for phi=0.2 vs phi=0.5/0.7,
+  - IID gaussian nominal 95% bootstrap coverage near nominal at 95.0%/93.4%,
+  - fake_gbs bursty naive IID bootstrap undercoverage at 73.0%/74.4%,
+  - real bursty sequence detection with rho ~= 0.333 and
+    `iid_assumption_valid=False`.
+- The 73-74% naive bursty baseline is the comparison target for 08a.4 moving
+  block bootstrap.

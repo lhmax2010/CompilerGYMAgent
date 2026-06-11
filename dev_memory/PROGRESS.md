@@ -1,5 +1,23 @@
 # Development Progress
 
+## 2026-06-11T20:50:55+08:00 - 08a.3 statistical correctness review approved
+
+- External numerical review approved 08a.3 for range `aafa406..12ac2bb`.
+- Findings: no Critical, High, Medium, or Low findings.
+- Autocorrelation detection validated:
+  - phi=0.2 produced rho ~= 0.21 and did not trigger,
+  - phi=0.5 and phi=0.7 triggered and marked `iid_assumption_valid=False`.
+- Core motivation baseline validated:
+  - IID gaussian nominal 95% CI coverage stayed near nominal at 95.0%/93.4%,
+  - fake_gbs bursty naive IID bootstrap coverage fell to 73.0%/74.4%.
+- Real fake_gbs bursty sequence with rho ~= 0.333 triggered
+  `autocorrelation_detected=True` and `iid_assumption_valid=False`.
+- Scope confirmed clean: no moving block bootstrap, no StatisticalResult, and
+  no verdict gates in 08a.3.
+
+Next action: implement 08a.4 moving block bootstrap and validate that bursty
+coverage improves against the 08a.3 naive 73-74% baseline.
+
 ## 2026-06-11T10:06:30+08:00 - 08a.3 Ubuntu validation passed
 
 - User validated `main` at `12ac2bb` after fast-forward pull and

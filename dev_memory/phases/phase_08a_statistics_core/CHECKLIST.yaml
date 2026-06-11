@@ -71,12 +71,13 @@ subtasks:
         verdict_gates: deferred_08a_5
   - id: "08a.3"
     title: "lag-1 autocorrelation detection + ESS correction + low-power/inconclusive rules"
-    status: in_progress
+    status: done
     implementation_complete: true
     implementation_commit: 7b27eef
     tests_passed: true
     patch_artifacts_generated: false
-    external_review: pending
+    external_review: approve
+    statistical_correctness_review: approve
     ubuntu_validation: passed
     targeted_validation: "57 passed, 5 skipped on Windows Python 3.11"
     full_windows_validation: "24 failed, 563 passed, 51 skipped, 4 errors; failures are existing Windows/platform-sensitive non-08a paths."
@@ -96,6 +97,8 @@ subtasks:
       known_high_autocorrelation_detection: implemented
       weak_autocorrelation_not_detected: implemented
       iid_bootstrap_method_preserved: implemented
+      naive_bursty_undercoverage_baseline: "73.0%/74.4% coverage for nominal 95% IID bootstrap on fake_gbs bursty simulations"
+      iid_gaussian_control_coverage: "95.0%/93.4%"
       scope_clean:
         block_bootstrap: deferred_08a_4
         ess_ci_adjustment: deferred_08a_4
