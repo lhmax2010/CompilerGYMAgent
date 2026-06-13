@@ -105,16 +105,18 @@ subtasks:
         verdict_gates: deferred_08a_5
   - id: "08a.4"
     title: "moving block bootstrap for autocorrelated sequences"
-    status: in_progress
+    status: done
     implementation_complete: true
     implementation_commit: 81f7287
     tests_passed: true
     patch_artifacts_generated: false
-    external_review: pending
-    ubuntu_validation: pending
+    external_review: approve_with_finding
+    statistical_correctness_review: approve_with_finding
+    ubuntu_validation: passed
     stats_core_validation: "23 passed in 1.37s"
     targeted_validation: "63 passed, 5 skipped on Windows Python 3.11"
     full_windows_validation: "24 failed, 569 passed, 51 skipped, 4 errors; failures are existing Windows/platform-sensitive non-08a paths."
+    linux_full_validation: "646 passed at 338232b per external 08a.4 review"
     scope:
       moving_block_bootstrap_ci: implemented
       autocorrelation_aware_bootstrap_ci: implemented
@@ -129,7 +131,8 @@ subtasks:
       block_size_formula_and_cap: implemented
       contiguous_blocks_not_single_points: implemented
       auto_method_selection: implemented
-      bursty_coverage_review: pending_external
+      bursty_coverage_review: approve_with_finding
+      medium_followup_med_1: "Moving block improves bursty coverage but remains below >=90% for smaller n; 08a.5 verdict gates must mark underpowered/autocorrelated cases low_power/inconclusive."
   - id: "08a.5"
     title: "baseline normalized comparison + pair_key paired design + StatisticalResult verdict schema"
     status: planned
@@ -138,6 +141,9 @@ subtasks:
     patch_artifacts_generated: false
     external_review: pending
     ubuntu_validation: pending
+    inherited_followups:
+      - "From 08a.4 Med-1: underpowered/autocorrelated bursty cases where CI coverage remains below nominal must be low_power/inconclusive, not significant."
+      - "Do not treat moving block bootstrap alone as sufficient proof of significance for n=20-40 bursty sequences."
   - id: "08a.6"
     title: "fake_gbs bursty state exposure in env_snapshot + phase closeout"
     status: planned

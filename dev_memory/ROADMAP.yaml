@@ -1,6 +1,6 @@
 # dev_memory/ROADMAP.yaml
 roadmap_version: 1
-last_updated: 2026-06-11T21:06:04+08:00
+last_updated: 2026-06-13T09:34:11+08:00
 status: active
 
 # ============================================================
@@ -233,6 +233,7 @@ planned_phases:
         - "Validate bursty simulations where multi-lag dependence is longer than lag-1 AR(1) predicts."
         - "Use the 08a.3 fake_gbs bursty naive IID baseline of 73.0%/74.4% coverage as the before/after comparison target."
         - "Implementation uses overlapping contiguous moving blocks, exposes block_size metadata, and keeps n<=5 on IID fallback through the autocorrelation-aware helper."
+        - "Review approved with Med-1: moving block improves bursty coverage but remains below 90% at smaller n; pass low-power/inconclusive handling to 08a.5."
       "08a.3":
         - "Connect autocorrelation detection and ESS diagnostics to CI confidence metadata only; do not implement block bootstrap or verdict gates."
         - "Review gate uses known-rho sequences for rho1>0.3 detection and bursty simulations to demonstrate naive IID bootstrap undercoverage motivation for 08a.4."
@@ -242,12 +243,13 @@ planned_phases:
         - "If exposing significance booleans, use significant_single_comparison, not bare significant."
         - "Paired comparisons must preserve pair_order and still run autocorrelation/ESS checks over the paired difference sequence."
         - "Layer verdict gates explicitly: low_power/inconclusive, no_difference, significant_improvement, significant_regression."
+        - "Carry 08a.4 Med-1: small-n/severe-bursty cases where moving block coverage remains below nominal must produce low_power/inconclusive rather than significant verdicts."
         - "Defend base approximately zero in normalized improvement; do not divide by an unstable baseline mean."
         - "Multiple-comparison correction is excluded from 08a and belongs to Phase 07 policy because 08a cannot observe global comparison count M."
     exit_criteria:
       - "Descriptive statistics and bootstrap CI are checked against an independent implementation (numpy/scipy or hand calculation) and match within documented tolerance"
       - "IID/right-skewed percentile bootstrap 95% CI has coverage approximately at nominal confidence on known-truth simulations"
-      - "ESS-corrected/block-bootstrap CI reaches >=90% coverage on bursty simulations, while naive IID bootstrap demonstrates the expected undercoverage (~75-80%)"
+      - "For adequately powered bursty simulations, ESS-corrected/block-bootstrap CI reaches >=90% coverage; underpowered small-n/severe-bursty cases are marked low_power/inconclusive rather than significant"
       - "ESS too low (n_eff < ESS_MIN) returns verdict=inconclusive and never significant_improvement/significant_regression"
       - "Autocorrelation detection tests cover rho1<=0, weak positive rho1, and rho1>0.3"
       - "Moving block bootstrap preserves autocorrelation structure and is selected when autocorrelation_detected=True"

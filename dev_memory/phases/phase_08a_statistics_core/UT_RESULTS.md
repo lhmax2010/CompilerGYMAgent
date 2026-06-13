@@ -131,3 +131,10 @@
   - Scope note: failures are the known Windows/platform-sensitive paths outside
     08a, concentrated in clean-trace CLI, filesystem mount inspection,
     process registry/state consistency, and trace cleanup tests.
+- Linux validation:
+  - Full result from external review: `646 passed` at `338232b`.
+- External statistical correctness review:
+  - Range: `5957109..338232b`.
+  - Verdict: approve with finding, one Medium follow-up.
+  - Moving block improved fake_gbs bursty coverage over naive IID but remained
+    below 90% at smaller n; carry low-power/inconclusive handling into 08a.5.

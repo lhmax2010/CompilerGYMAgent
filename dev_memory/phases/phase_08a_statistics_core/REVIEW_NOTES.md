@@ -334,3 +334,51 @@ Expected numerical review gate:
 - Confirm method=`moving_block_bootstrap` and block_size metadata on detected
   autocorrelation.
 - Confirm IID/weak-autocorrelation and n<=5 paths keep method=`iid_percentile_bootstrap`.
+
+## Subtask 08a.4 statistical correctness review - approve with Med-1
+
+- Reviewed at: `2026-06-13T09:34:11+08:00`.
+- Range: `5957109..338232b`.
+- Code commit: `81f7287`.
+- Verdict: Approve with finding.
+- Findings:
+  - Critical: 0.
+  - High: 0.
+  - Medium: 1.
+  - Low: 0.
+- Scope review:
+  - no StatisticalResult or verdict gates,
+  - no paired comparison/bootstrap,
+  - no candidate engine.
+
+Med-1:
+
+- Moving block bootstrap improves fake_gbs bursty coverage over naive IID, but
+  it does not by itself reach the original >=90% coverage wording for smaller n.
+- Coverage observations:
+  - n=20: naive IID 73.0%, moving block 78.0%, autocorrelation-aware 76.8%.
+  - n=40: naive IID 74.4%, moving block 83.0%, autocorrelation-aware 80.6%.
+  - n=60: moving block 82.0%.
+  - n=100: moving block 88.5%.
+- Review assessment: block size sweeps and method checks did not show an
+  implementation bug. The result reflects small n plus severe burstiness.
+- Disposition: not an 08a.4 blocker. Carry this into 08a.5 verdict gates so
+  underpowered/autocorrelated bursty comparisons become low_power/inconclusive,
+  not significant.
+
+Numerical validation passed:
+
+| Check | Result |
+|---|---|
+| block-size formula | Passed: cube-root/rho correlation length/n//2 cap behavior verified |
+| n<=5 fallback | Passed: selector returns no block; direct moving block rejects; auto helper keeps IID |
+| method metadata | Passed: `moving_block_bootstrap` vs `iid_percentile_bootstrap` reported correctly |
+| block_size metadata | Passed |
+| scope boundary | Passed |
+| Linux validation | Passed: 646 tests according to external review |
+
+Review takeaway:
+
+- 08a.4 provides the corrected resampling method and improves over the naive
+  73-74% baseline. Final statistical safety now depends on 08a.5 layering
+  ESS/low-power verdict gates over the CI output.

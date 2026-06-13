@@ -1,7 +1,7 @@
 phase_id: phase_08a_statistics_core
 phase_title: "Baseline + Statistical Significance - Minimal Stats Core"
 started_at: 2026-06-10T15:15:45+08:00
-last_updated: 2026-06-11T21:06:04+08:00
+last_updated: 2026-06-13T09:34:11+08:00
 target_milestone: "M2 + M4 (partial)"
 related_requirements:
   - REQUIREMENTS.md section 4.8
@@ -258,7 +258,7 @@ subtasks:
       full: "python -m pytest tests/ -q -> 640 passed in 9.24s"
   - id: "08a.4"
     title: "moving block bootstrap for autocorrelated sequences"
-    status: in_progress
+    status: done
     files_created: []
     files_modified:
       - src/agent/stats_core.py
@@ -297,13 +297,43 @@ subtasks:
       - "Moving-block bootstrap is seeded, reports method=moving_block_bootstrap and block_size, and preserves contiguous block structure."
       - "Auto CI selects moving block for detected autocorrelation and falls back to IID for weak autocorrelation or small low-power samples."
       - "External numerical review should compare fake_gbs bursty moving-block coverage against the 08a.3 naive 73.0%/74.4% baseline."
-    external_review_verdict: pending
+    statistical_correctness_review:
+      reviewer: external
+      reviewed_at: 2026-06-13T09:34:11+08:00
+      range: "5957109..338232b"
+      verdict: approve_with_finding
+      critical_findings: 0
+      high_findings: 0
+      medium_findings: 1
+      low_findings: 0
+      medium_followups:
+        - id: Med-1
+          title: "Moving block bootstrap improves bursty coverage but does not by itself reach >=90% for smaller n."
+          details:
+            - "fake_gbs bursty nominal 95% coverage: naive IID n=20 -> 73.0%, moving block n=20 -> 78.0%, autocorrelation-aware n=20 -> 76.8%."
+            - "fake_gbs bursty nominal 95% coverage: naive IID n=40 -> 74.4%, moving block n=40 -> 83.0%, autocorrelation-aware n=40 -> 80.6%."
+            - "moving block n=60 -> 82.0%; n=100 -> 88.5%, approaching but still below the original >=90% wording."
+            - "Block-size sweeps did not reveal a simple implementation bug; coverage appears limited by small n plus burst severity, not by method wiring."
+          disposition: "Not an 08a.4 blocker. Carry into 08a.5 verdict gates: underpowered/autocorrelated bursty data must be low_power/inconclusive rather than significant."
+      numerical_validation:
+        - "Block-size formula, n<=5 fallback, method metadata, and scope boundaries passed review."
+        - "moving_block_bootstrap improves fake_gbs bursty coverage over naive IID but does not guarantee >=90% at n=20-40."
+        - "autocorrelation_aware_bootstrap_ci selects IID for weak/non-autocorrelated data and moving_block_bootstrap for detected autocorrelation."
+      scope_review:
+        - "No StatisticalResult or verdict gates in 08a.4."
+        - "No paired bootstrap or paired comparison in 08a.4."
+        - "No candidate engine in 08a.4."
+      review_takeaway: "08a.4 corrected the resampling model, but final safety depends on 08a.5 verdict gates that turn low-power/autocorrelated bursty cases inconclusive."
+    external_review_verdict: approve_with_finding
     ubuntu_validation:
-      status: pending
+      status: passed
+      validated_at: 2026-06-13T09:34:11+08:00
+      head: 338232b
+      full: "Linux full suite -> 646 passed per external 08a.4 review."
   - id: "08a.5"
     title: "baseline normalized comparison + pair_key paired design + StatisticalResult verdict schema"
     status: planned
   - id: "08a.6"
     title: "fake_gbs bursty state exposure in env_snapshot + phase closeout"
     status: planned
-next_action: "Run full local validation, commit/push 08a.4, then request external bursty coverage review and Ubuntu validation."
+next_action: "Start 08a.5 StatisticalResult/verdict gates with Med-1 low-power/inconclusive handling."

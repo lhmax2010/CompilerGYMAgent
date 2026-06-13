@@ -1290,3 +1290,18 @@ Decision records must include:
   - Use block bootstrap for n<=5. Rejected because there are too few observations for stable block resampling; low power should remain explicit rather than producing a pretend corrected interval.
   - Use stationary bootstrap or automatic Hall-Horowitz-Jing block-size selection. Rejected for 08a because those add policy complexity and tuning surface; they remain 08b advanced-noise-policy scope.
   - Change `iid_percentile_bootstrap_ci()` to auto-switch methods. Rejected because method names must describe the actual resampling model, and callers should opt into autocorrelation-aware selection explicitly.
+
+## 2026-06-13T09:34:11+08:00 - 08a.5 owns low-power verdicts when block bootstrap coverage is insufficient
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 08a
+  - REQUIREMENTS.md section 4.8
+  - REQUIREMENTS.md section 4.9
+  - REQUIREMENTS.md section 4.6.4
+- decision: The 08a exit criterion for bursty coverage must be interpreted through the full statistics pipeline: corrected resampling plus ESS/low-power verdict gates. 08a.4 moving block bootstrap is approved as the corrected resampling layer even though fake_gbs bursty coverage remains below 90% for smaller n (for example n=20 around 78%, n=40 around 83%, n=100 around 88.5%). 08a.5 must therefore treat underpowered/autocorrelated bursty comparisons as `inconclusive` or `low_power` rather than significant, especially when ESS is too low or measured n is small.
+- rationale: External numerical review showed moving block bootstrap materially improves over the naive IID 73-74% baseline and the block-size/contiguous-resampling implementation is sound, but severe burstiness plus small n still prevents nominal coverage. That is a statistical power limitation, not an implementation failure. The safe minimal behavior is to avoid false significance by combining block bootstrap method metadata, autocorrelation diagnostics, ESS, and explicit verdict gates.
+- alternatives_considered:
+  - Treat 08a.4 as failed until moving block bootstrap alone reaches >=90% coverage for n=20-40 bursty simulations. Rejected because block-size sweeps did not reveal a simple method bug and small-n bursty data is intrinsically underpowered.
+  - Inflate CI width heuristically inside 08a.4 until coverage reaches 90%. Rejected because heuristic widening would hide low power and blur the separation between resampling and decision policy.
+  - Ignore the undercoverage after block bootstrap improves over naive. Rejected because candidate-engine consumers must not treat a still-underpowered interval as significant.
+  - Defer all handling to 08b. Rejected because Phase 07 needs safe single-comparison verdict semantics from 08a.5 before candidate-engine work.

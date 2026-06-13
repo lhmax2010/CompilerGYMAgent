@@ -1,5 +1,29 @@
 # Development Progress
 
+## 2026-06-13T09:34:11+08:00 - 08a.4 statistical review approved with Med-1
+
+- External numerical review approved 08a.4 for range `5957109..338232b`.
+- Findings: no Critical, High, or Low findings; one Medium follow-up.
+- Med-1: moving block bootstrap improves fake_gbs bursty coverage over naive
+  IID, but does not by itself reach the original >=90% coverage wording for
+  smaller n:
+  - n=20: naive 73.0%, moving block 78.0%, autocorrelation-aware 76.8%,
+  - n=40: naive 74.4%, moving block 83.0%, autocorrelation-aware 80.6%,
+  - n=60: moving block 82.0%,
+  - n=100: moving block 88.5%.
+- Review interpretation: this is not a block-size wiring bug and not an 08a.4
+  blocker. It shows that block bootstrap is the right correction direction, but
+  small-n/severe-burst cases remain underpowered.
+- Scope confirmed clean: no StatisticalResult, no verdict gates, no paired
+  bootstrap/comparison, and no candidate engine in 08a.4.
+- Linux full validation from the external review passed: 646 tests at `338232b`.
+- Follow-up carried into 08a.5: verdict gates must make
+  low-power/autocorrelated bursty cases `inconclusive`, not significant, rather
+  than relying on block bootstrap alone to prove nominal coverage.
+
+Next action: record 08a.4 Ubuntu validation when available, then implement
+08a.5 StatisticalResult/verdict gates with Med-1 low-power handling.
+
 ## 2026-06-11T21:06:04+08:00 - 08a.4 moving block bootstrap implemented
 
 - Added moving-block bootstrap support for autocorrelated score sequences:

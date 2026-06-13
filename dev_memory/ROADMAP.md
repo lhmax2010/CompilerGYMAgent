@@ -19,7 +19,7 @@ Current phase:
 
 | State | Next phase | Why next |
 |---|---|---|
-| Phase 08a in progress | 08a.4 bursty coverage review + Ubuntu validation | 08a.4 is implemented locally. It adds moving block bootstrap and autocorrelation-aware CI selection; review must compare bursty coverage against the 08a.3 naive IID 73-74% baseline. |
+| Phase 08a in progress | 08a.5 StatisticalResult + verdict gates | 08a.4 is implemented and numerically reviewed with Med-1. Moving block improves bursty coverage but smaller-n bursty cases remain underpowered, so 08a.5 must turn those cases into low_power/inconclusive verdicts rather than significance. |
 
 08a review-alignment boundaries:
 
@@ -40,6 +40,9 @@ Current phase:
 - 08a.3 measured the naive bursty undercoverage baseline: nominal 95% IID
   bootstrap covered only 73.0%/74.4% on fake_gbs bursty simulations. 08a.4
   should use this as the direct before/after coverage comparison.
+- 08a.4 review found moving block improves bursty coverage but remains below
+  90% for smaller n. 08a.5 owns the safety response: ESS/low-power verdict
+  gates must mark such cases inconclusive instead of significant.
 
 Next implementation phases:
 

@@ -186,4 +186,19 @@ Validation status:
 - Targeted 08a group -> 63 passed, 5 skipped in 1.37s.
 - Full Windows pytest -> 24 failed, 569 passed, 51 skipped, 4 errors. Failures
   are existing Windows/platform-sensitive paths outside 08a.
-- External bursty coverage review and Ubuntu validation remain pending.
+- Linux full validation from external review -> 646 passed at `338232b`.
+- External bursty coverage review approved 08a.4 with Med-1.
+
+External review status:
+
+- External statistical correctness review approved 08a.4 with one Medium
+  follow-up and no Critical, High, or Low findings.
+- Moving block bootstrap improved fake_gbs bursty coverage over naive IID but
+  remained below 90% for smaller n:
+  - n=20: naive 73.0%, moving block 78.0%, autocorrelation-aware 76.8%,
+  - n=40: naive 74.4%, moving block 83.0%, autocorrelation-aware 80.6%,
+  - n=60: moving block 82.0%,
+  - n=100: moving block 88.5%.
+- Med-1 disposition: not an 08a.4 blocker. 08a.5 must make
+  low-power/autocorrelated bursty comparisons inconclusive rather than
+  significant.
