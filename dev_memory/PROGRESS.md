@@ -1,5 +1,21 @@
 # Development Progress
 
+## 2026-06-13T14:47:14+08:00 - 08a.5 Ubuntu Python 3.10 validation passed
+
+- User validated `main` after fast-forward pull to `b78c744`.
+- Targeted 08a.5 command:
+  `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py -q`
+  -> 80 passed in 1.00s.
+- Full Ubuntu/Python 3.10 command:
+  `uv run --python 3.10 --system-certs --extra dev pytest tests/ -q`
+  -> 658 passed in 7.56s.
+- The prior `tests.fixtures` collection issue is resolved by `tests/__init__.py`.
+- 08a.5 is now implemented and Ubuntu-validated; external Med-1 verdict-gate
+  review remains pending.
+
+Next action: request external numerical/statistical review for range
+`995ebf3..b78c744`.
+
 ## 2026-06-13T14:27:36+08:00 - Python 3.10 Ubuntu test collection fix
 
 - User reported Ubuntu/Python 3.10 collection failures after pulling

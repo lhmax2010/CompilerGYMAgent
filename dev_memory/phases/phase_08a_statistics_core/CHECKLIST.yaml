@@ -141,7 +141,11 @@ subtasks:
     tests_passed: true
     patch_artifacts_generated: false
     external_review: pending
-    ubuntu_validation: pending
+    ubuntu_validation: passed
+    ubuntu_validated_at: 2026-06-13T14:47:14+08:00
+    ubuntu_head: b78c744
+    ubuntu_targeted_validation: "80 passed in 1.00s on Ubuntu/Python 3.10"
+    ubuntu_full_validation: "658 passed in 7.56s on Ubuntu/Python 3.10"
     inherited_followups:
       - "From 08a.4 Med-1: underpowered/autocorrelated bursty cases where CI coverage remains below nominal must be low_power/inconclusive, not significant."
       - "Do not treat moving block bootstrap alone as sufficient proof of significance for n=20-40 bursty sequences."

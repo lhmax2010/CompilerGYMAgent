@@ -261,4 +261,7 @@ Validation status:
     known platform-sensitive non-08a paths.
   - follow-up collection fix added `tests/__init__.py`; benchmark/compile/fake_gbs
     collection smoke found 22 tests and no `tests.fixtures` import error.
-- External Med-1 verdict-gate review and Ubuntu validation are pending.
+- Ubuntu Python 3.10 validation passed at `b78c744`:
+  - targeted stats/result/benchmark tests -> 80 passed in 1.00s,
+  - full `tests/` suite -> 658 passed in 7.56s.
+- External Med-1 verdict-gate review is pending.

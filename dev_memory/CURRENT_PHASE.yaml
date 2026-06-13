@@ -1,7 +1,7 @@
 phase_id: phase_08a_statistics_core
 phase_title: "Baseline + Statistical Significance - Minimal Stats Core"
 started_at: 2026-06-10T15:15:45+08:00
-last_updated: 2026-06-13T14:27:36+08:00
+last_updated: 2026-06-13T14:47:14+08:00
 target_milestone: "M2 + M4 (partial)"
 related_requirements:
   - REQUIREMENTS.md section 4.8
@@ -389,8 +389,12 @@ subtasks:
       - "Verify scope excludes multiple-comparison correction, adaptive rerun, outliers, and candidate engine."
     external_review_verdict: pending
     ubuntu_validation:
-      status: pending
+      status: passed
+      validated_at: 2026-06-13T14:47:14+08:00
+      head: b78c744
+      targeted: "uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py -q -> 80 passed in 1.00s"
+      full: "uv run --python 3.10 --system-certs --extra dev pytest tests/ -q -> 658 passed in 7.56s"
   - id: "08a.6"
     title: "fake_gbs bursty state exposure in env_snapshot + phase closeout"
     status: planned
-next_action: "Commit/push Python 3.10 tests package collection fix, then request external Med-1 verdict-gate review and Ubuntu Python 3.10 validation."
+next_action: "Request external Med-1 verdict-gate review for range 995ebf3..b78c744."

@@ -179,6 +179,13 @@
   - Collection smoke:
     `.venv\Scripts\python.exe -m pytest --collect-only tests\test_benchmark_skill.py tests\test_compile_skill.py tests\test_fake_gbs.py -q`
     -> 22 tests collected, no `tests` import error.
+- Ubuntu Python 3.10 validation:
+  - Head: `b78c744`.
+  - Pull: `git pull --ff-only origin main` fast-forwarded `0c87bb3..b78c744`.
+  - Targeted command: `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py -q`
+  - Targeted result: `80 passed in 1.00s`.
+  - Full command: `uv run --python 3.10 --system-certs --extra dev pytest tests/ -q`
+  - Full result: `658 passed in 7.56s`.
 - Review gate:
   - External numerical review should stress Med-1 cases where block-bootstrap
     coverage remains below nominal and confirm the verdict remains

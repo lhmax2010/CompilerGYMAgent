@@ -36,8 +36,8 @@ Current status:
 - Phase 08a.1 through 08a.4 are implemented and externally/numerically
   reviewed. 08a.4 was approved with Med-1: moving block bootstrap improves
   bursty coverage but smaller-n bursty cases remain underpowered.
-- Phase 08a.5 StatisticalResult/verdict gates are implemented locally and
-  pending external Med-1 verdict-gate review plus Ubuntu validation.
+- Phase 08a.5 StatisticalResult/verdict gates are implemented and
+  Ubuntu/Python 3.10 validated. External Med-1 verdict-gate review is pending.
 - Real target runtime is Python 3.10. The compatibility patch lowers
   `requires-python` to `>=3.10` and removes 3.11-only `datetime.UTC`,
   `typing.Self`, and `tomllib` assumptions.
@@ -65,12 +65,12 @@ Recent Phase 05/08a preconditions already handled:
   and non-empty affected_options.
 
 Current next action:
-- Commit/push the Python 3.10 tests package marker fix, then request external
-  review for range `995ebf3..HEAD`.
+- Request external review for range `995ebf3..b78c744`.
 - External review should focus on Med-1 safety: small-n/severe-bursty cases
   where CI coverage remains below nominal must be low_power/inconclusive, not
   significant.
-- Ubuntu validation is still required after push and should use Python 3.10.
+- Ubuntu/Python 3.10 validation has passed at `b78c744`: targeted 80 passed,
+  full 658 passed.
 
 Phase 08a current subtask:
 - 08a.5 baseline-normalized comparison + pair_key paired design +
