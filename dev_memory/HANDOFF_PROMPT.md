@@ -47,6 +47,7 @@ Current status:
 - `dev_memory/BLOCKERS.md` currently records no active blockers.
 
 Latest important commits:
+- `4fbd199 dev_memory: add 08a.5 handoff`
 - `7087463 dev_memory: record 08a.5 ubuntu validation`
 - `b78c744 tests: package fixtures for python 3.10 collection`
 - `0c87bb3 compat: support python 3.10 runtime`
