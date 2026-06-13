@@ -156,6 +156,7 @@ subtasks:
         datetime_utc: "Use timezone.utc alias instead of datetime.UTC."
         typing_self: "Use postponed WorkspaceLock return annotation instead of typing.Self."
         tomllib: "Use tomllib with tomli fallback for Python 3.10 tests."
+        tests_package_marker: "Add tests/__init__.py so absolute tests.fixtures imports resolve to this repository on Ubuntu/Python 3.10."
     scope:
       statistical_result_schema: implemented
       compare_run_records: implemented

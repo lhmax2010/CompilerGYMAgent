@@ -259,4 +259,6 @@ Validation status:
   - full Windows suite collected and ran without Python 3.10 ImportError;
     remaining result stayed 24 failed, 581 passed, 51 skipped, 4 errors on
     known platform-sensitive non-08a paths.
+  - follow-up collection fix added `tests/__init__.py`; benchmark/compile/fake_gbs
+    collection smoke found 22 tests and no `tests.fixtures` import error.
 - External Med-1 verdict-gate review and Ubuntu validation are pending.

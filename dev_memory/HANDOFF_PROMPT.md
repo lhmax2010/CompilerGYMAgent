@@ -41,6 +41,9 @@ Current status:
 - Real target runtime is Python 3.10. The compatibility patch lowers
   `requires-python` to `>=3.10` and removes 3.11-only `datetime.UTC`,
   `typing.Self`, and `tomllib` assumptions.
+- `tests/__init__.py` is required so Ubuntu/Python 3.10 resolves absolute
+  `tests.fixtures` imports to this repository instead of an unrelated installed
+  `tests` package.
 - `dev_memory/BLOCKERS.md` currently records no active blockers.
 
 Latest important commits:
@@ -62,7 +65,7 @@ Recent Phase 05/08a preconditions already handled:
   and non-empty affected_options.
 
 Current next action:
-- Commit/push the Python 3.10 compatibility patch, then request external
+- Commit/push the Python 3.10 tests package marker fix, then request external
   review for range `995ebf3..HEAD`.
 - External review should focus on Med-1 safety: small-n/severe-bursty cases
   where CI coverage remains below nominal must be low_power/inconclusive, not

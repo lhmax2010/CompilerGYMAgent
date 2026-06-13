@@ -1,5 +1,22 @@
 # Development Progress
 
+## 2026-06-13T14:27:36+08:00 - Python 3.10 Ubuntu test collection fix
+
+- User reported Ubuntu/Python 3.10 collection failures after pulling
+  `0c87bb3`: files importing `tests.fixtures.fake_workspace` resolved
+  `tests` to the wrong module because the repository `tests/` directory had no
+  package marker.
+- Added `tests/__init__.py` as a minimal test-package marker.
+- Scope: collection/import fix only; no production code or 08a statistical
+  logic changes.
+- Local validation:
+  - targeted 08a tests -> 75 passed, 5 skipped,
+  - collection smoke for benchmark/compile/fake_gbs tests -> 22 tests
+    collected, no `tests` import error.
+
+Next action: commit/push this collection fix, then rerun Ubuntu Python 3.10
+validation.
+
 ## 2026-06-13T13:32:07+08:00 - Python 3.10 compatibility patch for real validation environment
 
 - Real validation environment is Python 3.10, so the project runtime contract

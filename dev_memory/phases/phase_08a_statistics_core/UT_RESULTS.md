@@ -174,6 +174,11 @@
   - Full result: `24 failed, 581 passed, 51 skipped, 4 errors`.
   - Scope note: the full suite now collects and runs under Python 3.10 without
     the previous `datetime.UTC` / `typing.Self` / `tomllib` ImportError.
+  - Follow-up collection fix: added `tests/__init__.py` so absolute
+    `tests.fixtures` imports resolve to this repository on Ubuntu/Python 3.10.
+  - Collection smoke:
+    `.venv\Scripts\python.exe -m pytest --collect-only tests\test_benchmark_skill.py tests\test_compile_skill.py tests\test_fake_gbs.py -q`
+    -> 22 tests collected, no `tests` import error.
 - Review gate:
   - External numerical review should stress Med-1 cases where block-bootstrap
     coverage remains below nominal and confirm the verdict remains
