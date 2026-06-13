@@ -1,5 +1,32 @@
 # Development Progress
 
+## 2026-06-13T13:32:07+08:00 - Python 3.10 compatibility patch for real validation environment
+
+- Real validation environment is Python 3.10, so the project runtime contract
+  was lowered from Python 3.11+ to Python 3.10+.
+- Removed Python 3.11-only assumptions:
+  - replaced `datetime.UTC` imports with `timezone.utc` aliases,
+  - replaced `typing.Self` in `workspace_lock.py` with a postponed class-name
+    annotation,
+  - added `tomllib`/`tomli` fallback for Python 3.10 test code.
+- Updated packaging:
+  - `pyproject.toml` now has `requires-python = ">=3.10"`,
+  - dev extra adds `tomli>=2.0,<3` only for `python_version < "3.11"`,
+  - `uv.lock` refreshed with Python 3.10 support, adding `tomli` and
+    `exceptiongroup`.
+- Local Python 3.10 validation:
+  - `uv run --python 3.10 --system-certs --extra dev python -c "import sys; print(sys.version)"`
+    installed/used CPython 3.10.20.
+  - Targeted 08a tests:
+    `.venv\Scripts\python.exe -m pytest tests\test_stats_core.py tests\test_result_schema.py tests\test_benchmark_skill.py -q`
+    -> 75 passed, 5 skipped in 3.10s.
+  - Full Windows suite collected and ran without the previous ImportError:
+    24 failed, 581 passed, 51 skipped, 4 errors. Failures remain the known
+    Windows/platform-sensitive non-08a paths.
+
+Next action: commit/push the Python 3.10 compatibility patch, then request
+external Med-1 verdict-gate review and Ubuntu Python 3.10 validation.
+
 ## 2026-06-13T10:58:18+08:00 - 08a.5 StatisticalResult verdict gates implemented
 
 - Added 08a.5 comparison assembly:

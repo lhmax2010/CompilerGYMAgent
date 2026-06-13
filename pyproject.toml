@@ -7,7 +7,7 @@ name = "compiler-gym-agent"
 version = "0.1.0"
 description = "Local-first compiler option tuning agent"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 dependencies = [
   "pydantic>=2.7,<3",
   "psutil>=5.9,<8",
@@ -20,6 +20,7 @@ agent = "agent.cli.__main__:main"
 [project.optional-dependencies]
 dev = [
   "pytest>=8.0,<10",
+  "tomli>=2.0,<3; python_version < '3.11'",
 ]
 
 [tool.setuptools.packages.find]

@@ -3,7 +3,9 @@ from __future__ import annotations
 import math
 import random
 from collections.abc import Sequence
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+UTC = timezone.utc
 
 import pytest
 

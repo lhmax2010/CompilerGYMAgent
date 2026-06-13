@@ -1,7 +1,7 @@
 phase_id: phase_08a_statistics_core
 phase_title: "Baseline + Statistical Significance - Minimal Stats Core"
 started_at: 2026-06-10T15:15:45+08:00
-last_updated: 2026-06-13T10:58:18+08:00
+last_updated: 2026-06-13T13:32:07+08:00
 target_milestone: "M2 + M4 (partial)"
 related_requirements:
   - REQUIREMENTS.md section 4.8
@@ -14,6 +14,7 @@ dependencies_satisfied:
   - "RunLevelRecord carries measured/warmup phase, valid_for_scoring, objective_direction, pair_key, artifact verification, env_snapshot, and summary_hint."
   - "Pre-08a numeric hygiene blockers are fixed: benchmark NaN/Inf ingress rejected and summary fields require finite values."
   - "Benchmark failure routing cannot write failed_combos in Phase 05/08a."
+  - "Runtime compatibility is Python 3.10+: pyproject and code avoid Python 3.11-only datetime.UTC, typing.Self, and tomllib assumptions."
   - "dev_memory/BLOCKERS.md records no active blockers."
 pre_implementation_design_review:
   range: "f34c28d..6b72d43"
@@ -375,6 +376,8 @@ subtasks:
     local_validation:
       - "Targeted pytest passed: .venv\\Scripts\\python.exe -m pytest tests\\test_stats_core.py tests\\test_result_schema.py tests\\test_benchmark_skill.py -q -> 75 passed, 5 skipped in 1.43s."
       - "Full Windows pytest remains platform-blocked outside 08a: .venv\\Scripts\\python.exe -m pytest tests\\ -q -> 24 failed, 581 passed, 51 skipped, 4 errors."
+      - "Python 3.10 targeted pytest passed after compatibility patch: .venv\\Scripts\\python.exe -m pytest tests\\test_stats_core.py tests\\test_result_schema.py tests\\test_benchmark_skill.py -q -> 75 passed, 5 skipped in 3.10s."
+      - "Python 3.10 full Windows pytest collected and ran without ImportError; remains platform-blocked outside 08a: 24 failed, 581 passed, 51 skipped, 4 errors."
     review_gate:
       - "External numerical review must verify Med-1 safety: small-n/severe-bursty cases with undercovered block-bootstrap CI remain low_power/inconclusive, not significant."
       - "Verify verdict boundary tests for n_valid<5, 5<=n_valid<10, ESS<3, 3<=ESS<5, no_difference, and significant_single_comparison."
@@ -387,4 +390,4 @@ subtasks:
   - id: "08a.6"
     title: "fake_gbs bursty state exposure in env_snapshot + phase closeout"
     status: planned
-next_action: "Commit/push 08a.5 implementation, then request external Med-1 verdict-gate review and Ubuntu validation."
+next_action: "Commit/push Python 3.10 compatibility patch, then request external Med-1 verdict-gate review and Ubuntu Python 3.10 validation."

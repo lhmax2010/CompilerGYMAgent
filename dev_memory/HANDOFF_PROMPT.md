@@ -38,6 +38,9 @@ Current status:
   bursty coverage but smaller-n bursty cases remain underpowered.
 - Phase 08a.5 StatisticalResult/verdict gates are implemented locally and
   pending external Med-1 verdict-gate review plus Ubuntu validation.
+- Real target runtime is Python 3.10. The compatibility patch lowers
+  `requires-python` to `>=3.10` and removes 3.11-only `datetime.UTC`,
+  `typing.Self`, and `tomllib` assumptions.
 - `dev_memory/BLOCKERS.md` currently records no active blockers.
 
 Latest important commits:
@@ -59,12 +62,12 @@ Recent Phase 05/08a preconditions already handled:
   and non-empty affected_options.
 
 Current next action:
-- Commit/push 08a.5 code and dev_memory, then request external review for
-  range `995ebf3..HEAD`.
+- Commit/push the Python 3.10 compatibility patch, then request external
+  review for range `995ebf3..HEAD`.
 - External review should focus on Med-1 safety: small-n/severe-bursty cases
   where CI coverage remains below nominal must be low_power/inconclusive, not
   significant.
-- Ubuntu validation is still required after push.
+- Ubuntu validation is still required after push and should use Python 3.10.
 
 Phase 08a current subtask:
 - 08a.5 baseline-normalized comparison + pair_key paired design +
@@ -105,7 +108,8 @@ Known useful commands:
   yaml.safe_load(Path("dev_memory/ROADMAP.yaml").read_text())
   yaml.safe_load(Path("dev_memory/CURRENT_PHASE.yaml").read_text())
   PY`
-- `.venv/bin/python -m pytest tests/ -q`
+- `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py -q`
+- `uv run --python 3.10 --system-certs --extra dev pytest tests/ -q`
 - `git diff --check`
 
 Important guardrails:

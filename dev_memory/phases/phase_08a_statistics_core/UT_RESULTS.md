@@ -165,6 +165,15 @@
   - Scope note: failures are the known Windows/platform-sensitive paths outside
     08a, concentrated in clean-trace CLI, filesystem mount inspection,
     process registry/state consistency, and trace cleanup tests.
+- Python 3.10 compatibility validation:
+  - Command: `.venv\Scripts\uv.exe run --python 3.10 --system-certs --extra dev python -c "import sys; print(sys.version)"`
+  - Result: CPython 3.10.20 installed/used; `.venv` recreated for Python 3.10.
+  - Targeted command: `.venv\Scripts\python.exe -m pytest tests\test_stats_core.py tests\test_result_schema.py tests\test_benchmark_skill.py -q`
+  - Targeted result: `75 passed, 5 skipped in 3.10s`.
+  - Full command: `.venv\Scripts\python.exe -m pytest tests\ -q`
+  - Full result: `24 failed, 581 passed, 51 skipped, 4 errors`.
+  - Scope note: the full suite now collects and runs under Python 3.10 without
+    the previous `datetime.UTC` / `typing.Self` / `tomllib` ImportError.
 - Review gate:
   - External numerical review should stress Med-1 cases where block-bootstrap
     coverage remains below nominal and confirm the verdict remains

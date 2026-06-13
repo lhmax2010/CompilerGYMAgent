@@ -1,6 +1,6 @@
 # dev_memory/ROADMAP.yaml
 roadmap_version: 1
-last_updated: 2026-06-13T10:58:18+08:00
+last_updated: 2026-06-13T13:32:07+08:00
 status: active
 
 # ============================================================
@@ -571,7 +571,7 @@ cross_cutting:
     owner: "Codex (created lazily per phase need)"
 
   ci_cd:
-    description: "GitHub Actions Linux Python 3.11 full pytest + real fcntl test"
+    description: "GitHub Actions Linux Python 3.10 full pytest + real fcntl test"
     should_land_by: "End of Phase 04"
     requirements:
       - "All test_*.py pass on Linux"

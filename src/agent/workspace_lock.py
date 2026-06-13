@@ -12,10 +12,12 @@ import os
 import socket
 import time
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+UTC = timezone.utc
 from pathlib import Path
 from types import TracebackType
-from typing import Any, Callable, Protocol, Self
+from typing import Any, Callable, Protocol
 
 import psutil
 import yaml
@@ -213,7 +215,7 @@ class WorkspaceLock:
         session_id: str,
         *,
         timeout: float = 0.0,
-    ) -> Self:
+    ) -> WorkspaceLock:
         if self._fd is not None:
             raise WorkspaceLockError(f"workspace lock is already held: {self.lock_path}")
         if timeout < 0:

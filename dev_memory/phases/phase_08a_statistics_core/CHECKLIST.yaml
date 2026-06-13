@@ -147,6 +147,15 @@ subtasks:
       - "Do not treat moving block bootstrap alone as sufficient proof of significance for n=20-40 bursty sequences."
     targeted_validation: "75 passed, 5 skipped on Windows Python 3.11"
     full_windows_validation: "24 failed, 581 passed, 51 skipped, 4 errors; failures are existing Windows/platform-sensitive non-08a paths."
+    python_3_10_compatibility:
+      status: implemented
+      requires_python: ">=3.10"
+      targeted_validation: "75 passed, 5 skipped on Windows CPython 3.10.20"
+      full_windows_validation: "24 failed, 581 passed, 51 skipped, 4 errors; suite collects without Python 3.10 ImportError, remaining failures are existing Windows/platform-sensitive non-08a paths."
+      compatibility_fixes:
+        datetime_utc: "Use timezone.utc alias instead of datetime.UTC."
+        typing_self: "Use postponed WorkspaceLock return annotation instead of typing.Self."
+        tomllib: "Use tomllib with tomli fallback for Python 3.10 tests."
     scope:
       statistical_result_schema: implemented
       compare_run_records: implemented

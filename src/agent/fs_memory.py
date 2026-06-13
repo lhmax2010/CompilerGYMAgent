@@ -15,7 +15,9 @@ import math
 import sqlite3
 import tempfile
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+UTC = timezone.utc
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterator, Literal, Mapping, Sequence
 

@@ -2,12 +2,18 @@ from __future__ import annotations
 
 import subprocess
 import sys
-import tomllib
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+UTC = timezone.utc
 from pathlib import Path
 
 import pytest
 import yaml
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - Python 3.10 compatibility.
+    import tomli as tomllib
 
 import agent.trace_cleanup as trace_cleanup_module
 from agent.cli import clean_trace

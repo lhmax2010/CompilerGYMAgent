@@ -252,4 +252,11 @@ Validation status:
   `.venv\Scripts\python.exe -m pytest tests\ -q`
   -> 24 failed, 581 passed, 51 skipped, 4 errors. Failures remain the known
   Windows/platform-sensitive non-08a paths.
+- Python 3.10 compatibility validation:
+  - `uv run --python 3.10 --system-certs --extra dev` provisioned CPython
+    3.10.20 locally,
+  - targeted 08a group -> 75 passed, 5 skipped in 3.10s,
+  - full Windows suite collected and ran without Python 3.10 ImportError;
+    remaining result stayed 24 failed, 581 passed, 51 skipped, 4 errors on
+    known platform-sensitive non-08a paths.
 - External Med-1 verdict-gate review and Ubuntu validation are pending.
