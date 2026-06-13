@@ -1372,3 +1372,71 @@ Decision records must include:
   - Keep the old `initial-positive-sequence` wording. Rejected because it can be mistaken for strict Geyer IPS.
   - Treat trend sensitivity as a bug to remove. Rejected because monotone drift violates IID and should drive conservative verdicts.
   - Let unpaired moving-block CIs claim significance under autocorrelation. Rejected because the candidate/baseline label remains confounded with time when records are not paired.
+
+## 2026-06-13T17:23:48+08:00 - exploratory_signal is non-decision-grade signal for unpaired autocorrelated data
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 08a
+  - ROADMAP.yaml Phase 7.0
+  - ROADMAP.yaml Phase 07
+  - REQUIREMENTS.md section 4.8
+  - REQUIREMENTS.md section 4.9
+  - REQUIREMENTS.md section 4.6.4 convergence detector
+- decision: Unpaired autocorrelated comparisons keep `verdict=inconclusive` for decision-grade outcomes, but `StatisticalResult` may carry an independent `exploratory_signal` field (`suggestive_improvement`, `suggestive_regression`, or `none`) plus `requires_confirmation`. Any non-`none` exploratory signal requires confirmation and is only for ranking, budget allocation, and scheduling paired retests.
+- rationale: Time-confounding means unpaired autocorrelated history cannot decide that a candidate won, but the history can still be useful for choosing what to retest. Keeping this as a separate non-decision-grade signal lets Phase 7.0/07 exploit historical data without disguising biased evidence as significance.
+- allowed_consumers:
+  - "propose candidates for retest"
+  - "prioritize candidates for the next measurement round"
+  - "allocate measurement budget toward promising but unconfirmed candidates"
+  - "schedule paired AB/BA confirmation"
+- forbidden_consumers:
+  - "accept, promote, or update champion"
+  - "stop search because the result is good enough"
+  - "enter final conclusions that a candidate is truly better"
+  - "appear as any verdict containing significant"
+- alternatives_considered:
+  - Allow `low_confidence significant` for unpaired autocorrelated data. Rejected because it renames biased time-confounded history as significance, which all four external reviews identified as the most dangerous false-signal source.
+  - Discard unpaired autocorrelated history entirely. Rejected because it has exploratory value for deciding what deserves paired confirmation.
+
+## 2026-06-13T17:23:48+08:00 - pair_quality gates decision-grade significance
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 08a
+  - ROADMAP.yaml Phase 7.0
+  - ROADMAP.yaml Phase 07
+  - REQUIREMENTS.md section 4.8
+  - REQUIREMENTS.md section 4.9
+- decision: Paired comparison quality is explicit. `RunLevelRecord` carries optional `pair_order` (`baseline_first` or `candidate_first`) and `pair_time_gap_sec`; `StatisticalResult` carries `pair_quality` (`good`, `suspect`, or `unknown`). Large within-pair time gaps or missing `pair_order` make pair quality suspect, and suspect pairs cannot produce decision-grade significant verdicts.
+- rationale: A malformed or stale `pair_key` can create fake common-mode cancellation and make low-quality data look like strong paired evidence. That is more dangerous than honest unpaired data because it masquerades as the anti-bursty design. Pair quality makes the assumption visible and gives verdict logic a gate before significance.
+- implementation_notes:
+  - "good requires pair_order plus a small pair_time_gap_sec threshold"
+  - "suspect covers large pair_time_gap_sec or missing pair_order"
+  - "unknown covers missing time information"
+  - "suspect paired results must record suspect_pair_quality and downgrade to inconclusive/low-power rather than significant"
+  - "env_snapshot_distance remains deferred until a later design"
+- alternatives_considered:
+  - Trust pair_key alone. Rejected because upstream can accidentally pair runs that are far apart in time or not AB/BA-balanced.
+  - Treat suspect pairs as unpaired but still eligible for significance. Rejected because the time-confounding concern remains and can be worse after false pairing.
+  - Require env_snapshot_distance now. Rejected because pair_order and pair_time_gap_sec are the minimal reviewed schema surface; environment-distance computation is deferred.
+
+## 2026-06-13T17:23:48+08:00 - decision vs exploration data contract
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 08a
+  - ROADMAP.yaml Phase 7.0
+  - ROADMAP.yaml Phase 07
+  - REQUIREMENTS.md section 4.6.4 convergence detector
+  - REQUIREMENTS.md section 4.8
+  - REQUIREMENTS.md section 4.9
+- decision: Phase 08a exposes a strict data-quality contract for Phase 7.0/07 consumers. Paired data with good pair quality and enough power can produce decision-grade verdicts. Paired suspect data is downgraded and cannot be significant. Unpaired autocorrelated data remains decision-grade inconclusive and can only emit a non-decision-grade exploratory signal when evidence is strong enough to justify confirmation. IID/right-skewed adequately powered data can produce decision-grade verdicts.
+- data_quality_mapping:
+  - "paired + good pair_quality + adequate power -> decision-grade verdict; may accept/promote/reject according to Phase 07 policy"
+  - "paired + suspect pair_quality -> no decision-grade significance; downgrade to inconclusive/low-power and record suspect_pair_quality"
+  - "unpaired + autocorrelation + strong exploratory evidence -> verdict=inconclusive, exploratory_signal=suggestive_*, requires_confirmation=true; may only propose/prioritize/schedule retest"
+  - "unpaired + autocorrelation + weak evidence -> verdict=inconclusive, exploratory_signal=none"
+  - "IID/right-skewed + adequate power -> decision-grade verdict"
+- rationale: This separates “what looks promising enough to measure again” from “what is proven enough to accept.” The Gemini framing is the project contract: unpaired autocorrelated history can propose/prioritize/schedule retests; paired AB/BA or IID decision-grade results can accept/reject.
+- alternatives_considered:
+  - Collapse exploration and decision into one verdict ladder. Rejected because it invites biased historical data into champion updates.
+  - Make candidate-engine policy infer these meanings from notes. Rejected because Phase 7.0/07 needs structured schema fields and an explicit contract.
+  - Delay all exploratory use until after Phase 07. Rejected because Phase 7.0 needs the contract to design noise-robust scheduling and paired confirmation.

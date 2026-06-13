@@ -49,6 +49,13 @@ StatisticalVerdict = Literal[
     "no_difference",
 ]
 ComparisonScope = Literal["single_comparison"]
+ExploratorySignal = Literal[
+    "suggestive_improvement",
+    "suggestive_regression",
+    "none",
+]
+PairOrder = Literal["baseline_first", "candidate_first"]
+PairQuality = Literal["good", "suspect", "unknown"]
 
 
 class StrictResultSchemaModel(BaseModel):
@@ -156,7 +163,13 @@ class RunSummaryHint(StrictResultSchemaModel):
 
 
 class StatisticalResult(StrictResultSchemaModel):
-    """Single-comparison statistical result produced by Phase 08a."""
+    """Single-comparison statistical result produced by Phase 08a.
+
+    `exploratory_signal` is non-decision-grade: it can prioritize paired
+    confirmation work, but it must not accept/promote a candidate or update a
+    champion. `pair_quality` makes the paired common-mode-noise assumption
+    explicit so suspect pairs cannot masquerade as decision-grade evidence.
+    """
 
     comparison: NonEmptyStr
     objective_direction: ObjectiveDirection
@@ -184,9 +197,12 @@ class StatisticalResult(StrictResultSchemaModel):
     recommend_more_runs: bool = False
     paired: bool = False
     pair_count: int = Field(default=0, ge=0)
+    pair_quality: PairQuality = "unknown"
     block_size: int | None = Field(default=None, ge=2)
     baseline_block_size: int | None = Field(default=None, ge=2)
     candidate_block_size: int | None = Field(default=None, ge=2)
+    exploratory_signal: ExploratorySignal = "none"
+    requires_confirmation: bool = False
     notes: tuple[NonEmptyStr, ...] = ()
 
     @field_validator(
@@ -228,11 +244,30 @@ class StatisticalResult(StrictResultSchemaModel):
             raise ValueError("comparison_scope must be single_comparison")
         if self.paired and self.pair_count == 0:
             raise ValueError("paired results require pair_count")
+        if self.exploratory_signal != "none":
+            if self.verdict != "inconclusive":
+                raise ValueError("exploratory_signal is non-decision-grade")
+            if not self.requires_confirmation:
+                raise ValueError("exploratory_signal requires confirmation")
+        if self.pair_quality == "suspect" and expected_significant:
+            raise ValueError("suspect pair_quality cannot be decision-grade significant")
+        if (
+            not self.paired
+            and self.autocorrelation_detected
+            and expected_significant
+        ):
+            raise ValueError(
+                "unpaired autocorrelated results cannot be decision-grade significant"
+            )
         return self
 
 
 class RunLevelRecord(StrictResultSchemaModel):
-    """One benchmark run record consumed by Phase 08 statistics."""
+    """One benchmark run record consumed by Phase 08 statistics.
+
+    `pair_order` and `pair_time_gap_sec` are pairing-quality metadata. Phase 7.0
+    should generate randomized AB/BA pairs with small within-pair time gaps.
+    """
 
     run_id: NonEmptyStr
     run_index: int = Field(ge=0)
@@ -258,6 +293,8 @@ class RunLevelRecord(StrictResultSchemaModel):
     artifact_hash_verified: bool = False
     score_source_ref: NonEmptyStr | None = None
     pair_key: NonEmptyStr | None = None
+    pair_order: PairOrder | None = None
+    pair_time_gap_sec: float | None = Field(default=None, ge=0)
     failure_classification: FailureClassification | None = None
     summary_hint: RunSummaryHint | None = None
 
@@ -268,7 +305,7 @@ class RunLevelRecord(StrictResultSchemaModel):
             _validate_sha256_digest(value, info.field_name)
         return value
 
-    @field_validator("score")
+    @field_validator("score", "pair_time_gap_sec")
     @classmethod
     def score_must_be_finite(cls, value: float | None, info: Any) -> float | None:
         return _validate_optional_finite(value, info.field_name)
