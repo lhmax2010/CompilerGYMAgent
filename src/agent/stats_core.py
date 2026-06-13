@@ -13,6 +13,7 @@ import math
 import random
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from statistics import median
 from typing import TYPE_CHECKING
 
@@ -32,6 +33,11 @@ DEFAULT_BOOTSTRAP_SAMPLES = 2000
 DEFAULT_CONFIDENCE_LEVEL = 0.95
 IID_PERCENTILE_BOOTSTRAP_METHOD = "iid_percentile_bootstrap"
 MOVING_BLOCK_BOOTSTRAP_METHOD = "moving_block_bootstrap"
+PAIR_QUALITY_GAP_DURATION_MULT = 5.0
+PAIR_QUALITY_GAP_ABS_MAX_SEC = 300.0
+EXPLORATORY_MIN_N = 40
+EXPLORATORY_MIN_ESS = 20.0
+EXPLORATORY_MIN_RELATIVE_EFFECT_PCT = 1.0
 
 
 @dataclass(frozen=True)
@@ -65,6 +71,17 @@ class BootstrapConfidenceInterval:
     block_size: int | None = None
     baseline_block_size: int | None = None
     candidate_block_size: int | None = None
+
+
+@dataclass(frozen=True)
+class PairedScoreSamples:
+    """Matched paired records and score vectors in baseline pair order."""
+
+    baseline_records: tuple[RunLevelRecord, ...]
+    candidate_records: tuple[RunLevelRecord, ...]
+    baseline_scores: tuple[float, ...]
+    candidate_scores: tuple[float, ...]
+    partial_pairing: bool
 
 
 @dataclass(frozen=True)
@@ -217,12 +234,16 @@ def compare_run_records(
 
     from agent.skills.result_schema import StatisticalResult
 
-    baseline_measured, baseline_order_unverified = _ordered_measured_records(
-        tuple(baseline_records)
-    )
-    candidate_measured, candidate_order_unverified = _ordered_measured_records(
-        tuple(candidate_records)
-    )
+    (
+        baseline_measured,
+        baseline_order_unverified,
+        baseline_order_source_conflict,
+    ) = _ordered_measured_records(tuple(baseline_records))
+    (
+        candidate_measured,
+        candidate_order_unverified,
+        candidate_order_source_conflict,
+    ) = _ordered_measured_records(tuple(candidate_records))
     baseline_scores = measured_valid_scores(baseline_measured)
     candidate_scores = measured_valid_scores(candidate_measured)
     if not baseline_scores or not candidate_scores:
@@ -244,9 +265,12 @@ def compare_run_records(
     order_notes: list[str] = []
     if baseline_order_unverified or candidate_order_unverified:
         order_notes.append("input_order_unverified")
+    if baseline_order_source_conflict or candidate_order_source_conflict:
+        order_notes.append("order_source_conflict")
 
+    pair_quality = "unknown"
     if paired_samples is not None:
-        baseline_for_effect, candidate_for_effect, partial_pairing = paired_samples
+        pair_quality = _pair_quality(paired_samples)
         effect_values = tuple(
             _signed_effect(
                 baseline_score,
@@ -254,8 +278,8 @@ def compare_run_records(
                 objective_direction=objective_direction,
             )
             for baseline_score, candidate_score in zip(
-                baseline_for_effect,
-                candidate_for_effect,
+                paired_samples.baseline_scores,
+                paired_samples.candidate_scores,
                 strict=True,
             )
         )
@@ -271,8 +295,12 @@ def compare_run_records(
         pair_count = comparison_n_valid
         unpaired_autocorrelation = False
         notes = order_notes + ["paired_difference"]
-        if partial_pairing:
+        if paired_samples.partial_pairing:
             notes.append("partial_pairing")
+        if pair_quality == "suspect":
+            notes.append("suspect_pair_quality")
+        elif pair_quality == "unknown":
+            notes.append("unknown_pair_quality")
     else:
         ci = _unpaired_mean_difference_bootstrap_ci(
             baseline_scores,
@@ -299,7 +327,9 @@ def compare_run_records(
         diagnostics=diagnostics,
         n_valid=comparison_n_valid,
         paired=paired,
+        pair_quality=pair_quality,
         unpaired_autocorrelation=unpaired_autocorrelation,
+        partial_pairing=paired_samples.partial_pairing if paired_samples else False,
         high_cv=high_cv,
     )
     notes.extend(diagnostics.notes)
@@ -312,6 +342,18 @@ def compare_run_records(
         if math.isclose(baseline_mean, 0.0, abs_tol=base_zero_abs_tol)
         else point_estimate / abs(baseline_mean) * 100.0
     )
+    exploratory_signal, requires_confirmation = _exploratory_signal(
+        baseline_scores=baseline_scores,
+        candidate_scores=candidate_scores,
+        ci_low=ci.ci_low,
+        ci_high=ci.ci_high,
+        verdict=verdict,
+        paired=paired,
+        unpaired_autocorrelation=unpaired_autocorrelation,
+        relative_effect_pct=relative_effect_pct,
+    )
+    if exploratory_signal != "none":
+        notes.append("exploratory_requires_confirmation")
     n_measured = len(baseline_measured) + len(candidate_measured)
     baseline_invalid = len(baseline_measured) - len(baseline_scores)
     candidate_invalid = len(candidate_measured) - len(candidate_scores)
@@ -345,9 +387,12 @@ def compare_run_records(
         recommend_more_runs=recommend_more_runs,
         paired=paired,
         pair_count=pair_count,
+        pair_quality=pair_quality,
         block_size=ci.block_size,
         baseline_block_size=ci.baseline_block_size,
         candidate_block_size=ci.candidate_block_size,
+        exploratory_signal=exploratory_signal,
+        requires_confirmation=requires_confirmation,
         notes=tuple(dict.fromkeys(notes)),
     )
 
@@ -616,7 +661,9 @@ def _statistical_verdict(
     diagnostics: AutocorrelationDiagnostics,
     n_valid: int,
     paired: bool,
+    pair_quality: str,
     unpaired_autocorrelation: bool,
+    partial_pairing: bool,
     high_cv: bool,
 ) -> tuple[str, bool, bool, tuple[str, ...]]:
     notes: list[str] = []
@@ -644,6 +691,18 @@ def _statistical_verdict(
     if unpaired_autocorrelation:
         hard_inconclusive = True
         notes.append("unpaired_autocorrelation_inconclusive")
+
+    if paired and pair_quality != "good":
+        low_power = True
+        notes.append(
+            "suspect_pair_quality"
+            if pair_quality == "suspect"
+            else "unknown_pair_quality"
+        )
+
+    if paired and partial_pairing:
+        low_power = True
+        notes.append("partial_pairing_low_power")
 
     if (
         paired
@@ -916,24 +975,28 @@ def compute_effective_sample_size(n: int, rho1: float | None) -> float | None:
 
 
 def _measured_records(records: Sequence[RunLevelRecord]) -> tuple[RunLevelRecord, ...]:
-    measured, _order_unverified = _ordered_measured_records(records)
+    measured, _order_unverified, _order_source_conflict = _ordered_measured_records(
+        records
+    )
     return measured
 
 
 def _ordered_measured_records(
     records: Sequence[RunLevelRecord],
-) -> tuple[tuple[RunLevelRecord, ...], bool]:
+) -> tuple[tuple[RunLevelRecord, ...], bool, bool]:
     measured = tuple(record for record in records if record.phase == "measured")
     order_unverified = any(_record_order_unverified(record) for record in measured)
+    ordered = tuple(
+        record
+        for _position, record in sorted(
+            enumerate(measured),
+            key=lambda item: _record_order_key(item[1], original_position=item[0]),
+        )
+    )
     return (
-        tuple(
-            record
-            for _position, record in sorted(
-                enumerate(measured),
-                key=lambda item: _record_order_key(item[1], original_position=item[0]),
-            )
-        ),
+        ordered,
         order_unverified,
+        _record_order_source_conflict(ordered),
     )
 
 
@@ -943,7 +1006,7 @@ def _record_order_key(record: RunLevelRecord, *, original_position: int) -> tupl
     if started_at is not None:
         return (
             0,
-            str(started_at),
+            _record_started_at_sort_value(started_at),
             _optional_int_sort_value(run_index),
             original_position,
         )
@@ -959,6 +1022,21 @@ def _record_order_unverified(record: RunLevelRecord) -> bool:
     )
 
 
+def _record_order_source_conflict(records: Sequence[RunLevelRecord]) -> bool:
+    previous_run_index: int | None = None
+    for record in records:
+        if (
+            getattr(record, "started_at", None) is None
+            or getattr(record, "run_index", None) is None
+        ):
+            continue
+        run_index = _optional_int_sort_value(getattr(record, "run_index", None))
+        if previous_run_index is not None and run_index < previous_run_index:
+            return True
+        previous_run_index = run_index
+    return False
+
+
 def _optional_int_sort_value(value: object) -> int:
     if value is None:
         return 0
@@ -966,6 +1044,18 @@ def _optional_int_sort_value(value: object) -> int:
         return int(value)
     except (TypeError, ValueError):
         return 0
+
+
+def _record_started_at_sort_value(value: object) -> datetime:
+    if isinstance(value, datetime):
+        parsed = value
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            raise ValueError("started_at must be timezone-aware")
+        return parsed.astimezone(timezone.utc)
+
+    from agent.skills.result_schema import _parse_utc_isoformat
+
+    return _parse_utc_isoformat(str(value), "started_at")
 
 
 def _objective_direction(records: Sequence[RunLevelRecord]) -> str:
@@ -978,9 +1068,9 @@ def _objective_direction(records: Sequence[RunLevelRecord]) -> str:
 def _paired_score_samples(
     baseline_records: Sequence[RunLevelRecord],
     candidate_records: Sequence[RunLevelRecord],
-) -> tuple[tuple[float, ...], tuple[float, ...], bool] | None:
-    baseline_pairs = _score_by_pair_key(baseline_records)
-    candidate_pairs = _score_by_pair_key(candidate_records)
+) -> PairedScoreSamples | None:
+    baseline_pairs = _record_by_pair_key(baseline_records)
+    candidate_pairs = _record_by_pair_key(candidate_records)
     if not baseline_pairs or not candidate_pairs:
         return None
 
@@ -989,17 +1079,25 @@ def _paired_score_samples(
     )
     if not common_keys:
         return None
-    baseline_scores = tuple(baseline_pairs[key] for key in common_keys)
-    candidate_scores = tuple(candidate_pairs[key] for key in common_keys)
+    matched_baseline_records = tuple(baseline_pairs[key] for key in common_keys)
+    matched_candidate_records = tuple(candidate_pairs[key] for key in common_keys)
+    baseline_scores = tuple(_record_score(record) for record in matched_baseline_records)
+    candidate_scores = tuple(_record_score(record) for record in matched_candidate_records)
     partial_pairing = (
         len(common_keys) < len(baseline_pairs)
         or len(common_keys) < len(candidate_pairs)
     )
-    return baseline_scores, candidate_scores, partial_pairing
+    return PairedScoreSamples(
+        baseline_records=matched_baseline_records,
+        candidate_records=matched_candidate_records,
+        baseline_scores=baseline_scores,
+        candidate_scores=candidate_scores,
+        partial_pairing=partial_pairing,
+    )
 
 
-def _score_by_pair_key(records: Sequence[RunLevelRecord]) -> dict[str, float]:
-    pairs: dict[str, float] = {}
+def _record_by_pair_key(records: Sequence[RunLevelRecord]) -> dict[str, RunLevelRecord]:
+    pairs: dict[str, RunLevelRecord] = {}
     for record in records:
         if not record.valid_for_scoring or record.pair_key is None:
             continue
@@ -1007,8 +1105,121 @@ def _score_by_pair_key(records: Sequence[RunLevelRecord]) -> dict[str, float]:
             raise ValueError("valid measured records must include score")
         if record.pair_key in pairs:
             raise ValueError(f"duplicate pair_key {record.pair_key!r}")
-        pairs[record.pair_key] = float(record.score)
+        pairs[record.pair_key] = record
     return pairs
+
+
+def _record_score(record: RunLevelRecord) -> float:
+    if record.score is None:
+        raise ValueError("valid measured records must include score")
+    return float(record.score)
+
+
+def _pair_quality(samples: PairedScoreSamples) -> str:
+    durations = tuple(
+        float(record.duration_sec)
+        for record in samples.baseline_records + samples.candidate_records
+        if hasattr(record, "duration_sec")
+    )
+    finite_durations = tuple(value for value in durations if math.isfinite(value))
+    median_duration = float(median(finite_durations)) if finite_durations else None
+
+    saw_unknown = False
+    for baseline, candidate in zip(
+        samples.baseline_records,
+        samples.candidate_records,
+        strict=True,
+    ):
+        baseline_order = getattr(baseline, "pair_order", None)
+        candidate_order = getattr(candidate, "pair_order", None)
+        if (
+            baseline_order is None
+            or candidate_order is None
+            or baseline_order != candidate_order
+        ):
+            return "suspect"
+
+        gap = _pair_time_gap(baseline, candidate)
+        if gap is None:
+            saw_unknown = True
+            continue
+        if gap > PAIR_QUALITY_GAP_ABS_MAX_SEC:
+            return "suspect"
+        if median_duration is not None and gap > (
+            PAIR_QUALITY_GAP_DURATION_MULT * median_duration
+        ):
+            return "suspect"
+
+    return "unknown" if saw_unknown else "good"
+
+
+def _pair_time_gap(
+    baseline: RunLevelRecord,
+    candidate: RunLevelRecord,
+) -> float | None:
+    gaps = tuple(
+        float(value)
+        for value in (
+            getattr(baseline, "pair_time_gap_sec", None),
+            getattr(candidate, "pair_time_gap_sec", None),
+        )
+        if value is not None
+    )
+    if gaps:
+        if not all(math.isfinite(value) for value in gaps):
+            raise ValueError("pair_time_gap_sec must be finite")
+        return max(gaps)
+
+    baseline_started = getattr(baseline, "started_at", None)
+    candidate_started = getattr(candidate, "started_at", None)
+    if baseline_started is None or candidate_started is None:
+        return None
+    return abs(
+        (
+            _record_started_at_sort_value(candidate_started)
+            - _record_started_at_sort_value(baseline_started)
+        ).total_seconds()
+    )
+
+
+def _exploratory_signal(
+    *,
+    baseline_scores: Sequence[float],
+    candidate_scores: Sequence[float],
+    ci_low: float,
+    ci_high: float,
+    verdict: str,
+    paired: bool,
+    unpaired_autocorrelation: bool,
+    relative_effect_pct: float | None,
+) -> tuple[str, bool]:
+    if paired or not unpaired_autocorrelation or verdict != "inconclusive":
+        return "none", False
+    if (
+        len(baseline_scores) < EXPLORATORY_MIN_N
+        or len(candidate_scores) < EXPLORATORY_MIN_N
+    ):
+        return "none", False
+
+    baseline_diagnostics = diagnose_iid_assumption(baseline_scores)
+    candidate_diagnostics = diagnose_iid_assumption(candidate_scores)
+    if (
+        baseline_diagnostics.effective_sample_size is None
+        or candidate_diagnostics.effective_sample_size is None
+        or baseline_diagnostics.effective_sample_size < EXPLORATORY_MIN_ESS
+        or candidate_diagnostics.effective_sample_size < EXPLORATORY_MIN_ESS
+    ):
+        return "none", False
+    if (
+        relative_effect_pct is None
+        or abs(relative_effect_pct) < EXPLORATORY_MIN_RELATIVE_EFFECT_PCT
+    ):
+        return "none", False
+    if ci_low > 0.0:
+        return "suggestive_improvement", True
+    if ci_high < 0.0:
+        return "suggestive_regression", True
+    return "none", False
 
 
 def _signed_effect(

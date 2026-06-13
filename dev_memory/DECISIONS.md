@@ -1440,3 +1440,64 @@ Decision records must include:
   - Collapse exploration and decision into one verdict ladder. Rejected because it invites biased historical data into champion updates.
   - Make candidate-engine policy infer these meanings from notes. Rejected because Phase 7.0/07 needs structured schema fields and an explicit contract.
   - Delay all exploratory use until after Phase 07. Rejected because Phase 7.0 needs the contract to design noise-robust scheduling and paired confirmation.
+
+## 2026-06-13T18:08:31+08:00 - 08a parses chronology and requires verified pair quality before paired significance
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 08a
+  - ROADMAP.yaml Phase 7.0
+  - ROADMAP.yaml Phase 07
+  - REQUIREMENTS.md section 4.8
+  - REQUIREMENTS.md section 4.9
+- decision: `compare_run_records()` sorts measured records by parsed UTC datetime before run_index, not by lexical timestamp strings. Paired comparisons compute `pair_quality` from matched records before verdicting. Decision-grade paired significance requires `pair_quality=good`; both `suspect` and `unknown` pair quality are downgraded to low-power `inconclusive`, and the schema rejects significant paired results unless quality is good.
+- rationale: External review found two real false-positive paths: shuffled or lexically misordered chronology can wash out autocorrelation, and fake/stale `pair_key` values can manufacture paired evidence. Autocorrelation diagnostics are sequence-order dependent, and paired common-mode cancellation is only valid when the pairing itself is verified.
+- implementation_notes:
+  - "started_at is parsed through the result schema UTC parser; mixed Z/+00:00/subsecond formats compare by datetime"
+  - "pair_quality=good requires pair_order and a small within-pair time gap"
+  - "the relative time-gap threshold is 5x median run duration, with a hard 300 second cap"
+  - "missing pair_order is suspect; missing time information is unknown; both block decision-grade significance"
+  - "partial_pairing is allowed for transparency but marked low-power and cannot produce decision-grade significance without enough verified common pairs"
+- alternatives_considered:
+  - Sort by `str(started_at)`. Rejected because valid UTC spellings can be lexically misordered within the same second.
+  - Let `pair_quality=unknown` remain decision-grade. Rejected because unknown quality means the paired assumption has not been verified.
+  - Treat partial or suspect pairs as ordinary unpaired data and still allow significance. Rejected because the same chronology/time-confounding risk remains and should be confirmed by a clean measurement plan.
+
+## 2026-06-13T18:08:31+08:00 - 08a exploratory_signal production thresholds
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 08a
+  - ROADMAP.yaml Phase 7.0
+  - ROADMAP.yaml Phase 07
+  - REQUIREMENTS.md section 4.6.4 convergence detector
+  - REQUIREMENTS.md section 4.8
+  - REQUIREMENTS.md section 4.9
+- decision: 08a now emits `exploratory_signal=suggestive_improvement|suggestive_regression` only for unpaired autocorrelated comparisons that remain `verdict=inconclusive`, require confirmation, have at least 40 valid baseline and candidate runs, have baseline and candidate ESS at least 20, use an autocorrelation-aware CI that excludes zero, and clear a 1% relative-effect floor. The verdict remains decision-grade inconclusive.
+- rationale: This implements the reviewed separation between "promising enough to retest" and "proven enough to promote." A minimum n/ESS/effect floor prevents tiny or numerically trivial signals from becoming scheduling inputs while keeping the result non-decision-grade.
+- alternatives_considered:
+  - Require n>=100 immediately. Rejected for the initial production threshold because Phase 7.0 needs practical retest prioritization and ESS>=20 plus the effect floor already gates noisy data.
+  - Emit suggestive signals without confirmation. Rejected because unpaired autocorrelation remains time-confounded.
+  - Let exploratory signals coexist with significant verdicts. Rejected because this would blur decision and exploration semantics.
+
+## 2026-06-13T18:08:31+08:00 - 08a consumer contract table after review hardening
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 08a
+  - ROADMAP.yaml Phase 7.0
+  - ROADMAP.yaml Phase 07
+  - REQUIREMENTS.md section 4.6.4 convergence detector
+  - REQUIREMENTS.md section 4.8
+  - REQUIREMENTS.md section 4.9
+- decision: Phase 7.0/07 consumers must interpret 08a results through the following contract table, not by reading CI separation alone.
+- data_quality_mapping:
+  - "paired + good pair_quality + adequate power + CI excludes zero -> decision-grade significant_improvement/significant_regression"
+  - "paired + good pair_quality + low power -> verdict=inconclusive, low_power=true, recommend_more_runs=true"
+  - "paired + unknown/suspect pair_quality -> downgrade to inconclusive/low_power; significant verdicts are schema-invalid"
+  - "partial_pairing -> record partial_pairing, mark low-power, and require more clean paired runs before decision-grade use"
+  - "adequately powered CI including zero -> verdict=no_difference; low-power CI including zero -> verdict=inconclusive"
+  - "unpaired + autocorrelation_detected -> decision-grade inconclusive; strong evidence may only set exploratory_signal with requires_confirmation=true"
+  - "chronology notes input_order_unverified/order_source_conflict describe sequence-quality risk; consumers must not treat them as stronger evidence than clean chronology"
+  - "IID/right-skewed + adequate power -> decision-grade single_comparison verdicts remain allowed"
+- rationale: The safe boundary is now explicit: power, chronology, pair quality, and autocorrelation gates dominate bootstrap CI separation. This keeps candidate-engine policy from promoting a candidate based on malformed pairing, shuffled chronology, or time-confounded history.
+- alternatives_considered:
+  - Collapse low-power CI-includes-zero into `no_difference`. Rejected because absence of evidence at low power is not evidence of no effect.
+  - Leave pair-quality and chronology notes advisory only. Rejected because advisory-only metadata already allowed false-positive paths in review probes.

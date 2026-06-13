@@ -477,8 +477,20 @@ def test_compare_run_records_blocks_significance_for_low_power_run_count() -> No
 
 def test_compare_run_records_blocks_significance_for_low_power_ess() -> None:
     low_power_effects = [10.0, 10.0, 10.0, 11.0, 11.0, 11.0] * 2
-    baseline = _records([0.0] * len(low_power_effects), prefix="base", paired=True)
-    candidate = _records(low_power_effects, prefix="cand", paired=True)
+    baseline = _records(
+        [0.0] * len(low_power_effects),
+        prefix="base",
+        paired=True,
+        pair_order="baseline_first",
+        pair_time_gap_sec=0.1,
+    )
+    candidate = _records(
+        low_power_effects,
+        prefix="cand",
+        paired=True,
+        pair_order="baseline_first",
+        pair_time_gap_sec=0.1,
+    )
 
     result = compare_run_records(
         baseline,
@@ -495,12 +507,93 @@ def test_compare_run_records_blocks_significance_for_low_power_ess() -> None:
     assert "effective_sample_size_low_power" in result.notes
 
 
+@pytest.mark.parametrize(
+    ("pair_order", "pair_time_gap_sec"),
+    [
+        (None, 0.1),
+        ("baseline_first", 999.0),
+    ],
+)
+def test_compare_run_records_blocks_significance_for_suspect_pair_quality(
+    pair_order: str | None,
+    pair_time_gap_sec: float,
+) -> None:
+    baseline = _records(
+        [10.0] * 12,
+        prefix="base",
+        paired=True,
+        pair_order=pair_order,
+        pair_time_gap_sec=pair_time_gap_sec,
+    )
+    candidate = _records(
+        [12.0] * 12,
+        prefix="cand",
+        paired=True,
+        pair_order=pair_order,
+        pair_time_gap_sec=pair_time_gap_sec,
+    )
+
+    result = compare_run_records(
+        baseline,
+        candidate,
+        bootstrap_samples=80,
+        seed=60,
+    )
+
+    assert result.paired is True
+    assert result.pair_quality == "suspect"
+    assert result.ci_low == pytest.approx(2.0)
+    assert result.ci_high == pytest.approx(2.0)
+    assert result.verdict == "inconclusive"
+    assert result.low_power is True
+    assert result.significant_single_comparison is False
+    assert "suspect_pair_quality" in result.notes
+
+
+def test_compare_run_records_keeps_good_pairs_decision_grade() -> None:
+    baseline = _records(
+        [10.0] * 12,
+        prefix="base",
+        paired=True,
+        pair_order="baseline_first",
+        pair_time_gap_sec=0.1,
+    )
+    candidate = _records(
+        [12.0] * 12,
+        prefix="cand",
+        paired=True,
+        pair_order="baseline_first",
+        pair_time_gap_sec=0.1,
+    )
+
+    result = compare_run_records(
+        baseline,
+        candidate,
+        bootstrap_samples=80,
+        seed=60,
+    )
+
+    assert result.paired is True
+    assert result.pair_quality == "good"
+    assert result.verdict == "significant_improvement"
+    assert result.significant_single_comparison is True
+    assert result.low_power is False
+
+
 def test_compare_run_records_med1_blocks_small_autocorrelated_significance() -> None:
-    baseline = _records([0.0] * 20, prefix="base", paired=True)
+    baseline = _records(
+        [0.0] * 20,
+        prefix="base",
+        paired=True,
+        pair_order="baseline_first",
+        pair_time_gap_sec=0.1,
+    )
     candidate = _records(
         [float(index) for index in range(1, 21)],
         prefix="cand",
         paired=True,
+        pair_order="baseline_first",
+        pair_time_gap_sec=0.1,
     )
 
     result = compare_run_records(
@@ -521,11 +614,19 @@ def test_compare_run_records_med1_blocks_small_autocorrelated_significance() -> 
 
 
 def test_compare_run_records_checks_autocorrelation_on_paired_differences() -> None:
-    baseline = _records([100.0] * 12, prefix="base", paired=True)
+    baseline = _records(
+        [100.0] * 12,
+        prefix="base",
+        paired=True,
+        pair_order="baseline_first",
+        pair_time_gap_sec=0.1,
+    )
     candidate = _records(
         [100.0 + float(index) for index in range(1, 13)],
         prefix="cand",
         paired=True,
+        pair_order="baseline_first",
+        pair_time_gap_sec=0.1,
     )
 
     result = compare_run_records(
@@ -564,11 +665,19 @@ def test_compare_run_records_unpaired_autocorrelation_is_inconclusive() -> None:
 
 
 def test_compare_run_records_sorts_measured_records_before_autocorrelation() -> None:
-    baseline = _records([0.0] * 20, prefix="base", paired=True)
+    baseline = _records(
+        [0.0] * 20,
+        prefix="base",
+        paired=True,
+        pair_order="baseline_first",
+        pair_time_gap_sec=0.1,
+    )
     candidate = _records(
         [float(index) for index in range(1, 21)],
         prefix="cand",
         paired=True,
+        pair_order="baseline_first",
+        pair_time_gap_sec=0.1,
     )
     shuffled_indices_list = list(range(20))
     random.Random(2).shuffle(shuffled_indices_list)
@@ -598,6 +707,103 @@ def test_compare_run_records_sorts_measured_records_before_autocorrelation() -> 
     assert shuffled_result.autocorrelation_detected is True
     assert shuffled_result.verdict == "inconclusive"
     assert "input_order_unverified" not in shuffled_result.notes
+
+
+def test_compare_run_records_sorts_mixed_utc_started_at_formats_by_datetime() -> None:
+    baseline = tuple(
+        _record(
+            score=0.0,
+            run_index=index,
+            pair_key=f"pair_{index}",
+            pair_order="baseline_first",
+            pair_time_gap_sec=0.1,
+            run_id=f"base_mixed_{index}",
+            started_at=_mixed_utc_timestamp(index),
+        )
+        for index in range(20)
+    )
+    candidate = tuple(
+        _record(
+            score=float(index + 1),
+            run_index=index,
+            pair_key=f"pair_{index}",
+            pair_order="baseline_first",
+            pair_time_gap_sec=0.1,
+            run_id=f"cand_mixed_{index}",
+            started_at=_mixed_utc_timestamp(index),
+        )
+        for index in range(20)
+    )
+    shuffled_indices_list = list(range(20))
+    random.Random(4).shuffle(shuffled_indices_list)
+    shuffled_candidate = tuple(candidate[index] for index in shuffled_indices_list)
+
+    result = compare_run_records(
+        baseline,
+        shuffled_candidate,
+        bootstrap_samples=80,
+        seed=72,
+    )
+
+    assert result.pair_quality == "good"
+    assert result.lag1_autocorrelation == pytest.approx(1.0)
+    assert result.autocorrelation_detected is True
+    assert result.verdict == "inconclusive"
+
+
+def test_compare_run_records_marks_order_source_conflict() -> None:
+    baseline = tuple(
+        _record(
+            score=10.0,
+            run_index=index,
+            run_id=f"base_conflict_{index}",
+            started_at=NOW + timedelta(seconds=11 - index),
+        )
+        for index in range(12)
+    )
+    candidate = tuple(
+        _record(
+            score=12.0,
+            run_index=index,
+            run_id=f"cand_conflict_{index}",
+            started_at=NOW + timedelta(seconds=11 - index),
+        )
+        for index in range(12)
+    )
+
+    result = compare_run_records(
+        baseline,
+        candidate,
+        bootstrap_samples=80,
+        seed=72,
+    )
+
+    assert result.verdict == "significant_improvement"
+    assert "order_source_conflict" in result.notes
+
+
+def test_compare_run_records_sets_exploratory_signal_for_strong_unpaired_autocorrelation() -> None:
+    baseline = _records(_ar1_scores(seed=1, mean=100.0), prefix="base")
+    candidate = _records(_ar1_scores(seed=1001, mean=106.0), prefix="cand")
+
+    result = compare_run_records(
+        baseline,
+        candidate,
+        bootstrap_samples=300,
+        seed=123,
+    )
+
+    assert result.paired is False
+    assert result.autocorrelation_detected is True
+    assert result.effective_sample_size is not None
+    assert result.effective_sample_size >= 20.0
+    assert result.ci_low > 0.0
+    assert result.verdict == "inconclusive"
+    assert result.significant_single_comparison is False
+    assert result.exploratory_signal == "suggestive_improvement"
+    assert result.requires_confirmation is True
+    assert "unpaired_autocorrelation_inconclusive" in result.notes
+    assert "exploratory_requires_confirmation" in result.notes
 
 
 def test_compare_run_records_marks_unverified_order_when_no_time_or_index() -> None:
@@ -786,6 +992,8 @@ def _records(
     prefix: str,
     objective_direction: str = "higher_is_better",
     paired: bool = False,
+    pair_order: str | None = None,
+    pair_time_gap_sec: float | None = None,
 ) -> tuple[RunLevelRecord, ...]:
     return tuple(
         _record(
@@ -793,6 +1001,8 @@ def _records(
             run_index=index,
             objective_direction=objective_direction,
             pair_key=f"pair_{index}" if paired else None,
+            pair_order=pair_order,
+            pair_time_gap_sec=pair_time_gap_sec,
             run_id=f"{prefix}_{index}",
         )
         for index, score in enumerate(scores)
@@ -807,8 +1017,10 @@ def _record(
     valid_for_scoring: bool = True,
     objective_direction: str = "higher_is_better",
     pair_key: str | None = None,
+    pair_order: str | None = None,
+    pair_time_gap_sec: float | None = None,
     run_id: str | None = None,
-    started_at: datetime | None = None,
+    started_at: datetime | str | None = None,
 ) -> RunLevelRecord:
     failure = (
         None
@@ -821,6 +1033,15 @@ def _record(
         )
     )
     record_started_at = started_at or NOW + timedelta(seconds=run_index)
+    if isinstance(record_started_at, str):
+        parsed_started_at = datetime.fromisoformat(
+            record_started_at.replace("Z", "+00:00")
+        )
+        record_ended_at: datetime | str = parsed_started_at + timedelta(
+            milliseconds=100
+        )
+    else:
+        record_ended_at = record_started_at + timedelta(milliseconds=100)
     return RunLevelRecord(
         run_id=run_id or f"run_{phase}_{run_index}",
         run_index=run_index,
@@ -832,7 +1053,7 @@ def _record(
         objective_direction=objective_direction,  # type: ignore[arg-type]
         duration_sec=0.1,
         started_at=record_started_at,
-        ended_at=record_started_at + timedelta(milliseconds=100),
+        ended_at=record_ended_at,
         exit_code=0,
         stdout_ref="logs/bench.stdout#L1",
         stderr_ref="logs/bench.stderr#L1",
@@ -844,5 +1065,37 @@ def _record(
         artifact_hash_verified=True,
         score_source_ref="logs/bench.stdout#L1",
         pair_key=pair_key,
+        pair_order=pair_order,  # type: ignore[arg-type]
+        pair_time_gap_sec=pair_time_gap_sec,
         failure_classification=failure,
     )
+
+
+def _mixed_utc_timestamp(index: int) -> str:
+    micros = index * 50_000
+    if index == 0:
+        return "2026-06-10T09:00:00Z"
+    if index % 4 == 0:
+        return f"2026-06-10T09:00:00.{micros // 1000:03d}Z"
+    if index % 4 == 1:
+        return f"2026-06-10T09:00:00.{micros:06d}+00:00"
+    if index % 4 == 2:
+        return f"2026-06-10T09:00:00.{micros // 1000:03d}+00:00"
+    return f"2026-06-10T09:00:00.{micros:06d}Z"
+
+
+def _ar1_scores(
+    *,
+    seed: int,
+    mean: float,
+    n: int = 80,
+    phi: float = 0.35,
+    sigma: float = 0.2,
+) -> tuple[float, ...]:
+    rng = random.Random(seed)
+    state = 0.0
+    scores: list[float] = []
+    for _ in range(n):
+        state = phi * state + rng.gauss(0.0, sigma)
+        scores.append(mean + state)
+    return tuple(scores)

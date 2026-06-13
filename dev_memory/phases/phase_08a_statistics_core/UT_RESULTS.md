@@ -223,3 +223,42 @@
   - Added coverage regression file:
     `tests/test_stats_core_coverage_regression.py`.
   - Added ordinary order/boundary tests in `tests/test_stats_core.py`.
+
+## Pair quality / datetime ordering / exploratory-signal hardening
+
+- Implemented after four external review passes plus Claude numeric probes found
+  two real false-positive paths and one schema-production gap.
+- Covered fixes:
+  - `compare_run_records()` computes `pair_quality`; paired significance now
+    requires `pair_quality=good`.
+  - `pair_quality=suspect` covers missing `pair_order` or excessive pair time
+    gap; `pair_quality=unknown` covers missing time information. Both downgrade
+    to low-power `inconclusive` and are schema-invalid as significant results.
+  - `started_at` ordering parses UTC datetime strings instead of lexical string
+    sorting, covering mixed `Z`, `+00:00`, and subsecond spellings.
+  - `order_source_conflict` records disagreement between parsed chronology and
+    `run_index`.
+  - `exploratory_signal` is produced only for unpaired autocorrelated
+    inconclusive results with n>=40, ESS>=20, corrected CI excluding zero, and
+    relative effect >=1%; `requires_confirmation=true`.
+- Targeted schema/stats smoke:
+  - Command:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py -q`
+  - Result: `94 passed in 0.72s`.
+- Slow coverage regression:
+  - Command:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core_coverage_regression.py -q`
+  - Result: `3 passed in 1.20s`.
+- Final targeted hardening group:
+  - Command:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py tests/test_stats_core_coverage_regression.py -q`
+  - Result: `102 passed in 2.22s`.
+- Full Python 3.10 suite:
+  - Command:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/ -q`
+  - Result: `680 passed in 8.45s`.
+- Static checks:
+  - `git diff --check` passed.
+  - YAML parse smoke for `dev_memory/ROADMAP.yaml`,
+    `dev_memory/CURRENT_PHASE.yaml`, and
+    `dev_memory/phases/phase_08a_statistics_core/CHECKLIST.yaml` passed.

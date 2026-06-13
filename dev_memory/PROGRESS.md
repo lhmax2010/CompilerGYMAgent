@@ -1,5 +1,40 @@
 # Development Progress
 
+## 2026-06-13T18:08:31+08:00 - 08a pair quality and exploratory hardening implemented
+
+- Fixed the paired false-positive path found by external review:
+  `compare_run_records()` now computes `pair_quality` before verdicting.
+  Paired significance is decision-grade only when `pair_quality=good`; missing
+  `pair_order`, excessive time gaps, or unknown time information downgrade to
+  low-power `inconclusive` and are schema-invalid as significant results.
+- Fixed the mixed UTC timestamp ordering hole:
+  `started_at` is parsed as UTC datetime for sort keys, so valid `Z`,
+  `+00:00`, and subsecond spellings cannot misorder same-second chronology.
+  `order_source_conflict` now marks disagreement between parsed chronology and
+  `run_index`.
+- Implemented production `exploratory_signal`:
+  unpaired autocorrelated comparisons stay `verdict=inconclusive`, but strong
+  corrected-CI evidence with n>=40, ESS>=20, and relative effect >=1% can emit
+  `suggestive_improvement` / `suggestive_regression` with
+  `requires_confirmation=true`.
+- Added schema negative/positive tests for exploratory signals, paired
+  suspect/unknown quality, unpaired autocorrelation, and good paired
+  decision-grade significance.
+- Validation:
+  - slow coverage regression:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core_coverage_regression.py -q`
+    -> 3 passed in 1.20s,
+  - targeted 08a hardening group:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py tests/test_stats_core_coverage_regression.py -q`
+    -> 102 passed in 2.22s,
+  - full Python 3.10 suite:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/ -q`
+    -> 680 passed in 8.45s,
+  - `git diff --check` passed.
+
+Next action: commit/push and request external review for the new hardening
+range.
+
 ## 2026-06-13T16:53:27+08:00 - 08a post-review hardening started
 
 - Implemented the mandatory input-order fix from the four-review/Claude

@@ -341,6 +341,88 @@ def test_statistical_result_rejects_inconsistent_significance_and_adjustment() -
         )
 
 
+def test_statistical_result_accepts_good_paired_decision_grade_result() -> None:
+    result = StatisticalResult(
+        **_statistical_result_payload(
+            paired=True,
+            pair_count=10,
+            pair_quality="good",
+        )
+    )
+
+    assert result.significant_single_comparison is True
+    assert result.pair_quality == "good"
+
+
+@pytest.mark.parametrize("pair_quality", ["suspect", "unknown"])
+def test_statistical_result_rejects_bad_paired_quality_significance(
+    pair_quality: str,
+) -> None:
+    with pytest.raises(ValidationError, match="good pair_quality"):
+        StatisticalResult(
+            **_statistical_result_payload(
+                paired=True,
+                pair_count=10,
+                pair_quality=pair_quality,
+            )
+        )
+
+
+def test_statistical_result_rejects_unpaired_autocorrelated_significance() -> None:
+    with pytest.raises(ValidationError, match="unpaired autocorrelated"):
+        StatisticalResult(
+            **_statistical_result_payload(
+                paired=False,
+                autocorrelation_detected=True,
+                iid_assumption_valid=False,
+            )
+        )
+
+
+def test_statistical_result_rejects_decision_grade_exploratory_signal() -> None:
+    with pytest.raises(ValidationError, match="non-decision-grade"):
+        StatisticalResult(
+            **_statistical_result_payload(
+                exploratory_signal="suggestive_improvement",
+                requires_confirmation=True,
+            )
+        )
+
+
+def test_statistical_result_rejects_unconfirmed_exploratory_signal() -> None:
+    with pytest.raises(ValidationError, match="requires confirmation"):
+        StatisticalResult(
+            **_statistical_result_payload(
+                verdict="inconclusive",
+                significant_single_comparison=False,
+                ci_low=1.0,
+                ci_high=3.0,
+                exploratory_signal="suggestive_improvement",
+                requires_confirmation=False,
+            )
+        )
+
+
+def test_statistical_result_accepts_confirmed_exploratory_inconclusive_signal() -> None:
+    result = StatisticalResult(
+        **_statistical_result_payload(
+            verdict="inconclusive",
+            significant_single_comparison=False,
+            ci_low=1.0,
+            ci_high=3.0,
+            paired=False,
+            autocorrelation_detected=True,
+            iid_assumption_valid=False,
+            exploratory_signal="suggestive_improvement",
+            requires_confirmation=True,
+        )
+    )
+
+    assert result.verdict == "inconclusive"
+    assert result.exploratory_signal == "suggestive_improvement"
+    assert result.requires_confirmation is True
+
+
 def test_score_parse_failed_requires_score_source_ref() -> None:
     payload = _record_payload(valid_for_scoring=False)
     payload.update(
@@ -380,6 +462,30 @@ def _record(**overrides: object) -> RunLevelRecord:
     payload = _record_payload(valid_for_scoring=True)
     payload.update(overrides)
     return RunLevelRecord.model_validate(payload)
+
+
+def _statistical_result_payload(**overrides: object) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "comparison": "candidate_vs_baseline",
+        "objective_direction": "higher_is_better",
+        "point_estimate": 2.0,
+        "relative_effect_pct": 20.0,
+        "ci_low": 1.0,
+        "ci_high": 3.0,
+        "confidence_level": 0.95,
+        "method": "iid_percentile_bootstrap",
+        "verdict": "significant_improvement",
+        "significant_single_comparison": True,
+        "n_measured": 20,
+        "n_valid": 10,
+        "n_invalid": 0,
+        "baseline_n_valid": 10,
+        "candidate_n_valid": 10,
+        "effective_sample_size": 10.0,
+        "lag1_autocorrelation": 0.0,
+    }
+    payload.update(overrides)
+    return payload
 
 
 def _record_payload(*, valid_for_scoring: bool) -> dict[str, object]:

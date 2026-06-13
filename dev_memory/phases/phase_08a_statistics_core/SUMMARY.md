@@ -312,3 +312,34 @@ Post-review hardening:
 - Patch artifacts:
   `dev_memory/phases/phase_08a_statistics_core/patches/07_post_review_hardening.patch`,
   `.summary.txt`, and `.review.md`.
+
+Second post-review hardening:
+
+- Four external review passes plus Claude numeric probes found two additional
+  true false-positive paths and one production gap:
+  - paired comparisons were not computing `pair_quality`, so fake/stale pairs
+    could still become decision-grade significant,
+  - valid UTC timestamp spellings could be lexically misordered inside the same
+    second,
+  - `exploratory_signal` existed in schema but was not produced by
+    `compare_run_records()`.
+- `compare_run_records()` now computes pair quality from `pair_order` and
+  pair time gap metadata. `pair_quality=good` is required for decision-grade
+  paired significance; suspect/unknown pair quality downgrades to
+  low-power `inconclusive`.
+- Pair time-gap checks use a relative threshold of 5x median run duration plus
+  a hard 300 second cap. Missing `pair_order` is suspect; missing time
+  information is unknown.
+- `started_at` sort keys now parse UTC datetimes rather than comparing strings,
+  and `order_source_conflict` records disagreement between chronology and
+  `run_index`.
+- Unpaired autocorrelated comparisons remain decision-grade inconclusive.
+  Strong corrected-CI evidence can set non-decision-grade
+  `exploratory_signal=suggestive_*` only when n>=40, ESS>=20, relative effect
+  >=1%, and `requires_confirmation=true`.
+- Validation:
+  - stats/schema smoke -> 94 passed in 0.72s,
+  - slow coverage regression -> 3 passed in 1.20s,
+  - targeted hardening group -> 102 passed in 2.22s,
+  - full Python 3.10 suite -> 680 passed in 8.45s,
+  - `git diff --check` passed.

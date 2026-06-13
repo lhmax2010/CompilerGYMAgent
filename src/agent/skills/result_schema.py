@@ -249,8 +249,10 @@ class StatisticalResult(StrictResultSchemaModel):
                 raise ValueError("exploratory_signal is non-decision-grade")
             if not self.requires_confirmation:
                 raise ValueError("exploratory_signal requires confirmation")
-        if self.pair_quality == "suspect" and expected_significant:
-            raise ValueError("suspect pair_quality cannot be decision-grade significant")
+        if self.paired and self.pair_quality != "good" and expected_significant:
+            raise ValueError(
+                "paired results require good pair_quality for decision-grade significant"
+            )
         if (
             not self.paired
             and self.autocorrelation_detected
