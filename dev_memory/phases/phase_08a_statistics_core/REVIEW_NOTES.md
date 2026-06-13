@@ -382,3 +382,48 @@ Review takeaway:
 - 08a.4 provides the corrected resampling method and improves over the naive
   73-74% baseline. Final statistical safety now depends on 08a.5 layering
   ESS/low-power verdict gates over the CI output.
+
+## Subtask 08a.5 implementation notes - pending external review
+
+- Scope: side-effect-free `StatisticalResult` assembly and verdict gates for a
+  single baseline-vs-candidate comparison.
+- Schema:
+  - `comparison_scope="single_comparison"`,
+  - `adjusted_for_multiple_testing=false`,
+  - `significant_single_comparison` is the only significance boolean,
+  - no bare `significant` field is exposed.
+- Verdict policy:
+  - significance requires CI exclusion of zero and adequate power,
+  - `n_valid < 5` or `ESS < 3` is hard inconclusive,
+  - `5 <= n_valid < 10`, `3 <= ESS < 5`, preliminary ESS, or small-n
+    autocorrelated paired data is low-power inconclusive,
+  - adequately powered CI including zero is `no_difference`, not
+    `inconclusive`.
+- Med-1 disposition:
+  - small-n autocorrelated paired comparisons are prevented from becoming
+    significant even when the moving-block CI excludes zero,
+  - this is the explicit safety response to 08a.4 bursty coverage remaining
+    below nominal for n=20-40.
+- Pairing:
+  - matching `pair_key` values trigger paired differences,
+  - paired differences preserve baseline pair order for autocorrelation
+    diagnostics,
+  - partial matching is allowed but marked with `partial_pairing`,
+  - paired differences still run autocorrelation and ESS checks.
+- Unpaired behavior:
+  - baseline and candidate means are bootstrapped independently,
+  - unpaired autocorrelation marks the result inconclusive rather than
+    significant.
+- Scope exclusions:
+  - no multiple-comparison correction,
+  - no adaptive rerun action beyond `recommend_more_runs`,
+  - no outlier deletion policy,
+  - no candidate engine.
+- Local validation:
+  - targeted 08a group -> 75 passed, 5 skipped,
+  - full Windows suite -> 24 failed, 581 passed, 51 skipped, 4 errors; failures
+    remain known platform-sensitive non-08a paths.
+
+External review should focus on numerical Med-1 safety: construct
+underpowered/severe-bursty cases where the CI can exclude zero and confirm the
+verdict remains low_power/inconclusive.

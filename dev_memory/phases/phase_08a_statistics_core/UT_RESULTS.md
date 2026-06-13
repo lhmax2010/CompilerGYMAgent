@@ -138,3 +138,36 @@
   - Verdict: approve with finding, one Medium follow-up.
   - Moving block improved fake_gbs bursty coverage over naive IID but remained
     below 90% at smaller n; carry low-power/inconclusive handling into 08a.5.
+
+## Subtask 08a.5
+
+- Implementation status: complete locally, pending full Windows validation,
+  external Med-1 verdict-gate review, and Ubuntu validation.
+- Added tests:
+  - `StatisticalResult` schema accepts single-comparison result fields,
+  - schema rejects inconsistent `significant_single_comparison` and
+    multiple-testing adjustment,
+  - significant single-comparison output for adequately powered improvement,
+  - lower-is-better direction sign,
+  - adequate-power `no_difference` vs low-power `inconclusive`,
+  - baseline approximately zero relative-effect defense,
+  - n_valid <5 and 5<=n_valid<10 power gates,
+  - ESS<3 and 3<=ESS<5 power gates,
+  - Med-1 small-n autocorrelated paired data blocked from significance,
+  - paired difference autocorrelation diagnostics,
+  - unpaired high autocorrelation marked inconclusive.
+- Targeted local validation:
+  - Command: `.venv\Scripts\python.exe -m pytest tests\test_stats_core.py tests\test_result_schema.py tests\test_benchmark_skill.py -q`
+  - Result: `75 passed, 5 skipped in 1.43s`.
+- Full Windows validation:
+  - Command: `.venv\Scripts\python.exe -m pytest tests\ -q`
+  - Result: `24 failed, 581 passed, 51 skipped, 4 errors`.
+  - Scope note: failures are the known Windows/platform-sensitive paths outside
+    08a, concentrated in clean-trace CLI, filesystem mount inspection,
+    process registry/state consistency, and trace cleanup tests.
+- Review gate:
+  - External numerical review should stress Med-1 cases where block-bootstrap
+    coverage remains below nominal and confirm the verdict remains
+    low_power/inconclusive, not significant.
+  - Ubuntu validation remains required because Windows full-suite failures are
+    known platform-sensitive non-08a paths.

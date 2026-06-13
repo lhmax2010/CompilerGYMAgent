@@ -1,6 +1,6 @@
 # dev_memory/ROADMAP.yaml
 roadmap_version: 1
-last_updated: 2026-06-13T09:34:11+08:00
+last_updated: 2026-06-13T10:58:18+08:00
 status: active
 
 # ============================================================
@@ -246,6 +246,8 @@ planned_phases:
         - "Carry 08a.4 Med-1: small-n/severe-bursty cases where moving block coverage remains below nominal must produce low_power/inconclusive rather than significant verdicts."
         - "Defend base approximately zero in normalized improvement; do not divide by an unstable baseline mean."
         - "Multiple-comparison correction is excluded from 08a and belongs to Phase 07 policy because 08a cannot observe global comparison count M."
+        - "Implementation note: significance requires both CI exclusion of zero and adequate power; n_valid<5 or ESS<3 is inconclusive, 5<=n_valid<10 or 3<=ESS<5 is low-power inconclusive, and small-n autocorrelated paired data is low-power/inconclusive per Med-1."
+        - "Implementation note: matching pair_key values are differenced in baseline pair order; partial matches are marked, and unpaired autocorrelation is inconclusive."
     exit_criteria:
       - "Descriptive statistics and bootstrap CI are checked against an independent implementation (numpy/scipy or hand calculation) and match within documented tolerance"
       - "IID/right-skewed percentile bootstrap 95% CI has coverage approximately at nominal confidence on known-truth simulations"

@@ -19,7 +19,7 @@ Current phase:
 
 | State | Next phase | Why next |
 |---|---|---|
-| Phase 08a in progress | 08a.5 StatisticalResult + verdict gates | 08a.4 is implemented and numerically reviewed with Med-1. Moving block improves bursty coverage but smaller-n bursty cases remain underpowered, so 08a.5 must turn those cases into low_power/inconclusive verdicts rather than significance. |
+| Phase 08a in progress | 08a.5 external review + Ubuntu validation | 08a.5 StatisticalResult/verdict gates are implemented locally. External review must verify Med-1 safety: underpowered or autocorrelated small-n cases remain low_power/inconclusive rather than significant. |
 
 08a review-alignment boundaries:
 
@@ -43,6 +43,10 @@ Current phase:
 - 08a.4 review found moving block improves bursty coverage but remains below
   90% for smaller n. 08a.5 owns the safety response: ESS/low-power verdict
   gates must mark such cases inconclusive instead of significant.
+- 08a.5 implements the safety response: significance requires both CI exclusion
+  of zero and adequate power. Low n, low ESS, preliminary ESS, small-n
+  autocorrelated paired data, and unpaired autocorrelation prevent
+  `significant_single_comparison`.
 
 Next implementation phases:
 

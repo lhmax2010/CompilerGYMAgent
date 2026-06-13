@@ -33,15 +33,19 @@ Current status:
 - Phase 05 Compile / Benchmark Skills is closed.
 - Phase 08a design has been finalized in `dev_memory/ROADMAP.yaml` and
   `dev_memory/DECISIONS.md`.
-- Phase 08a code has NOT started yet.
+- Phase 08a.1 through 08a.4 are implemented and externally/numerically
+  reviewed. 08a.4 was approved with Med-1: moving block bootstrap improves
+  bursty coverage but smaller-n bursty cases remain underpowered.
+- Phase 08a.5 StatisticalResult/verdict gates are implemented locally and
+  pending external Med-1 verdict-gate review plus Ubuntu validation.
 - `dev_memory/BLOCKERS.md` currently records no active blockers.
 
 Latest important commits:
+- `8936849 phase_08a: add statistical result verdict gates`
+- `995ebf3 dev_memory: record 08a.4 statistical review`
+- `338232b dev_memory: record 08a.4 implementation`
+- `81f7287 phase_08a: add moving block bootstrap`
 - `6b72d43 dev_memory: finalize 08a statistics core design`
-- `f34c28d phase_05: harden benchmark scoring and failure routing`
-- `6ed4b31 dev_memory: close Phase 05 compile benchmark skills`
-- `6252761 tests: make clean trace CLI dates relative`
-- `4ccf5c5 phase_05: add failure classifier rules`
 
 Recent Phase 05/08a preconditions already handled:
 - Phase 05 emits process-backed compile/benchmark records.
@@ -54,42 +58,23 @@ Recent Phase 05/08a preconditions already handled:
 - `write_failed_combos=True` requires HIGH confidence, option_related route,
   and non-empty affected_options.
 
-Next real phase:
-- Phase 08a - Baseline + Statistical Significance - Minimal Stats Core.
-- It is pure statistics code: no process cleanup, no workspace mutation, and no
-  candidate engine changes.
-- 08a consumes Phase 05 `RunLevelRecord` values.
-- Main technical risk: bursty/autocorrelated benchmark noise. Do not implement
-  naive IID-only statistics.
+Current next action:
+- Commit/push 08a.5 code and dev_memory, then request external review for
+  range `995ebf3..HEAD`.
+- External review should focus on Med-1 safety: small-n/severe-bursty cases
+  where CI coverage remains below nominal must be low_power/inconclusive, not
+  significant.
+- Ubuntu validation is still required after push.
 
-Before writing 08a code:
-1. Confirm whether Claude/external review for the 08a design commit
-   `f34c28d..6b72d43` has been completed and recorded.
-2. If not recorded, pause coding and ask for/record that design review.
-3. Re-parse the roadmap:
-   `python - <<'PY'
-   import yaml
-   from pathlib import Path
-   data = yaml.safe_load(Path("dev_memory/ROADMAP.yaml").read_text())
-   planned = data["planned_phases"]
-   print(planned[0]["id"], planned[0]["status"])
-   print(planned[1]["id"], planned[1]["status"], planned[1]["estimate_subtasks"])
-   PY`
-   Expected: `05.5 done`, then `08a planned`, estimate `low: 6, high: 8`.
-
-Phase 08a first subtask:
-- 08a.1 descriptive statistics + RunSummaryHint extension.
-- Implement `src/agent/stats_core.py` only when design review is cleared.
-- Add/extend schema in `src/agent/skills/result_schema.py` for:
-  - n_measured, n_valid, n_invalid,
-  - effective_sample_size,
-  - lag1_autocorrelation,
-  - autocorrelation_warning,
-  - StatisticalResult if 08a.1 scope includes it per updated subtask split.
-- Consume only measured runs with `valid_for_scoring=True`.
-- Use sample stddev (n-1).
-- CV is None when mean is effectively zero.
-- All numeric fields must reject NaN/Inf.
+Phase 08a current subtask:
+- 08a.5 baseline-normalized comparison + pair_key paired design +
+  StatisticalResult verdict schema.
+- Preserve pure statistics scope: no process cleanup, no workspace mutation,
+  no multiple-comparison correction, no adaptive rerun action, no outlier
+  policy, and no candidate engine changes.
+- 08a consumes Phase 05 `RunLevelRecord` values only.
+- Main technical risk remains bursty/autocorrelated benchmark noise. Do not
+  treat naive IID-only significance as sufficient.
 
 Phase 08a design requirements to preserve:
 - IID/right-skewed percentile bootstrap must be seeded and reproducible.

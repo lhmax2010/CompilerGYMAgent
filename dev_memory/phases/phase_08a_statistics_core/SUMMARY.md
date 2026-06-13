@@ -202,3 +202,54 @@ External review status:
 - Med-1 disposition: not an 08a.4 blocker. 08a.5 must make
   low-power/autocorrelated bursty comparisons inconclusive rather than
   significant.
+
+## Subtask 08a.5 - StatisticalResult + verdict gates
+
+Implemented scope:
+
+- Add `StatisticalResult` to `src/agent/skills/result_schema.py` with:
+  - single-comparison scope metadata,
+  - `adjusted_for_multiple_testing=false`,
+  - signed point estimate and optional relative effect,
+  - CI fields and method,
+  - verdict and `significant_single_comparison`,
+  - sample counts, ESS/rho/autocorrelation flags, low-power flags, paired
+    metadata, and notes.
+- Add `compare_run_records()` in `src/agent/stats_core.py` as the
+  side-effect-free baseline-vs-candidate comparison entry point.
+- Compute signed effects so positive always means the candidate is better:
+  - higher-is-better: candidate - baseline,
+  - lower-is-better: baseline - candidate.
+- Set `relative_effect_pct=None` when the baseline mean is effectively zero,
+  while keeping the signed absolute point estimate.
+- Prefer paired differences when matching `pair_key` values exist, preserving
+  baseline pair order and marking `partial_pairing` when only a subset matches.
+- Continue to run autocorrelation/ESS diagnostics over paired differences.
+- Mark unpaired high-autocorrelation comparisons inconclusive.
+- Implement verdict gates:
+  - `n_valid < 5` or `ESS < 3` -> `inconclusive`,
+  - `5 <= n_valid < 10` or `3 <= ESS < 5` -> low-power `inconclusive`,
+  - small-n autocorrelated paired data -> low-power `inconclusive` per 08a.4
+    Med-1,
+  - adequately powered CI excluding zero -> significant improvement/regression,
+  - adequately powered CI including zero -> `no_difference`.
+
+Exclusions:
+
+- No multiple-comparison correction; Phase 07 owns global comparison-family
+  policy.
+- No adaptive rerun action; 08a only emits `recommend_more_runs`.
+- No outlier policy.
+- No candidate engine.
+- No production dependency on fake_gbs burst-state labels.
+
+Validation status:
+
+- Targeted 08a group:
+  `.venv\Scripts\python.exe -m pytest tests\test_stats_core.py tests\test_result_schema.py tests\test_benchmark_skill.py -q`
+  -> 75 passed, 5 skipped in 1.43s.
+- Full Windows validation:
+  `.venv\Scripts\python.exe -m pytest tests\ -q`
+  -> 24 failed, 581 passed, 51 skipped, 4 errors. Failures remain the known
+  Windows/platform-sensitive non-08a paths.
+- External Med-1 verdict-gate review and Ubuntu validation are pending.

@@ -1,7 +1,7 @@
 phase_id: phase_08a_statistics_core
 phase_title: "Baseline + Statistical Significance - Minimal Stats Core"
 started_at: 2026-06-10T15:15:45+08:00
-last_updated: 2026-06-13T09:34:11+08:00
+last_updated: 2026-06-13T10:58:18+08:00
 target_milestone: "M2 + M4 (partial)"
 related_requirements:
   - REQUIREMENTS.md section 4.8
@@ -47,6 +47,7 @@ subtasks:
       - tests/test_result_schema.py
       - tests/test_benchmark_skill.py
       - dev_memory/CURRENT_PHASE.yaml
+      - dev_memory/HANDOFF_PROMPT.md
       - dev_memory/DECISIONS.md
       - dev_memory/ROADMAP.yaml
       - dev_memory/ROADMAP.md
@@ -332,8 +333,58 @@ subtasks:
       full: "Linux full suite -> 646 passed per external 08a.4 review."
   - id: "08a.5"
     title: "baseline normalized comparison + pair_key paired design + StatisticalResult verdict schema"
-    status: planned
+    status: in_review
+    files_created: []
+    files_modified:
+      - src/agent/stats_core.py
+      - src/agent/skills/result_schema.py
+      - src/agent/skills/__init__.py
+      - src/agent/__init__.py
+      - tests/test_stats_core.py
+      - tests/test_result_schema.py
+      - dev_memory/CURRENT_PHASE.yaml
+      - dev_memory/DECISIONS.md
+      - dev_memory/PROGRESS.md
+      - dev_memory/ROADMAP.yaml
+      - dev_memory/ROADMAP.md
+      - dev_memory/phases/phase_08a_statistics_core/CHECKLIST.yaml
+      - dev_memory/phases/phase_08a_statistics_core/REVIEW_NOTES.md
+      - dev_memory/phases/phase_08a_statistics_core/SUMMARY.md
+      - dev_memory/phases/phase_08a_statistics_core/UT_RESULTS.md
+    scope:
+      - "Add StatisticalResult schema for one candidate-vs-baseline comparison with single_comparison scope and adjusted_for_multiple_testing=false."
+      - "Add compare_run_records() as the side-effect-free assembly point for baseline/candidate RunLevelRecord sequences."
+      - "Compute objective_direction-aware signed absolute effect and relative_effect_pct, with relative_effect_pct=None when the baseline mean is effectively zero."
+      - "Prefer paired differences when matching pair_key values exist; preserve baseline pair order for paired differences and mark partial_pairing when only a subset matches."
+      - "Run autocorrelation/ESS diagnostics over the paired difference sequence; pairing does not bypass IID checks."
+      - "For unpaired comparisons, bootstrap baseline and candidate means independently and mark high-autocorrelation unpaired comparisons inconclusive."
+      - "Layer verdict gates: n_valid<5 or ESS<3 -> inconclusive; 5<=n_valid<10 or 3<=ESS<5 -> low_power/inconclusive; adequately powered CI excluding zero -> significant_improvement/regression; adequately powered CI including zero -> no_difference."
+      - "Carry 08a.4 Med-1 by marking small-n autocorrelated paired comparisons low_power/inconclusive rather than significant even when the CI excludes zero."
+      - "Expose significant_single_comparison boolean and avoid any bare significant field."
+      - "Emit recommend_more_runs when data are underpowered or high-CV."
+    exclusions:
+      - "No multiple-comparison correction; Phase 07 owns global comparison-family policy."
+      - "No adaptive rerun action; 08a only emits recommend_more_runs metadata."
+      - "No outlier deletion policy."
+      - "No candidate engine."
+      - "No fake_gbs burst-state production dependency."
+    implementation_complete: true
+    implementation_commit: 8936849
+    ut_required: true
+    ut_passed: true
+    local_validation:
+      - "Targeted pytest passed: .venv\\Scripts\\python.exe -m pytest tests\\test_stats_core.py tests\\test_result_schema.py tests\\test_benchmark_skill.py -q -> 75 passed, 5 skipped in 1.43s."
+      - "Full Windows pytest remains platform-blocked outside 08a: .venv\\Scripts\\python.exe -m pytest tests\\ -q -> 24 failed, 581 passed, 51 skipped, 4 errors."
+    review_gate:
+      - "External numerical review must verify Med-1 safety: small-n/severe-bursty cases with undercovered block-bootstrap CI remain low_power/inconclusive, not significant."
+      - "Verify verdict boundary tests for n_valid<5, 5<=n_valid<10, ESS<3, 3<=ESS<5, no_difference, and significant_single_comparison."
+      - "Verify base approximately zero defense: relative_effect_pct=None while signed absolute point_estimate remains present."
+      - "Verify paired-difference autocorrelation checks still run and unpaired high-autocorrelation data is inconclusive."
+      - "Verify scope excludes multiple-comparison correction, adaptive rerun, outliers, and candidate engine."
+    external_review_verdict: pending
+    ubuntu_validation:
+      status: pending
   - id: "08a.6"
     title: "fake_gbs bursty state exposure in env_snapshot + phase closeout"
     status: planned
-next_action: "Start 08a.5 StatisticalResult/verdict gates with Med-1 low-power/inconclusive handling."
+next_action: "Commit/push 08a.5 implementation, then request external Med-1 verdict-gate review and Ubuntu validation."

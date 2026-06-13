@@ -135,15 +135,45 @@ subtasks:
       medium_followup_med_1: "Moving block improves bursty coverage but remains below >=90% for smaller n; 08a.5 verdict gates must mark underpowered/autocorrelated cases low_power/inconclusive."
   - id: "08a.5"
     title: "baseline normalized comparison + pair_key paired design + StatisticalResult verdict schema"
-    status: planned
-    implementation_complete: false
-    tests_passed: false
+    status: in_review
+    implementation_complete: true
+    implementation_commit: 8936849
+    tests_passed: true
     patch_artifacts_generated: false
     external_review: pending
     ubuntu_validation: pending
     inherited_followups:
       - "From 08a.4 Med-1: underpowered/autocorrelated bursty cases where CI coverage remains below nominal must be low_power/inconclusive, not significant."
       - "Do not treat moving block bootstrap alone as sufficient proof of significance for n=20-40 bursty sequences."
+    targeted_validation: "75 passed, 5 skipped on Windows Python 3.11"
+    full_windows_validation: "24 failed, 581 passed, 51 skipped, 4 errors; failures are existing Windows/platform-sensitive non-08a paths."
+    scope:
+      statistical_result_schema: implemented
+      compare_run_records: implemented
+      single_comparison_scope: implemented
+      significant_single_comparison_boolean: implemented
+      baseline_zero_relative_defense: implemented
+      objective_direction_signed_effect: implemented
+      paired_difference_by_pair_key: implemented
+      paired_difference_autocorrelation_check: implemented
+      partial_pairing_note: implemented
+      unpaired_autocorrelation_inconclusive: implemented
+      med_1_low_power_gate: implemented
+      candidate_engine: excluded
+      multiple_comparison_correction: excluded_phase_07
+      adaptive_rerun_action: excluded_08b
+      outlier_policy: excluded_08b
+    review_gate:
+      n_valid_below_5_inconclusive: implemented
+      n_valid_5_to_9_low_power_inconclusive: implemented
+      ess_below_3_inconclusive: implemented
+      ess_3_to_5_low_power_inconclusive: implemented
+      no_difference_vs_inconclusive: implemented
+      med_1_small_autocorrelated_significance_blocked: implemented
+      base_zero_relative_none: implemented
+      direction_sign: implemented
+      paired_autocorrelation_checked: implemented
+      unpaired_autocorrelation_inconclusive: implemented
   - id: "08a.6"
     title: "fake_gbs bursty state exposure in env_snapshot + phase closeout"
     status: planned

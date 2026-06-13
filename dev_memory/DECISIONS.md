@@ -1305,3 +1305,30 @@ Decision records must include:
   - Inflate CI width heuristically inside 08a.4 until coverage reaches 90%. Rejected because heuristic widening would hide low power and blur the separation between resampling and decision policy.
   - Ignore the undercoverage after block bootstrap improves over naive. Rejected because candidate-engine consumers must not treat a still-underpowered interval as significant.
   - Defer all handling to 08b. Rejected because Phase 07 needs safe single-comparison verdict semantics from 08a.5 before candidate-engine work.
+
+## 2026-06-13T10:58:18+08:00 - 08a.5 significance requires both CI separation and adequate power
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 08a
+  - REQUIREMENTS.md section 4.8
+  - REQUIREMENTS.md section 4.9
+  - REQUIREMENTS.md section 4.6.4 convergence detector
+- decision: Phase 08a.5 may emit `significant_improvement` or `significant_regression` only when the single-comparison CI excludes zero and the comparison passes power gates. Power gates take precedence over the CI: `n_valid < 5` or `ESS < 3` is `inconclusive`; `5 <= n_valid < 10`, `3 <= ESS < 5`, preliminary ESS, or small-n autocorrelated paired data is low-power `inconclusive`; only adequately powered CIs including zero may emit `no_difference`.
+- rationale: 08a.4 showed that corrected block-bootstrap intervals still under-cover severe bursty small-n data. The safe minimal behavior is to make low power explicit and machine-readable rather than let a narrow CI create false significance for Phase 07.
+- alternatives_considered:
+  - Treat any CI excluding zero as significant. Rejected because underpowered bursty data can exclude zero with unreliable coverage.
+  - Return `no_difference` for all low-power CIs that include zero. Rejected because low-power absence of evidence is not evidence of no difference.
+  - Hide low-power state in notes only. Rejected because downstream policy needs structured `low_power`, `recommend_more_runs`, and non-significant verdicts.
+
+## 2026-06-13T10:58:18+08:00 - 08a.5 paired comparison uses pair_key but pairing does not waive IID diagnostics
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 08a
+  - REQUIREMENTS.md section 4.8
+  - REQUIREMENTS.md section 4.9
+- decision: When baseline and candidate measured records share `pair_key` values, 08a.5 computes the signed paired-difference sequence in baseline pair order and bootstraps that sequence. Partial matches are allowed but marked with `partial_pairing`. The paired difference sequence still runs autocorrelation and ESS diagnostics; unpaired comparisons with detected autocorrelation are inconclusive.
+- rationale: Pairing is the strongest minimal defense against common-mode burst noise, but the resulting difference sequence can still be autocorrelated. Preserving order keeps lag diagnostics meaningful while allowing old unpaired data to remain usable when IID diagnostics pass.
+- alternatives_considered:
+  - Treat paired differences as automatically IID. Rejected because persistent burst states or drift can remain after differencing.
+  - Require complete pair coverage. Rejected because partial legacy data can still produce a transparent low-power result when marked.
+  - Ignore pair keys and always compare unpaired means. Rejected because it discards the strongest available anti-bursty signal.

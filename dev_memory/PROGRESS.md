@@ -1,5 +1,51 @@
 # Development Progress
 
+## 2026-06-13T10:58:18+08:00 - 08a.5 StatisticalResult verdict gates implemented
+
+- Added 08a.5 comparison assembly:
+  - `StatisticalResult` schema with `comparison_scope="single_comparison"`,
+    `adjusted_for_multiple_testing=false`, `significant_single_comparison`,
+    effect/CI fields, sample counts, ESS/rho diagnostics, low-power flags,
+    paired metadata, and notes.
+  - `compare_run_records()` as the side-effect-free baseline-vs-candidate
+    comparison entry point.
+- Code commit: `8936849 phase_08a: add statistical result verdict gates`.
+- Implemented objective-direction-aware signed effects:
+  - higher-is-better: candidate - baseline,
+  - lower-is-better: baseline - candidate,
+  - `relative_effect_pct=None` when the baseline mean is effectively zero while
+    the signed absolute effect remains present.
+- Implemented paired design:
+  - matching `pair_key` values use paired differences before bootstrap,
+  - paired differences still run autocorrelation/ESS diagnostics,
+  - partial pair matches are marked with `partial_pairing`,
+  - unpaired high-autocorrelation comparisons are inconclusive.
+- Implemented conservative verdict gates:
+  - `n_valid < 5` or `ESS < 3` -> `inconclusive`,
+  - `5 <= n_valid < 10` or `3 <= ESS < 5` -> low-power `inconclusive`,
+  - only adequately powered CIs excluding zero can emit
+    `significant_improvement` or `significant_regression`,
+  - adequately powered CIs including zero emit `no_difference`.
+- Carried 08a.4 Med-1 into code: small-n autocorrelated paired comparisons are
+  low-power/inconclusive even when the CI excludes zero, avoiding false
+  significance where block-bootstrap coverage remains below nominal.
+- Scope preserved:
+  - no multiple-comparison correction,
+  - no adaptive rerun action beyond `recommend_more_runs`,
+  - no outlier policy,
+  - no candidate engine.
+- Local targeted validation:
+  - `.venv\Scripts\python.exe -m pytest tests\test_stats_core.py tests\test_result_schema.py tests\test_benchmark_skill.py -q`
+  - Result: 75 passed, 5 skipped in 1.43s.
+- Full Windows validation:
+  - `.venv\Scripts\python.exe -m pytest tests\ -q`
+  - Result: 24 failed, 581 passed, 51 skipped, 4 errors.
+  - Scope note: failures remain the known Windows/platform-sensitive non-08a
+    paths; Ubuntu validation is still required.
+
+Next action: commit/push 08a.5, then request external Med-1 verdict-gate review
+and Ubuntu validation.
+
 ## 2026-06-13T09:34:11+08:00 - 08a.4 statistical review approved with Med-1
 
 - External numerical review approved 08a.4 for range `5957109..338232b`.
