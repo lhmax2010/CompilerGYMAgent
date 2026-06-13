@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import random
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -12,6 +13,7 @@ from agent import (
     MOVING_BLOCK_BOOTSTRAP_METHOD,
     RunLevelRecord,
     autocorrelation_aware_bootstrap_ci,
+    compare_run_records,
     compute_acf_effective_sample_size,
     compute_effective_sample_size,
     compute_lag_autocorrelation,
@@ -354,6 +356,211 @@ def test_autocorrelation_aware_bootstrap_ci_keeps_iid_for_weak_or_small_samples(
     assert small_ci.diagnostics.low_power is True
 
 
+def test_compare_run_records_reports_significant_single_comparison() -> None:
+    baseline = _records([10.0] * 12, prefix="base")
+    candidate = _records([12.0] * 12, prefix="cand")
+
+    result = compare_run_records(
+        baseline,
+        candidate,
+        bootstrap_samples=80,
+        seed=41,
+    )
+
+    assert result.point_estimate == pytest.approx(2.0)
+    assert result.relative_effect_pct == pytest.approx(20.0)
+    assert result.ci_low == pytest.approx(2.0)
+    assert result.ci_high == pytest.approx(2.0)
+    assert result.verdict == "significant_improvement"
+    assert result.significant_single_comparison is True
+    assert result.comparison_scope == "single_comparison"
+    assert result.adjusted_for_multiple_testing is False
+    assert result.low_power is False
+    assert "bare_significant" not in result.model_dump()
+
+
+def test_compare_run_records_uses_lower_is_better_direction() -> None:
+    baseline = _records(
+        [10.0] * 12,
+        prefix="base",
+        objective_direction="lower_is_better",
+    )
+    candidate = _records(
+        [8.0] * 12,
+        prefix="cand",
+        objective_direction="lower_is_better",
+    )
+
+    result = compare_run_records(
+        baseline,
+        candidate,
+        bootstrap_samples=80,
+        seed=43,
+    )
+
+    assert result.point_estimate == pytest.approx(2.0)
+    assert result.relative_effect_pct == pytest.approx(20.0)
+    assert result.verdict == "significant_improvement"
+
+
+def test_compare_run_records_returns_no_difference_only_with_adequate_power() -> None:
+    baseline = _records([10.0] * 12, prefix="base")
+    candidate = _records([10.0] * 12, prefix="cand")
+
+    result = compare_run_records(
+        baseline,
+        candidate,
+        bootstrap_samples=80,
+        seed=47,
+    )
+
+    assert result.verdict == "no_difference"
+    assert result.low_power is False
+    assert result.significant_single_comparison is False
+
+
+def test_compare_run_records_defends_relative_effect_when_baseline_is_zero() -> None:
+    baseline = _records([0.0] * 12, prefix="base")
+    candidate = _records([1.0] * 12, prefix="cand")
+
+    result = compare_run_records(
+        baseline,
+        candidate,
+        bootstrap_samples=80,
+        seed=53,
+    )
+
+    assert result.point_estimate == pytest.approx(1.0)
+    assert result.relative_effect_pct is None
+    assert result.verdict == "significant_improvement"
+
+
+def test_compare_run_records_blocks_significance_for_small_samples() -> None:
+    baseline = _records([10.0] * 4, prefix="base")
+    candidate = _records([12.0] * 4, prefix="cand")
+
+    result = compare_run_records(
+        baseline,
+        candidate,
+        bootstrap_samples=80,
+        seed=59,
+    )
+
+    assert result.ci_low == pytest.approx(2.0)
+    assert result.ci_high == pytest.approx(2.0)
+    assert result.verdict == "inconclusive"
+    assert result.low_power is True
+    assert result.recommend_more_runs is True
+    assert "n_valid_below_min" in result.notes
+
+
+def test_compare_run_records_blocks_significance_for_low_power_run_count() -> None:
+    baseline = _records([10.0] * 6, prefix="base")
+    candidate = _records([12.0] * 6, prefix="cand")
+
+    result = compare_run_records(
+        baseline,
+        candidate,
+        bootstrap_samples=80,
+        seed=60,
+    )
+
+    assert result.ci_low == pytest.approx(2.0)
+    assert result.ci_high == pytest.approx(2.0)
+    assert result.verdict == "inconclusive"
+    assert result.low_power is True
+    assert result.significant_single_comparison is False
+    assert "n_valid_low_power" in result.notes
+
+
+def test_compare_run_records_blocks_significance_for_low_power_ess() -> None:
+    low_power_effects = [10.0, 10.0, 10.0, 11.0, 11.0, 11.0] * 2
+    baseline = _records([0.0] * len(low_power_effects), prefix="base", paired=True)
+    candidate = _records(low_power_effects, prefix="cand", paired=True)
+
+    result = compare_run_records(
+        baseline,
+        candidate,
+        bootstrap_samples=120,
+        seed=60,
+    )
+
+    assert 3.0 <= result.effective_sample_size < 5.0
+    assert result.ci_low > 0.0
+    assert result.verdict == "inconclusive"
+    assert result.low_power is True
+    assert result.significant_single_comparison is False
+    assert "effective_sample_size_low_power" in result.notes
+
+
+def test_compare_run_records_med1_blocks_small_autocorrelated_significance() -> None:
+    baseline = _records([0.0] * 20, prefix="base", paired=True)
+    candidate = _records(
+        [float(index) for index in range(1, 21)],
+        prefix="cand",
+        paired=True,
+    )
+
+    result = compare_run_records(
+        baseline,
+        candidate,
+        bootstrap_samples=120,
+        seed=61,
+    )
+
+    assert result.paired is True
+    assert result.method == MOVING_BLOCK_BOOTSTRAP_METHOD
+    assert result.ci_low > 0.0
+    assert result.autocorrelation_detected is True
+    assert result.verdict == "inconclusive"
+    assert result.low_power is True
+    assert result.significant_single_comparison is False
+    assert "autocorrelated_small_n_med1" in result.notes
+
+
+def test_compare_run_records_checks_autocorrelation_on_paired_differences() -> None:
+    baseline = _records([100.0] * 12, prefix="base", paired=True)
+    candidate = _records(
+        [100.0 + float(index) for index in range(1, 13)],
+        prefix="cand",
+        paired=True,
+    )
+
+    result = compare_run_records(
+        baseline,
+        candidate,
+        bootstrap_samples=80,
+        seed=67,
+    )
+
+    assert result.paired is True
+    assert result.pair_count == 12
+    assert result.lag1_autocorrelation == pytest.approx(1.0)
+    assert result.autocorrelation_detected is True
+    assert result.iid_assumption_valid is False
+    assert result.verdict == "inconclusive"
+    assert "effective_sample_size_below_min" in result.notes
+
+
+def test_compare_run_records_unpaired_autocorrelation_is_inconclusive() -> None:
+    baseline = _records([float(index) for index in range(1, 13)], prefix="base")
+    candidate = _records([float(index + 20) for index in range(1, 13)], prefix="cand")
+
+    result = compare_run_records(
+        baseline,
+        candidate,
+        bootstrap_samples=80,
+        seed=71,
+    )
+
+    assert result.paired is False
+    assert result.ci_low > 0.0
+    assert result.autocorrelation_detected is True
+    assert result.verdict == "inconclusive"
+    assert result.significant_single_comparison is False
+    assert "unpaired_autocorrelation_inconclusive" in result.notes
+
+
 def test_lag1_and_ess_helpers_reject_invalid_inputs() -> None:
     with pytest.raises(ValueError, match="finite"):
         compute_lag1_autocorrelation((1.0, math.nan))
@@ -447,12 +654,34 @@ def _bootstrap_mean_coverage(
     return covered / reps
 
 
+def _records(
+    scores: Sequence[float],
+    *,
+    prefix: str,
+    objective_direction: str = "higher_is_better",
+    paired: bool = False,
+) -> tuple[RunLevelRecord, ...]:
+    return tuple(
+        _record(
+            score=score,
+            run_index=index,
+            objective_direction=objective_direction,
+            pair_key=f"pair_{index}" if paired else None,
+            run_id=f"{prefix}_{index}",
+        )
+        for index, score in enumerate(scores)
+    )
+
+
 def _record(
     *,
     score: float | None,
     run_index: int,
     phase: str = "measured",
     valid_for_scoring: bool = True,
+    objective_direction: str = "higher_is_better",
+    pair_key: str | None = None,
+    run_id: str | None = None,
 ) -> RunLevelRecord:
     failure = (
         None
@@ -465,14 +694,14 @@ def _record(
         )
     )
     return RunLevelRecord(
-        run_id=f"run_{phase}_{run_index}",
+        run_id=run_id or f"run_{phase}_{run_index}",
         run_index=run_index,
         combo_hash=compute_result_combo_hash(["-O2"]),
         score=score,
         phase=phase,  # type: ignore[arg-type]
         metric_name="throughput",
         metric_unit="items/sec",
-        objective_direction="higher_is_better",
+        objective_direction=objective_direction,  # type: ignore[arg-type]
         duration_sec=0.1,
         started_at=NOW,
         ended_at=NOW + timedelta(milliseconds=100),
@@ -486,5 +715,6 @@ def _record(
         artifact_hash=SHA_A,
         artifact_hash_verified=True,
         score_source_ref="logs/bench.stdout#L1",
+        pair_key=pair_key,
         failure_classification=failure,
     )

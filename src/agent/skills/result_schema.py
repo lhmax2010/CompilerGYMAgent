@@ -40,6 +40,13 @@ FailureRoute = Literal["option_related", "environment_related", "unknown"]
 FailureConfidence = Literal["HIGH", "MEDIUM", "LOW"]
 RunPhase = Literal["warmup", "measured"]
 ObjectiveDirection = Literal["higher_is_better", "lower_is_better"]
+StatisticalVerdict = Literal[
+    "significant_improvement",
+    "significant_regression",
+    "inconclusive",
+    "no_difference",
+]
+ComparisonScope = Literal["single_comparison"]
 
 
 class StrictResultSchemaModel(BaseModel):
@@ -143,6 +150,80 @@ class RunSummaryHint(StrictResultSchemaModel):
             and self.effective_sample_size > self.n_valid
         ):
             raise ValueError("effective_sample_size cannot exceed n_valid")
+        return self
+
+
+class StatisticalResult(StrictResultSchemaModel):
+    """Single-comparison statistical result produced by Phase 08a."""
+
+    comparison: NonEmptyStr
+    objective_direction: ObjectiveDirection
+    point_estimate: float
+    relative_effect_pct: float | None = None
+    ci_low: float
+    ci_high: float
+    confidence_level: float = Field(gt=0, lt=1)
+    method: NonEmptyStr
+    verdict: StatisticalVerdict
+    significant_single_comparison: bool = False
+    comparison_scope: ComparisonScope = "single_comparison"
+    adjusted_for_multiple_testing: bool = False
+    n_measured: int = Field(ge=0)
+    n_valid: int = Field(ge=0)
+    n_invalid: int = Field(ge=0)
+    baseline_n_valid: int = Field(ge=0)
+    candidate_n_valid: int = Field(ge=0)
+    effective_sample_size: float | None = Field(default=None, ge=0)
+    ess_preliminary: bool = False
+    lag1_autocorrelation: float | None = Field(default=None, ge=-1, le=1)
+    autocorrelation_detected: bool = False
+    iid_assumption_valid: bool = True
+    low_power: bool = False
+    recommend_more_runs: bool = False
+    paired: bool = False
+    pair_count: int = Field(default=0, ge=0)
+    block_size: int | None = Field(default=None, ge=2)
+    notes: tuple[NonEmptyStr, ...] = ()
+
+    @field_validator(
+        "point_estimate",
+        "relative_effect_pct",
+        "ci_low",
+        "ci_high",
+        "effective_sample_size",
+        "lag1_autocorrelation",
+    )
+    @classmethod
+    def statistical_numbers_must_be_finite(
+        cls, value: float | None, info: Any
+    ) -> float | None:
+        return _validate_optional_finite(value, info.field_name)
+
+    @model_validator(mode="after")
+    def statistical_result_must_be_consistent(self) -> StatisticalResult:
+        if self.ci_low > self.ci_high:
+            raise ValueError("ci_low cannot exceed ci_high")
+        if self.n_valid + self.n_invalid > self.n_measured:
+            raise ValueError("n_valid + n_invalid cannot exceed n_measured")
+        if (
+            self.effective_sample_size is not None
+            and self.effective_sample_size > self.n_valid
+        ):
+            raise ValueError("effective_sample_size cannot exceed n_valid")
+        expected_significant = self.verdict in {
+            "significant_improvement",
+            "significant_regression",
+        }
+        if self.significant_single_comparison != expected_significant:
+            raise ValueError(
+                "significant_single_comparison must match the statistical verdict"
+            )
+        if self.adjusted_for_multiple_testing:
+            raise ValueError("08a StatisticalResult is not multiple-testing adjusted")
+        if self.comparison_scope != "single_comparison":
+            raise ValueError("comparison_scope must be single_comparison")
+        if self.paired and self.pair_count == 0:
+            raise ValueError("paired results require pair_count")
         return self
 
 

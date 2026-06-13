@@ -10,13 +10,17 @@ from statistics import median
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from agent.skills.result_schema import RunLevelRecord, RunSummaryHint
+    from agent.skills.result_schema import RunLevelRecord, RunSummaryHint, StatisticalResult
 
 
 MEAN_ZERO_ABS_TOL = 1e-12
+HIGH_CV_THRESHOLD = 0.30
 AUTOCORRELATION_RHO_THRESHOLD = 0.3
 ESS_MIN = 3.0
+LOW_POWER_ESS_MIN = 5.0
 LOW_POWER_MEASURED_RUNS_MAX = 5
+MIN_VALID_FOR_SIGNIFICANCE = 10
+AUTOCORRELATED_MIN_VALID_FOR_SIGNIFICANCE = 60
 DEFAULT_BOOTSTRAP_SAMPLES = 2000
 DEFAULT_CONFIDENCE_LEVEL = 0.95
 IID_PERCENTILE_BOOTSTRAP_METHOD = "iid_percentile_bootstrap"
@@ -190,6 +194,147 @@ def measured_valid_scores(records: Iterable[RunLevelRecord]) -> tuple[float, ...
     return tuple(scores)
 
 
+def compare_run_records(
+    baseline_records: Iterable[RunLevelRecord],
+    candidate_records: Iterable[RunLevelRecord],
+    *,
+    confidence_level: float = DEFAULT_CONFIDENCE_LEVEL,
+    bootstrap_samples: int = DEFAULT_BOOTSTRAP_SAMPLES,
+    seed: int | str | bytes | bytearray | None = None,
+    comparison: str = "candidate_vs_baseline",
+    base_zero_abs_tol: float = MEAN_ZERO_ABS_TOL,
+    high_cv_threshold: float = HIGH_CV_THRESHOLD,
+) -> StatisticalResult:
+    """Compare candidate against baseline and return a single-comparison verdict."""
+
+    from agent.skills.result_schema import StatisticalResult
+
+    baseline_measured = _measured_records(tuple(baseline_records))
+    candidate_measured = _measured_records(tuple(candidate_records))
+    baseline_scores = measured_valid_scores(baseline_measured)
+    candidate_scores = measured_valid_scores(candidate_measured)
+    if not baseline_scores or not candidate_scores:
+        raise ValueError("baseline and candidate must both include valid measured scores")
+    _validate_confidence_level(confidence_level)
+    if bootstrap_samples <= 0:
+        raise ValueError("bootstrap_samples must be positive")
+    if not math.isfinite(base_zero_abs_tol) or base_zero_abs_tol < 0.0:
+        raise ValueError("base_zero_abs_tol must be finite and non-negative")
+    if not math.isfinite(high_cv_threshold) or high_cv_threshold < 0.0:
+        raise ValueError("high_cv_threshold must be finite and non-negative")
+
+    objective_direction = _objective_direction(
+        baseline_measured + candidate_measured
+    )
+    baseline_stats = summarize_run_records(baseline_measured)
+    candidate_stats = summarize_run_records(candidate_measured)
+    paired_samples = _paired_score_samples(baseline_measured, candidate_measured)
+
+    if paired_samples is not None:
+        baseline_for_effect, candidate_for_effect, partial_pairing = paired_samples
+        effect_values = tuple(
+            _signed_effect(
+                baseline_score,
+                candidate_score,
+                objective_direction=objective_direction,
+            )
+            for baseline_score, candidate_score in zip(
+                baseline_for_effect,
+                candidate_for_effect,
+                strict=True,
+            )
+        )
+        ci = autocorrelation_aware_bootstrap_ci(
+            effect_values,
+            confidence_level=confidence_level,
+            bootstrap_samples=bootstrap_samples,
+            seed=seed,
+        )
+        diagnostics = ci.diagnostics
+        comparison_n_valid = len(effect_values)
+        paired = True
+        pair_count = comparison_n_valid
+        unpaired_autocorrelation = False
+        notes = ["paired_difference"]
+        if partial_pairing:
+            notes.append("partial_pairing")
+    else:
+        ci = _unpaired_mean_difference_bootstrap_ci(
+            baseline_scores,
+            candidate_scores,
+            objective_direction=objective_direction,
+            confidence_level=confidence_level,
+            bootstrap_samples=bootstrap_samples,
+            seed=seed,
+        )
+        diagnostics = ci.diagnostics
+        comparison_n_valid = min(len(baseline_scores), len(candidate_scores))
+        paired = False
+        pair_count = 0
+        unpaired_autocorrelation = diagnostics.autocorrelation_detected
+        notes = ["unpaired_comparison"]
+
+    high_cv = _has_high_cv(
+        (baseline_stats.cv, candidate_stats.cv),
+        threshold=high_cv_threshold,
+    )
+    verdict, low_power, recommend_more_runs, gate_notes = _statistical_verdict(
+        ci_low=ci.ci_low,
+        ci_high=ci.ci_high,
+        diagnostics=diagnostics,
+        n_valid=comparison_n_valid,
+        paired=paired,
+        unpaired_autocorrelation=unpaired_autocorrelation,
+        high_cv=high_cv,
+    )
+    notes.extend(diagnostics.notes)
+    notes.extend(gate_notes)
+
+    baseline_mean = _mean(baseline_scores)
+    point_estimate = ci.point_estimate
+    relative_effect_pct = (
+        None
+        if math.isclose(baseline_mean, 0.0, abs_tol=base_zero_abs_tol)
+        else point_estimate / abs(baseline_mean) * 100.0
+    )
+    n_measured = len(baseline_measured) + len(candidate_measured)
+    baseline_invalid = len(baseline_measured) - len(baseline_scores)
+    candidate_invalid = len(candidate_measured) - len(candidate_scores)
+    n_invalid = baseline_invalid + candidate_invalid
+
+    return StatisticalResult(
+        comparison=comparison,
+        objective_direction=objective_direction,
+        point_estimate=point_estimate,
+        relative_effect_pct=relative_effect_pct,
+        ci_low=ci.ci_low,
+        ci_high=ci.ci_high,
+        confidence_level=ci.confidence_level,
+        method=ci.method,
+        verdict=verdict,
+        significant_single_comparison=verdict
+        in {"significant_improvement", "significant_regression"},
+        comparison_scope="single_comparison",
+        adjusted_for_multiple_testing=False,
+        n_measured=n_measured,
+        n_valid=comparison_n_valid,
+        n_invalid=n_invalid,
+        baseline_n_valid=len(baseline_scores),
+        candidate_n_valid=len(candidate_scores),
+        effective_sample_size=diagnostics.effective_sample_size,
+        ess_preliminary=diagnostics.ess_preliminary,
+        lag1_autocorrelation=diagnostics.lag1_autocorrelation,
+        autocorrelation_detected=diagnostics.autocorrelation_detected,
+        iid_assumption_valid=diagnostics.iid_assumption_valid,
+        low_power=low_power,
+        recommend_more_runs=recommend_more_runs,
+        paired=paired,
+        pair_count=pair_count,
+        block_size=ci.block_size,
+        notes=tuple(dict.fromkeys(notes)),
+    )
+
+
 def iid_percentile_bootstrap_ci(
     values: Sequence[float],
     *,
@@ -359,6 +504,193 @@ def select_moving_block_size(n: int, *, rho1: float | None = None) -> int | None
         correlation_length = math.ceil((1.0 / (1.0 - rho1)) - 1e-12)
     uncapped = max(2, cube_root, correlation_length)
     return min(n // 2, uncapped)
+
+
+def _unpaired_mean_difference_bootstrap_ci(
+    baseline_scores: Sequence[float],
+    candidate_scores: Sequence[float],
+    *,
+    objective_direction: str,
+    confidence_level: float,
+    bootstrap_samples: int,
+    seed: int | str | bytes | bytearray | None,
+) -> BootstrapConfidenceInterval:
+    baseline = tuple(float(value) for value in baseline_scores)
+    candidate = tuple(float(value) for value in candidate_scores)
+    baseline_diagnostics = diagnose_iid_assumption(baseline)
+    candidate_diagnostics = diagnose_iid_assumption(candidate)
+    diagnostics = _combine_unpaired_diagnostics(
+        baseline_diagnostics,
+        candidate_diagnostics,
+    )
+    baseline_block_size = (
+        select_moving_block_size(
+            len(baseline),
+            rho1=baseline_diagnostics.lag1_autocorrelation,
+        )
+        if baseline_diagnostics.autocorrelation_detected
+        else None
+    )
+    candidate_block_size = (
+        select_moving_block_size(
+            len(candidate),
+            rho1=candidate_diagnostics.lag1_autocorrelation,
+        )
+        if candidate_diagnostics.autocorrelation_detected
+        else None
+    )
+    uses_block = baseline_block_size is not None or candidate_block_size is not None
+
+    rng = random.Random(seed)
+    bootstrap_effects: list[float] = []
+    for _ in range(bootstrap_samples):
+        baseline_mean = _resampled_mean(
+            baseline,
+            rng=rng,
+            block_size=baseline_block_size,
+        )
+        candidate_mean = _resampled_mean(
+            candidate,
+            rng=rng,
+            block_size=candidate_block_size,
+        )
+        bootstrap_effects.append(
+            _signed_effect(
+                baseline_mean,
+                candidate_mean,
+                objective_direction=objective_direction,
+            )
+        )
+    bootstrap_effects.sort()
+
+    alpha = 1.0 - confidence_level
+    point_estimate = _signed_effect(
+        _mean(baseline),
+        _mean(candidate),
+        objective_direction=objective_direction,
+    )
+    return BootstrapConfidenceInterval(
+        point_estimate=point_estimate,
+        ci_low=_quantile_sorted(bootstrap_effects, alpha / 2.0),
+        ci_high=_quantile_sorted(bootstrap_effects, 1.0 - alpha / 2.0),
+        confidence_level=confidence_level,
+        bootstrap_samples=bootstrap_samples,
+        method=(
+            MOVING_BLOCK_BOOTSTRAP_METHOD
+            if uses_block
+            else IID_PERCENTILE_BOOTSTRAP_METHOD
+        ),
+        statistic="mean_difference",
+        n=min(len(baseline), len(candidate)),
+        diagnostics=diagnostics,
+        block_size=max(
+            (value for value in (baseline_block_size, candidate_block_size) if value),
+            default=None,
+        ),
+    )
+
+
+def _statistical_verdict(
+    *,
+    ci_low: float,
+    ci_high: float,
+    diagnostics: AutocorrelationDiagnostics,
+    n_valid: int,
+    paired: bool,
+    unpaired_autocorrelation: bool,
+    high_cv: bool,
+) -> tuple[str, bool, bool, tuple[str, ...]]:
+    notes: list[str] = []
+    hard_inconclusive = False
+    low_power = False
+
+    if n_valid < LOW_POWER_MEASURED_RUNS_MAX:
+        hard_inconclusive = True
+        notes.append("n_valid_below_min")
+    elif n_valid < MIN_VALID_FOR_SIGNIFICANCE:
+        low_power = True
+        notes.append("n_valid_low_power")
+
+    ess = diagnostics.effective_sample_size
+    if ess is None:
+        hard_inconclusive = True
+        notes.append("effective_sample_size_unavailable")
+    elif ess < ESS_MIN:
+        hard_inconclusive = True
+        notes.append("effective_sample_size_below_min")
+    elif ess < LOW_POWER_ESS_MIN:
+        low_power = True
+        notes.append("effective_sample_size_low_power")
+
+    if unpaired_autocorrelation:
+        hard_inconclusive = True
+        notes.append("unpaired_autocorrelation_inconclusive")
+
+    if (
+        paired
+        and diagnostics.autocorrelation_detected
+        and n_valid < AUTOCORRELATED_MIN_VALID_FOR_SIGNIFICANCE
+    ):
+        low_power = True
+        notes.append("autocorrelated_small_n_med1")
+
+    if diagnostics.ess_preliminary:
+        low_power = True
+        notes.append("ess_preliminary")
+
+    if high_cv:
+        notes.append("high_cv")
+
+    insufficient_power = hard_inconclusive or low_power
+    if insufficient_power:
+        verdict = "inconclusive"
+    elif ci_low > 0.0:
+        verdict = "significant_improvement"
+    elif ci_high < 0.0:
+        verdict = "significant_regression"
+    else:
+        verdict = "no_difference"
+
+    recommend_more_runs = insufficient_power or high_cv
+    return verdict, insufficient_power, recommend_more_runs, tuple(dict.fromkeys(notes))
+
+
+def _combine_unpaired_diagnostics(
+    baseline: AutocorrelationDiagnostics,
+    candidate: AutocorrelationDiagnostics,
+) -> AutocorrelationDiagnostics:
+    ess_candidates = tuple(
+        value
+        for value in (baseline.effective_sample_size, candidate.effective_sample_size)
+        if value is not None
+    )
+    rho_candidates = tuple(
+        value
+        for value in (baseline.lag1_autocorrelation, candidate.lag1_autocorrelation)
+        if value is not None
+    )
+    autocorrelation_detected = (
+        baseline.autocorrelation_detected or candidate.autocorrelation_detected
+    )
+    notes = (
+        tuple(f"baseline_{note}" for note in baseline.notes)
+        + tuple(f"candidate_{note}" for note in candidate.notes)
+    )
+    return AutocorrelationDiagnostics(
+        n=min(baseline.n, candidate.n),
+        lag1_autocorrelation=(
+            max(rho_candidates, key=abs) if rho_candidates else None
+        ),
+        effective_sample_size=min(ess_candidates) if ess_candidates else None,
+        ess_preliminary=baseline.ess_preliminary or candidate.ess_preliminary,
+        autocorrelation_detected=autocorrelation_detected,
+        iid_assumption_valid=not autocorrelation_detected,
+        low_power=baseline.low_power or candidate.low_power,
+        confidence_warning=(
+            baseline.confidence_warning or candidate.confidence_warning
+        ),
+        notes=tuple(dict.fromkeys(notes)),
+    )
 
 
 def diagnose_iid_assumption(
@@ -550,6 +882,96 @@ def compute_effective_sample_size(n: int, rho1: float | None) -> float | None:
     if not math.isfinite(ess):
         raise ValueError("effective sample size must be finite")
     return max(0.0, min(float(n), ess))
+
+
+def _measured_records(records: Sequence[RunLevelRecord]) -> tuple[RunLevelRecord, ...]:
+    return tuple(record for record in records if record.phase == "measured")
+
+
+def _objective_direction(records: Sequence[RunLevelRecord]) -> str:
+    directions = {record.objective_direction for record in records}
+    if len(directions) != 1:
+        raise ValueError("all measured records must share objective_direction")
+    return directions.pop()
+
+
+def _paired_score_samples(
+    baseline_records: Sequence[RunLevelRecord],
+    candidate_records: Sequence[RunLevelRecord],
+) -> tuple[tuple[float, ...], tuple[float, ...], bool] | None:
+    baseline_pairs = _score_by_pair_key(baseline_records)
+    candidate_pairs = _score_by_pair_key(candidate_records)
+    if not baseline_pairs or not candidate_pairs:
+        return None
+
+    common_keys = tuple(
+        key for key in baseline_pairs.keys() if key in candidate_pairs
+    )
+    if not common_keys:
+        return None
+    baseline_scores = tuple(baseline_pairs[key] for key in common_keys)
+    candidate_scores = tuple(candidate_pairs[key] for key in common_keys)
+    partial_pairing = (
+        len(common_keys) < len(baseline_pairs)
+        or len(common_keys) < len(candidate_pairs)
+    )
+    return baseline_scores, candidate_scores, partial_pairing
+
+
+def _score_by_pair_key(records: Sequence[RunLevelRecord]) -> dict[str, float]:
+    pairs: dict[str, float] = {}
+    for record in records:
+        if not record.valid_for_scoring or record.pair_key is None:
+            continue
+        if record.score is None:
+            raise ValueError("valid measured records must include score")
+        if record.pair_key in pairs:
+            raise ValueError(f"duplicate pair_key {record.pair_key!r}")
+        pairs[record.pair_key] = float(record.score)
+    return pairs
+
+
+def _signed_effect(
+    baseline_value: float,
+    candidate_value: float,
+    *,
+    objective_direction: str,
+) -> float:
+    if objective_direction == "higher_is_better":
+        return candidate_value - baseline_value
+    if objective_direction == "lower_is_better":
+        return baseline_value - candidate_value
+    raise ValueError("objective_direction must be higher_is_better or lower_is_better")
+
+
+def _has_high_cv(values: Iterable[float | None], *, threshold: float) -> bool:
+    return any(value is not None and value > threshold for value in values)
+
+
+def _resampled_mean(
+    values: Sequence[float],
+    *,
+    rng: random.Random,
+    block_size: int | None = None,
+) -> float:
+    if block_size is None:
+        return sum(values[rng.randrange(len(values))] for _ in range(len(values))) / len(
+            values
+        )
+
+    _validate_block_size(block_size, len(values))
+    blocks_needed = math.ceil(len(values) / block_size)
+    max_start = len(values) - block_size
+    sample_sum = 0.0
+    sampled = 0
+    for _ in range(blocks_needed):
+        start = rng.randrange(max_start + 1)
+        for value in values[start : start + block_size]:
+            if sampled >= len(values):
+                break
+            sample_sum += value
+            sampled += 1
+    return sample_sum / len(values)
 
 
 def _mean(values: Sequence[float]) -> float:

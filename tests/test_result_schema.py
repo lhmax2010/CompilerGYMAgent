@@ -12,6 +12,7 @@ from agent import (
     RunEnvironmentSnapshot,
     RunLevelRecord,
     RunSummaryHint,
+    StatisticalResult,
     compute_result_combo_hash,
 )
 
@@ -268,6 +269,74 @@ def test_run_summary_hint_accepts_iid_diagnostics() -> None:
     assert hint.autocorrelation_detected is True
     assert hint.iid_assumption_valid is False
     assert hint.low_power is True
+
+
+def test_statistical_result_accepts_single_comparison_schema() -> None:
+    result = StatisticalResult(
+        comparison="candidate_vs_baseline",
+        objective_direction="higher_is_better",
+        point_estimate=2.0,
+        relative_effect_pct=20.0,
+        ci_low=1.0,
+        ci_high=3.0,
+        confidence_level=0.95,
+        method="iid_percentile_bootstrap",
+        verdict="significant_improvement",
+        significant_single_comparison=True,
+        n_measured=20,
+        n_valid=10,
+        n_invalid=0,
+        baseline_n_valid=10,
+        candidate_n_valid=10,
+        effective_sample_size=10.0,
+        lag1_autocorrelation=0.0,
+        notes=("single_comparison",),
+    )
+
+    assert result.comparison_scope == "single_comparison"
+    assert result.adjusted_for_multiple_testing is False
+    assert result.significant_single_comparison is True
+
+
+def test_statistical_result_rejects_inconsistent_significance_and_adjustment() -> None:
+    with pytest.raises(ValidationError, match="significant_single_comparison"):
+        StatisticalResult(
+            comparison="candidate_vs_baseline",
+            objective_direction="higher_is_better",
+            point_estimate=0.0,
+            ci_low=-1.0,
+            ci_high=1.0,
+            confidence_level=0.95,
+            method="iid_percentile_bootstrap",
+            verdict="no_difference",
+            significant_single_comparison=True,
+            n_measured=20,
+            n_valid=10,
+            n_invalid=0,
+            baseline_n_valid=10,
+            candidate_n_valid=10,
+            effective_sample_size=10.0,
+        )
+
+    with pytest.raises(ValidationError, match="multiple-testing"):
+        StatisticalResult(
+            comparison="candidate_vs_baseline",
+            objective_direction="higher_is_better",
+            point_estimate=2.0,
+            ci_low=1.0,
+            ci_high=3.0,
+            confidence_level=0.95,
+            method="iid_percentile_bootstrap",
+            verdict="significant_improvement",
+            significant_single_comparison=True,
+            adjusted_for_multiple_testing=True,
+            n_measured=20,
+            n_valid=10,
+            n_invalid=0,
+            baseline_n_valid=10,
+            candidate_n_valid=10,
+            effective_sample_size=10.0,
+        )
 
 
 def test_score_parse_failed_requires_score_source_ref() -> None:
