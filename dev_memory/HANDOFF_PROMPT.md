@@ -47,11 +47,12 @@ Current status:
 - `dev_memory/BLOCKERS.md` currently records no active blockers.
 
 Latest important commits:
+- `7087463 dev_memory: record 08a.5 ubuntu validation`
+- `b78c744 tests: package fixtures for python 3.10 collection`
+- `0c87bb3 compat: support python 3.10 runtime`
+- `8b46a4c dev_memory: record 08a.5 implementation`
 - `8936849 phase_08a: add statistical result verdict gates`
 - `995ebf3 dev_memory: record 08a.4 statistical review`
-- `338232b dev_memory: record 08a.4 implementation`
-- `81f7287 phase_08a: add moving block bootstrap`
-- `6b72d43 dev_memory: finalize 08a statistics core design`
 
 Recent Phase 05/08a preconditions already handled:
 - Phase 05 emits process-backed compile/benchmark records.
@@ -65,7 +66,7 @@ Recent Phase 05/08a preconditions already handled:
   and non-empty affected_options.
 
 Current next action:
-- Request external review for range `995ebf3..b78c744`.
+- Request external review for range `995ebf3..7087463`.
 - External review should focus on Med-1 safety: small-n/severe-bursty cases
   where CI coverage remains below nominal must be low_power/inconclusive, not
   significant.
