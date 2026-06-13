@@ -36,8 +36,8 @@ Current status:
 - Phase 08a.1 through 08a.4 are implemented and externally/numerically
   reviewed. 08a.4 was approved with Med-1: moving block bootstrap improves
   bursty coverage but smaller-n bursty cases remain underpowered.
-- Phase 08a.5 StatisticalResult/verdict gates are implemented and
-  Ubuntu/Python 3.10 validated. External Med-1 verdict-gate review is pending.
+- Phase 08a.5 StatisticalResult/verdict gates are implemented,
+  Ubuntu/Python 3.10 validated, and externally reviewed with no findings.
 - Real target runtime is Python 3.10. The compatibility patch lowers
   `requires-python` to `>=3.10` and removes 3.11-only `datetime.UTC`,
   `typing.Self`, and `tomllib` assumptions.
@@ -67,16 +67,14 @@ Recent Phase 05/08a preconditions already handled:
   and non-empty affected_options.
 
 Current next action:
-- Request external review for range `995ebf3..7087463`.
-- External review should focus on Med-1 safety: small-n/severe-bursty cases
-  where CI coverage remains below nominal must be low_power/inconclusive, not
-  significant.
-- Ubuntu/Python 3.10 validation has passed at `b78c744`: targeted 80 passed,
-  full 658 passed.
+- 08a.5 external review for range `995ebf3..7087463` is approved and recorded.
+- Ubuntu/Python 3.10 validation has passed: targeted 80 passed, full 658
+  passed.
+- 08a.6 fake_gbs bursty state exposure + phase closeout is ready to start when
+  directed.
 
 Phase 08a current subtask:
-- 08a.5 baseline-normalized comparison + pair_key paired design +
-  StatisticalResult verdict schema.
+- 08a.6 fake_gbs bursty state exposure in env_snapshot + phase closeout.
 - Preserve pure statistics scope: no process cleanup, no workspace mutation,
   no multiple-comparison correction, no adaptive rerun action, no outlier
   policy, and no candidate engine changes.

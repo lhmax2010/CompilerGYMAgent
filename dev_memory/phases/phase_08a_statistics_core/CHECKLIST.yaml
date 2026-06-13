@@ -135,12 +135,19 @@ subtasks:
       medium_followup_med_1: "Moving block improves bursty coverage but remains below >=90% for smaller n; 08a.5 verdict gates must mark underpowered/autocorrelated cases low_power/inconclusive."
   - id: "08a.5"
     title: "baseline normalized comparison + pair_key paired design + StatisticalResult verdict schema"
-    status: in_review
+    status: done
     implementation_complete: true
     implementation_commit: 8936849
     tests_passed: true
     patch_artifacts_generated: false
-    external_review: pending
+    external_review: approve
+    external_reviewed_at: 2026-06-13T15:33:47+08:00
+    external_review_range: "995ebf3..7087463"
+    external_review_findings:
+      critical: 0
+      high: 0
+      medium: 0
+      low: 0
     ubuntu_validation: passed
     ubuntu_validated_at: 2026-06-13T14:47:14+08:00
     ubuntu_head: b78c744

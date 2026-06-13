@@ -19,7 +19,7 @@ Current phase:
 
 | State | Next phase | Why next |
 |---|---|---|
-| Phase 08a in progress | 08a.5 external review | 08a.5 StatisticalResult/verdict gates are implemented and Ubuntu/Python 3.10 validated. External review must verify Med-1 safety: underpowered or autocorrelated small-n cases remain low_power/inconclusive rather than significant. |
+| Phase 08a in progress | 08a.6 ready | 08a.5 StatisticalResult/verdict gates are implemented, Ubuntu/Python 3.10 validated, and externally approved with no findings. 08a.6 fake_gbs bursty state exposure + phase closeout is ready to start when directed. |
 
 08a review-alignment boundaries:
 

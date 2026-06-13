@@ -1,6 +1,6 @@
 # dev_memory/ROADMAP.yaml
 roadmap_version: 1
-last_updated: 2026-06-13T14:47:14+08:00
+last_updated: 2026-06-13T15:33:47+08:00
 status: active
 
 # ============================================================
@@ -249,6 +249,7 @@ planned_phases:
         - "Implementation note: significance requires both CI exclusion of zero and adequate power; n_valid<5 or ESS<3 is inconclusive, 5<=n_valid<10 or 3<=ESS<5 is low-power inconclusive, and small-n autocorrelated paired data is low-power/inconclusive per Med-1."
         - "Implementation note: matching pair_key values are differenced in baseline pair order; partial matches are marked, and unpaired autocorrelation is inconclusive."
         - "Ubuntu/Python 3.10 validation passed at b78c744: targeted 80 passed, full suite 658 passed."
+        - "External Med-1 verdict-gate review approved range 995ebf3..7087463 with no Critical, High, Medium, or Low findings."
     exit_criteria:
       - "Descriptive statistics and bootstrap CI are checked against an independent implementation (numpy/scipy or hand calculation) and match within documented tolerance"
       - "IID/right-skewed percentile bootstrap 95% CI has coverage approximately at nominal confidence on known-truth simulations"

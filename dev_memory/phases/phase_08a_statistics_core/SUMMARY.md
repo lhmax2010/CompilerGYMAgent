@@ -264,4 +264,23 @@ Validation status:
 - Ubuntu Python 3.10 validation passed at `b78c744`:
   - targeted stats/result/benchmark tests -> 80 passed in 1.00s,
   - full `tests/` suite -> 658 passed in 7.56s.
-- External Med-1 verdict-gate review is pending.
+- External Med-1 verdict-gate review approved 08a.5 with no Critical, High,
+  Medium, or Low findings.
+
+External review status:
+
+- Range: `995ebf3..7087463`.
+- Reviewed at: `2026-06-13T15:33:47+08:00`.
+- Verdict: Approve.
+- Findings: no Critical, High, Medium, or Low findings.
+- Med-1 safety confirmed: small-n/autocorrelated underpowered cases remain
+  low_power/inconclusive before any CI-excludes-zero significance decision.
+- Verdict gates confirmed for `n_valid<5`, `5<=n_valid<10`, `ESS<3`,
+  `3<=ESS<5`, adequate-power `no_difference`, and
+  `significant_single_comparison`.
+- Paired differences still run autocorrelation/ESS checks; unpaired
+  autocorrelation is inconclusive.
+- Baseline approximately zero keeps `relative_effect_pct=None` and preserves
+  signed absolute effect.
+- Scope remains clean: no multiple-comparison correction, no adaptive rerun
+  action, no outlier policy, and no candidate engine.

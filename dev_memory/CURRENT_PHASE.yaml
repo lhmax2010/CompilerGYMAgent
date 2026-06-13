@@ -1,7 +1,7 @@
 phase_id: phase_08a_statistics_core
 phase_title: "Baseline + Statistical Significance - Minimal Stats Core"
 started_at: 2026-06-10T15:15:45+08:00
-last_updated: 2026-06-13T14:47:14+08:00
+last_updated: 2026-06-13T15:33:47+08:00
 target_milestone: "M2 + M4 (partial)"
 related_requirements:
   - REQUIREMENTS.md section 4.8
@@ -336,7 +336,7 @@ subtasks:
       full: "Linux full suite -> 646 passed per external 08a.4 review."
   - id: "08a.5"
     title: "baseline normalized comparison + pair_key paired design + StatisticalResult verdict schema"
-    status: in_review
+    status: done
     files_created: []
     files_modified:
       - src/agent/stats_core.py
@@ -387,7 +387,31 @@ subtasks:
       - "Verify base approximately zero defense: relative_effect_pct=None while signed absolute point_estimate remains present."
       - "Verify paired-difference autocorrelation checks still run and unpaired high-autocorrelation data is inconclusive."
       - "Verify scope excludes multiple-comparison correction, adaptive rerun, outliers, and candidate engine."
-    external_review_verdict: pending
+    statistical_correctness_review:
+      reviewer: external
+      reviewed_at: 2026-06-13T15:33:47+08:00
+      range: "995ebf3..7087463"
+      validation_range: "995ebf3..4c1f678"
+      verdict: approve
+      critical_findings: 0
+      high_findings: 0
+      medium_findings: 0
+      low_findings: 0
+      numerical_validation:
+        - "Med-1 verdict gates force low-power/inconclusive before CI sign checks; small-n autocorrelated paired probes do not become significant."
+        - "Verdict thresholds for n_valid<5, 5<=n_valid<10, ESS<3, 3<=ESS<5, no_difference, and significant_single_comparison were verified in code and tests."
+        - "Paired differences still run autocorrelation/ESS checks; pairing does not imply IID."
+        - "Unpaired autocorrelation is hard-inconclusive."
+        - "Baseline approximately zero keeps relative_effect_pct=None while preserving signed absolute point_estimate."
+        - "Scope remains clean: no multiple-comparison correction, adaptive rerun action, outlier policy, or candidate engine."
+      python_3_10_review:
+        - "requires-python >=3.10 and tomli fallback are present."
+        - "Live source/tests avoid datetime.UTC, typing.Self, and tomllib-only assumptions."
+        - "tests/__init__.py is appropriate for Ubuntu/Python 3.10 tests.fixtures imports."
+      validation:
+        targeted: "uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py -q -> 80 passed in 1.37s"
+        full: "uv run --python 3.10 --system-certs --extra dev pytest tests/ -q -> 658 passed in 7.36s"
+    external_review_verdict: approve
     ubuntu_validation:
       status: passed
       validated_at: 2026-06-13T14:47:14+08:00
@@ -397,4 +421,4 @@ subtasks:
   - id: "08a.6"
     title: "fake_gbs bursty state exposure in env_snapshot + phase closeout"
     status: planned
-next_action: "Request external Med-1 verdict-gate review for range 995ebf3..b78c744."
+next_action: "08a.5 external review is recorded; ready to start 08a.6 fake_gbs bursty state exposure + phase closeout when directed."

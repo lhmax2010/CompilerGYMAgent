@@ -427,3 +427,41 @@ Review takeaway:
 External review should focus on numerical Med-1 safety: construct
 underpowered/severe-bursty cases where the CI can exclude zero and confirm the
 verdict remains low_power/inconclusive.
+
+## Subtask 08a.5 external Med-1 verdict-gate review - approve
+
+- Reviewed at: `2026-06-13T15:33:47+08:00`.
+- Range: `995ebf3..7087463`.
+- Validation range: `995ebf3..4c1f678`.
+- Verdict: Approve.
+- Findings:
+  - Critical: 0.
+  - High: 0.
+  - Medium: 0.
+  - Low: 0.
+
+Review evidence:
+
+- Med-1 safety is covered by verdict gates before CI sign checks:
+  underpowered or autocorrelated small-n cases are forced to `inconclusive`
+  with `significant_single_comparison=false`.
+- Verdict thresholds match the requested ladder: `n_valid<5`,
+  `5<=n_valid<10`, `ESS<3`, `3<=ESS<5`, adequate-power `no_difference`, and
+  adequate-power significant single-comparison behavior.
+- Paired comparisons compute signed paired differences in baseline pair order
+  and still run autocorrelation/ESS diagnostics over that difference sequence.
+- Unpaired autocorrelation is hard-inconclusive.
+- Baseline approximately zero keeps `relative_effect_pct=None` while preserving
+  the signed absolute `point_estimate`.
+- Scope is clean: no multiple-comparison correction, no adaptive rerun action
+  beyond `recommend_more_runs`, no outlier policy, and no candidate engine.
+- Python 3.10 compatibility remains valid: project metadata supports
+  `>=3.10`, live source/tests avoid Python 3.11-only APIs, and
+  `tests/__init__.py` protects Ubuntu/Python 3.10 `tests.fixtures` imports.
+
+Validation:
+
+- `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py -q`
+  -> 80 passed in 1.37s.
+- `uv run --python 3.10 --system-certs --extra dev pytest tests/ -q`
+  -> 658 passed in 7.36s.

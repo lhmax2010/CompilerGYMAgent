@@ -141,8 +141,8 @@
 
 ## Subtask 08a.5
 
-- Implementation status: complete locally, pending full Windows validation,
-  external Med-1 verdict-gate review, and Ubuntu validation.
+- Implementation status: complete, Ubuntu/Python 3.10 validated, and external
+  Med-1 verdict-gate review approved.
 - Added tests:
   - `StatisticalResult` schema accepts single-comparison result fields,
   - schema rejects inconsistent `significant_single_comparison` and
@@ -186,9 +186,20 @@
   - Targeted result: `80 passed in 1.00s`.
   - Full command: `uv run --python 3.10 --system-certs --extra dev pytest tests/ -q`
   - Full result: `658 passed in 7.56s`.
-- Review gate:
-  - External numerical review should stress Med-1 cases where block-bootstrap
-    coverage remains below nominal and confirm the verdict remains
-    low_power/inconclusive, not significant.
-  - Ubuntu validation remains required because Windows full-suite failures are
-    known platform-sensitive non-08a paths.
+- External Med-1 verdict-gate review:
+  - Range: `995ebf3..7087463`.
+  - Reviewed at: `2026-06-13T15:33:47+08:00`.
+  - Verdict: approve.
+  - Findings: no Critical, High, Medium, or Low findings.
+  - Confirmed: Med-1 small-n/autocorrelated underpowered cases remain
+    low_power/inconclusive, verdict gates precede CI sign checks, paired
+    differences still run autocorrelation/ESS diagnostics, unpaired
+    autocorrelation is inconclusive, base approximately zero keeps
+    `relative_effect_pct=None`, and scope excludes multiple-comparison
+    correction, adaptive rerun action, outlier policy, and candidate engine.
+- Current Python 3.10 validation after review recording:
+  - Targeted command:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py -q`
+  - Targeted result: `80 passed in 1.37s`.
+  - Full command: `uv run --python 3.10 --system-certs --extra dev pytest tests/ -q`
+  - Full result: `658 passed in 7.36s`.

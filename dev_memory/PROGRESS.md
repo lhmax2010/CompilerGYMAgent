@@ -1,5 +1,26 @@
 # Development Progress
 
+## 2026-06-13T15:33:47+08:00 - 08a.5 external Med-1 verdict-gate review approved
+
+- External numerical/statistical review approved range `995ebf3..7087463`.
+- Findings: no Critical, High, Medium, or Low findings.
+- Review confirmed Med-1 safety: small-n/autocorrelated underpowered cases are
+  gated to low_power/inconclusive before any CI-excludes-zero significance
+  decision.
+- Review confirmed verdict gates for `n_valid<5`, `5<=n_valid<10`, `ESS<3`,
+  `3<=ESS<5`, adequate-power `no_difference`, and
+  `significant_single_comparison`.
+- Review confirmed paired differences still run autocorrelation/ESS checks,
+  unpaired autocorrelation is inconclusive, baseline approximately zero keeps
+  `relative_effect_pct=None`, and 08a.5 scope excludes multiple-comparison
+  correction, adaptive rerun action, outlier policy, and candidate engine.
+- Current Python 3.10 validation:
+  - targeted 08a.5 command -> 80 passed in 1.37s,
+  - full `tests/` command -> 658 passed in 7.36s.
+
+Next action: 08a.5 is review-complete and recorded; 08a.6 fake_gbs bursty state
+exposure + phase closeout is ready to start when directed.
+
 ## 2026-06-13T14:47:14+08:00 - 08a.5 Ubuntu Python 3.10 validation passed
 
 - User validated `main` after fast-forward pull to `b78c744`.
