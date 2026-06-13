@@ -1,0 +1,23 @@
+Phase 08a post-review hardening after four external reviews and Claude numerical validation.
+
+Implemented mandatory input-order protection:
+- Sort measured records stably by (started_at, run_index) before score extraction, autocorrelation, ESS, bootstrap, and paired-difference diagnostics.
+- Fall back to run_index when started_at is absent.
+- Preserve original order and emit input_order_unverified when neither ordering field exists.
+
+Added statistical regression coverage:
+- Slow fixed-seed coverage tests for IID Gaussian bootstrap coverage, fake_gbs bursty naive IID undercoverage, moving-block improvement over naive, and detected unpaired autocorrelation producing zero significant verdicts.
+- Ordinary regression test showing shuffled autocorrelated inputs still trigger autocorrelation after internal ordering.
+- Boundary tests for zero variance, tiny variance, and n=1000 bootstrap behavior.
+
+Added high-value diagnostics/docs:
+- Document initial-positive-lag ESS as a heuristic, not strict Geyer IPS/IMS.
+- Document lag rho as a trend-sensitive autocorrelation/drift indicator.
+- Document unpaired autocorrelation as deliberately inconclusive due to time-confounding.
+- Add baseline_block_size and candidate_block_size to StatisticalResult while preserving legacy max block_size.
+
+Validation:
+- slow coverage regression: 3 passed in 1.35s.
+- targeted 08a hardening group: 89 passed in 2.33s.
+- full Python 3.10 suite: 667 passed in 8.97s.
+- git diff --check passed.

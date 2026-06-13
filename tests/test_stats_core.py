@@ -563,6 +563,130 @@ def test_compare_run_records_unpaired_autocorrelation_is_inconclusive() -> None:
     assert "unpaired_autocorrelation_inconclusive" in result.notes
 
 
+def test_compare_run_records_sorts_measured_records_before_autocorrelation() -> None:
+    baseline = _records([0.0] * 20, prefix="base", paired=True)
+    candidate = _records(
+        [float(index) for index in range(1, 21)],
+        prefix="cand",
+        paired=True,
+    )
+    shuffled_indices_list = list(range(20))
+    random.Random(2).shuffle(shuffled_indices_list)
+    shuffled_indices = tuple(shuffled_indices_list)
+    shuffled_candidate = tuple(candidate[index] for index in shuffled_indices)
+    shuffled_effects = tuple(float(index + 1) for index in shuffled_indices)
+
+    assert compute_lag1_autocorrelation(shuffled_effects) < 0.3
+
+    sorted_result = compare_run_records(
+        baseline,
+        candidate,
+        bootstrap_samples=80,
+        seed=72,
+    )
+    shuffled_result = compare_run_records(
+        baseline,
+        shuffled_candidate,
+        bootstrap_samples=80,
+        seed=72,
+    )
+
+    assert shuffled_result.lag1_autocorrelation == pytest.approx(
+        sorted_result.lag1_autocorrelation
+    )
+    assert shuffled_result.lag1_autocorrelation == pytest.approx(1.0)
+    assert shuffled_result.autocorrelation_detected is True
+    assert shuffled_result.verdict == "inconclusive"
+    assert "input_order_unverified" not in shuffled_result.notes
+
+
+def test_compare_run_records_marks_unverified_order_when_no_time_or_index() -> None:
+    class MinimalRecord:
+        phase = "measured"
+        valid_for_scoring = True
+        objective_direction = "higher_is_better"
+        pair_key = None
+
+        def __init__(self, score: float) -> None:
+            self.score = score
+
+    baseline = tuple(MinimalRecord(10.0) for _ in range(12))
+    candidate = tuple(MinimalRecord(12.0) for _ in range(12))
+
+    result = compare_run_records(
+        baseline,  # type: ignore[arg-type]
+        candidate,  # type: ignore[arg-type]
+        bootstrap_samples=80,
+        seed=73,
+    )
+
+    assert result.verdict == "significant_improvement"
+    assert "input_order_unverified" in result.notes
+
+
+def test_compare_run_records_reports_unpaired_block_sizes_separately() -> None:
+    baseline = _records([float(index) for index in range(1, 21)], prefix="base")
+    candidate = _records(
+        [float(index + 20) for index in range(1, 13)],
+        prefix="cand",
+    )
+
+    result = compare_run_records(
+        baseline,
+        candidate,
+        bootstrap_samples=80,
+        seed=74,
+    )
+
+    assert result.paired is False
+    assert result.method == MOVING_BLOCK_BOOTSTRAP_METHOD
+    assert result.baseline_block_size == 10
+    assert result.candidate_block_size == 6
+    assert result.block_size == 10
+    assert result.verdict == "inconclusive"
+
+
+def test_bootstrap_ci_handles_zero_variance_sequence() -> None:
+    ci = iid_percentile_bootstrap_ci(
+        (3.14,) * 12,
+        bootstrap_samples=80,
+        seed=75,
+    )
+
+    assert ci.point_estimate == pytest.approx(3.14)
+    assert ci.ci_low == pytest.approx(3.14)
+    assert ci.ci_high == pytest.approx(3.14)
+    assert ci.diagnostics.lag1_autocorrelation is None
+
+
+def test_tiny_variance_sequence_keeps_acf_and_cv_finite() -> None:
+    scores = tuple(1.0 + (1e-12 if index % 2 else -1e-12) for index in range(12))
+    records = _records(scores, prefix="tiny")
+
+    stats = summarize_run_records(records)
+    rho1 = compute_lag1_autocorrelation(scores)
+
+    assert rho1 is None or math.isfinite(rho1)
+    assert stats.cv is None or math.isfinite(stats.cv)
+    assert stats.effective_sample_size is None or math.isfinite(
+        stats.effective_sample_size
+    )
+
+
+def test_autocorrelation_aware_bootstrap_handles_large_n_without_excessive_work() -> None:
+    rng = random.Random(20260613)
+    scores = tuple(rng.gauss(0.0, 1.0) for _ in range(1000))
+
+    ci = autocorrelation_aware_bootstrap_ci(
+        scores,
+        bootstrap_samples=80,
+        seed=76,
+    )
+
+    assert ci.n == 1000
+    assert ci.ci_low <= ci.point_estimate <= ci.ci_high
+
+
 def test_lag1_and_ess_helpers_reject_invalid_inputs() -> None:
     with pytest.raises(ValueError, match="finite"):
         compute_lag1_autocorrelation((1.0, math.nan))
@@ -684,6 +808,7 @@ def _record(
     objective_direction: str = "higher_is_better",
     pair_key: str | None = None,
     run_id: str | None = None,
+    started_at: datetime | None = None,
 ) -> RunLevelRecord:
     failure = (
         None
@@ -695,6 +820,7 @@ def _record(
             retryable=True,
         )
     )
+    record_started_at = started_at or NOW + timedelta(seconds=run_index)
     return RunLevelRecord(
         run_id=run_id or f"run_{phase}_{run_index}",
         run_index=run_index,
@@ -705,8 +831,8 @@ def _record(
         metric_unit="items/sec",
         objective_direction=objective_direction,  # type: ignore[arg-type]
         duration_sec=0.1,
-        started_at=NOW,
-        ended_at=NOW + timedelta(milliseconds=100),
+        started_at=record_started_at,
+        ended_at=record_started_at + timedelta(milliseconds=100),
         exit_code=0,
         stdout_ref="logs/bench.stdout#L1",
         stderr_ref="logs/bench.stderr#L1",

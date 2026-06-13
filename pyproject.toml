@@ -30,3 +30,6 @@ where = ["src"]
 pythonpath = ["src"]
 testpaths = ["tests"]
 addopts = "-ra"
+markers = [
+  "slow: statistical simulation regression tests with fixed seeds",
+]

@@ -1227,7 +1227,7 @@ Decision records must include:
   - REQUIREMENTS.md section 4.9
   - REQUIREMENTS.md section 4.6.4
 - decision: Because 08a.1 exposes `effective_sample_size`, it must use a conservative estimate now. For n >= 8, report `min(n_eff_lag1, n_eff_acf)`, where `n_eff_lag1 = n*(1-rho1)/(1+rho1)` for positive rho1 and n otherwise, and `n_eff_acf = n/(1+2*sum_pos)` over the initial positive sequence of rho_k for k=1..min(n//2,10). For n < 8, report lag-1 ESS and set `ess_preliminary=true`.
-- rationale: External review and Claude numeric checks showed bursty Markov data can have a longer dependency tail than AR(1), so lag-1-only ESS can be optimistic. The initial-positive-sequence ACF path is still simple enough for 08a.1 but avoids publishing an overly confident ESS field before 08a.4 block bootstrap lands.
+- rationale: External review and Claude numeric checks showed bursty Markov data can have a longer dependency tail than AR(1), so lag-1-only ESS can be optimistic. The initial-positive-lag heuristic ACF path is still simple enough for 08a.1 but avoids publishing an overly confident ESS field before 08a.4 block bootstrap lands. Later review clarified that this is not strict Geyer IPS/IMS.
 - alternatives_considered:
   - Keep lag-1-only ESS until 08a.3. Rejected because `effective_sample_size` is already exposed in 08a.1 and downstream users could rely on the optimistic value.
   - Always use multi-lag ACF, even for very small samples. Rejected because n < 8 has too little information for stable multi-lag ACF.
@@ -1332,3 +1332,43 @@ Decision records must include:
   - Treat paired differences as automatically IID. Rejected because persistent burst states or drift can remain after differencing.
   - Require complete pair coverage. Rejected because partial legacy data can still produce a transparent low-power result when marked.
   - Ignore pair keys and always compare unpaired means. Rejected because it discards the strongest available anti-bursty signal.
+
+## 2026-06-13T16:53:27+08:00 - 08a enforces measured-run order before autocorrelation diagnostics
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 08a
+  - REQUIREMENTS.md section 4.8
+  - REQUIREMENTS.md section 4.9
+  - REQUIREMENTS.md section 4.6.4 convergence detector
+- decision: Phase 08a must sort measured baseline and candidate records before extracting score sequences for autocorrelation, ESS, bootstrap, and paired-difference diagnostics. The stable sort key is `(started_at, run_index)` when timestamps are present; records without `started_at` fall back to `run_index`; records with neither field retain original relative order and emit `input_order_unverified`.
+- rationale: Lag autocorrelation is sequence-order dependent. External review found that passing the same bursty measurements in shuffled iterable order can wash out rho and make autocorrelated data look IID, bypassing the 08a protective path and allowing naive-bootstrap significance. Sorting at the `compare_run_records()`/measured-record ingestion boundary makes the statistical sequence match run chronology instead of caller container order.
+- alternatives_considered:
+  - Trust callers to pass chronological records. Rejected because a single shuffled list can bypass the autocorrelation guard.
+  - Sort only paired comparisons. Rejected because unpaired baseline/candidate diagnostics also consume order-sensitive sequences.
+  - Hard-fail when order metadata is unavailable. Rejected because old or test records can still produce a transparent result if `input_order_unverified` is surfaced.
+
+## 2026-06-13T16:53:27+08:00 - Coverage simulations are regression tests, not just review probes
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 08a
+  - REQUIREMENTS.md section 4.8
+  - REQUIREMENTS.md section 4.9
+- decision: Keep fixed-seed slow regression tests for the core 08a coverage invariants: IID Gaussian percentile-bootstrap coverage remains near nominal, fake_gbs bursty naive IID bootstrap undercovers, moving block bootstrap improves over naive on the same bursty profile, and detected unpaired autocorrelation yields zero significant verdicts.
+- rationale: External numerical reviews supplied the key coverage evidence, but those numbers were not previously executable regression checks. Bootstrap implementation changes could silently degrade coverage or verdict gating while deterministic unit tests still pass. Fixed-seed, wide-tolerance tests lock the trend without pretending to prove exact coverage on every run.
+- alternatives_considered:
+  - Leave coverage validation as reviewer-only scripts. Rejected because future regressions would be easy to miss.
+  - Assert exact coverage percentages. Rejected because these are simulations and should lock invariants/trends, not brittle counts.
+  - Run huge Monte Carlo trials in the default suite. Rejected because the regression should remain practical in normal Python 3.10 validation.
+
+## 2026-06-13T16:53:27+08:00 - 08a documents heuristic ESS and unpaired autocorrelation tradeoffs honestly
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 08a
+  - REQUIREMENTS.md section 4.8
+  - REQUIREMENTS.md section 4.9
+- decision: Name the multi-lag ESS path an `initial-positive-lag heuristic`, not strict Geyer IPS/IMS. Name the lag-k rho helper an autocorrelation/drift indicator because it uses separate lag-segment means and intentionally triggers on monotone drift. Document that unpaired autocorrelated comparisons are inconclusive by design due to time-confounding, not because the implementation lacks a block bootstrap.
+- rationale: Four external reviews agreed the implementation is conservative but non-standard in these details. Honest naming prevents downstream users from over-reading the ESS estimator as a formal Geyer IPS implementation, explains why monotone drift triggers protective paths, and records that unpaired autocorrelation cannot be made significant merely by adding more samples.
+- alternatives_considered:
+  - Keep the old `initial-positive-sequence` wording. Rejected because it can be mistaken for strict Geyer IPS.
+  - Treat trend sensitivity as a bug to remove. Rejected because monotone drift violates IID and should drive conservative verdicts.
+  - Let unpaired moving-block CIs claim significance under autocorrelation. Rejected because the candidate/baseline label remains confounded with time when records are not paired.

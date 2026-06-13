@@ -1,6 +1,6 @@
 # dev_memory/ROADMAP.yaml
 roadmap_version: 1
-last_updated: 2026-06-13T15:33:47+08:00
+last_updated: 2026-06-13T16:53:27+08:00
 status: active
 
 # ============================================================
@@ -192,7 +192,7 @@ planned_phases:
           - "Compute mean, median, sample stddev (n-1), and CV; CV is None when mean is effectively zero"
           - "Implement percentile bootstrap CI for IID/right-skewed data with configurable B (default 2000), confidence_level (default 0.95), and seeded RNG"
           - "Compute lag-1 autocorrelation rho1=corr(x_t, x_{t-1})"
-          - "Compute conservative ESS: for n>=8 use min(lag-1 ESS, initial-positive-sequence multi-lag ACF ESS); for n<8 use lag-1 ESS with ess_preliminary=True"
+          - "Compute conservative ESS: for n>=8 use min(lag-1 ESS, initial-positive-lag heuristic multi-lag ACF ESS); for n<8 use lag-1 ESS with ess_preliminary=True"
           - "Set autocorrelation_detected when rho1 > 0.3 and iid_assumption_valid to the inverse"
           - "If ESS < ESS_MIN (default 3), return verdict=inconclusive and never significant_improvement/significant_regression"
           - "When autocorrelation is detected, use moving block bootstrap instead of IID bootstrap"
@@ -250,6 +250,9 @@ planned_phases:
         - "Implementation note: matching pair_key values are differenced in baseline pair order; partial matches are marked, and unpaired autocorrelation is inconclusive."
         - "Ubuntu/Python 3.10 validation passed at b78c744: targeted 80 passed, full suite 658 passed."
         - "External Med-1 verdict-gate review approved range 995ebf3..7087463 with no Critical, High, Medium, or Low findings."
+        - "Post-review hardening: compare_run_records sorts measured records by started_at/run_index before autocorrelation diagnostics; missing ordering metadata emits input_order_unverified."
+        - "Post-review hardening: slow fixed-seed coverage regressions protect IID Gaussian coverage, fake_gbs bursty naive undercoverage, moving-block improvement, and unpaired-autocorrelation inconclusive behavior."
+        - "Post-review hardening: ESS wording is initial-positive-lag heuristic, lag rho is trend-sensitive by design, and unpaired autocorrelation remains inconclusive due to time-confounding."
     exit_criteria:
       - "Descriptive statistics and bootstrap CI are checked against an independent implementation (numpy/scipy or hand calculation) and match within documented tolerance"
       - "IID/right-skewed percentile bootstrap 95% CI has coverage approximately at nominal confidence on known-truth simulations"

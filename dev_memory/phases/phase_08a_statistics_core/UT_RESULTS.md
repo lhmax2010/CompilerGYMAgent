@@ -203,3 +203,23 @@
   - Targeted result: `80 passed in 1.37s`.
   - Full command: `uv run --python 3.10 --system-certs --extra dev pytest tests/ -q`
   - Full result: `658 passed in 7.36s`.
+- Post-review hardening validation:
+  - Targeted command:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_stats_core_coverage_regression.py -q`
+  - Initial result before adding benchmark group: `84 passed in 1.77s`.
+  - Slow coverage command:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core_coverage_regression.py -q`
+  - Slow coverage result: `3 passed in 1.35s`.
+  - Final targeted command:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py tests/test_stats_core_coverage_regression.py -q`
+  - Final targeted result: `89 passed in 2.33s`.
+  - Full command:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/ -q`
+  - Full result: `667 passed in 8.97s`.
+  - Fixed-seed coverage values:
+    - IID Gaussian 95% CI coverage: `0.955`.
+    - fake_gbs bursty naive IID coverage: `0.7555555555555555`.
+    - fake_gbs bursty moving-block coverage: `0.8166666666666667`.
+  - Added coverage regression file:
+    `tests/test_stats_core_coverage_regression.py`.
+  - Added ordinary order/boundary tests in `tests/test_stats_core.py`.

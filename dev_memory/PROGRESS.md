@@ -1,5 +1,44 @@
 # Development Progress
 
+## 2026-06-13T16:53:27+08:00 - 08a post-review hardening started
+
+- Implemented the mandatory input-order fix from the four-review/Claude
+  validation round:
+  measured records are sorted stably by `(started_at, run_index)` before score
+  extraction and autocorrelation/ESS diagnostics.
+- Missing `started_at` falls back to `run_index`; records with neither ordering
+  field keep original order and emit `input_order_unverified`.
+- Added fixed-seed slow coverage regression tests for:
+  - IID Gaussian percentile-bootstrap coverage near nominal,
+  - fake_gbs bursty naive IID undercoverage,
+  - moving-block improvement over naive on bursty data,
+  - detected unpaired autocorrelation producing zero significant verdicts.
+- Added high-value small fixes:
+  - honest ESS/rho docstrings for initial-positive-lag heuristic and
+    trend-sensitive lag rho,
+  - documented unpaired autocorrelation as deliberately inconclusive,
+  - separate `baseline_block_size` / `candidate_block_size` diagnostics,
+  - zero-variance, tiny-variance, and n=1000 boundary tests.
+- Validation:
+  - slow coverage regression:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core_coverage_regression.py -q`
+    -> 3 passed in 1.35s,
+  - targeted 08a hardening group:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py tests/test_stats_core_coverage_regression.py -q`
+    -> 89 passed in 2.33s,
+  - full Python 3.10 suite:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/ -q`
+    -> 667 passed in 8.97s.
+- Fixed-seed coverage values:
+  - IID Gaussian 95% CI coverage: 0.955,
+  - fake_gbs bursty naive IID coverage: 0.7555555555555555,
+  - fake_gbs bursty moving-block coverage: 0.8166666666666667.
+- Earlier narrow validation:
+  `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_stats_core_coverage_regression.py -q`
+  -> 84 passed in 1.77s.
+
+Next action: commit/push and request Claude review for the hardening range.
+
 ## 2026-06-13T15:33:47+08:00 - 08a.5 external Med-1 verdict-gate review approved
 
 - External numerical/statistical review approved range `995ebf3..7087463`.
@@ -325,7 +364,7 @@ approval before starting 08a.2.
 
 - Restored the 08a.1 implementation stash on `main`.
 - Tightened exposed ESS:
-  - n>=8 uses `min(lag-1 ESS, initial-positive-sequence multi-lag ACF ESS)`,
+  - n>=8 uses `min(lag-1 ESS, initial-positive-lag heuristic multi-lag ACF ESS)`,
   - n<8 keeps lag-1 ESS and sets `ess_preliminary=true`.
 - Extended `RunSummaryHint` with `ess_preliminary` and bounded
   `effective_sample_size <= n_valid`.

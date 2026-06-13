@@ -1,0 +1,786 @@
+diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index 9e6cefb..ffc6ebb 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -1,7 +1,7 @@
+ phase_id: phase_08a_statistics_core
+ phase_title: "Baseline + Statistical Significance - Minimal Stats Core"
+ started_at: 2026-06-10T15:15:45+08:00
+-last_updated: 2026-06-13T15:33:47+08:00
++last_updated: 2026-06-13T16:53:27+08:00
+ target_milestone: "M2 + M4 (partial)"
+ related_requirements:
+   - REQUIREMENTS.md section 4.8
+@@ -62,7 +62,7 @@ subtasks:
+       - "Add side-effect-free descriptive statistics in src/agent/stats_core.py."
+       - "Consume only RunLevelRecord values with phase=measured and valid_for_scoring=True."
+       - "Compute mean, median, sample stddev (n-1), CV with near-zero mean returning None, lag-1 rho, and conservative ESS."
+-      - "For n>=8, ESS is min(lag-1 ESS, initial-positive-sequence multi-lag ACF ESS); for n<8, ESS falls back to lag-1 and sets ess_preliminary=True."
++      - "For n>=8, ESS is min(lag-1 ESS, initial-positive-lag heuristic multi-lag ACF ESS); for n<8, ESS falls back to lag-1 and sets ess_preliminary=True."
+       - "Extend RunSummaryHint with n_measured, n_valid, n_invalid, effective_sample_size, ess_preliminary, lag1_autocorrelation, autocorrelation_warning."
+       - "Reject NaN/Inf in all new numeric schema fields."
+     exclusions:
+@@ -418,6 +418,28 @@ subtasks:
+       head: b78c744
+       targeted: "uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py -q -> 80 passed in 1.00s"
+       full: "uv run --python 3.10 --system-certs --extra dev pytest tests/ -q -> 658 passed in 7.56s"
++    post_review_hardening:
++      reviewed_sources:
++        - ChatGPT
++        - Kimi
++        - Gemini
++        - Kimi-Code
++        - Claude numerical validation
++      implemented_at: 2026-06-13T16:53:27+08:00
++      scope:
++        - "Sort measured records by started_at/run_index before score extraction and autocorrelation diagnostics; emit input_order_unverified when neither field exists."
++        - "Add fixed-seed slow coverage regressions for IID Gaussian coverage, fake_gbs bursty naive undercoverage, moving-block improvement, and unpaired-autocorrelation inconclusive behavior."
++        - "Document heuristic ESS naming, trend-sensitive lag rho, and the deliberate unpaired-autocorrelation inconclusive policy."
++        - "Expose baseline_block_size and candidate_block_size for unpaired comparisons while preserving the legacy max block_size field."
++        - "Add boundary tests for zero variance, tiny variance, and n=1000 bootstrap behavior."
++      validation:
++        slow_coverage: "uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core_coverage_regression.py -q -> 3 passed in 1.35s"
++        targeted: "uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py tests/test_stats_core_coverage_regression.py -q -> 89 passed in 2.33s"
++        full: "uv run --python 3.10 --system-certs --extra dev pytest tests/ -q -> 667 passed in 8.97s"
++        coverage_values:
++          iid_gaussian_95pct: 0.955
++          fake_gbs_bursty_naive_iid: 0.7555555555555555
++          fake_gbs_bursty_moving_block: 0.8166666666666667
+   - id: "08a.6"
+     title: "fake_gbs bursty state exposure in env_snapshot + phase closeout"
+     status: planned
+diff --git a/dev_memory/DECISIONS.md b/dev_memory/DECISIONS.md
+index b1eaa08..fb0b5f0 100644
+--- a/dev_memory/DECISIONS.md
++++ b/dev_memory/DECISIONS.md
+@@ -1227,7 +1227,7 @@ Decision records must include:
+   - REQUIREMENTS.md section 4.9
+   - REQUIREMENTS.md section 4.6.4
+ - decision: Because 08a.1 exposes `effective_sample_size`, it must use a conservative estimate now. For n >= 8, report `min(n_eff_lag1, n_eff_acf)`, where `n_eff_lag1 = n*(1-rho1)/(1+rho1)` for positive rho1 and n otherwise, and `n_eff_acf = n/(1+2*sum_pos)` over the initial positive sequence of rho_k for k=1..min(n//2,10). For n < 8, report lag-1 ESS and set `ess_preliminary=true`.
+-- rationale: External review and Claude numeric checks showed bursty Markov data can have a longer dependency tail than AR(1), so lag-1-only ESS can be optimistic. The initial-positive-sequence ACF path is still simple enough for 08a.1 but avoids publishing an overly confident ESS field before 08a.4 block bootstrap lands.
++- rationale: External review and Claude numeric checks showed bursty Markov data can have a longer dependency tail than AR(1), so lag-1-only ESS can be optimistic. The initial-positive-lag heuristic ACF path is still simple enough for 08a.1 but avoids publishing an overly confident ESS field before 08a.4 block bootstrap lands. Later review clarified that this is not strict Geyer IPS/IMS.
+ - alternatives_considered:
+   - Keep lag-1-only ESS until 08a.3. Rejected because `effective_sample_size` is already exposed in 08a.1 and downstream users could rely on the optimistic value.
+   - Always use multi-lag ACF, even for very small samples. Rejected because n < 8 has too little information for stable multi-lag ACF.
+@@ -1332,3 +1332,43 @@ Decision records must include:
+   - Treat paired differences as automatically IID. Rejected because persistent burst states or drift can remain after differencing.
+   - Require complete pair coverage. Rejected because partial legacy data can still produce a transparent low-power result when marked.
+   - Ignore pair keys and always compare unpaired means. Rejected because it discards the strongest available anti-bursty signal.
++
++## 2026-06-13T16:53:27+08:00 - 08a enforces measured-run order before autocorrelation diagnostics
++
++- affected_requirement:
++  - ROADMAP.yaml Phase 08a
++  - REQUIREMENTS.md section 4.8
++  - REQUIREMENTS.md section 4.9
++  - REQUIREMENTS.md section 4.6.4 convergence detector
++- decision: Phase 08a must sort measured baseline and candidate records before extracting score sequences for autocorrelation, ESS, bootstrap, and paired-difference diagnostics. The stable sort key is `(started_at, run_index)` when timestamps are present; records without `started_at` fall back to `run_index`; records with neither field retain original relative order and emit `input_order_unverified`.
++- rationale: Lag autocorrelation is sequence-order dependent. External review found that passing the same bursty measurements in shuffled iterable order can wash out rho and make autocorrelated data look IID, bypassing the 08a protective path and allowing naive-bootstrap significance. Sorting at the `compare_run_records()`/measured-record ingestion boundary makes the statistical sequence match run chronology instead of caller container order.
++- alternatives_considered:
++  - Trust callers to pass chronological records. Rejected because a single shuffled list can bypass the autocorrelation guard.
++  - Sort only paired comparisons. Rejected because unpaired baseline/candidate diagnostics also consume order-sensitive sequences.
++  - Hard-fail when order metadata is unavailable. Rejected because old or test records can still produce a transparent result if `input_order_unverified` is surfaced.
++
++## 2026-06-13T16:53:27+08:00 - Coverage simulations are regression tests, not just review probes
++
++- affected_requirement:
++  - ROADMAP.yaml Phase 08a
++  - REQUIREMENTS.md section 4.8
++  - REQUIREMENTS.md section 4.9
++- decision: Keep fixed-seed slow regression tests for the core 08a coverage invariants: IID Gaussian percentile-bootstrap coverage remains near nominal, fake_gbs bursty naive IID bootstrap undercovers, moving block bootstrap improves over naive on the same bursty profile, and detected unpaired autocorrelation yields zero significant verdicts.
++- rationale: External numerical reviews supplied the key coverage evidence, but those numbers were not previously executable regression checks. Bootstrap implementation changes could silently degrade coverage or verdict gating while deterministic unit tests still pass. Fixed-seed, wide-tolerance tests lock the trend without pretending to prove exact coverage on every run.
++- alternatives_considered:
++  - Leave coverage validation as reviewer-only scripts. Rejected because future regressions would be easy to miss.
++  - Assert exact coverage percentages. Rejected because these are simulations and should lock invariants/trends, not brittle counts.
++  - Run huge Monte Carlo trials in the default suite. Rejected because the regression should remain practical in normal Python 3.10 validation.
++
++## 2026-06-13T16:53:27+08:00 - 08a documents heuristic ESS and unpaired autocorrelation tradeoffs honestly
++
++- affected_requirement:
++  - ROADMAP.yaml Phase 08a
++  - REQUIREMENTS.md section 4.8
++  - REQUIREMENTS.md section 4.9
++- decision: Name the multi-lag ESS path an `initial-positive-lag heuristic`, not strict Geyer IPS/IMS. Name the lag-k rho helper an autocorrelation/drift indicator because it uses separate lag-segment means and intentionally triggers on monotone drift. Document that unpaired autocorrelated comparisons are inconclusive by design due to time-confounding, not because the implementation lacks a block bootstrap.
++- rationale: Four external reviews agreed the implementation is conservative but non-standard in these details. Honest naming prevents downstream users from over-reading the ESS estimator as a formal Geyer IPS implementation, explains why monotone drift triggers protective paths, and records that unpaired autocorrelation cannot be made significant merely by adding more samples.
++- alternatives_considered:
++  - Keep the old `initial-positive-sequence` wording. Rejected because it can be mistaken for strict Geyer IPS.
++  - Treat trend sensitivity as a bug to remove. Rejected because monotone drift violates IID and should drive conservative verdicts.
++  - Let unpaired moving-block CIs claim significance under autocorrelation. Rejected because the candidate/baseline label remains confounded with time when records are not paired.
+diff --git a/dev_memory/HANDOFF_PROMPT.md b/dev_memory/HANDOFF_PROMPT.md
+index 9ef349c..1c70536 100644
+--- a/dev_memory/HANDOFF_PROMPT.md
++++ b/dev_memory/HANDOFF_PROMPT.md
+@@ -38,6 +38,10 @@ Current status:
+   bursty coverage but smaller-n bursty cases remain underpowered.
+ - Phase 08a.5 StatisticalResult/verdict gates are implemented,
+   Ubuntu/Python 3.10 validated, and externally reviewed with no findings.
++- Post-review hardening for 08a.5 is in progress/implemented: measured records
++  are sorted by `(started_at, run_index)` before autocorrelation diagnostics,
++  slow coverage regressions were added, and heuristic ESS/unpaired
++  autocorrelation policy was documented.
+ - Real target runtime is Python 3.10. The compatibility patch lowers
+   `requires-python` to `>=3.10` and removes 3.11-only `datetime.UTC`,
+   `typing.Self`, and `tomllib` assumptions.
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index 8abbc3e..165b2c6 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -1,5 +1,44 @@
+ # Development Progress
+ 
++## 2026-06-13T16:53:27+08:00 - 08a post-review hardening started
++
++- Implemented the mandatory input-order fix from the four-review/Claude
++  validation round:
++  measured records are sorted stably by `(started_at, run_index)` before score
++  extraction and autocorrelation/ESS diagnostics.
++- Missing `started_at` falls back to `run_index`; records with neither ordering
++  field keep original order and emit `input_order_unverified`.
++- Added fixed-seed slow coverage regression tests for:
++  - IID Gaussian percentile-bootstrap coverage near nominal,
++  - fake_gbs bursty naive IID undercoverage,
++  - moving-block improvement over naive on bursty data,
++  - detected unpaired autocorrelation producing zero significant verdicts.
++- Added high-value small fixes:
++  - honest ESS/rho docstrings for initial-positive-lag heuristic and
++    trend-sensitive lag rho,
++  - documented unpaired autocorrelation as deliberately inconclusive,
++  - separate `baseline_block_size` / `candidate_block_size` diagnostics,
++  - zero-variance, tiny-variance, and n=1000 boundary tests.
++- Validation:
++  - slow coverage regression:
++    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core_coverage_regression.py -q`
++    -> 3 passed in 1.35s,
++  - targeted 08a hardening group:
++    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py tests/test_stats_core_coverage_regression.py -q`
++    -> 89 passed in 2.33s,
++  - full Python 3.10 suite:
++    `uv run --python 3.10 --system-certs --extra dev pytest tests/ -q`
++    -> 667 passed in 8.97s.
++- Fixed-seed coverage values:
++  - IID Gaussian 95% CI coverage: 0.955,
++  - fake_gbs bursty naive IID coverage: 0.7555555555555555,
++  - fake_gbs bursty moving-block coverage: 0.8166666666666667.
++- Earlier narrow validation:
++  `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_stats_core_coverage_regression.py -q`
++  -> 84 passed in 1.77s.
++
++Next action: commit/push and request Claude review for the hardening range.
++
+ ## 2026-06-13T15:33:47+08:00 - 08a.5 external Med-1 verdict-gate review approved
+ 
+ - External numerical/statistical review approved range `995ebf3..7087463`.
+@@ -325,7 +364,7 @@ approval before starting 08a.2.
+ 
+ - Restored the 08a.1 implementation stash on `main`.
+ - Tightened exposed ESS:
+-  - n>=8 uses `min(lag-1 ESS, initial-positive-sequence multi-lag ACF ESS)`,
++  - n>=8 uses `min(lag-1 ESS, initial-positive-lag heuristic multi-lag ACF ESS)`,
+   - n<8 keeps lag-1 ESS and sets `ess_preliminary=true`.
+ - Extended `RunSummaryHint` with `ess_preliminary` and bounded
+   `effective_sample_size <= n_valid`.
+diff --git a/dev_memory/ROADMAP.md b/dev_memory/ROADMAP.md
+index 3a0c9fc..e3d7f11 100644
+--- a/dev_memory/ROADMAP.md
++++ b/dev_memory/ROADMAP.md
+@@ -47,6 +47,10 @@ Current phase:
+   of zero and adequate power. Low n, low ESS, preliminary ESS, small-n
+   autocorrelated paired data, and unpaired autocorrelation prevent
+   `significant_single_comparison`.
++- Post-review hardening enforces measured-record ordering before
++  autocorrelation diagnostics, adds fixed-seed coverage regressions, and
++  documents heuristic ESS/rho terminology plus the deliberate unpaired
++  autocorrelation inconclusive policy.
+ 
+ Next implementation phases:
+ 
+diff --git a/dev_memory/ROADMAP.yaml b/dev_memory/ROADMAP.yaml
+index 3890ee2..a9c1a76 100644
+--- a/dev_memory/ROADMAP.yaml
++++ b/dev_memory/ROADMAP.yaml
+@@ -1,6 +1,6 @@
+ # dev_memory/ROADMAP.yaml
+ roadmap_version: 1
+-last_updated: 2026-06-13T15:33:47+08:00
++last_updated: 2026-06-13T16:53:27+08:00
+ status: active
+ 
+ # ============================================================
+@@ -192,7 +192,7 @@ planned_phases:
+           - "Compute mean, median, sample stddev (n-1), and CV; CV is None when mean is effectively zero"
+           - "Implement percentile bootstrap CI for IID/right-skewed data with configurable B (default 2000), confidence_level (default 0.95), and seeded RNG"
+           - "Compute lag-1 autocorrelation rho1=corr(x_t, x_{t-1})"
+-          - "Compute conservative ESS: for n>=8 use min(lag-1 ESS, initial-positive-sequence multi-lag ACF ESS); for n<8 use lag-1 ESS with ess_preliminary=True"
++          - "Compute conservative ESS: for n>=8 use min(lag-1 ESS, initial-positive-lag heuristic multi-lag ACF ESS); for n<8 use lag-1 ESS with ess_preliminary=True"
+           - "Set autocorrelation_detected when rho1 > 0.3 and iid_assumption_valid to the inverse"
+           - "If ESS < ESS_MIN (default 3), return verdict=inconclusive and never significant_improvement/significant_regression"
+           - "When autocorrelation is detected, use moving block bootstrap instead of IID bootstrap"
+@@ -250,6 +250,9 @@ planned_phases:
+         - "Implementation note: matching pair_key values are differenced in baseline pair order; partial matches are marked, and unpaired autocorrelation is inconclusive."
+         - "Ubuntu/Python 3.10 validation passed at b78c744: targeted 80 passed, full suite 658 passed."
+         - "External Med-1 verdict-gate review approved range 995ebf3..7087463 with no Critical, High, Medium, or Low findings."
++        - "Post-review hardening: compare_run_records sorts measured records by started_at/run_index before autocorrelation diagnostics; missing ordering metadata emits input_order_unverified."
++        - "Post-review hardening: slow fixed-seed coverage regressions protect IID Gaussian coverage, fake_gbs bursty naive undercoverage, moving-block improvement, and unpaired-autocorrelation inconclusive behavior."
++        - "Post-review hardening: ESS wording is initial-positive-lag heuristic, lag rho is trend-sensitive by design, and unpaired autocorrelation remains inconclusive due to time-confounding."
+     exit_criteria:
+       - "Descriptive statistics and bootstrap CI are checked against an independent implementation (numpy/scipy or hand calculation) and match within documented tolerance"
+       - "IID/right-skewed percentile bootstrap 95% CI has coverage approximately at nominal confidence on known-truth simulations"
+diff --git a/dev_memory/phases/phase_08a_statistics_core/CHECKLIST.yaml b/dev_memory/phases/phase_08a_statistics_core/CHECKLIST.yaml
+index 772db4b..9ff3fd7 100644
+--- a/dev_memory/phases/phase_08a_statistics_core/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_08a_statistics_core/CHECKLIST.yaml
+@@ -195,6 +195,21 @@ subtasks:
+       direction_sign: implemented
+       paired_autocorrelation_checked: implemented
+       unpaired_autocorrelation_inconclusive: implemented
++    post_review_hardening:
++      input_order_enforced: implemented
++      coverage_regression_tests: implemented
++      heuristic_naming_documented: implemented
++      unpaired_autocorrelation_policy_documented: implemented
++      unpaired_block_sizes_reported_separately: implemented
++      patch_artifacts_generated: true
++      patch_artifacts:
++        - dev_memory/phases/phase_08a_statistics_core/patches/07_post_review_hardening.patch
++        - dev_memory/phases/phase_08a_statistics_core/patches/07_post_review_hardening.summary.txt
++        - dev_memory/phases/phase_08a_statistics_core/patches/07_post_review_hardening.review.md
++      boundary_tests:
++        zero_variance: implemented
++        tiny_variance: implemented
++        n_1000_performance: implemented
+   - id: "08a.6"
+     title: "fake_gbs bursty state exposure in env_snapshot + phase closeout"
+     status: planned
+diff --git a/dev_memory/phases/phase_08a_statistics_core/REVIEW_NOTES.md b/dev_memory/phases/phase_08a_statistics_core/REVIEW_NOTES.md
+index 202fd6d..29d1108 100644
+--- a/dev_memory/phases/phase_08a_statistics_core/REVIEW_NOTES.md
++++ b/dev_memory/phases/phase_08a_statistics_core/REVIEW_NOTES.md
+@@ -75,7 +75,7 @@ Validation gap:
+ - Scope: no candidate engine, no bootstrap CI, no StatisticalResult/verdict code.
+ - ESS alignment:
+   - n>=8 now reports the conservative lower value of lag-1 ESS and
+-    initial-positive-sequence multi-lag ACF ESS.
++    initial-positive-lag heuristic multi-lag ACF ESS.
+   - n<8 keeps the lag-1 ESS fallback and marks `ess_preliminary=true`.
+   - This addresses the review concern that bursty Markov tails can make
+     lag-1-only ESS optimistic.
+@@ -465,3 +465,30 @@ Validation:
+   -> 80 passed in 1.37s.
+ - `uv run --python 3.10 --system-certs --extra dev pytest tests/ -q`
+   -> 658 passed in 7.36s.
++
++## Subtask 08a.5 post-review hardening - in progress
++
++- Reviewed sources: ChatGPT, Kimi, Gemini, Kimi-Code, and Claude numerical
++  validation.
++- Mandatory bug fixed: measured records are now sorted stably by
++  `(started_at, run_index)` before score extraction and autocorrelation/ESS
++  diagnostics. Missing `started_at` falls back to `run_index`; records with
++  neither field preserve original order and add `input_order_unverified`.
++- Regression coverage added:
++  - shuffled autocorrelated inputs still trigger autocorrelation after sorting,
++  - IID Gaussian percentile bootstrap coverage stays near nominal,
++  - fake_gbs bursty naive IID bootstrap remains visibly undercovered,
++  - moving block bootstrap improves over naive on the same bursty profile,
++  - detected unpaired autocorrelation produces zero significant verdicts.
++- Documentation hardening:
++  - multi-lag ESS is named an initial-positive-lag heuristic, not strict Geyer
++    IPS/IMS,
++  - lag-k rho is documented as a trend-sensitive autocorrelation/drift
++    indicator,
++  - unpaired autocorrelated comparisons are inconclusive by design because
++    time-confounding cannot be fixed by sample size alone.
++- Diagnostics hardening:
++  - unpaired results expose `baseline_block_size` and `candidate_block_size`
++    while preserving the legacy max `block_size`.
++- Boundary tests added for zero variance, tiny variance, and n=1000 bootstrap
++  behavior.
+diff --git a/dev_memory/phases/phase_08a_statistics_core/SUMMARY.md b/dev_memory/phases/phase_08a_statistics_core/SUMMARY.md
+index b21b86a..6b9dd5a 100644
+--- a/dev_memory/phases/phase_08a_statistics_core/SUMMARY.md
++++ b/dev_memory/phases/phase_08a_statistics_core/SUMMARY.md
+@@ -20,8 +20,8 @@ Implemented scope:
+ - Consume only measured `RunLevelRecord` values with `valid_for_scoring=True`.
+ - Compute n counts, mean, median, sample stddev, CV, lag-1 rho, and
+   conservative ESS.
+-- For n>=8, ESS is the lower of lag-1 ESS and initial-positive-sequence
+-  multi-lag ACF ESS; for n<8, ESS falls back to lag-1 with
++- For n>=8, ESS is the lower of lag-1 ESS and an initial-positive-lag
++  heuristic multi-lag ACF ESS; for n<8, ESS falls back to lag-1 with
+   `ess_preliminary=true`.
+ - Extend `RunSummaryHint` with counts, autocorrelation-risk fields, and
+   `ess_preliminary`.
+@@ -284,3 +284,31 @@ External review status:
+   signed absolute effect.
+ - Scope remains clean: no multiple-comparison correction, no adaptive rerun
+   action, no outlier policy, and no candidate engine.
++
++Post-review hardening:
++
++- Four external review passes plus Claude numerical validation found one
++  mandatory 08a bug: order-sensitive autocorrelation could be bypassed if
++  caller-provided records were shuffled.
++- `compare_run_records()` and measured score ingestion now consume measured
++  records in stable `(started_at, run_index)` order. Missing `started_at`
++  falls back to `run_index`; records with neither field retain original order
++  and add `input_order_unverified`.
++- Added a regression test showing shuffled monotone/autocorrelated records no
++  longer wash out rho before verdict gates.
++- Added slow fixed-seed coverage regressions for IID Gaussian coverage,
++  fake_gbs bursty naive undercoverage, moving-block improvement over naive,
++  and 100% inconclusive verdicts for detected unpaired autocorrelation.
++- Added boundary tests for zero variance, tiny variance, and n=1000 bootstrap
++  behavior.
++- Updated terminology: the multi-lag ESS path is an initial-positive-lag
++  heuristic, not strict Geyer IPS/IMS; lag-k rho is documented as an
++  autocorrelation/drift indicator with intentional trend sensitivity.
++- Unpaired autocorrelated comparisons are documented as inconclusive by design
++  because time-confounding cannot be solved by sample size alone.
++- Unpaired comparison diagnostics now report `baseline_block_size` and
++  `candidate_block_size` separately while preserving the legacy max
++  `block_size` field.
++- Patch artifacts:
++  `dev_memory/phases/phase_08a_statistics_core/patches/07_post_review_hardening.patch`,
++  `.summary.txt`, and `.review.md`.
+diff --git a/dev_memory/phases/phase_08a_statistics_core/UT_RESULTS.md b/dev_memory/phases/phase_08a_statistics_core/UT_RESULTS.md
+index bba634d..3bb2bb5 100644
+--- a/dev_memory/phases/phase_08a_statistics_core/UT_RESULTS.md
++++ b/dev_memory/phases/phase_08a_statistics_core/UT_RESULTS.md
+@@ -203,3 +203,23 @@
+   - Targeted result: `80 passed in 1.37s`.
+   - Full command: `uv run --python 3.10 --system-certs --extra dev pytest tests/ -q`
+   - Full result: `658 passed in 7.36s`.
++- Post-review hardening validation:
++  - Targeted command:
++    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_stats_core_coverage_regression.py -q`
++  - Initial result before adding benchmark group: `84 passed in 1.77s`.
++  - Slow coverage command:
++    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core_coverage_regression.py -q`
++  - Slow coverage result: `3 passed in 1.35s`.
++  - Final targeted command:
++    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py tests/test_stats_core_coverage_regression.py -q`
++  - Final targeted result: `89 passed in 2.33s`.
++  - Full command:
++    `uv run --python 3.10 --system-certs --extra dev pytest tests/ -q`
++  - Full result: `667 passed in 8.97s`.
++  - Fixed-seed coverage values:
++    - IID Gaussian 95% CI coverage: `0.955`.
++    - fake_gbs bursty naive IID coverage: `0.7555555555555555`.
++    - fake_gbs bursty moving-block coverage: `0.8166666666666667`.
++  - Added coverage regression file:
++    `tests/test_stats_core_coverage_regression.py`.
++  - Added ordinary order/boundary tests in `tests/test_stats_core.py`.
+diff --git a/pyproject.toml b/pyproject.toml
+index d9f25cd..7f22eaf 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -30,3 +30,6 @@ where = ["src"]
+ pythonpath = ["src"]
+ testpaths = ["tests"]
+ addopts = "-ra"
++markers = [
++  "slow: statistical simulation regression tests with fixed seeds",
++]
+diff --git a/src/agent/skills/result_schema.py b/src/agent/skills/result_schema.py
+index 237ef3d..9ec5a6e 100644
+--- a/src/agent/skills/result_schema.py
++++ b/src/agent/skills/result_schema.py
+@@ -185,6 +185,8 @@ class StatisticalResult(StrictResultSchemaModel):
+     paired: bool = False
+     pair_count: int = Field(default=0, ge=0)
+     block_size: int | None = Field(default=None, ge=2)
++    baseline_block_size: int | None = Field(default=None, ge=2)
++    candidate_block_size: int | None = Field(default=None, ge=2)
+     notes: tuple[NonEmptyStr, ...] = ()
+ 
+     @field_validator(
+diff --git a/src/agent/stats_core.py b/src/agent/stats_core.py
+index a6eaf80..13238c0 100644
+--- a/src/agent/stats_core.py
++++ b/src/agent/stats_core.py
+@@ -1,4 +1,11 @@
+-"""Side-effect-free statistics helpers for benchmark run records."""
++"""Side-effect-free statistics helpers for benchmark run records.
++
++08a intentionally refuses to claim significance for unpaired comparisons when
++autocorrelation is detected. That is a design decision, not an implementation
++gap: without pairing, time-correlated benchmark state is confounded with the
++candidate/baseline label, and more samples alone do not remove that
++confounding.
++"""
+ 
+ from __future__ import annotations
+ 
+@@ -56,6 +63,8 @@ class BootstrapConfidenceInterval:
+     n: int
+     diagnostics: AutocorrelationDiagnostics
+     block_size: int | None = None
++    baseline_block_size: int | None = None
++    candidate_block_size: int | None = None
+ 
+ 
+ @dataclass(frozen=True)
+@@ -114,7 +123,7 @@ def summarize_run_records(
+     accidentally treat bursty data as IID-only.
+     """
+ 
+-    measured = tuple(record for record in records if record.phase == "measured")
++    measured = _measured_records(tuple(records))
+     scores = measured_valid_scores(measured)
+     n_valid = len(scores)
+     n_measured = len(measured)
+@@ -181,10 +190,9 @@ def run_summary_hint(records: Iterable[RunLevelRecord]) -> RunSummaryHint | None
+ def measured_valid_scores(records: Iterable[RunLevelRecord]) -> tuple[float, ...]:
+     """Return finite scores from measured records valid for scoring."""
+ 
++    measured = _measured_records(tuple(records))
+     scores: list[float] = []
+-    for record in records:
+-        if record.phase != "measured":
+-            continue
++    for record in measured:
+         if not record.valid_for_scoring:
+             continue
+         if record.score is None:
+@@ -209,8 +217,12 @@ def compare_run_records(
+ 
+     from agent.skills.result_schema import StatisticalResult
+ 
+-    baseline_measured = _measured_records(tuple(baseline_records))
+-    candidate_measured = _measured_records(tuple(candidate_records))
++    baseline_measured, baseline_order_unverified = _ordered_measured_records(
++        tuple(baseline_records)
++    )
++    candidate_measured, candidate_order_unverified = _ordered_measured_records(
++        tuple(candidate_records)
++    )
+     baseline_scores = measured_valid_scores(baseline_measured)
+     candidate_scores = measured_valid_scores(candidate_measured)
+     if not baseline_scores or not candidate_scores:
+@@ -229,6 +241,9 @@ def compare_run_records(
+     baseline_stats = summarize_run_records(baseline_measured)
+     candidate_stats = summarize_run_records(candidate_measured)
+     paired_samples = _paired_score_samples(baseline_measured, candidate_measured)
++    order_notes: list[str] = []
++    if baseline_order_unverified or candidate_order_unverified:
++        order_notes.append("input_order_unverified")
+ 
+     if paired_samples is not None:
+         baseline_for_effect, candidate_for_effect, partial_pairing = paired_samples
+@@ -255,7 +270,7 @@ def compare_run_records(
+         paired = True
+         pair_count = comparison_n_valid
+         unpaired_autocorrelation = False
+-        notes = ["paired_difference"]
++        notes = order_notes + ["paired_difference"]
+         if partial_pairing:
+             notes.append("partial_pairing")
+     else:
+@@ -272,7 +287,7 @@ def compare_run_records(
+         paired = False
+         pair_count = 0
+         unpaired_autocorrelation = diagnostics.autocorrelation_detected
+-        notes = ["unpaired_comparison"]
++        notes = order_notes + ["unpaired_comparison"]
+ 
+     high_cv = _has_high_cv(
+         (baseline_stats.cv, candidate_stats.cv),
+@@ -331,6 +346,8 @@ def compare_run_records(
+         paired=paired,
+         pair_count=pair_count,
+         block_size=ci.block_size,
++        baseline_block_size=ci.baseline_block_size,
++        candidate_block_size=ci.candidate_block_size,
+         notes=tuple(dict.fromkeys(notes)),
+     )
+ 
+@@ -587,6 +604,8 @@ def _unpaired_mean_difference_bootstrap_ci(
+             (value for value in (baseline_block_size, candidate_block_size) if value),
+             default=None,
+         ),
++        baseline_block_size=baseline_block_size,
++        candidate_block_size=candidate_block_size,
+     )
+ 
+ 
+@@ -764,7 +783,7 @@ def diagnose_iid_assumption(
+ 
+ 
+ def compute_lag1_autocorrelation(scores: Sequence[float]) -> float | None:
+-    """Return lag-1 autocorrelation for a score sequence when defined."""
++    """Return the lag-1 autocorrelation/drift indicator when defined."""
+ 
+     return compute_lag_autocorrelation(scores, lag=1)
+ 
+@@ -774,7 +793,12 @@ def compute_lag_autocorrelation(
+     *,
+     lag: int,
+ ) -> float | None:
+-    """Return lag-k autocorrelation for a score sequence when defined."""
++    """Return a lag-k autocorrelation/drift indicator when defined.
++
++    This uses separate means for the current and previous lagged segments, not
++    a strict global-mean sample ACF. The trend sensitivity is intentional:
++    monotone drift violates IID and should trigger conservative 08a paths.
++    """
+ 
+     _validate_finite_sequence(scores)
+     if lag <= 0:
+@@ -784,7 +808,7 @@ def compute_lag_autocorrelation(
+ 
+     current = tuple(float(value) for value in scores[lag:])
+     previous = tuple(float(value) for value in scores[:-lag])
+-    # Pearson over lagged pairs is intentionally conservative for monotone
++    # Pearson over lagged segments is intentionally conservative for monotone
+     # drift; 08a.3/08a.4 own the threshold and block-bootstrap policy details.
+     current_mean = _mean(current)
+     previous_mean = _mean(previous)
+@@ -808,9 +832,11 @@ def compute_summary_effective_sample_size(
+ ) -> tuple[float | None, bool]:
+     """Return conservative ESS and whether it is preliminary.
+ 
+-    For n >= 8, use the lower of lag-1 ESS and an initial-positive-sequence
+-    multi-lag ACF ESS. For n < 8, multi-lag ACF is too unstable, so report the
+-    lag-1 ESS with a preliminary marker for downstream consumers.
++    For n >= 8, use the lower of lag-1 ESS and an initial-positive-lag
++    heuristic over multi-lag ACF values. This is not strict Geyer IPS/IMS; the
++    pair-sum/monotone upgrade is deferred beyond 08a. For n < 8, multi-lag ACF
++    is too unstable, so report the lag-1 ESS with a preliminary marker for
++    downstream consumers.
+     """
+ 
+     _validate_finite_sequence(scores)
+@@ -839,7 +865,12 @@ def compute_acf_effective_sample_size(
+     *,
+     max_lag: int | None = None,
+ ) -> float | None:
+-    """Return ESS from the initial positive sequence of multi-lag ACF."""
++    """Return ESS from an initial-positive-lag multi-lag ACF heuristic.
++
++    This is deliberately simpler than strict Geyer initial positive sequence or
++    initial monotone sequence estimators; those upgrades are deferred beyond
++    08a.
++    """
+ 
+     _validate_finite_sequence(scores)
+     n = len(scores)
+@@ -885,7 +916,56 @@ def compute_effective_sample_size(n: int, rho1: float | None) -> float | None:
+ 
+ 
+ def _measured_records(records: Sequence[RunLevelRecord]) -> tuple[RunLevelRecord, ...]:
+-    return tuple(record for record in records if record.phase == "measured")
++    measured, _order_unverified = _ordered_measured_records(records)
++    return measured
++
++
++def _ordered_measured_records(
++    records: Sequence[RunLevelRecord],
++) -> tuple[tuple[RunLevelRecord, ...], bool]:
++    measured = tuple(record for record in records if record.phase == "measured")
++    order_unverified = any(_record_order_unverified(record) for record in measured)
++    return (
++        tuple(
++            record
++            for _position, record in sorted(
++                enumerate(measured),
++                key=lambda item: _record_order_key(item[1], original_position=item[0]),
++            )
++        ),
++        order_unverified,
++    )
++
++
++def _record_order_key(record: RunLevelRecord, *, original_position: int) -> tuple:
++    started_at = getattr(record, "started_at", None)
++    run_index = getattr(record, "run_index", None)
++    if started_at is not None:
++        return (
++            0,
++            str(started_at),
++            _optional_int_sort_value(run_index),
++            original_position,
++        )
++    if run_index is not None:
++        return (1, _optional_int_sort_value(run_index), original_position)
++    return (2, original_position)
++
++
++def _record_order_unverified(record: RunLevelRecord) -> bool:
++    return (
++        getattr(record, "started_at", None) is None
++        and getattr(record, "run_index", None) is None
++    )
++
++
++def _optional_int_sort_value(value: object) -> int:
++    if value is None:
++        return 0
++    try:
++        return int(value)
++    except (TypeError, ValueError):
++        return 0
+ 
+ 
+ def _objective_direction(records: Sequence[RunLevelRecord]) -> str:
+diff --git a/tests/test_stats_core.py b/tests/test_stats_core.py
+index 58ac44b..c4ccbef 100644
+--- a/tests/test_stats_core.py
++++ b/tests/test_stats_core.py
+@@ -563,6 +563,130 @@ def test_compare_run_records_unpaired_autocorrelation_is_inconclusive() -> None:
+     assert "unpaired_autocorrelation_inconclusive" in result.notes
+ 
+ 
++def test_compare_run_records_sorts_measured_records_before_autocorrelation() -> None:
++    baseline = _records([0.0] * 20, prefix="base", paired=True)
++    candidate = _records(
++        [float(index) for index in range(1, 21)],
++        prefix="cand",
++        paired=True,
++    )
++    shuffled_indices_list = list(range(20))
++    random.Random(2).shuffle(shuffled_indices_list)
++    shuffled_indices = tuple(shuffled_indices_list)
++    shuffled_candidate = tuple(candidate[index] for index in shuffled_indices)
++    shuffled_effects = tuple(float(index + 1) for index in shuffled_indices)
++
++    assert compute_lag1_autocorrelation(shuffled_effects) < 0.3
++
++    sorted_result = compare_run_records(
++        baseline,
++        candidate,
++        bootstrap_samples=80,
++        seed=72,
++    )
++    shuffled_result = compare_run_records(
++        baseline,
++        shuffled_candidate,
++        bootstrap_samples=80,
++        seed=72,
++    )
++
++    assert shuffled_result.lag1_autocorrelation == pytest.approx(
++        sorted_result.lag1_autocorrelation
++    )
++    assert shuffled_result.lag1_autocorrelation == pytest.approx(1.0)
++    assert shuffled_result.autocorrelation_detected is True
++    assert shuffled_result.verdict == "inconclusive"
++    assert "input_order_unverified" not in shuffled_result.notes
++
++
++def test_compare_run_records_marks_unverified_order_when_no_time_or_index() -> None:
++    class MinimalRecord:
++        phase = "measured"
++        valid_for_scoring = True
++        objective_direction = "higher_is_better"
++        pair_key = None
++
++        def __init__(self, score: float) -> None:
++            self.score = score
++
++    baseline = tuple(MinimalRecord(10.0) for _ in range(12))
++    candidate = tuple(MinimalRecord(12.0) for _ in range(12))
++
++    result = compare_run_records(
++        baseline,  # type: ignore[arg-type]
++        candidate,  # type: ignore[arg-type]
++        bootstrap_samples=80,
++        seed=73,
++    )
++
++    assert result.verdict == "significant_improvement"
++    assert "input_order_unverified" in result.notes
++
++
++def test_compare_run_records_reports_unpaired_block_sizes_separately() -> None:
++    baseline = _records([float(index) for index in range(1, 21)], prefix="base")
++    candidate = _records(
++        [float(index + 20) for index in range(1, 13)],
++        prefix="cand",
++    )
++
++    result = compare_run_records(
++        baseline,
++        candidate,
++        bootstrap_samples=80,
++        seed=74,
++    )
++
++    assert result.paired is False
++    assert result.method == MOVING_BLOCK_BOOTSTRAP_METHOD
++    assert result.baseline_block_size == 10
++    assert result.candidate_block_size == 6
++    assert result.block_size == 10
++    assert result.verdict == "inconclusive"
++
++
++def test_bootstrap_ci_handles_zero_variance_sequence() -> None:
++    ci = iid_percentile_bootstrap_ci(
++        (3.14,) * 12,
++        bootstrap_samples=80,
++        seed=75,
++    )
++
++    assert ci.point_estimate == pytest.approx(3.14)
++    assert ci.ci_low == pytest.approx(3.14)
++    assert ci.ci_high == pytest.approx(3.14)
++    assert ci.diagnostics.lag1_autocorrelation is None
++
++
++def test_tiny_variance_sequence_keeps_acf_and_cv_finite() -> None:
++    scores = tuple(1.0 + (1e-12 if index % 2 else -1e-12) for index in range(12))
++    records = _records(scores, prefix="tiny")
++
++    stats = summarize_run_records(records)
++    rho1 = compute_lag1_autocorrelation(scores)
++
++    assert rho1 is None or math.isfinite(rho1)
++    assert stats.cv is None or math.isfinite(stats.cv)
++    assert stats.effective_sample_size is None or math.isfinite(
++        stats.effective_sample_size
++    )
++
++
++def test_autocorrelation_aware_bootstrap_handles_large_n_without_excessive_work() -> None:
++    rng = random.Random(20260613)
++    scores = tuple(rng.gauss(0.0, 1.0) for _ in range(1000))
++
++    ci = autocorrelation_aware_bootstrap_ci(
++        scores,
++        bootstrap_samples=80,
++        seed=76,
++    )
++
++    assert ci.n == 1000
++    assert ci.ci_low <= ci.point_estimate <= ci.ci_high
++
++
+ def test_lag1_and_ess_helpers_reject_invalid_inputs() -> None:
+     with pytest.raises(ValueError, match="finite"):
+         compute_lag1_autocorrelation((1.0, math.nan))
+@@ -684,6 +808,7 @@ def _record(
+     objective_direction: str = "higher_is_better",
+     pair_key: str | None = None,
+     run_id: str | None = None,
++    started_at: datetime | None = None,
+ ) -> RunLevelRecord:
+     failure = (
+         None
+@@ -695,6 +820,7 @@ def _record(
+             retryable=True,
+         )
+     )
++    record_started_at = started_at or NOW + timedelta(seconds=run_index)
+     return RunLevelRecord(
+         run_id=run_id or f"run_{phase}_{run_index}",
+         run_index=run_index,
+@@ -705,8 +831,8 @@ def _record(
+         metric_unit="items/sec",
+         objective_direction=objective_direction,  # type: ignore[arg-type]
+         duration_sec=0.1,
+-        started_at=NOW,
+-        ended_at=NOW + timedelta(milliseconds=100),
++        started_at=record_started_at,
++        ended_at=record_started_at + timedelta(milliseconds=100),
+         exit_code=0,
+         stdout_ref="logs/bench.stdout#L1",
+         stderr_ref="logs/bench.stderr#L1",

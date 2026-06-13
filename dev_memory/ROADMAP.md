@@ -47,6 +47,10 @@ Current phase:
   of zero and adequate power. Low n, low ESS, preliminary ESS, small-n
   autocorrelated paired data, and unpaired autocorrelation prevent
   `significant_single_comparison`.
+- Post-review hardening enforces measured-record ordering before
+  autocorrelation diagnostics, adds fixed-seed coverage regressions, and
+  documents heuristic ESS/rho terminology plus the deliberate unpaired
+  autocorrelation inconclusive policy.
 
 Next implementation phases:
 

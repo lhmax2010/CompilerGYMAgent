@@ -20,8 +20,8 @@ Implemented scope:
 - Consume only measured `RunLevelRecord` values with `valid_for_scoring=True`.
 - Compute n counts, mean, median, sample stddev, CV, lag-1 rho, and
   conservative ESS.
-- For n>=8, ESS is the lower of lag-1 ESS and initial-positive-sequence
-  multi-lag ACF ESS; for n<8, ESS falls back to lag-1 with
+- For n>=8, ESS is the lower of lag-1 ESS and an initial-positive-lag
+  heuristic multi-lag ACF ESS; for n<8, ESS falls back to lag-1 with
   `ess_preliminary=true`.
 - Extend `RunSummaryHint` with counts, autocorrelation-risk fields, and
   `ess_preliminary`.
@@ -284,3 +284,31 @@ External review status:
   signed absolute effect.
 - Scope remains clean: no multiple-comparison correction, no adaptive rerun
   action, no outlier policy, and no candidate engine.
+
+Post-review hardening:
+
+- Four external review passes plus Claude numerical validation found one
+  mandatory 08a bug: order-sensitive autocorrelation could be bypassed if
+  caller-provided records were shuffled.
+- `compare_run_records()` and measured score ingestion now consume measured
+  records in stable `(started_at, run_index)` order. Missing `started_at`
+  falls back to `run_index`; records with neither field retain original order
+  and add `input_order_unverified`.
+- Added a regression test showing shuffled monotone/autocorrelated records no
+  longer wash out rho before verdict gates.
+- Added slow fixed-seed coverage regressions for IID Gaussian coverage,
+  fake_gbs bursty naive undercoverage, moving-block improvement over naive,
+  and 100% inconclusive verdicts for detected unpaired autocorrelation.
+- Added boundary tests for zero variance, tiny variance, and n=1000 bootstrap
+  behavior.
+- Updated terminology: the multi-lag ESS path is an initial-positive-lag
+  heuristic, not strict Geyer IPS/IMS; lag-k rho is documented as an
+  autocorrelation/drift indicator with intentional trend sensitivity.
+- Unpaired autocorrelated comparisons are documented as inconclusive by design
+  because time-confounding cannot be solved by sample size alone.
+- Unpaired comparison diagnostics now report `baseline_block_size` and
+  `candidate_block_size` separately while preserving the legacy max
+  `block_size` field.
+- Patch artifacts:
+  `dev_memory/phases/phase_08a_statistics_core/patches/07_post_review_hardening.patch`,
+  `.summary.txt`, and `.review.md`.

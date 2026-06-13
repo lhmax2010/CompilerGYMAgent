@@ -75,7 +75,7 @@ Validation gap:
 - Scope: no candidate engine, no bootstrap CI, no StatisticalResult/verdict code.
 - ESS alignment:
   - n>=8 now reports the conservative lower value of lag-1 ESS and
-    initial-positive-sequence multi-lag ACF ESS.
+    initial-positive-lag heuristic multi-lag ACF ESS.
   - n<8 keeps the lag-1 ESS fallback and marks `ess_preliminary=true`.
   - This addresses the review concern that bursty Markov tails can make
     lag-1-only ESS optimistic.
@@ -465,3 +465,30 @@ Validation:
   -> 80 passed in 1.37s.
 - `uv run --python 3.10 --system-certs --extra dev pytest tests/ -q`
   -> 658 passed in 7.36s.
+
+## Subtask 08a.5 post-review hardening - in progress
+
+- Reviewed sources: ChatGPT, Kimi, Gemini, Kimi-Code, and Claude numerical
+  validation.
+- Mandatory bug fixed: measured records are now sorted stably by
+  `(started_at, run_index)` before score extraction and autocorrelation/ESS
+  diagnostics. Missing `started_at` falls back to `run_index`; records with
+  neither field preserve original order and add `input_order_unverified`.
+- Regression coverage added:
+  - shuffled autocorrelated inputs still trigger autocorrelation after sorting,
+  - IID Gaussian percentile bootstrap coverage stays near nominal,
+  - fake_gbs bursty naive IID bootstrap remains visibly undercovered,
+  - moving block bootstrap improves over naive on the same bursty profile,
+  - detected unpaired autocorrelation produces zero significant verdicts.
+- Documentation hardening:
+  - multi-lag ESS is named an initial-positive-lag heuristic, not strict Geyer
+    IPS/IMS,
+  - lag-k rho is documented as a trend-sensitive autocorrelation/drift
+    indicator,
+  - unpaired autocorrelated comparisons are inconclusive by design because
+    time-confounding cannot be fixed by sample size alone.
+- Diagnostics hardening:
+  - unpaired results expose `baseline_block_size` and `candidate_block_size`
+    while preserving the legacy max `block_size`.
+- Boundary tests added for zero variance, tiny variance, and n=1000 bootstrap
+  behavior.

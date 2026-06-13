@@ -1,7 +1,7 @@
 phase_id: phase_08a_statistics_core
 phase_title: "Baseline + Statistical Significance - Minimal Stats Core"
 started_at: 2026-06-10T15:15:45+08:00
-last_updated: 2026-06-13T15:33:47+08:00
+last_updated: 2026-06-13T16:53:27+08:00
 target_milestone: "M2 + M4 (partial)"
 related_requirements:
   - REQUIREMENTS.md section 4.8
@@ -62,7 +62,7 @@ subtasks:
       - "Add side-effect-free descriptive statistics in src/agent/stats_core.py."
       - "Consume only RunLevelRecord values with phase=measured and valid_for_scoring=True."
       - "Compute mean, median, sample stddev (n-1), CV with near-zero mean returning None, lag-1 rho, and conservative ESS."
-      - "For n>=8, ESS is min(lag-1 ESS, initial-positive-sequence multi-lag ACF ESS); for n<8, ESS falls back to lag-1 and sets ess_preliminary=True."
+      - "For n>=8, ESS is min(lag-1 ESS, initial-positive-lag heuristic multi-lag ACF ESS); for n<8, ESS falls back to lag-1 and sets ess_preliminary=True."
       - "Extend RunSummaryHint with n_measured, n_valid, n_invalid, effective_sample_size, ess_preliminary, lag1_autocorrelation, autocorrelation_warning."
       - "Reject NaN/Inf in all new numeric schema fields."
     exclusions:
@@ -418,6 +418,28 @@ subtasks:
       head: b78c744
       targeted: "uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py -q -> 80 passed in 1.00s"
       full: "uv run --python 3.10 --system-certs --extra dev pytest tests/ -q -> 658 passed in 7.56s"
+    post_review_hardening:
+      reviewed_sources:
+        - ChatGPT
+        - Kimi
+        - Gemini
+        - Kimi-Code
+        - Claude numerical validation
+      implemented_at: 2026-06-13T16:53:27+08:00
+      scope:
+        - "Sort measured records by started_at/run_index before score extraction and autocorrelation diagnostics; emit input_order_unverified when neither field exists."
+        - "Add fixed-seed slow coverage regressions for IID Gaussian coverage, fake_gbs bursty naive undercoverage, moving-block improvement, and unpaired-autocorrelation inconclusive behavior."
+        - "Document heuristic ESS naming, trend-sensitive lag rho, and the deliberate unpaired-autocorrelation inconclusive policy."
+        - "Expose baseline_block_size and candidate_block_size for unpaired comparisons while preserving the legacy max block_size field."
+        - "Add boundary tests for zero variance, tiny variance, and n=1000 bootstrap behavior."
+      validation:
+        slow_coverage: "uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core_coverage_regression.py -q -> 3 passed in 1.35s"
+        targeted: "uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py tests/test_stats_core_coverage_regression.py -q -> 89 passed in 2.33s"
+        full: "uv run --python 3.10 --system-certs --extra dev pytest tests/ -q -> 667 passed in 8.97s"
+        coverage_values:
+          iid_gaussian_95pct: 0.955
+          fake_gbs_bursty_naive_iid: 0.7555555555555555
+          fake_gbs_bursty_moving_block: 0.8166666666666667
   - id: "08a.6"
     title: "fake_gbs bursty state exposure in env_snapshot + phase closeout"
     status: planned

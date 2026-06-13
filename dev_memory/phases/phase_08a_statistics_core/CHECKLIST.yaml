@@ -195,6 +195,21 @@ subtasks:
       direction_sign: implemented
       paired_autocorrelation_checked: implemented
       unpaired_autocorrelation_inconclusive: implemented
+    post_review_hardening:
+      input_order_enforced: implemented
+      coverage_regression_tests: implemented
+      heuristic_naming_documented: implemented
+      unpaired_autocorrelation_policy_documented: implemented
+      unpaired_block_sizes_reported_separately: implemented
+      patch_artifacts_generated: true
+      patch_artifacts:
+        - dev_memory/phases/phase_08a_statistics_core/patches/07_post_review_hardening.patch
+        - dev_memory/phases/phase_08a_statistics_core/patches/07_post_review_hardening.summary.txt
+        - dev_memory/phases/phase_08a_statistics_core/patches/07_post_review_hardening.review.md
+      boundary_tests:
+        zero_variance: implemented
+        tiny_variance: implemented
+        n_1000_performance: implemented
   - id: "08a.6"
     title: "fake_gbs bursty state exposure in env_snapshot + phase closeout"
     status: planned

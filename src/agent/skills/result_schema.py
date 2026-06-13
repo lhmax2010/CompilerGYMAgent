@@ -185,6 +185,8 @@ class StatisticalResult(StrictResultSchemaModel):
     paired: bool = False
     pair_count: int = Field(default=0, ge=0)
     block_size: int | None = Field(default=None, ge=2)
+    baseline_block_size: int | None = Field(default=None, ge=2)
+    candidate_block_size: int | None = Field(default=None, ge=2)
     notes: tuple[NonEmptyStr, ...] = ()
 
     @field_validator(

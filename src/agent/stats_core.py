@@ -1,4 +1,11 @@
-"""Side-effect-free statistics helpers for benchmark run records."""
+"""Side-effect-free statistics helpers for benchmark run records.
+
+08a intentionally refuses to claim significance for unpaired comparisons when
+autocorrelation is detected. That is a design decision, not an implementation
+gap: without pairing, time-correlated benchmark state is confounded with the
+candidate/baseline label, and more samples alone do not remove that
+confounding.
+"""
 
 from __future__ import annotations
 
@@ -56,6 +63,8 @@ class BootstrapConfidenceInterval:
     n: int
     diagnostics: AutocorrelationDiagnostics
     block_size: int | None = None
+    baseline_block_size: int | None = None
+    candidate_block_size: int | None = None
 
 
 @dataclass(frozen=True)
@@ -114,7 +123,7 @@ def summarize_run_records(
     accidentally treat bursty data as IID-only.
     """
 
-    measured = tuple(record for record in records if record.phase == "measured")
+    measured = _measured_records(tuple(records))
     scores = measured_valid_scores(measured)
     n_valid = len(scores)
     n_measured = len(measured)
@@ -181,10 +190,9 @@ def run_summary_hint(records: Iterable[RunLevelRecord]) -> RunSummaryHint | None
 def measured_valid_scores(records: Iterable[RunLevelRecord]) -> tuple[float, ...]:
     """Return finite scores from measured records valid for scoring."""
 
+    measured = _measured_records(tuple(records))
     scores: list[float] = []
-    for record in records:
-        if record.phase != "measured":
-            continue
+    for record in measured:
         if not record.valid_for_scoring:
             continue
         if record.score is None:
@@ -209,8 +217,12 @@ def compare_run_records(
 
     from agent.skills.result_schema import StatisticalResult
 
-    baseline_measured = _measured_records(tuple(baseline_records))
-    candidate_measured = _measured_records(tuple(candidate_records))
+    baseline_measured, baseline_order_unverified = _ordered_measured_records(
+        tuple(baseline_records)
+    )
+    candidate_measured, candidate_order_unverified = _ordered_measured_records(
+        tuple(candidate_records)
+    )
     baseline_scores = measured_valid_scores(baseline_measured)
     candidate_scores = measured_valid_scores(candidate_measured)
     if not baseline_scores or not candidate_scores:
@@ -229,6 +241,9 @@ def compare_run_records(
     baseline_stats = summarize_run_records(baseline_measured)
     candidate_stats = summarize_run_records(candidate_measured)
     paired_samples = _paired_score_samples(baseline_measured, candidate_measured)
+    order_notes: list[str] = []
+    if baseline_order_unverified or candidate_order_unverified:
+        order_notes.append("input_order_unverified")
 
     if paired_samples is not None:
         baseline_for_effect, candidate_for_effect, partial_pairing = paired_samples
@@ -255,7 +270,7 @@ def compare_run_records(
         paired = True
         pair_count = comparison_n_valid
         unpaired_autocorrelation = False
-        notes = ["paired_difference"]
+        notes = order_notes + ["paired_difference"]
         if partial_pairing:
             notes.append("partial_pairing")
     else:
@@ -272,7 +287,7 @@ def compare_run_records(
         paired = False
         pair_count = 0
         unpaired_autocorrelation = diagnostics.autocorrelation_detected
-        notes = ["unpaired_comparison"]
+        notes = order_notes + ["unpaired_comparison"]
 
     high_cv = _has_high_cv(
         (baseline_stats.cv, candidate_stats.cv),
@@ -331,6 +346,8 @@ def compare_run_records(
         paired=paired,
         pair_count=pair_count,
         block_size=ci.block_size,
+        baseline_block_size=ci.baseline_block_size,
+        candidate_block_size=ci.candidate_block_size,
         notes=tuple(dict.fromkeys(notes)),
     )
 
@@ -587,6 +604,8 @@ def _unpaired_mean_difference_bootstrap_ci(
             (value for value in (baseline_block_size, candidate_block_size) if value),
             default=None,
         ),
+        baseline_block_size=baseline_block_size,
+        candidate_block_size=candidate_block_size,
     )
 
 
@@ -764,7 +783,7 @@ def diagnose_iid_assumption(
 
 
 def compute_lag1_autocorrelation(scores: Sequence[float]) -> float | None:
-    """Return lag-1 autocorrelation for a score sequence when defined."""
+    """Return the lag-1 autocorrelation/drift indicator when defined."""
 
     return compute_lag_autocorrelation(scores, lag=1)
 
@@ -774,7 +793,12 @@ def compute_lag_autocorrelation(
     *,
     lag: int,
 ) -> float | None:
-    """Return lag-k autocorrelation for a score sequence when defined."""
+    """Return a lag-k autocorrelation/drift indicator when defined.
+
+    This uses separate means for the current and previous lagged segments, not
+    a strict global-mean sample ACF. The trend sensitivity is intentional:
+    monotone drift violates IID and should trigger conservative 08a paths.
+    """
 
     _validate_finite_sequence(scores)
     if lag <= 0:
@@ -784,7 +808,7 @@ def compute_lag_autocorrelation(
 
     current = tuple(float(value) for value in scores[lag:])
     previous = tuple(float(value) for value in scores[:-lag])
-    # Pearson over lagged pairs is intentionally conservative for monotone
+    # Pearson over lagged segments is intentionally conservative for monotone
     # drift; 08a.3/08a.4 own the threshold and block-bootstrap policy details.
     current_mean = _mean(current)
     previous_mean = _mean(previous)
@@ -808,9 +832,11 @@ def compute_summary_effective_sample_size(
 ) -> tuple[float | None, bool]:
     """Return conservative ESS and whether it is preliminary.
 
-    For n >= 8, use the lower of lag-1 ESS and an initial-positive-sequence
-    multi-lag ACF ESS. For n < 8, multi-lag ACF is too unstable, so report the
-    lag-1 ESS with a preliminary marker for downstream consumers.
+    For n >= 8, use the lower of lag-1 ESS and an initial-positive-lag
+    heuristic over multi-lag ACF values. This is not strict Geyer IPS/IMS; the
+    pair-sum/monotone upgrade is deferred beyond 08a. For n < 8, multi-lag ACF
+    is too unstable, so report the lag-1 ESS with a preliminary marker for
+    downstream consumers.
     """
 
     _validate_finite_sequence(scores)
@@ -839,7 +865,12 @@ def compute_acf_effective_sample_size(
     *,
     max_lag: int | None = None,
 ) -> float | None:
-    """Return ESS from the initial positive sequence of multi-lag ACF."""
+    """Return ESS from an initial-positive-lag multi-lag ACF heuristic.
+
+    This is deliberately simpler than strict Geyer initial positive sequence or
+    initial monotone sequence estimators; those upgrades are deferred beyond
+    08a.
+    """
 
     _validate_finite_sequence(scores)
     n = len(scores)
@@ -885,7 +916,56 @@ def compute_effective_sample_size(n: int, rho1: float | None) -> float | None:
 
 
 def _measured_records(records: Sequence[RunLevelRecord]) -> tuple[RunLevelRecord, ...]:
-    return tuple(record for record in records if record.phase == "measured")
+    measured, _order_unverified = _ordered_measured_records(records)
+    return measured
+
+
+def _ordered_measured_records(
+    records: Sequence[RunLevelRecord],
+) -> tuple[tuple[RunLevelRecord, ...], bool]:
+    measured = tuple(record for record in records if record.phase == "measured")
+    order_unverified = any(_record_order_unverified(record) for record in measured)
+    return (
+        tuple(
+            record
+            for _position, record in sorted(
+                enumerate(measured),
+                key=lambda item: _record_order_key(item[1], original_position=item[0]),
+            )
+        ),
+        order_unverified,
+    )
+
+
+def _record_order_key(record: RunLevelRecord, *, original_position: int) -> tuple:
+    started_at = getattr(record, "started_at", None)
+    run_index = getattr(record, "run_index", None)
+    if started_at is not None:
+        return (
+            0,
+            str(started_at),
+            _optional_int_sort_value(run_index),
+            original_position,
+        )
+    if run_index is not None:
+        return (1, _optional_int_sort_value(run_index), original_position)
+    return (2, original_position)
+
+
+def _record_order_unverified(record: RunLevelRecord) -> bool:
+    return (
+        getattr(record, "started_at", None) is None
+        and getattr(record, "run_index", None) is None
+    )
+
+
+def _optional_int_sort_value(value: object) -> int:
+    if value is None:
+        return 0
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
 
 
 def _objective_direction(records: Sequence[RunLevelRecord]) -> str:

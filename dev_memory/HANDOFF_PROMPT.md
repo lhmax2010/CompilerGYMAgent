@@ -38,6 +38,10 @@ Current status:
   bursty coverage but smaller-n bursty cases remain underpowered.
 - Phase 08a.5 StatisticalResult/verdict gates are implemented,
   Ubuntu/Python 3.10 validated, and externally reviewed with no findings.
+- Post-review hardening for 08a.5 is in progress/implemented: measured records
+  are sorted by `(started_at, run_index)` before autocorrelation diagnostics,
+  slow coverage regressions were added, and heuristic ESS/unpaired
+  autocorrelation policy was documented.
 - Real target runtime is Python 3.10. The compatibility patch lowers
   `requires-python` to `>=3.10` and removes 3.11-only `datetime.UTC`,
   `typing.Self`, and `tomllib` assumptions.
