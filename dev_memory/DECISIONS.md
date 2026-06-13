@@ -1501,3 +1501,39 @@ Decision records must include:
 - alternatives_considered:
   - Collapse low-power CI-includes-zero into `no_difference`. Rejected because absence of evidence at low power is not evidence of no effect.
   - Leave pair-quality and chronology notes advisory only. Rejected because advisory-only metadata already allowed false-positive paths in review probes.
+
+## 2026-06-13T18:42:46+08:00 - 08a pair_time_gap uses conservative dual-source validation
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 08a
+  - ROADMAP.yaml Phase 7.0
+  - ROADMAP.yaml Phase 07
+  - REQUIREMENTS.md section 4.8
+  - REQUIREMENTS.md section 4.9
+- decision: Pair gap validation must not trust `pair_time_gap_sec` as a single source of truth. When both explicit `pair_time_gap_sec` and `started_at` timestamps are available, 08a computes both gaps and uses the conservative maximum as the effective gap. If the explicit field substantially understates the timestamp-derived gap, the pair is marked `pair_quality=suspect`, notes include `pair_time_gap_conflict`, and the comparison cannot produce decision-grade significance.
+- rationale: External code-reading review and Claude probes found that a stale/fake pair could report `pair_time_gap_sec=0.1` while its `started_at` values were actually ten hours apart. The previous field-first implementation treated that as `pair_quality=good`, bypassing the paired-quality gate. Dual-source max plus conflict detection makes the timestamp evidence capable of exposing a lied or stale explicit gap.
+- implementation_notes:
+  - "field_gap is max(baseline.pair_time_gap_sec, candidate.pair_time_gap_sec) when either field is present"
+  - "derived_gap is abs(candidate.started_at - baseline.started_at) when both timestamps are available"
+  - "effective_gap is max(field_gap, derived_gap) when both exist; otherwise use the available source; neither source leaves pair_quality unknown"
+  - "pair_time_gap_conflict is raised when derived_gap is materially larger than field_gap, using a 10x ratio threshold or a 5 second absolute-difference threshold"
+  - "finite validation remains mandatory for explicit pair_time_gap_sec values"
+- alternatives_considered:
+  - Keep explicit field priority. Rejected because it lets a bad producer launder stale pairs with a small claimed gap.
+  - Ignore explicit pair_time_gap_sec and use timestamps only. Rejected because high-resolution explicit gaps can be useful when timestamps are rounded or coarse.
+  - Treat every field/timestamp mismatch as conflict. Rejected because small rounding and scheduler differences should not block legitimate paired measurements.
+
+## 2026-06-13T18:42:46+08:00 - 08a pair gap threshold has an absolute usability floor
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 08a
+  - ROADMAP.yaml Phase 7.0
+  - ROADMAP.yaml Phase 07
+  - REQUIREMENTS.md section 4.8
+  - REQUIREMENTS.md section 4.9
+- decision: The pair-quality time-gap threshold is `max(5 * median_duration_sec, PAIR_QUALITY_GAP_FLOOR_SEC)` with `PAIR_QUALITY_GAP_FLOOR_SEC=5.0`, while retaining the hard `PAIR_QUALITY_GAP_ABS_MAX_SEC=300.0` cap.
+- rationale: A pure relative threshold is too tight for very fast benchmarks. For example, a 0.1 second benchmark with a normal 1 second back-to-back scheduling gap exceeds 5x median duration and would make all otherwise valid fast pairs suspect. The floor preserves the safety cap for stale pairs while avoiding a usability dead end for subsecond benchmark workloads.
+- alternatives_considered:
+  - Keep only the relative 5x duration threshold. Rejected because it can make legitimate fast benchmark pairs permanently inconclusive.
+  - Raise only the multiplier. Rejected because it weakens slow-benchmark protection and still behaves poorly at very small durations.
+  - Remove the hard 300 second cap. Rejected because stale pairs should remain suspect even when benchmark durations are long.

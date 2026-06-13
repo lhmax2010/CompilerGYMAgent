@@ -269,8 +269,8 @@ planned_phases:
         - "Production thresholds are module constants: baseline_n_valid and candidate_n_valid >= 40, baseline/candidate ESS >= 20, autocorrelation-aware block-bootstrap CI excludes zero, and absolute relative effect >= 1%."
         - "exploratory_signal may be consumed by Phase 7.0/07 only to rank candidates, allocate measurement budget, or schedule paired confirmation."
         - "exploratory_signal must not accept/promote a candidate, update champion, stop search, or appear in final 'candidate is better' conclusions."
-        - "Evaluate pair_quality for paired comparisons from pair_order and pair_time_gap_sec, falling back to started_at when pair_time_gap_sec is absent. good requires pair_order plus a small pair time gap."
-        - "The pair time-gap threshold is relative to median run duration (5x) with a hard 300 second cap."
+        - "Evaluate pair_quality for paired comparisons from pair_order, pair_time_gap_sec, and started_at-derived gaps. When both gap sources exist, use the conservative maximum and mark pair_time_gap_conflict if the explicit field materially understates started_at."
+        - "The pair time-gap threshold is max(5x median run duration, 5 seconds) with a hard 300 second cap."
         - "suspect covers large pair_time_gap or missing pair_order; unknown covers missing time information."
         - "If pair_quality is suspect or unknown, paired results cannot emit decision-grade significant_improvement/significant_regression and must record suspect_pair_quality or unknown_pair_quality."
     exit_criteria:

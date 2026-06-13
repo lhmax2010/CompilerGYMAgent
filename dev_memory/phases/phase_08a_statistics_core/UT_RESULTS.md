@@ -262,3 +262,39 @@
   - YAML parse smoke for `dev_memory/ROADMAP.yaml`,
     `dev_memory/CURRENT_PHASE.yaml`, and
     `dev_memory/phases/phase_08a_statistics_core/CHECKLIST.yaml` passed.
+
+## Pair time-gap spoofing hardening
+
+- Implemented after the fourth external code-reading review plus Claude probes
+  found that an explicit small `pair_time_gap_sec` could override a large
+  timestamp-derived gap.
+- Covered fixes:
+  - `_pair_time_gap()` computes both explicit field gap and `started_at`-
+    derived gap when available.
+  - Effective gap is the conservative maximum of the available sources.
+  - A materially understated explicit gap marks `pair_time_gap_conflict` and
+    makes `pair_quality=suspect`.
+  - Pair threshold now uses `max(5 * median_duration_sec, 5s)` plus the
+    existing 300s hard cap, so fast 0.1s benchmarks can have normal 1s
+    back-to-back overhead without becoming suspect.
+- Stats/schema smoke:
+  - Command:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py -q`
+  - Result: `96 passed in 0.72s`.
+- Final targeted hardening group:
+  - Command:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py tests/test_stats_core_coverage_regression.py -q`
+  - Result: `104 passed in 2.24s`.
+- Slow coverage regression:
+  - Command:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core_coverage_regression.py -q`
+  - Result: `3 passed in 1.23s`.
+- Full Python 3.10 suite:
+  - Command:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/ -q`
+  - Result: `682 passed in 8.56s`.
+- Static checks:
+  - `git diff --check` passed.
+  - YAML parse smoke for `dev_memory/ROADMAP.yaml`,
+    `dev_memory/CURRENT_PHASE.yaml`, and
+    `dev_memory/phases/phase_08a_statistics_core/CHECKLIST.yaml` passed.

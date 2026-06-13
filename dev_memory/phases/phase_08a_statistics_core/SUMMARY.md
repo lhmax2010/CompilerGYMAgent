@@ -343,3 +343,26 @@ Second post-review hardening:
   - targeted hardening group -> 102 passed in 2.22s,
   - full Python 3.10 suite -> 680 passed in 8.45s,
   - `git diff --check` passed.
+
+Final pair gap spoofing hardening:
+
+- A final code-reading review plus Claude probe found the remaining pair-quality
+  bypass: if a record reported `pair_time_gap_sec=0.1` but `started_at` showed
+  the paired runs were 10 hours apart, the old field-first code trusted the
+  explicit gap and allowed `pair_quality=good`.
+- `_pair_time_gap()` now computes explicit field gap and timestamp-derived gap
+  when both sources exist, uses the conservative maximum, and marks
+  `pair_time_gap_conflict` when the explicit field materially understates the
+  timestamp-derived gap.
+- `pair_time_gap_conflict` makes the pair suspect, so lied/stale pairs cannot
+  reach decision-grade significant verdicts.
+- The relative pair-gap threshold now has a 5 second absolute floor:
+  `max(5 * median_duration_sec, 5s)`, while preserving the 300 second hard cap.
+  This avoids falsely rejecting legitimate subsecond benchmark pairs with
+  ordinary scheduling overhead.
+- Validation:
+  - stats/schema smoke -> 96 passed in 0.72s,
+  - targeted hardening group -> 104 passed in 2.24s,
+  - slow coverage regression -> 3 passed in 1.23s,
+  - full Python 3.10 suite -> 682 passed in 8.56s,
+  - `git diff --check` passed.

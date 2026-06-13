@@ -550,6 +550,49 @@ def test_compare_run_records_blocks_significance_for_suspect_pair_quality(
     assert "suspect_pair_quality" in result.notes
 
 
+def test_compare_run_records_rejects_lied_pair_time_gap_using_started_at() -> None:
+    baseline = tuple(
+        _record(
+            score=10.0,
+            run_index=index,
+            pair_key=f"pair_{index}",
+            pair_order="baseline_first",
+            pair_time_gap_sec=0.1,
+            run_id=f"base_lied_gap_{index}",
+            started_at=NOW + timedelta(seconds=index),
+        )
+        for index in range(12)
+    )
+    candidate = tuple(
+        _record(
+            score=12.0,
+            run_index=index,
+            pair_key=f"pair_{index}",
+            pair_order="baseline_first",
+            pair_time_gap_sec=0.1,
+            run_id=f"cand_lied_gap_{index}",
+            started_at=NOW + timedelta(hours=10, seconds=index),
+        )
+        for index in range(12)
+    )
+
+    result = compare_run_records(
+        baseline,
+        candidate,
+        bootstrap_samples=80,
+        seed=60,
+    )
+
+    assert result.paired is True
+    assert result.pair_quality == "suspect"
+    assert result.ci_low == pytest.approx(2.0)
+    assert result.ci_high == pytest.approx(2.0)
+    assert result.verdict == "inconclusive"
+    assert result.significant_single_comparison is False
+    assert "pair_time_gap_conflict" in result.notes
+    assert "suspect_pair_quality" in result.notes
+
+
 def test_compare_run_records_keeps_good_pairs_decision_grade() -> None:
     baseline = _records(
         [10.0] * 12,
@@ -578,6 +621,47 @@ def test_compare_run_records_keeps_good_pairs_decision_grade() -> None:
     assert result.verdict == "significant_improvement"
     assert result.significant_single_comparison is True
     assert result.low_power is False
+
+
+def test_compare_run_records_allows_fast_benchmark_pair_gap_floor() -> None:
+    baseline = tuple(
+        _record(
+            score=10.0,
+            run_index=index,
+            pair_key=f"pair_{index}",
+            pair_order="baseline_first",
+            pair_time_gap_sec=1.0,
+            run_id=f"base_fast_gap_{index}",
+            started_at=NOW + timedelta(seconds=index * 3),
+        )
+        for index in range(12)
+    )
+    candidate = tuple(
+        _record(
+            score=12.0,
+            run_index=index,
+            pair_key=f"pair_{index}",
+            pair_order="baseline_first",
+            pair_time_gap_sec=1.0,
+            run_id=f"cand_fast_gap_{index}",
+            started_at=NOW + timedelta(seconds=index * 3 + 1),
+        )
+        for index in range(12)
+    )
+
+    result = compare_run_records(
+        baseline,
+        candidate,
+        bootstrap_samples=80,
+        seed=60,
+    )
+
+    assert result.paired is True
+    assert result.pair_quality == "good"
+    assert result.verdict == "significant_improvement"
+    assert result.significant_single_comparison is True
+    assert "pair_time_gap_conflict" not in result.notes
+    assert "suspect_pair_quality" not in result.notes
 
 
 def test_compare_run_records_med1_blocks_small_autocorrelated_significance() -> None:

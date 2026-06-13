@@ -34,7 +34,10 @@ DEFAULT_CONFIDENCE_LEVEL = 0.95
 IID_PERCENTILE_BOOTSTRAP_METHOD = "iid_percentile_bootstrap"
 MOVING_BLOCK_BOOTSTRAP_METHOD = "moving_block_bootstrap"
 PAIR_QUALITY_GAP_DURATION_MULT = 5.0
+PAIR_QUALITY_GAP_FLOOR_SEC = 5.0
 PAIR_QUALITY_GAP_ABS_MAX_SEC = 300.0
+PAIR_TIME_GAP_CONFLICT_RATIO = 10.0
+PAIR_TIME_GAP_CONFLICT_ABS_SEC = 5.0
 EXPLORATORY_MIN_N = 40
 EXPLORATORY_MIN_ESS = 20.0
 EXPLORATORY_MIN_RELATIVE_EFFECT_PCT = 1.0
@@ -82,6 +85,22 @@ class PairedScoreSamples:
     baseline_scores: tuple[float, ...]
     candidate_scores: tuple[float, ...]
     partial_pairing: bool
+
+
+@dataclass(frozen=True)
+class PairQualityDiagnostics:
+    """Quality verdict and diagnostics for matched paired records."""
+
+    quality: str
+    time_gap_conflict: bool = False
+
+
+@dataclass(frozen=True)
+class PairTimeGap:
+    """Conservative effective pair gap derived from all available sources."""
+
+    effective_gap_sec: float | None
+    source_conflict: bool = False
 
 
 @dataclass(frozen=True)
@@ -269,8 +288,11 @@ def compare_run_records(
         order_notes.append("order_source_conflict")
 
     pair_quality = "unknown"
+    pair_time_gap_conflict = False
     if paired_samples is not None:
-        pair_quality = _pair_quality(paired_samples)
+        pair_diagnostics = _pair_quality(paired_samples)
+        pair_quality = pair_diagnostics.quality
+        pair_time_gap_conflict = pair_diagnostics.time_gap_conflict
         effect_values = tuple(
             _signed_effect(
                 baseline_score,
@@ -297,6 +319,8 @@ def compare_run_records(
         notes = order_notes + ["paired_difference"]
         if paired_samples.partial_pairing:
             notes.append("partial_pairing")
+        if pair_time_gap_conflict:
+            notes.append("pair_time_gap_conflict")
         if pair_quality == "suspect":
             notes.append("suspect_pair_quality")
         elif pair_quality == "unknown":
@@ -1115,7 +1139,7 @@ def _record_score(record: RunLevelRecord) -> float:
     return float(record.score)
 
 
-def _pair_quality(samples: PairedScoreSamples) -> str:
+def _pair_quality(samples: PairedScoreSamples) -> PairQualityDiagnostics:
     durations = tuple(
         float(record.duration_sec)
         for record in samples.baseline_records + samples.candidate_records
@@ -1137,27 +1161,33 @@ def _pair_quality(samples: PairedScoreSamples) -> str:
             or candidate_order is None
             or baseline_order != candidate_order
         ):
-            return "suspect"
+            return PairQualityDiagnostics("suspect")
 
         gap = _pair_time_gap(baseline, candidate)
-        if gap is None:
+        if gap.source_conflict:
+            return PairQualityDiagnostics("suspect", time_gap_conflict=True)
+        if gap.effective_gap_sec is None:
             saw_unknown = True
             continue
-        if gap > PAIR_QUALITY_GAP_ABS_MAX_SEC:
-            return "suspect"
-        if median_duration is not None and gap > (
+        if gap.effective_gap_sec > PAIR_QUALITY_GAP_ABS_MAX_SEC:
+            return PairQualityDiagnostics("suspect")
+        duration_threshold = (
             PAIR_QUALITY_GAP_DURATION_MULT * median_duration
-        ):
-            return "suspect"
+            if median_duration is not None
+            else 0.0
+        )
+        allowed_gap = max(duration_threshold, PAIR_QUALITY_GAP_FLOOR_SEC)
+        if gap.effective_gap_sec > allowed_gap:
+            return PairQualityDiagnostics("suspect")
 
-    return "unknown" if saw_unknown else "good"
+    return PairQualityDiagnostics("unknown" if saw_unknown else "good")
 
 
 def _pair_time_gap(
     baseline: RunLevelRecord,
     candidate: RunLevelRecord,
-) -> float | None:
-    gaps = tuple(
+) -> PairTimeGap:
+    field_gaps = tuple(
         float(value)
         for value in (
             getattr(baseline, "pair_time_gap_sec", None),
@@ -1165,20 +1195,48 @@ def _pair_time_gap(
         )
         if value is not None
     )
-    if gaps:
-        if not all(math.isfinite(value) for value in gaps):
+    if field_gaps:
+        if not all(math.isfinite(value) for value in field_gaps):
             raise ValueError("pair_time_gap_sec must be finite")
-        return max(gaps)
+        field_gap = max(field_gaps)
+    else:
+        field_gap = None
 
     baseline_started = getattr(baseline, "started_at", None)
     candidate_started = getattr(candidate, "started_at", None)
     if baseline_started is None or candidate_started is None:
-        return None
-    return abs(
-        (
-            _record_started_at_sort_value(candidate_started)
-            - _record_started_at_sort_value(baseline_started)
-        ).total_seconds()
+        derived_gap = None
+    else:
+        derived_gap = abs(
+            (
+                _record_started_at_sort_value(candidate_started)
+                - _record_started_at_sort_value(baseline_started)
+            ).total_seconds()
+        )
+
+    if field_gap is None and derived_gap is None:
+        return PairTimeGap(None)
+    if field_gap is None:
+        return PairTimeGap(derived_gap)
+    if derived_gap is None:
+        return PairTimeGap(field_gap)
+    return PairTimeGap(
+        max(field_gap, derived_gap),
+        source_conflict=_pair_time_gap_source_conflict(field_gap, derived_gap),
+    )
+
+
+def _pair_time_gap_source_conflict(field_gap: float, derived_gap: float) -> bool:
+    if derived_gap <= field_gap:
+        return False
+    difference = derived_gap - field_gap
+    ratio_threshold = max(
+        field_gap * PAIR_TIME_GAP_CONFLICT_RATIO,
+        PAIR_QUALITY_GAP_FLOOR_SEC,
+    )
+    return (
+        derived_gap > ratio_threshold
+        or difference > PAIR_TIME_GAP_CONFLICT_ABS_SEC
     )
 
 

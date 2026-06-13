@@ -1,5 +1,41 @@
 # Development Progress
 
+## 2026-06-13T18:42:46+08:00 - 08a pair_time_gap spoofing bypass fixed
+
+- Fixed the final reviewed pair-quality bypass:
+  `_pair_time_gap()` no longer trusts `pair_time_gap_sec` ahead of
+  `started_at`. It computes explicit field gap and timestamp-derived gap when
+  available, uses the conservative maximum, and marks
+  `pair_time_gap_conflict` when the explicit field materially understates the
+  timestamp gap.
+- `pair_time_gap_conflict` makes the pair `suspect`, so lied small gaps on
+  stale/far-apart pairs cannot become decision-grade paired significance.
+- Added `PAIR_QUALITY_GAP_FLOOR_SEC=5.0`; the normal pair threshold is now
+  `max(5 * median_duration_sec, 5s)` with the existing 300s hard cap. This
+  keeps subsecond benchmarks with ordinary back-to-back scheduling overhead
+  usable.
+- Added tests for:
+  - lied `pair_time_gap_sec=0.1` with `started_at` 10 hours apart -> suspect,
+    conflict note, inconclusive,
+  - genuine fast pairs with 1 second gap and 0.1 second durations -> good and
+    significant.
+- Validation:
+  - stats/schema:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py -q`
+    -> 96 passed in 0.72s,
+  - targeted hardening group:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py tests/test_stats_core_coverage_regression.py -q`
+    -> 104 passed in 2.24s,
+  - slow coverage regression:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core_coverage_regression.py -q`
+    -> 3 passed in 1.23s,
+  - full Python 3.10 suite:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/ -q`
+    -> 682 passed in 8.56s,
+  - `git diff --check` passed.
+
+Next action: commit/push and request external review for the new range.
+
 ## 2026-06-13T18:08:31+08:00 - 08a pair quality and exploratory hardening implemented
 
 - Fixed the paired false-positive path found by external review:
