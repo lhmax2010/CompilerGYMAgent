@@ -1,6 +1,6 @@
 # dev_memory/ROADMAP.yaml
 roadmap_version: 1
-last_updated: 2026-06-13T17:23:48+08:00
+last_updated: 2026-06-15T20:53:42+08:00
 status: active
 
 # ============================================================
@@ -86,6 +86,18 @@ completed_phases:
     actual_subtasks_done: 6
     started_at: "2026-06-04T10:05:00+08:00"
     closed_at: "2026-06-05T08:48:36+08:00"
+  - id: "08a"
+    title: "Baseline + Statistical Significance - Minimal Stats Core"
+    milestone: "M2 + M4 (partial)"
+    requirement_sections: ["4.8", "4.9", "4.6.4 (convergence detector)"]
+    actual_subtasks_done: 8
+    started_at: "2026-06-10T15:15:45+08:00"
+    closed_at: "2026-06-15T20:53:42+08:00"
+    validation: "Python 3.10 full suite -> 687 passed; pair_quality adversarial review closed with no detectable residuals."
+    notes:
+      - "Pure stats core: descriptive statistics, ESS/autocorrelation diagnostics, IID and moving-block bootstrap, baseline/candidate comparison, and verdict gates."
+      - "Data contract separates decision-grade verdicts from non-decision-grade exploratory_signal."
+      - "pair_quality hardening closed detectable time-metadata inconsistency and global-duration coupling classes; remaining boundary is fully self-consistent forged time metadata."
 
 # ============================================================
 # Planned phases (Codex-recommended order)
@@ -163,147 +175,6 @@ planned_phases:
       Hand off this risk to Phase 7.0 search-strategy spike and Phase 08
       statistical significance work.
 
-  - id: "08a"
-    title: "Baseline + Statistical Significance - Minimal Stats Core"
-    status: in_progress
-    started_at: "2026-06-10T15:15:45+08:00"
-    milestone: "M2 + M4 (partial)"
-    requirement_sections: ["4.8", "4.9", "4.6.4 (convergence detector)"]
-    dependencies: ["05"]
-    can_parallel_with: []
-    estimate_subtasks: { low: 6, high: 8 }
-    risk: high
-    goals:
-      - "Pure side-effect-free statistics core required before Candidate Engine"
-      - "Consume Phase 05 RunLevelRecord objects with phase=measured and valid_for_scoring=True"
-      - "Compute descriptive statistics: mean, median, sample stddev (n-1), CV with mean≈0 -> None"
-      - "Provide IID/right-skewed percentile bootstrap CI with seeded reproducibility"
-      - "Detect autocorrelation and report conservative effective sample size (ESS)"
-      - "Use moving block bootstrap for autocorrelated sequences"
-      - "Compare candidate vs baseline with objective_direction-aware normalized improvement"
-      - "Prefer paired design via pair_key when available; mark unpaired high-autocorrelation data inconclusive"
-      - "Provide single-comparison StatisticalResult verdicts for candidate-engine convergence decisions"
-      - "Keep decision-grade verdicts separate from exploratory signals: unpaired autocorrelated history can only suggest retests, never accept/promote."
-      - "Gate paired decision-grade significance on pair_quality so stale or malformed pairs cannot fake common-mode cancellation."
-      - "Provide statistical machinery needed for noise-robust near-miss / interaction discovery (05.5 handoff)"
-    deliverables:
-      - path: "src/agent/stats_core.py"
-        description: "Minimal side-effect-free statistics core consuming Phase 05 RunLevelRecord data."
-        requirements:
-          - "Select only measured runs with valid_for_scoring=True for scoring statistics"
-          - "Compute mean, median, sample stddev (n-1), and CV; CV is None when mean is effectively zero"
-          - "Implement percentile bootstrap CI for IID/right-skewed data with configurable B (default 2000), confidence_level (default 0.95), and seeded RNG"
-          - "Compute lag-1 autocorrelation rho1=corr(x_t, x_{t-1})"
-          - "Compute conservative ESS: for n>=8 use min(lag-1 ESS, initial-positive-lag heuristic multi-lag ACF ESS); for n<8 use lag-1 ESS with ess_preliminary=True"
-          - "Set autocorrelation_detected when rho1 > 0.3 and iid_assumption_valid to the inverse"
-          - "If ESS < ESS_MIN (default 3), return verdict=inconclusive and never significant_improvement/significant_regression"
-          - "When autocorrelation is detected, use moving block bootstrap instead of IID bootstrap"
-          - "Moving block bootstrap block_size = max(2, round(n ** (1/3)))"
-          - "For measured_runs <= 5, mark low_power/inconclusive instead of pretending statistical significance"
-          - "Compute baseline-normalized relative improvement with correct objective_direction sign"
-          - "When pair_key is available for baseline/candidate records, use paired differences before bootstrap"
-          - "When pair_key is absent and high autocorrelation is detected, lower confidence or return inconclusive"
-      - path: "src/agent/skills/result_schema.py"
-        description: "Extend RunSummaryHint and add StatisticalResult schema used by stats_core."
-        requirements:
-          - "RunSummaryHint adds n_measured, n_valid, n_invalid"
-          - "RunSummaryHint adds effective_sample_size, lag1_autocorrelation, autocorrelation_warning"
-          - "RunSummaryHint adds ess_preliminary so downstream code can tell n<8 lag-1-only ESS from conservative n>=8 ACF ESS"
-          - "All new numeric fields use finite validation consistent with existing score/summary fields"
-          - "StatisticalResult includes comparison, comparison_scope='single_comparison', adjusted_for_multiple_testing=False, point_estimate, ci_low, ci_high, confidence_level, verdict, method, sample counts, ESS, rho1, autocorrelation flags, low_power, pair_quality, exploratory_signal, requires_confirmation, and notes"
-          - "StatisticalResult verdict enum: significant_improvement / significant_regression / inconclusive / no_difference"
-          - "StatisticalResult exploratory_signal enum: suggestive_improvement / suggestive_regression / none; suggestive signals are non-decision-grade and require confirmation."
-          - "StatisticalResult pair_quality enum: good / suspect / unknown; paired significant verdicts require good quality, so suspect/unknown pairs cannot produce decision-grade significant verdicts."
-          - "StatisticalResult method enum: iid_bootstrap / moving_block_bootstrap / paired_bootstrap"
-      - path: "src/agent/skills/fake_gbs.py"
-        description: "Expose fake_gbs bursty state in benchmark env snapshots during 08a.6."
-        requirements:
-          - "RunLevelRecord.env_snapshot records fake_gbs_state=healthy|degraded|failed when bursty profile is used"
-          - "State exposure distinguishes within-trial pseudoreplicates from between-trial autocorrelation"
-          - "No code for this item lands during design; implement in 08a.6"
-    subtask_order:
-      - "08a.1 descriptive statistics + RunSummaryHint extension: mean/median/sample stddev/CV, n_measured/n_valid/n_invalid, conservative ESS/rho1 fields, ess_preliminary"
-      - "08a.2 IID/right-skewed percentile bootstrap CI with seeded reproducibility"
-      - "08a.3 lag-1 autocorrelation detection + ESS correction + low-power/inconclusive rules"
-      - "08a.4 moving block bootstrap for autocorrelated sequences"
-      - "08a.5 baseline normalized comparison + pair_key paired design + StatisticalResult verdict schema"
-      - "08a.6 fake_gbs bursty state exposure in env_snapshot + phase closeout"
-      - "08a.7 exploratory_signal + pair_quality verdict-boundary implementation, unless folded into 08a.6 closeout after review"
-    subtask_deliverable_notes:
-      "08a.2":
-        - "Review gate uses numerical coverage simulation: generate known-truth IID and right-skewed data, run seeded percentile bootstrap CI repeatedly, and verify nominal 95% CI coverage is approximately 95% on IID data."
-        - "Implementation remains side-effect-free; no process execution is needed for bootstrap correctness review."
-      "08a.4":
-        - "Define moving block bootstrap correlation-length/block-size behavior; keep 08a.1 limited to ESS/rho diagnostics."
-        - "Validate bursty simulations where multi-lag dependence is longer than lag-1 AR(1) predicts."
-        - "Use the 08a.3 fake_gbs bursty naive IID baseline of 73.0%/74.4% coverage as the before/after comparison target."
-        - "Implementation uses overlapping contiguous moving blocks, exposes block_size metadata, and keeps n<=5 on IID fallback through the autocorrelation-aware helper."
-        - "Review approved with Med-1: moving block improves bursty coverage but remains below 90% at smaller n; pass low-power/inconclusive handling to 08a.5."
-      "08a.3":
-        - "Connect autocorrelation detection and ESS diagnostics to CI confidence metadata only; do not implement block bootstrap or verdict gates."
-        - "Review gate uses known-rho sequences for rho1>0.3 detection and bursty simulations to demonstrate naive IID bootstrap undercoverage motivation for 08a.4."
-        - "Implementation attaches diagnostics to IID percentile bootstrap outputs but preserves method=iid_percentile_bootstrap and does not widen CI."
-      "08a.5":
-        - "Full StatisticalResult schema must use single_comparison naming, including comparison_scope='single_comparison' and adjusted_for_multiple_testing=False."
-        - "If exposing significance booleans, use significant_single_comparison, not bare significant."
-        - "Paired comparisons must preserve pair_order and still run autocorrelation/ESS checks over the paired difference sequence."
-        - "Layer verdict gates explicitly: low_power/inconclusive, no_difference, significant_improvement, significant_regression."
-        - "Carry 08a.4 Med-1: small-n/severe-bursty cases where moving block coverage remains below nominal must produce low_power/inconclusive rather than significant verdicts."
-        - "Defend base approximately zero in normalized improvement; do not divide by an unstable baseline mean."
-        - "Multiple-comparison correction is excluded from 08a and belongs to Phase 07 policy because 08a cannot observe global comparison count M."
-        - "Implementation note: significance requires both CI exclusion of zero and adequate power; n_valid<5 or ESS<3 is inconclusive, 5<=n_valid<10 or 3<=ESS<5 is low-power inconclusive, and small-n autocorrelated paired data is low-power/inconclusive per Med-1."
-        - "Implementation note: matching pair_key values are differenced in baseline pair order; partial matches are marked, and unpaired autocorrelation is inconclusive."
-        - "Ubuntu/Python 3.10 validation passed at b78c744: targeted 80 passed, full suite 658 passed."
-        - "External Med-1 verdict-gate review approved range 995ebf3..7087463 with no Critical, High, Medium, or Low findings."
-        - "Post-review hardening: compare_run_records sorts measured records by started_at/run_index before autocorrelation diagnostics; missing ordering metadata emits input_order_unverified."
-        - "Post-review hardening: started_at sorting parses UTC datetime strings instead of lexical strings; mixed Z/+00:00/subsecond formats preserve chronology."
-        - "Post-review hardening: slow fixed-seed coverage regressions protect IID Gaussian coverage, fake_gbs bursty naive undercoverage, moving-block improvement, and unpaired-autocorrelation inconclusive behavior."
-        - "Post-review hardening: ESS wording is initial-positive-lag heuristic, lag rho is trend-sensitive by design, and unpaired autocorrelation remains inconclusive due to time-confounding."
-        - "Post-review hardening: order_source_conflict marks records where started_at chronology disagrees with run_index ordering."
-      "08a.6":
-        - "Expose fake_gbs bursty state for validation only; production statistical decisions must not depend on hidden fake_gbs state labels."
-        - "May include schema-only wiring for exploratory_signal, requires_confirmation, pair_order, pair_time_gap_sec, and pair_quality if already reviewed."
-      "08a.7":
-        - "Implement exploratory_signal as a non-decision-grade field orthogonal to verdict."
-        - "Unpaired + autocorrelation remains verdict=inconclusive; strong corrected-CI evidence may only set exploratory_signal=suggestive_improvement/suggestive_regression with requires_confirmation=true."
-        - "Production thresholds are module constants: baseline_n_valid and candidate_n_valid >= 40, baseline/candidate ESS >= 20, autocorrelation-aware block-bootstrap CI excludes zero, and absolute relative effect >= 1%."
-        - "exploratory_signal may be consumed by Phase 7.0/07 only to rank candidates, allocate measurement budget, or schedule paired confirmation."
-        - "exploratory_signal must not accept/promote a candidate, update champion, stop search, or appear in final 'candidate is better' conclusions."
-        - "Evaluate pair_quality for paired comparisons from pair_order, pair_time_gap_sec, and started_at-derived gaps. When both gap sources exist, use the conservative maximum and mark pair_time_gap_conflict if the explicit field materially understates started_at."
-        - "The pair time-gap threshold is evaluated per pair as max(5x min(baseline/candidate effective duration), 5 seconds), with a hard 300 second cap."
-        - "Bound effective durations by timestamp-derived duration, and mark run_overlap_detected when any baseline/candidate run overlaps the next run in the merged measurement timeline."
-        - "suspect covers large pair_time_gap or missing pair_order; unknown covers missing time information."
-        - "If pair_quality is suspect or unknown, paired results cannot emit decision-grade significant_improvement/significant_regression and must record suspect_pair_quality or unknown_pair_quality."
-    exit_criteria:
-      - "Descriptive statistics and bootstrap CI are checked against an independent implementation (numpy/scipy or hand calculation) and match within documented tolerance"
-      - "IID/right-skewed percentile bootstrap 95% CI has coverage approximately at nominal confidence on known-truth simulations"
-      - "For adequately powered bursty simulations, ESS-corrected/block-bootstrap CI reaches >=90% coverage; underpowered small-n/severe-bursty cases are marked low_power/inconclusive rather than significant"
-      - "ESS too low (n_eff < ESS_MIN) returns verdict=inconclusive and never significant_improvement/significant_regression"
-      - "Autocorrelation detection tests cover rho1<=0, weak positive rho1, and rho1>0.3"
-      - "Moving block bootstrap preserves autocorrelation structure and is selected when autocorrelation_detected=True"
-      - "Baseline-normalized improvement sign is correct for higher_is_better and lower_is_better objectives"
-      - "Paired design via pair_key produces narrower/more accurate CI than unpaired comparison under bursty common-mode noise"
-      - "Unpaired high-autocorrelation data is marked decision-grade inconclusive; strong evidence can only become non-decision-grade exploratory_signal requiring paired confirmation"
-      - "Unpaired autocorrelated data with strong evidence can emit only exploratory_signal=suggestive_* with requires_confirmation=true; decision-grade verdict remains inconclusive"
-      - "Paired significant verdicts require good pair_quality; suspect/unknown pairs are downgraded to inconclusive/low-power"
-      - "fake_gbs bursty state is exposed in RunLevelRecord.env_snapshot and used to distinguish pseudoreplicates from autocorrelation"
-      - "Document how repeated combo evaluation, ESS, block bootstrap, paired design, exploratory_signal, and pair_quality feed candidate-engine near-miss detection"
-    validation_plan:
-      - "Side-effect-free numerical simulations against known-truth statistical properties"
-      - "IID/right-skewed bootstrap coverage simulation for 08a.2"
-      - "Naive vs corrected bursty/autocorrelated coverage comparison for 08a.3/08a.4"
-      - "Synthetic and fake_gbs non-Gaussian data benchmarks"
-      - "Ubuntu fcntl regression"
-    scope_boundaries:
-      - "08a is pure statistics only; no candidate engine."
-      - "08a reports single_comparison semantics only; no Bonferroni/FDR/multiple-testing correction inside 08a."
-      - "fake_gbs burst state is test-only instrumentation, not a production statistical signal."
-      - "No adaptive rerun policy; defer to 08b"
-      - "No outlier deletion policy; defer to 08b"
-      - "No sequential testing; defer to 08b"
-      - "No stationary bootstrap or Bayesian model; defer to 08b"
-      - "No Hall-Horowitz-Jing automatic block-size selection; 08a uses n^(1/3), adaptive block sizing deferred to 08b"
-
   - id: "08b"
     title: "Baseline + Statistical Significance - Advanced Noise Policy"
     status: planned
@@ -319,6 +190,9 @@ planned_phases:
       - "Sequential testing support"
       - "Convergence detector + stagnation"
       - "Advanced handoff for Phase 07 noisy interaction discovery"
+      - "Add env_snapshot_distance or equivalent cross-signal pair-quality evidence to mitigate the remaining fully self-consistent timestamp-forgery boundary."
+      - "Add cosmetic/integrity pair_order vs started_at precedence cross-checks; this is not a current wash-through vector but improves producer diagnostics."
+      - "Calibrate pair-quality policy knobs after producer integration: 5x duration multiplier, 300s hard cap, and 5s floor."
     deliverables:
       - "src/agent/stats/adaptive_rerun.py"
       - "src/agent/stats/outliers.py"
@@ -330,6 +204,7 @@ planned_phases:
       - "Adaptive rerun policy is tested on fake_gbs right_skewed and bursty profiles"
       - "Outlier policy and sequential testing are documented as consumers of Phase 05 run-level records"
       - "Noise diagnostics report when Phase 07 near-miss interaction evidence is statistically underpowered"
+      - "Pair-quality cross-signal diagnostics document how env_snapshot_distance complements timestamp checks without replacing producer trace integrity"
     validation_plan: ["fake_gbs non-Gaussian profile benchmarks", "Ubuntu fcntl regression"]
 
   - id: "7.0"
@@ -349,6 +224,9 @@ planned_phases:
       - "Define how Phase 08 statistical significance outputs are consumed by near-miss interaction search"
       - "Define how exploratory_signal is consumed only for propose/prioritize/schedule-retest flows, never for accept/promote/champion decisions."
       - "Define paired measurement plans that generate randomized AB/BA pair_order and small pair_time_gap_sec for pair_quality=good."
+      - "Consume 08a StatisticalResult strictly: unpaired+autocorrelation remains inconclusive, exploratory_signal only schedules confirmation, and only good-quality paired or IID decision-grade results can accept/reject/promote."
+      - "Define producer obligations for truthful started_at/ended_at/duration_sec/pair_time_gap_sec metadata; this is the 08a inherent-boundary backstop."
+      - "Prohibit sequential testing/peeking in search strategy; repeated looks require Phase 08b/07 policy rather than ad hoc candidate-engine decisions."
     exit_criteria:
       - "Benchmark report records solver runtime/memory at 10^3, 10^4, and 10^5 combos"
       - "Fallback decision is captured before Phase 07 implementation"
@@ -360,6 +238,8 @@ planned_phases:
       - "Noise-robust interaction-discovery plan names required repeat-evaluation/statistical tests, or explicitly defers to Phase 08"
       - "Exploratory-signal contract is documented: unpaired autocorrelated history can prioritize paired retests, but only paired good-quality or IID decision-grade results can accept/reject/promote."
       - "Measurement plan records pair_order and pair_time_gap_sec, with AB/BA randomized order and close-in-time baseline/candidate pairs."
+      - "Measurement producer contract states that time metadata must be truthful; fully self-consistent forged timestamps are outside 08a's statistical detectability."
+      - "Candidate search plan forbids sequential peeking and leaves multiple-comparison correction to Phase 07 policy."
     spike_findings_output: "dev_memory/spikes/7.0_candidate_constraint_solver_findings.md"
 
   - id: "07"

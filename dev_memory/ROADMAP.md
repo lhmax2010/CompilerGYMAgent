@@ -14,52 +14,42 @@ Completed:
 | 04 | Workspace Protection Skills + CLI Entrypoint Skeleton | 2026-05-30 | 5 |
 | 06 | Process Management (runner + cleaner + monitor) | 2026-06-03 | 11 |
 | 05 | Compile / Benchmark Skills | 2026-06-05 | 6 |
+| 08a | Baseline + Statistical Significance - Minimal Stats Core | 2026-06-15 | 8 |
 
 Current phase:
 
 | State | Next phase | Why next |
 |---|---|---|
-| Phase 08a in progress | 08a.6 ready | 08a.5 StatisticalResult/verdict gates are implemented, Ubuntu/Python 3.10 validated, and externally approved with no findings. 08a.6 fake_gbs bursty state exposure + phase closeout is ready to start when directed. |
+| Phase 08a done | 7.0 ready | 08a delivered the pure statistics core and closed pair_quality after eight adversarial review rounds. Phase 7.0 should now define the candidate-search strategy and producer contract that consume 08a results. |
 
-08a review-alignment boundaries:
+08a completion snapshot:
 
 - 08a produces single-comparison statistics only. Multiple-comparison correction
   needs the global comparison family/count and belongs to Phase 07 policy.
-- Published ESS is conservative: n>=8 uses the lower of lag-1 ESS and
-  multi-lag ACF ESS; n<8 uses lag-1 ESS with `ess_preliminary=true`.
-- Paired differences still require autocorrelation/ESS checks; pairing does not
-  make the difference sequence IID.
-- `fake_gbs` burst state is test-only instrumentation, not a production
-  statistical signal.
-- Statistical subtask reviews use side-effect-free numerical simulations
-  against known-truth data. For 08a.2, the review gate is bootstrap CI coverage
-  simulation on IID/right-skewed sequences.
-- 08a.3 attaches autocorrelation/ESS diagnostics to IID CI outputs but does not
-  correct CI width. Moving block bootstrap remains 08a.4; verdict gates remain
-  08a.5.
-- 08a.3 measured the naive bursty undercoverage baseline: nominal 95% IID
-  bootstrap covered only 73.0%/74.4% on fake_gbs bursty simulations. 08a.4
-  should use this as the direct before/after coverage comparison.
-- 08a.4 review found moving block improves bursty coverage but remains below
-  90% for smaller n. 08a.5 owns the safety response: ESS/low-power verdict
-  gates must mark such cases inconclusive instead of significant.
-- 08a.5 implements the safety response: significance requires both CI exclusion
-  of zero and adequate power. Low n, low ESS, preliminary ESS, small-n
-  autocorrelated paired data, and unpaired autocorrelation prevent
-  `significant_single_comparison`.
-- Post-review hardening enforces measured-record ordering before
-  autocorrelation diagnostics, adds fixed-seed coverage regressions, and
-  documents heuristic ESS/rho terminology plus the deliberate unpaired
-  autocorrelation inconclusive policy.
+- The core covers descriptive statistics, conservative ESS/autocorrelation
+  diagnostics, seeded IID percentile bootstrap, moving-block bootstrap,
+  baseline/candidate comparison, and verdict gates.
+- Coverage regressions lock the intended behavior: IID coverage near nominal,
+  naive bursty bootstrap undercoverage, moving-block improvement, and detected
+  unpaired autocorrelation producing no decision-grade significant verdicts.
+- The data contract separates decision-grade verdicts from non-decision-grade
+  `exploratory_signal`; paired significance additionally requires
+  `pair_quality=good`.
+- pair_quality hardening closed the reviewed time-metadata inconsistency class
+  and the global-duration-coupling class. After per-pair duration thresholds,
+  a good pair requires pair-order consistency, no merged-timeline overlap,
+  `gap<=300s`, and `gap<=max(5*min(pair durations), 5s)` for every pair.
+- The remaining inherent boundary is fully self-consistent forged time metadata
+  with no physical/statistical fingerprint. Phase 7.0 producer integrity and
+  future 08b `env_snapshot_distance`/cross-signal checks own that defense.
 
 Next implementation phases:
 
 | Order | Phase | Estimate | Main risk |
 |---:|---|---:|---|
-| 1 | 08a - Baseline + Statistical Significance - Minimal Stats Core | 6-8 subtasks | In progress. Must consume Phase 05 run-level records and validate statistics on gaussian, right-skewed, and bursty fake_gbs profiles before candidate engine work. |
-| 2 | 7.0 - Candidate Search Strategy + Constraint Solver Spike | 2-3 subtasks | Must turn 05.5's noise-robust interaction-discovery risk into concrete Phase 07 search requirements. |
-| 3 | 07 - Candidate Engine + Constraint + Schedule | 10-16 subtasks | LLM integration and non-bruteforce search strategy remain the largest algorithmic risk. |
-| 4 | 08b - Baseline + Statistical Significance - Advanced Noise Policy | 3-4 subtasks | Runs alongside/after 07 to add adaptive rerun, outlier policy, sequential testing, and noise diagnostics before orchestration. |
+| 1 | 7.0 - Candidate Search Strategy + Constraint Solver Spike | 2-3 subtasks | Must turn 05.5's noise-robust interaction-discovery risk into concrete Phase 07 search requirements and producer obligations for consuming 08a safely. |
+| 2 | 07 - Candidate Engine + Constraint + Schedule | 10-16 subtasks | LLM integration and non-bruteforce search strategy remain the largest algorithmic risk. |
+| 3 | 08b - Baseline + Statistical Significance - Advanced Noise Policy | 3-4 subtasks | Runs alongside/after 07 to add adaptive rerun, outlier policy, sequential testing, noise diagnostics, and env_snapshot/cross-signal pair-quality follow-up. |
 
 The planned order intentionally ran Phase 06 before Phase 05, even though the numbering is not sequential. That dependency has now paid off: Phase 05 compile and benchmark skills use the Phase 06 process runner/cleaner and lease registry instead of inventing subprocess rules.
 
@@ -94,8 +84,8 @@ Remaining estimate:
 
 | Scope | Phases | Subtasks | Workdays | Weeks |
 |---|---|---:|---:|---:|
-| v1-minimal remaining | 08a/7.0/07/08b/09/10/11/12/13 | 64-103 | 49-79 | 10-16 |
-| v1-full remaining | 08a/7.0/07/08b/9.0/9.1/09/10/11/12/13/14/15a/15b/16 | 89-143 | 68-110 | 14-22 |
+| v1-minimal remaining | 7.0/07/08b/09/10/11/12/13 | 56-95 | 43-73 | 9-15 |
+| v1-full remaining | 7.0/07/08b/9.0/9.1/09/10/11/12/13/14/15a/15b/16 | 81-135 | 62-104 | 13-21 |
 
 The roadmap is deliberately slower than `doc/REQUIREMENTS.md` section 9's nominal schedule because this project is using a high-assurance loop: Codex implementation, Claude review, review fixes, Linux validation, and explicit dev_memory provenance.
 

@@ -8,10 +8,8 @@ You are Codex taking over development of the CompilerGYMAgent repository.
 Repository:
 - GitHub: https://github.com/lhmax2010/CompilerGYMAgent.git
 - Branch: main
-- Expected HEAD after `git pull --ff-only origin main`: at least
-  `6b72d43 dev_memory: finalize 08a statistics core design`
-- This handoff document may be newer than that commit; if so, trust the newer
-  handoff commit and verify `git log --oneline -5`.
+- Expected HEAD after `git pull --ff-only origin main`: the latest 08a closeout
+  commit on `origin/main`. Verify with `git log --oneline -8`.
 
 Start with:
 1. `git pull --ff-only origin main`
@@ -24,24 +22,22 @@ Start with:
    - `dev_memory/ROADMAP.yaml`
    - `dev_memory/DECISIONS.md` entries from 2026-06-05 onward
    - `dev_memory/BLOCKERS.md`
-   - `dev_memory/phases/phase_05_compile_benchmark/SUMMARY.md`
+   - `dev_memory/phases/phase_08a_statistics_core/SUMMARY.md`
+   - `dev_memory/phases/phase_08a_statistics_core/UT_RESULTS.md`
 
 Current status:
-- Completed production phases: 01, 02, 03, 04, 06, 05.
+- Completed production phases: 01, 02, 03, 04, 06, 05, 08a.
 - Phase 05.5 integration spike is done, but remains in planned phases because
   it is a spike, not a completed milestone.
 - Phase 05 Compile / Benchmark Skills is closed.
-- Phase 08a design has been finalized in `dev_memory/ROADMAP.yaml` and
-  `dev_memory/DECISIONS.md`.
-- Phase 08a.1 through 08a.4 are implemented and externally/numerically
-  reviewed. 08a.4 was approved with Med-1: moving block bootstrap improves
-  bursty coverage but smaller-n bursty cases remain underpowered.
-- Phase 08a.5 StatisticalResult/verdict gates are implemented,
-  Ubuntu/Python 3.10 validated, and externally reviewed with no findings.
-- Post-review hardening for 08a.5 is in progress/implemented: measured records
-  are sorted by `(started_at, run_index)` before autocorrelation diagnostics,
-  slow coverage regressions were added, and heuristic ESS/unpaired
-  autocorrelation policy was documented.
+- Phase 08a Minimal Stats Core is closed. It delivered descriptive statistics,
+  conservative ESS/autocorrelation diagnostics, IID and moving-block bootstrap,
+  `StatisticalResult` verdict gates, fixed-seed coverage regressions,
+  `exploratory_signal`, and hardened `pair_quality`.
+- 08a pair_quality went through eight adversarial review rounds plus numerical
+  validation. Detectable time-metadata inconsistency and global-duration
+  coupling paths are closed. The only remaining boundary is fully
+  self-consistent forged time metadata with no physical/statistical fingerprint.
 - Real target runtime is Python 3.10. The compatibility patch lowers
   `requires-python` to `>=3.10` and removes 3.11-only `datetime.UTC`,
   `typing.Self`, and `tomllib` assumptions.
@@ -51,13 +47,15 @@ Current status:
 - `dev_memory/BLOCKERS.md` currently records no active blockers.
 
 Latest important commits:
-- `4fbd199 dev_memory: add 08a.5 handoff`
-- `7087463 dev_memory: record 08a.5 ubuntu validation`
-- `b78c744 tests: package fixtures for python 3.10 collection`
-- `0c87bb3 compat: support python 3.10 runtime`
-- `8b46a4c dev_memory: record 08a.5 implementation`
-- `8936849 phase_08a: add statistical result verdict gates`
-- `995ebf3 dev_memory: record 08a.4 statistical review`
+- `b5dd98b phase_08a: use per-pair duration for pair gaps`
+- `16e106f phase_08a: detect merged pair timeline overlap`
+- `a156c12 phase_08a: detect paired run time overlap`
+- `93d726a phase_08a: bound pair duration threshold by timestamps`
+- `ca92868 phase_08a: harden pair time gap validation`
+- `00875f2 phase_08a: harden pair quality and exploratory signals`
+- `8c95109 phase_08a: record exploratory signal design`
+- `e594eb4 phase_08a: harden statistical ordering and coverage`
+- `9dba60b dev_memory: record 08a.5 statistical review`
 
 Recent Phase 05/08a preconditions already handled:
 - Phase 05 emits process-backed compile/benchmark records.
@@ -71,38 +69,28 @@ Recent Phase 05/08a preconditions already handled:
   and non-empty affected_options.
 
 Current next action:
-- 08a.5 external review for range `995ebf3..7087463` is approved and recorded.
-- Ubuntu/Python 3.10 validation has passed: targeted 80 passed, full 658
-  passed.
-- 08a.6 fake_gbs bursty state exposure + phase closeout is ready to start when
-  directed.
-
-Phase 08a current subtask:
-- 08a.6 fake_gbs bursty state exposure in env_snapshot + phase closeout.
-- Preserve pure statistics scope: no process cleanup, no workspace mutation,
-  no multiple-comparison correction, no adaptive rerun action, no outlier
-  policy, and no candidate engine changes.
-- 08a consumes Phase 05 `RunLevelRecord` values only.
-- Main technical risk remains bursty/autocorrelated benchmark noise. Do not
-  treat naive IID-only significance as sufficient.
-
-Phase 08a design requirements to preserve:
-- IID/right-skewed percentile bootstrap must be seeded and reproducible.
-- Lag-1 autocorrelation must drive ESS correction.
-- ESS below ESS_MIN defaults to inconclusive, never significant.
-- Autocorrelated data uses moving block bootstrap, not naive IID bootstrap.
-- pair_key paired comparisons are preferred when available.
-- Unpaired high-autocorrelation comparisons should be downgraded or
-  inconclusive.
-- fake_gbs bursty state exposure is deferred to 08a.6.
+- Start Phase 7.0 Candidate Engine Search Strategy + Constraint Solver Spike.
+- Consume the 08a `StatisticalResult` contract strictly:
+  - decision-grade accept/reject/promote requires good paired evidence or
+    otherwise valid IID single-comparison evidence,
+  - unpaired autocorrelation remains inconclusive,
+  - `exploratory_signal` can only propose/prioritize/schedule confirmation.
+- Define randomized AB/BA paired measurement plans that produce truthful
+  `pair_order`, `started_at`, `ended_at`, `duration_sec`, and
+  `pair_time_gap_sec`.
+- Explicitly forbid sequential testing/peeking until Phase 08b/07 policy exists;
+  multiple-comparison correction belongs to Phase 07.
+- Carry non-blocking 08b follow-ups: `env_snapshot_distance` or equivalent
+  cross-signal pair-quality evidence, cosmetic `pair_order` vs `started_at`
+  cross-check, and calibration of the 5x/300s/5s pair-quality knobs.
 
 Validation expectations:
-- Run targeted tests for each 08a subtask.
+- Run targeted tests for the phase being changed.
 - Run full suite before commit.
 - Preserve the established dev_memory workflow:
   - update CURRENT_PHASE.yaml,
   - append PROGRESS.md,
-  - update phase CHECKLIST/UT_RESULTS/REVIEW_NOTES/SUMMARY,
+  - update phase CHECKLIST/UT_RESULTS/REVIEW_NOTES/SUMMARY as applicable,
   - generate patch triplet,
   - commit, push, send Claude review range.
 

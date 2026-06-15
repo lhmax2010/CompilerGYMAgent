@@ -1,5 +1,59 @@
 # Development Progress
 
+## 2026-06-15T20:53:42+08:00 - Phase 08a statistics core closed
+
+- Phase 08a is formally closed after eight adversarial pair_quality review
+  rounds, external numerical validation, and the final per-pair closure
+  argument.
+- Delivered the minimal side-effect-free statistics core:
+  - descriptive statistics over measured valid run records,
+  - conservative autocorrelation/ESS diagnostics,
+  - IID percentile bootstrap and moving-block bootstrap,
+  - baseline/candidate comparison with single-comparison verdict gates,
+  - fixed-seed coverage regressions for IID coverage, bursty naive
+    undercoverage, moving-block improvement, and unpaired autocorrelation
+    inconclusive safety.
+- Data contract is now explicit:
+  - decision-grade verdicts require adequate power, valid chronology,
+    acceptable autocorrelation context, and `pair_quality=good` for paired
+    comparisons,
+  - `exploratory_signal` is non-decision-grade and can only prioritize
+    confirmation/retest flows,
+  - suspect/unknown pair quality or unpaired autocorrelation cannot promote a
+    candidate.
+- pair_quality hardening closed two reviewed bug classes:
+  - time-metadata trust/inconsistency paths: shuffled input order, missing or
+    lied `pair_time_gap_sec`, lied `duration_sec`, coordinated `duration_sec`
+    + `ended_at`, same-arm overlap, and cross-arm merged-timeline overlap,
+  - global coupling: global median duration was replaced with per-pair
+    `max(5 * min(pair durations), 5s)` gap thresholds.
+- Closure argument recorded in DECISIONS: after per-pair thresholds, a
+  good pair must satisfy pair-order consistency, no merged-timeline overlap,
+  `gap<=300s`, and `gap<=max(5*min(pair durations), 5s)`. Non-overlap prevents
+  duration inflation from hiding a smaller real gap; the remaining visible gap
+  is anchored by `started_at` and the 300s hard cap.
+- Remaining inherent boundary: if a producer forges all time metadata into a
+  small, self-consistent, non-overlapping sequence, 08a has no internal
+  statistical or physical fingerprint to detect. Phase 7.0 producer integrity
+  and future 08b `env_snapshot_distance`/cross-signal checks own that defense.
+- Non-blocking follow-ups recorded for 08b/7.0:
+  - add `env_snapshot_distance` or equivalent pair-quality cross-signal,
+  - add cosmetic `pair_order` vs `started_at` precedence cross-check,
+  - calibrate the 5x multiplier, 300s hard cap, and 5s floor after producer
+    integration,
+  - make 7.0 consume the 08a interface strictly, generate randomized AB/BA
+    paired plans, guarantee truthful time metadata, forbid sequential
+    testing/peeking, and leave multiple-comparison correction to Phase 07.
+- Roadmap status moved 08a into completed phases without duplicate
+  registration; `CURRENT_PHASE.yaml` and the 08a checklist now mark the phase
+  done.
+- Final validation:
+  `uv run --python 3.10 --system-certs --extra dev pytest tests/ -q`
+  -> 687 passed in 8.63s.
+
+Next action: start Phase 7.0 candidate search strategy + constraint solver
+spike using the 08a result contract as an input.
+
 ## 2026-06-15T20:32:16+08:00 - 08a per-pair duration threshold hardening implemented
 
 - Fixed P-C7: pair gap validation no longer uses a global median duration that

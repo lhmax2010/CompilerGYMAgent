@@ -1,14 +1,15 @@
 phase_id: phase_08a_statistics_core
 phase_title: "Baseline + Statistical Significance - Minimal Stats Core"
 started_at: 2026-06-10T15:15:45+08:00
-last_updated: 2026-06-15T20:32:16+08:00
+last_updated: 2026-06-15T20:53:42+08:00
+closed_at: 2026-06-15T20:53:42+08:00
 target_milestone: "M2 + M4 (partial)"
 related_requirements:
   - REQUIREMENTS.md section 4.8
   - REQUIREMENTS.md section 4.9
   - REQUIREMENTS.md section 4.6.4 convergence detector
-status: in_progress
-roadmap_reference: dev_memory/ROADMAP.yaml planned_phases[id=08a]
+status: done
+roadmap_reference: dev_memory/ROADMAP.yaml completed_phases[id=08a]
 dependencies_satisfied:
   - "Phase 05 Compile / Benchmark Skills is complete and emits RunLevelRecord values."
   - "RunLevelRecord carries measured/warmup phase, valid_for_scoring, objective_direction, pair_key, artifact verification, env_snapshot, and summary_hint."
@@ -34,7 +35,7 @@ pre_implementation_design_review:
   low_followups:
     - "Keep RunSummaryHint ESS/rho1/autocorrelation fields optional while computation lands across subtasks."
     - "Define the epsilon used for CV when mean is effectively zero."
-    - "Phrase side-effect-free scope as applying to stats_core; fake_gbs state exposure remains 08a.6 harness instrumentation."
+    - "Phrase side-effect-free scope as applying to stats_core; env_snapshot/cross-signal state exposure remains a later harness/integrity follow-up."
 subtasks:
   - id: "08a.1"
     title: "descriptive statistics + RunSummaryHint extension"
@@ -69,7 +70,7 @@ subtasks:
       - "No candidate engine."
       - "No bootstrap CI implementation yet."
       - "No StatisticalResult verdict logic unless explicitly required by later 08a split."
-      - "No fake_gbs bursty state exposure until 08a.6."
+      - "No env_snapshot/cross-signal bursty state exposure in 08a.1."
     design_review_cleared: true
     implementation_complete: true
     implementation_commit: ee0fe4b
@@ -452,6 +453,27 @@ subtasks:
           fake_gbs_bursty_naive_iid: 0.7555555555555555
           fake_gbs_bursty_moving_block: 0.8166666666666667
   - id: "08a.6"
-    title: "fake_gbs bursty state exposure in env_snapshot + phase closeout"
-    status: planned
-next_action: "Push per-pair duration threshold hardening and request external review for the new range."
+    title: "env_snapshot/cross-signal pair-quality follow-up"
+    status: deferred_nonblocking
+    reason: "08a minimal statistics core is closed; env_snapshot_distance and stronger trace-integrity cross-checks move to 08b/7.0 as follow-up defenses for the inherent fully self-consistent timestamp-forgery boundary."
+phase_closeout:
+  status: complete
+  completed_at: 2026-06-15T20:53:42+08:00
+  final_head_before_closeout: b5dd98b
+  final_validation:
+    full_python_3_10: "uv run --python 3.10 --system-certs --extra dev pytest tests/ -q -> 687 passed in 8.63s"
+    diff_check: "git diff --check -> passed"
+  summary:
+    - "08a delivered the minimal side-effect-free statistics core: descriptive statistics, conservative ESS/autocorrelation diagnostics, IID percentile bootstrap, moving-block bootstrap, candidate-vs-baseline comparison, and single-comparison verdict gates."
+    - "08a exposes a decision/exploration data contract: significant verdicts are decision-grade only after power, autocorrelation, pair_quality, and schema gates; exploratory_signal is non-decision-grade and requires confirmation."
+    - "pair_quality underwent eight adversarial review rounds and closes detectable time-metadata inconsistency plus global-duration-coupling classes."
+    - "After per-pair duration thresholds, good paired evidence requires pair_order consistency, no merged-timeline overlap, gap<=300s, and gap<=max(5*min(pair durations), 5s) for every pair."
+    - "The remaining inherent boundary is fully self-consistent forged time metadata with no physical/statistical fingerprint; Phase 7.0 producer integrity and future env_snapshot/cross-signal validation own that defense."
+  nonblocking_followups:
+    - "08b: env_snapshot_distance or equivalent stronger pair_quality cross-signal."
+    - "08b: cosmetic pair_order vs started_at precedence cross-check."
+    - "08b/7.0: calibrate pair-quality knobs after producer integration: 5x duration multiplier, 300s hard cap, 5s floor."
+    - "7.0: consume 08a StatisticalResult contract and produce randomized AB/BA paired measurement plans."
+    - "7.0: producer must guarantee truthful started_at/ended_at/duration_sec/pair_time_gap_sec metadata."
+    - "7.0/07: forbid sequential peeking and keep multiple-comparison correction in Phase 07 policy."
+next_action: "Start Phase 7.0 candidate search strategy + constraint solver spike, with 08a contract as an input."

@@ -1,5 +1,21 @@
 # Phase 08a UT Results
 
+## Phase closeout
+
+- Status: Phase 08a done.
+- Full Python 3.10 suite:
+  - Command:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/ -q`
+  - Result: `687 passed in 8.63s`.
+- Static checks:
+  - `git diff --check` passed.
+  - YAML parse smoke for `dev_memory/ROADMAP.yaml`,
+    `dev_memory/CURRENT_PHASE.yaml`, and
+    `dev_memory/phases/phase_08a_statistics_core/CHECKLIST.yaml` passed.
+- Roadmap integrity:
+  - `dev_memory/ROADMAP.yaml` contains one `id: "08a"` registration, under
+    `completed_phases`.
+
 ## Pre-implementation
 
 - Claude external design review for `f34c28d..6b72d43`: Approve, no Critical or

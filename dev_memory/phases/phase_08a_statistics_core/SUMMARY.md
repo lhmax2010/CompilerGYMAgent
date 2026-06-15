@@ -430,3 +430,83 @@ Per-pair duration threshold hardening:
   - slow coverage regression -> 3 passed in 1.30s,
   - full Python 3.10 suite -> 687 passed in 8.91s,
   - `git diff --check` passed.
+
+## Phase closeout
+
+Final status:
+
+- Phase 08a is done.
+- Final implementation head before documentation closeout:
+  `b5dd98b phase_08a: use per-pair duration for pair gaps`.
+- Final Python 3.10 full-suite validation:
+  `uv run --python 3.10 --system-certs --extra dev pytest tests/ -q`
+  -> 687 passed in 8.63s.
+
+Delivered statistics core:
+
+- Descriptive statistics over measured, valid run-level records.
+- Conservative lag/autocorrelation diagnostics and effective sample size
+  estimates, including the documented initial-positive-lag heuristic.
+- Seeded IID percentile bootstrap and moving-block bootstrap over sample means.
+- Baseline/candidate comparison with signed effects, base-near-zero relative
+  effect handling, paired-difference support, unpaired autocorrelation safety,
+  and single-comparison verdict gates.
+- Fixed-seed coverage regressions that lock the intended trend: IID Gaussian
+  coverage stays near nominal, naive bursty IID bootstrap remains visibly
+  undercovered, moving block improves bursty coverage, and detected unpaired
+  autocorrelation yields zero decision-grade significant verdicts.
+
+Delivered data contract:
+
+- `StatisticalResult.verdict` and `significant_single_comparison` are
+  decision-grade only after sample count, ESS, autocorrelation, CI, schema, and
+  pair-quality gates.
+- `exploratory_signal` is intentionally non-decision-grade. It can prioritize
+  confirmation or retest work, but cannot accept, promote, or reject a
+  candidate.
+- Paired comparisons require `pair_quality=good` for decision-grade
+  significance. Suspect/unknown pairing downgrades to inconclusive and blocks
+  `significant_single_comparison`.
+
+pair_quality closure:
+
+- Eight adversarial review rounds closed the detectable time-metadata trust
+  class: input-order shuffling, missing gap fallback, lied
+  `pair_time_gap_sec`, lied `duration_sec`, coordinated `duration_sec` +
+  `ended_at`, same-arm run overlap, and cross-arm merged-timeline overlap.
+- The final P-C7 review closed the global-coupling class by replacing global
+  median duration with per-pair thresholds:
+  `max(5 * min(baseline_pair_duration, candidate_pair_duration), 5s)`.
+- After the per-pair fix, a good paired result requires:
+  pair-order consistency, no merged-timeline overlap, `gap<=300s`, and
+  `gap<=max(5*min(pair durations), 5s)` for every pair.
+- The closure argument recorded in DECISIONS is that merged-timeline
+  non-overlap prevents inflated duration from hiding a smaller real gap;
+  per-pair min duration prevents unrelated slow pairs or one inflated side from
+  widening a fast pair's threshold; and the remaining visible real gap is
+  anchored by `started_at` plus the 300 second hard cap.
+
+Remaining inherent boundary:
+
+- If `started_at`, `ended_at`, `pair_time_gap_sec`, and `duration_sec` are all
+  forged into a small, self-consistent, non-overlapping sequence, 08a has no
+  internal physical or statistical fingerprint to reject it.
+- That boundary is a producer trace-integrity problem, not a statistics-core
+  defect. Phase 7.0 must require truthful time metadata, and 08b can add
+  `env_snapshot_distance` or equivalent cross-signal evidence as a stronger
+  pair-quality signal.
+
+Non-blocking follow-ups:
+
+- 08b: add `env_snapshot_distance` or equivalent cross-signal pair-quality
+  evidence.
+- 08b: add a cosmetic/integrity `pair_order` vs `started_at` precedence
+  cross-check.
+- 08b/7.0: calibrate the pair-quality knobs after producer integration:
+  5x duration multiplier, 300s hard cap, and 5s floor.
+- 7.0: consume the 08a `StatisticalResult` contract strictly; produce
+  randomized AB/BA paired measurement plans; treat unpaired autocorrelation as
+  inconclusive; keep `exploratory_signal` out of accept/promote decisions.
+- 7.0/07: producer must guarantee truthful time metadata; sequential
+  testing/peeking is forbidden until policy exists; multiple-comparison
+  correction belongs to Phase 07.

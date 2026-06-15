@@ -1,7 +1,8 @@
 phase_id: phase_08a_statistics_core
 phase_title: "Baseline + Statistical Significance - Minimal Stats Core"
-status: in_progress
+status: done
 started_at: 2026-06-10T15:15:45+08:00
+closed_at: 2026-06-15T20:53:42+08:00
 pre_implementation_design_review:
   reviewer: Claude
   range: "f34c28d..6b72d43"
@@ -211,10 +212,16 @@ subtasks:
         tiny_variance: implemented
         n_1000_performance: implemented
   - id: "08a.6"
-    title: "fake_gbs bursty state exposure in env_snapshot + phase closeout"
-    status: planned
+    title: "env_snapshot/cross-signal pair-quality follow-up"
+    status: deferred_nonblocking
     implementation_complete: false
     tests_passed: false
     patch_artifacts_generated: false
-    external_review: pending
-    ubuntu_validation: pending
+    external_review: not_required_for_08a_close
+    ubuntu_validation: not_required_for_08a_close
+    deferral_reason: "08a minimal statistics core closed; env_snapshot_distance/cross-signal pair-quality defenses move to 08b/7.0."
+phase_closeout:
+  final_status: done
+  final_validation: "uv run --python 3.10 --system-certs --extra dev pytest tests/ -q -> 687 passed in 8.63s"
+  detectable_pair_quality_residuals: none
+  inherent_boundary: "Fully self-consistent forged time metadata with no physical/statistical fingerprint; owned by 7.0 producer integrity and future env_snapshot/cross-signal validation."
