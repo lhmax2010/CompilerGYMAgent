@@ -386,3 +386,25 @@ Same-arm run-overlap hardening:
   - slow coverage regression -> 3 passed in 1.32s,
   - full Python 3.10 suite -> 685 passed in 8.89s,
   - `git diff --check` passed.
+
+Merged-timeline run-overlap hardening:
+
+- A final P-B' probe showed that per-arm overlap checks miss cross-arm
+  concurrency: baseline and candidate can each look internally back-to-back
+  while a paired baseline/candidate run overlaps in real time.
+- Pair quality now checks the merged baseline+candidate timeline. Any overlap
+  records `run_overlap_detected`, sets `pair_quality=suspect`, and blocks
+  decision-grade significance.
+- This closes the detectable time-forgery class: to widen the duration-based
+  threshold without overlap, the real gap must be at least as long as the
+  claimed duration, while gaps above 300s remain blocked by the hard cap.
+- The remaining inherent boundary is only fully self-consistent forged time
+  metadata with no physical overlap or source conflict; that belongs to
+  Phase 7.0 producer integrity, trusted clocks, trace signing, or deferred
+  env_snapshot/cross-signal validation.
+- Validation:
+  - stats/schema smoke -> 100 passed in 0.76s,
+  - targeted hardening group -> 108 passed in 2.22s,
+  - slow coverage regression -> 3 passed in 1.24s,
+  - full Python 3.10 suite -> 686 passed in 8.73s,
+  - `git diff --check` passed.

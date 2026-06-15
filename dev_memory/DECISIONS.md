@@ -1582,3 +1582,26 @@ Decision records must include:
   - Only cap pair gaps at 300 seconds. Rejected because the exploitable range up to the cap still allows false decision-grade paired significance.
   - Treat long ended_at-started_at durations as always suspicious. Rejected because some real benchmarks are long-running; the issue is overlap with the next same-arm run, not duration length itself.
   - Move all time-integrity checks out of 08a. Rejected because detectable contradictions in the records 08a already consumes directly affect pair-quality safety.
+
+## 2026-06-15T20:04:27+08:00 - 08a detects merged-timeline overlap across paired arms
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 08a
+  - ROADMAP.yaml Phase 7.0
+  - ROADMAP.yaml Phase 07
+  - REQUIREMENTS.md section 4.8
+  - REQUIREMENTS.md section 4.9
+- decision: Paired `pair_quality` validation must check the merged baseline+candidate run timeline for physical overlap, not only each arm independently. Paired measurements assume a shared local measurement timeline for common-mode cancellation. If any run's `ended_at` overlaps the next run's `started_at` in the merged chronology, 08a records `run_overlap_detected`, sets `pair_quality=suspect`, and blocks decision-grade significance.
+- rationale: A P-B' coordinated spoof can keep each arm internally back-to-back while making baseline and candidate runs overlap across arms. Per-arm overlap checks cannot see that cross-arm concurrency, but a merged timeline can. If baseline and candidate truly ran in parallel workers or on different machines, the paired common-mode assumption is not valid anyway, so suspect is the conservative result.
+- closure_argument:
+  - "To inflate the duration-based allowed gap to D without merged-timeline overlap, the merged chronology must leave at least D seconds between adjacent starts for the long runs."
+  - "A paired gap smaller than D would force overlap and be detected."
+  - "A paired gap greater than 300 seconds is already suspect through the hard cap."
+  - "Therefore the only non-suspect widened case is a genuinely long, non-overlapping, back-to-back benchmark where the real pair gap is within the hard cap; that is legitimate pair_quality=good behavior."
+- inherent_boundary:
+  - "After merged-timeline overlap detection, the remaining inherent boundary is fully self-consistent forged time metadata: started_at, ended_at, pair_time_gap_sec, and duration_sec all agree on a small, non-overlapping, physically plausible sequence. 08a cannot detect that from statistics alone."
+  - "The defense for self-consistent forgery belongs to producer guarantees in Phase 7.0, external trusted clocks, trace signing, and deferred env_snapshot_distance/cross-signal validation."
+- alternatives_considered:
+  - Keep per-arm-only overlap detection. Rejected because it misses cross-arm concurrency while still allowing false paired significance.
+  - Allow cross-arm overlap for hypothetical parallel measurement workers. Rejected because such runs do not satisfy the paired common-mode cancellation assumption.
+  - Add more statistical gates instead of time-line validation. Rejected because the failure is metadata consistency, not bootstrap/ESS behavior.

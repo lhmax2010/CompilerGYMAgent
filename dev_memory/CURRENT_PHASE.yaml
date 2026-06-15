@@ -1,7 +1,7 @@
 phase_id: phase_08a_statistics_core
 phase_title: "Baseline + Statistical Significance - Minimal Stats Core"
 started_at: 2026-06-10T15:15:45+08:00
-last_updated: 2026-06-15T19:43:50+08:00
+last_updated: 2026-06-15T20:04:27+08:00
 target_milestone: "M2 + M4 (partial)"
 related_requirements:
   - REQUIREMENTS.md section 4.8
@@ -425,7 +425,7 @@ subtasks:
         - Gemini
         - Kimi-Code
         - Claude numerical validation
-      implemented_at: 2026-06-15T19:43:50+08:00
+      implemented_at: 2026-06-15T20:04:27+08:00
       scope:
         - "Sort measured records by started_at/run_index before score extraction and autocorrelation diagnostics; emit input_order_unverified when neither field exists."
         - "Parse started_at as UTC datetime for sorting so mixed Z/+00:00/subsecond strings cannot lexically misorder chronology."
@@ -435,17 +435,17 @@ subtasks:
         - "Mark pair_time_gap_conflict and suspect pair_quality when explicit pair_time_gap_sec materially understates started_at-derived gap."
         - "Use a pair gap threshold of max(5x median-duration, 5 seconds) with a 300 second hard cap."
         - "Bound median-duration threshold by min(duration_sec, ended_at-started_at) when timestamps are available."
-        - "Detect same-arm run overlap (ended_at[i] after started_at[i+1]) as run_overlap_detected and suspect pair_quality."
+        - "Detect merged baseline/candidate timeline overlap (ended_at[i] after started_at[i+1]) as run_overlap_detected and suspect pair_quality."
         - "Produce exploratory_signal=suggestive_* only for unpaired autocorrelated inconclusive results with n>=40, ESS>=20, corrected CI excluding zero, and relative effect >=1%; requires_confirmation stays true."
         - "Add fixed-seed slow coverage regressions for IID Gaussian coverage, fake_gbs bursty naive undercoverage, moving-block improvement, and unpaired-autocorrelation inconclusive behavior."
         - "Document heuristic ESS naming, trend-sensitive lag rho, and the deliberate unpaired-autocorrelation inconclusive policy."
         - "Expose baseline_block_size and candidate_block_size for unpaired comparisons while preserving the legacy max block_size field."
         - "Add boundary tests for zero variance, tiny variance, and n=1000 bootstrap behavior."
       validation:
-        stats_schema: "uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py -q -> 99 passed in 0.75s"
-        slow_coverage: "uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core_coverage_regression.py -q -> 3 passed in 1.32s"
-        targeted: "uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py tests/test_stats_core_coverage_regression.py -q -> 107 passed in 2.29s"
-        full: "uv run --python 3.10 --system-certs --extra dev pytest tests/ -q -> 685 passed in 8.89s"
+        stats_schema: "uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py -q -> 100 passed in 0.76s"
+        slow_coverage: "uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core_coverage_regression.py -q -> 3 passed in 1.24s"
+        targeted: "uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py tests/test_stats_core_coverage_regression.py -q -> 108 passed in 2.22s"
+        full: "uv run --python 3.10 --system-certs --extra dev pytest tests/ -q -> 686 passed in 8.73s"
         diff_check: "git diff --check -> passed"
         coverage_values:
           iid_gaussian_95pct: 0.955
@@ -454,4 +454,4 @@ subtasks:
   - id: "08a.6"
     title: "fake_gbs bursty state exposure in env_snapshot + phase closeout"
     status: planned
-next_action: "Push run-overlap pair-quality hardening and request external review for the new range."
+next_action: "Push merged-timeline overlap hardening and request external review for the new range."

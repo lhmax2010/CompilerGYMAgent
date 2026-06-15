@@ -1147,8 +1147,8 @@ def _record_score(record: RunLevelRecord) -> float:
 
 def _pair_quality(samples: PairedScoreSamples) -> PairQualityDiagnostics:
     if _records_have_time_overlap(
-        samples.baseline_records
-    ) or _records_have_time_overlap(samples.candidate_records):
+        samples.baseline_records + samples.candidate_records
+    ):
         return PairQualityDiagnostics("suspect", run_overlap_detected=True)
 
     durations = tuple(

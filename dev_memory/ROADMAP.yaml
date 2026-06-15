@@ -271,7 +271,7 @@ planned_phases:
         - "exploratory_signal must not accept/promote a candidate, update champion, stop search, or appear in final 'candidate is better' conclusions."
         - "Evaluate pair_quality for paired comparisons from pair_order, pair_time_gap_sec, and started_at-derived gaps. When both gap sources exist, use the conservative maximum and mark pair_time_gap_conflict if the explicit field materially understates started_at."
         - "The pair time-gap threshold is max(5x median run duration, 5 seconds) with a hard 300 second cap."
-        - "Bound the median-duration threshold by timestamp-derived duration, and mark run_overlap_detected when same-arm ended_at overlaps the next run's started_at."
+        - "Bound the median-duration threshold by timestamp-derived duration, and mark run_overlap_detected when any baseline/candidate run overlaps the next run in the merged measurement timeline."
         - "suspect covers large pair_time_gap or missing pair_order; unknown covers missing time information."
         - "If pair_quality is suspect or unknown, paired results cannot emit decision-grade significant_improvement/significant_regression and must record suspect_pair_quality or unknown_pair_quality."
     exit_criteria:

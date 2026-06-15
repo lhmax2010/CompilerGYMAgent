@@ -490,6 +490,7 @@ def test_compare_run_records_blocks_significance_for_low_power_ess() -> None:
         paired=True,
         pair_order="baseline_first",
         pair_time_gap_sec=0.1,
+        started_at_offset_sec=0.1,
     )
 
     result = compare_run_records(
@@ -531,6 +532,7 @@ def test_compare_run_records_blocks_significance_for_suspect_pair_quality(
         paired=True,
         pair_order=pair_order,
         pair_time_gap_sec=pair_time_gap_sec,
+        started_at_offset_sec=0.1,
     )
 
     result = compare_run_records(
@@ -685,6 +687,51 @@ def test_compare_run_records_rejects_coordinated_duration_and_ended_at_spoofing(
     assert "suspect_pair_quality" in result.notes
 
 
+def test_compare_run_records_rejects_cross_arm_time_overlap_spoofing() -> None:
+    baseline = tuple(
+        _record(
+            score=10.0,
+            run_index=index,
+            pair_key=f"pair_{index}",
+            pair_order="baseline_first",
+            run_id=f"base_cross_arm_overlap_{index}",
+            duration_sec=10_000.0,
+            started_at=NOW + timedelta(seconds=index * 10_000),
+            ended_at=NOW + timedelta(seconds=(index + 1) * 10_000),
+        )
+        for index in range(12)
+    )
+    candidate = tuple(
+        _record(
+            score=12.0,
+            run_index=index,
+            pair_key=f"pair_{index}",
+            pair_order="baseline_first",
+            run_id=f"cand_cross_arm_overlap_{index}",
+            duration_sec=10_000.0,
+            started_at=NOW + timedelta(seconds=index * 10_000 + 250),
+            ended_at=NOW + timedelta(seconds=(index + 1) * 10_000 + 250),
+        )
+        for index in range(12)
+    )
+
+    result = compare_run_records(
+        baseline,
+        candidate,
+        bootstrap_samples=80,
+        seed=60,
+    )
+
+    assert result.paired is True
+    assert result.pair_quality == "suspect"
+    assert result.ci_low == pytest.approx(2.0)
+    assert result.ci_high == pytest.approx(2.0)
+    assert result.verdict == "inconclusive"
+    assert result.significant_single_comparison is False
+    assert "run_overlap_detected" in result.notes
+    assert "suspect_pair_quality" in result.notes
+
+
 def test_compare_run_records_keeps_good_pairs_decision_grade() -> None:
     baseline = _records(
         [10.0] * 12,
@@ -699,6 +746,7 @@ def test_compare_run_records_keeps_good_pairs_decision_grade() -> None:
         paired=True,
         pair_order="baseline_first",
         pair_time_gap_sec=0.1,
+        started_at_offset_sec=0.1,
     )
 
     result = compare_run_records(
@@ -772,6 +820,7 @@ def test_compare_run_records_med1_blocks_small_autocorrelated_significance() -> 
         paired=True,
         pair_order="baseline_first",
         pair_time_gap_sec=0.1,
+        started_at_offset_sec=0.1,
     )
 
     result = compare_run_records(
@@ -805,6 +854,7 @@ def test_compare_run_records_checks_autocorrelation_on_paired_differences() -> N
         paired=True,
         pair_order="baseline_first",
         pair_time_gap_sec=0.1,
+        started_at_offset_sec=0.1,
     )
 
     result = compare_run_records(
@@ -856,6 +906,7 @@ def test_compare_run_records_sorts_measured_records_before_autocorrelation() -> 
         paired=True,
         pair_order="baseline_first",
         pair_time_gap_sec=0.1,
+        started_at_offset_sec=0.1,
     )
     shuffled_indices_list = list(range(20))
     random.Random(2).shuffle(shuffled_indices_list)
@@ -909,7 +960,7 @@ def test_compare_run_records_sorts_mixed_utc_started_at_formats_by_datetime() ->
             pair_order="baseline_first",
             pair_time_gap_sec=0.1,
             run_id=f"cand_mixed_{index}",
-            started_at=_mixed_utc_timestamp(index),
+            started_at=_mixed_utc_timestamp(index, offset_micros=10_000),
             duration_sec=0.01,
         )
         for index in range(20)
@@ -1174,6 +1225,7 @@ def _records(
     paired: bool = False,
     pair_order: str | None = None,
     pair_time_gap_sec: float | None = None,
+    started_at_offset_sec: float = 0.0,
 ) -> tuple[RunLevelRecord, ...]:
     return tuple(
         _record(
@@ -1184,6 +1236,7 @@ def _records(
             pair_order=pair_order,
             pair_time_gap_sec=pair_time_gap_sec,
             run_id=f"{prefix}_{index}",
+            started_at=NOW + timedelta(seconds=index + started_at_offset_sec),
         )
         for index, score in enumerate(scores)
     )
@@ -1255,9 +1308,9 @@ def _record(
     )
 
 
-def _mixed_utc_timestamp(index: int) -> str:
-    micros = index * 50_000
-    if index == 0:
+def _mixed_utc_timestamp(index: int, *, offset_micros: int = 0) -> str:
+    micros = index * 50_000 + offset_micros
+    if micros == 0:
         return "2026-06-10T09:00:00Z"
     if index % 4 == 0:
         return f"2026-06-10T09:00:00.{micros // 1000:03d}Z"

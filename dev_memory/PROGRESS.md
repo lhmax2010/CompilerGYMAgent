@@ -1,5 +1,39 @@
 # Development Progress
 
+## 2026-06-15T20:04:27+08:00 - 08a merged-timeline overlap hardening implemented
+
+- Fixed the P-B' cross-arm concurrency bypass:
+  `run_overlap_detected` now checks the merged baseline+candidate chronology,
+  not just each arm separately.
+- This catches coordinated metadata where each arm is internally back-to-back
+  but paired baseline/candidate runs overlap each other, which invalidates the
+  paired common-mode assumption.
+- Added a regression where baseline runs are internally non-overlapping,
+  candidate runs are internally non-overlapping, but the merged timeline has
+  cross-arm overlap; result is now `pair_quality=suspect`,
+  `run_overlap_detected`, and `verdict=inconclusive`.
+- Updated DECISIONS with the closure argument: after merged-timeline overlap
+  detection and the 300s hard cap, any remaining non-suspect widened-duration
+  case is a genuinely long non-overlapping back-to-back benchmark. The only
+  inherent boundary left is fully self-consistent forged time metadata with no
+  physical fingerprint.
+- Validation:
+  - stats/schema:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py -q`
+    -> 100 passed in 0.76s,
+  - targeted hardening group:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py tests/test_stats_core_coverage_regression.py -q`
+    -> 108 passed in 2.22s,
+  - slow coverage regression:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core_coverage_regression.py -q`
+    -> 3 passed in 1.24s,
+  - full Python 3.10 suite:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/ -q`
+    -> 686 passed in 8.73s,
+  - `git diff --check` passed.
+
+Next action: commit/push and request external review for the new range.
+
 ## 2026-06-15T19:43:50+08:00 - 08a same-arm run overlap hardening implemented
 
 - Fixed the P-B coordinated time-metadata spoof:
