@@ -1537,3 +1537,25 @@ Decision records must include:
   - Keep only the relative 5x duration threshold. Rejected because it can make legitimate fast benchmark pairs permanently inconclusive.
   - Raise only the multiplier. Rejected because it weakens slow-benchmark protection and still behaves poorly at very small durations.
   - Remove the hard 300 second cap. Rejected because stale pairs should remain suspect even when benchmark durations are long.
+
+## 2026-06-15T19:09:52+08:00 - 08a pair duration uses timestamp-bounded effective duration
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 08a
+  - ROADMAP.yaml Phase 7.0
+  - ROADMAP.yaml Phase 07
+  - REQUIREMENTS.md section 4.8
+  - REQUIREMENTS.md section 4.9
+- decision: The pair-quality relative gap threshold must use an effective duration derived from trustworthy local evidence, not blindly trust reported `duration_sec`. When `started_at` and `ended_at` are available, 08a derives `ended_at - started_at` and uses `min(reported_duration_sec, derived_duration_sec)` for the median-duration threshold. If timestamp duration is unavailable, it falls back to the reported duration.
+- rationale: Review probes found a fourth same-class time-metadata spoof: a producer could report huge `duration_sec` while timestamps showed a short run. The old median-duration threshold then allowed real pair gaps up to the 300 second hard cap and let stale/mispaired data keep `pair_quality=good`. Bounding duration by the timestamp-derived interval closes that bypass while preserving the existing fast-benchmark floor.
+- implementation_notes:
+  - "effective_duration_sec is min(reported_duration_sec, ended_at - started_at) when both sources are available"
+  - "ended_at - started_at uses the same UTC timestamp parser as started_at ordering and pair gap derivation"
+  - "reported non-finite duration is ignored when timestamp-derived duration is available"
+  - "large real gaps, such as 250s with true 1s run durations, remain pair_quality=suspect even if duration_sec is spoofed to 10000"
+- inherent_boundary:
+  - "If pair_time_gap_sec, started_at, and ended_at are all consistently forged into small self-consistent values, 08a cannot detect it from internal statistics alone. That is a trace/data-integrity boundary, not a statistics-core defect. The exit path is upstream trace integrity guarantees or the deferred env_snapshot_distance signal; 7.0 producers must keep time metadata truthful."
+- alternatives_considered:
+  - Trust reported duration_sec as the sole duration source. Rejected because it lets a bad producer widen the relative gap threshold.
+  - Use only ended_at - started_at and ignore reported duration. Rejected because old/simple records may lack complete timestamps; fallback preserves compatibility.
+  - Treat all duration source mismatch as an immediate conflict. Rejected because scheduler/timer rounding can create harmless small mismatches; using the conservative minimum is enough for the threshold.

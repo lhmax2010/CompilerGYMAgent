@@ -593,6 +593,53 @@ def test_compare_run_records_rejects_lied_pair_time_gap_using_started_at() -> No
     assert "suspect_pair_quality" in result.notes
 
 
+@pytest.mark.parametrize("reported_duration_sec", [1.0, 10_000.0])
+def test_compare_run_records_rejects_large_gap_when_duration_is_spoofed(
+    reported_duration_sec: float,
+) -> None:
+    baseline = tuple(
+        _record(
+            score=10.0,
+            run_index=index,
+            pair_key=f"pair_{index}",
+            pair_order="baseline_first",
+            run_id=f"base_duration_spoof_{index}",
+            duration_sec=reported_duration_sec,
+            started_at=NOW + timedelta(seconds=index * 1_000),
+            ended_at=NOW + timedelta(seconds=index * 1_000 + 1),
+        )
+        for index in range(12)
+    )
+    candidate = tuple(
+        _record(
+            score=12.0,
+            run_index=index,
+            pair_key=f"pair_{index}",
+            pair_order="baseline_first",
+            run_id=f"cand_duration_spoof_{index}",
+            duration_sec=reported_duration_sec,
+            started_at=NOW + timedelta(seconds=index * 1_000 + 250),
+            ended_at=NOW + timedelta(seconds=index * 1_000 + 251),
+        )
+        for index in range(12)
+    )
+
+    result = compare_run_records(
+        baseline,
+        candidate,
+        bootstrap_samples=80,
+        seed=60,
+    )
+
+    assert result.paired is True
+    assert result.pair_quality == "suspect"
+    assert result.ci_low == pytest.approx(2.0)
+    assert result.ci_high == pytest.approx(2.0)
+    assert result.verdict == "inconclusive"
+    assert result.significant_single_comparison is False
+    assert "suspect_pair_quality" in result.notes
+
+
 def test_compare_run_records_keeps_good_pairs_decision_grade() -> None:
     baseline = _records(
         [10.0] * 12,
@@ -1105,6 +1152,8 @@ def _record(
     pair_time_gap_sec: float | None = None,
     run_id: str | None = None,
     started_at: datetime | str | None = None,
+    ended_at: datetime | str | None = None,
+    duration_sec: float = 0.1,
 ) -> RunLevelRecord:
     failure = (
         None
@@ -1121,11 +1170,13 @@ def _record(
         parsed_started_at = datetime.fromisoformat(
             record_started_at.replace("Z", "+00:00")
         )
-        record_ended_at: datetime | str = parsed_started_at + timedelta(
-            milliseconds=100
+        record_ended_at: datetime | str = ended_at or (
+            parsed_started_at + timedelta(seconds=duration_sec)
         )
     else:
-        record_ended_at = record_started_at + timedelta(milliseconds=100)
+        record_ended_at = ended_at or record_started_at + timedelta(
+            seconds=duration_sec
+        )
     return RunLevelRecord(
         run_id=run_id or f"run_{phase}_{run_index}",
         run_index=run_index,
@@ -1135,7 +1186,7 @@ def _record(
         metric_name="throughput",
         metric_unit="items/sec",
         objective_direction=objective_direction,  # type: ignore[arg-type]
-        duration_sec=0.1,
+        duration_sec=duration_sec,
         started_at=record_started_at,
         ended_at=record_ended_at,
         exit_code=0,

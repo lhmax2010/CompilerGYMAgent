@@ -1141,9 +1141,8 @@ def _record_score(record: RunLevelRecord) -> float:
 
 def _pair_quality(samples: PairedScoreSamples) -> PairQualityDiagnostics:
     durations = tuple(
-        float(record.duration_sec)
+        _effective_record_duration_sec(record)
         for record in samples.baseline_records + samples.candidate_records
-        if hasattr(record, "duration_sec")
     )
     finite_durations = tuple(value for value in durations if math.isfinite(value))
     median_duration = float(median(finite_durations)) if finite_durations else None
@@ -1181,6 +1180,30 @@ def _pair_quality(samples: PairedScoreSamples) -> PairQualityDiagnostics:
             return PairQualityDiagnostics("suspect")
 
     return PairQualityDiagnostics("unknown" if saw_unknown else "good")
+
+
+def _effective_record_duration_sec(record: RunLevelRecord) -> float:
+    reported = getattr(record, "duration_sec", None)
+    reported_duration = float(reported) if reported is not None else None
+    started_at = getattr(record, "started_at", None)
+    ended_at = getattr(record, "ended_at", None)
+    derived_duration = None
+    if started_at is not None and ended_at is not None:
+        derived_duration = (
+            _record_started_at_sort_value(ended_at)
+            - _record_started_at_sort_value(started_at)
+        ).total_seconds()
+        if derived_duration < 0.0:
+            raise ValueError("ended_at cannot be before started_at")
+    if reported_duration is None:
+        return float(derived_duration) if derived_duration is not None else math.nan
+    if derived_duration is None:
+        return reported_duration
+    if not math.isfinite(reported_duration):
+        return float(derived_duration)
+    if not math.isfinite(derived_duration):
+        return reported_duration
+    return min(reported_duration, float(derived_duration))
 
 
 def _pair_time_gap(
