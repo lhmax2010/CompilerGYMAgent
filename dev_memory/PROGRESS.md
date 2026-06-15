@@ -1,5 +1,36 @@
 # Development Progress
 
+## 2026-06-15T19:43:50+08:00 - 08a same-arm run overlap hardening implemented
+
+- Fixed the P-B coordinated time-metadata spoof:
+  inflated `duration_sec` plus inflated `ended_at` can no longer widen the
+  pair-quality relative gap threshold if it leaves a same-arm physical overlap.
+- `pair_quality` validation now checks baseline and candidate arms separately:
+  after chronology sorting, `ended_at[i] > started_at[i+1]` beyond a 1ms
+  tolerance records `run_overlap_detected`, makes the pair `suspect`, and
+  blocks decision-grade significance.
+- Added a regression where `duration_sec=10000`, `ended_at=start+10000s`, and
+  real pair gap is 250s; the comparison now returns suspect/inconclusive.
+- Clarified DECISIONS: P-B is detectable and blocked; the true inherent
+  boundary is fully self-consistent forged time metadata that looks nearby,
+  non-overlapping, and internally plausible.
+- Validation:
+  - stats/schema:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py -q`
+    -> 99 passed in 0.75s,
+  - targeted hardening group:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py tests/test_stats_core_coverage_regression.py -q`
+    -> 107 passed in 2.29s,
+  - slow coverage regression:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core_coverage_regression.py -q`
+    -> 3 passed in 1.32s,
+  - full Python 3.10 suite:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/ -q`
+    -> 685 passed in 8.89s,
+  - `git diff --check` passed.
+
+Next action: commit/push and request external review for the new range.
+
 ## 2026-06-13T18:42:46+08:00 - 08a pair_time_gap spoofing bypass fixed
 
 - Fixed the final reviewed pair-quality bypass:

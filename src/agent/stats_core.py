@@ -38,6 +38,7 @@ PAIR_QUALITY_GAP_FLOOR_SEC = 5.0
 PAIR_QUALITY_GAP_ABS_MAX_SEC = 300.0
 PAIR_TIME_GAP_CONFLICT_RATIO = 10.0
 PAIR_TIME_GAP_CONFLICT_ABS_SEC = 5.0
+PAIR_RUN_OVERLAP_TOLERANCE_SEC = 0.001
 EXPLORATORY_MIN_N = 40
 EXPLORATORY_MIN_ESS = 20.0
 EXPLORATORY_MIN_RELATIVE_EFFECT_PCT = 1.0
@@ -93,6 +94,7 @@ class PairQualityDiagnostics:
 
     quality: str
     time_gap_conflict: bool = False
+    run_overlap_detected: bool = False
 
 
 @dataclass(frozen=True)
@@ -289,10 +291,12 @@ def compare_run_records(
 
     pair_quality = "unknown"
     pair_time_gap_conflict = False
+    run_overlap_detected = False
     if paired_samples is not None:
         pair_diagnostics = _pair_quality(paired_samples)
         pair_quality = pair_diagnostics.quality
         pair_time_gap_conflict = pair_diagnostics.time_gap_conflict
+        run_overlap_detected = pair_diagnostics.run_overlap_detected
         effect_values = tuple(
             _signed_effect(
                 baseline_score,
@@ -321,6 +325,8 @@ def compare_run_records(
             notes.append("partial_pairing")
         if pair_time_gap_conflict:
             notes.append("pair_time_gap_conflict")
+        if run_overlap_detected:
+            notes.append("run_overlap_detected")
         if pair_quality == "suspect":
             notes.append("suspect_pair_quality")
         elif pair_quality == "unknown":
@@ -1140,6 +1146,11 @@ def _record_score(record: RunLevelRecord) -> float:
 
 
 def _pair_quality(samples: PairedScoreSamples) -> PairQualityDiagnostics:
+    if _records_have_time_overlap(
+        samples.baseline_records
+    ) or _records_have_time_overlap(samples.candidate_records):
+        return PairQualityDiagnostics("suspect", run_overlap_detected=True)
+
     durations = tuple(
         _effective_record_duration_sec(record)
         for record in samples.baseline_records + samples.candidate_records
@@ -1180,6 +1191,28 @@ def _pair_quality(samples: PairedScoreSamples) -> PairQualityDiagnostics:
             return PairQualityDiagnostics("suspect")
 
     return PairQualityDiagnostics("unknown" if saw_unknown else "good")
+
+
+def _records_have_time_overlap(records: Sequence[RunLevelRecord]) -> bool:
+    ordered = tuple(
+        record
+        for _position, record in sorted(
+            enumerate(records),
+            key=lambda item: _record_order_key(item[1], original_position=item[0]),
+        )
+    )
+    for current, next_record in zip(ordered, ordered[1:], strict=False):
+        current_ended_at = getattr(current, "ended_at", None)
+        next_started_at = getattr(next_record, "started_at", None)
+        if current_ended_at is None or next_started_at is None:
+            continue
+        overlap_sec = (
+            _record_started_at_sort_value(current_ended_at)
+            - _record_started_at_sort_value(next_started_at)
+        ).total_seconds()
+        if overlap_sec > PAIR_RUN_OVERLAP_TOLERANCE_SEC:
+            return True
+    return False
 
 
 def _effective_record_duration_sec(record: RunLevelRecord) -> float:

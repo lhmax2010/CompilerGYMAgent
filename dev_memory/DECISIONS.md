@@ -1559,3 +1559,26 @@ Decision records must include:
   - Trust reported duration_sec as the sole duration source. Rejected because it lets a bad producer widen the relative gap threshold.
   - Use only ended_at - started_at and ignore reported duration. Rejected because old/simple records may lack complete timestamps; fallback preserves compatibility.
   - Treat all duration source mismatch as an immediate conflict. Rejected because scheduler/timer rounding can create harmless small mismatches; using the conservative minimum is enough for the threshold.
+
+## 2026-06-15T19:43:50+08:00 - 08a detects same-arm run overlap in paired comparisons
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 08a
+  - ROADMAP.yaml Phase 7.0
+  - ROADMAP.yaml Phase 07
+  - REQUIREMENTS.md section 4.8
+  - REQUIREMENTS.md section 4.9
+- decision: Paired `pair_quality` validation must check each arm's own run chronology for physical overlap. For baseline records and candidate records separately, 08a sorts by run chronology and verifies `ended_at[i] <= started_at[i+1]` with a small tolerance. If overlap is detected, the comparison records `run_overlap_detected`, sets `pair_quality=suspect`, and cannot produce decision-grade significance.
+- rationale: Review probes found a coordinated spoof where `duration_sec` and `ended_at` were both inflated, allowing the median-duration threshold to accept a real 250 second pair gap. Unlike fully self-consistent forged timestamps, this leaves a detectable physical fingerprint: one run claims to end after the next run in the same arm has already started. That is the same class of detectable time-metadata inconsistency as pair gap source conflicts, so 08a should gate it.
+- implementation_notes:
+  - "overlap is checked independently for baseline and candidate arms"
+  - "records are sorted with the same chronology key used by score extraction"
+  - "overlap tolerance is 0.001 seconds to avoid tiny timestamp rounding artifacts"
+  - "run_overlap_detected is a pair-quality note, not a new statistical verdict"
+- inherent_boundary:
+  - "P-B coordinated duration+ended_at inflation is blocked because it leaves run-overlap evidence."
+  - "The true inherent boundary is all relevant time metadata being forged into small, self-consistent, physically plausible values: started_at, ended_at, and pair_time_gap_sec all agree that runs were nearby and non-overlapping. 08a cannot disprove that from statistics alone; it requires upstream trace integrity, external trusted clocks, trace signing, or deferred env_snapshot_distance-style cross-checks."
+- alternatives_considered:
+  - Only cap pair gaps at 300 seconds. Rejected because the exploitable range up to the cap still allows false decision-grade paired significance.
+  - Treat long ended_at-started_at durations as always suspicious. Rejected because some real benchmarks are long-running; the issue is overlap with the next same-arm run, not duration length itself.
+  - Move all time-integrity checks out of 08a. Rejected because detectable contradictions in the records 08a already consumes directly affect pair-quality safety.

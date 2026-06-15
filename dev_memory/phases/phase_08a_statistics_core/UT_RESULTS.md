@@ -263,6 +263,41 @@
     `dev_memory/CURRENT_PHASE.yaml`, and
     `dev_memory/phases/phase_08a_statistics_core/CHECKLIST.yaml` passed.
 
+## Same-arm run-overlap hardening
+
+- Implemented after Claude Code and Claude probes found the P-B coordinated
+  spoof: `duration_sec=10000` plus `ended_at=start+10000s` could widen the
+  relative pair-gap threshold while the real pair gap stayed within the 300s
+  hard cap.
+- Covered fixes:
+  - baseline and candidate arms are checked independently for same-arm physical
+    overlap after chronology sorting,
+  - `ended_at[i] > started_at[i+1]` beyond a 1ms tolerance records
+    `run_overlap_detected`,
+  - detected overlap makes `pair_quality=suspect` and blocks decision-grade
+    significance.
+- Stats/schema smoke:
+  - Command:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py -q`
+  - Result: `99 passed in 0.75s`.
+- Final targeted hardening group:
+  - Command:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py tests/test_stats_core_coverage_regression.py -q`
+  - Result: `107 passed in 2.29s`.
+- Slow coverage regression:
+  - Command:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core_coverage_regression.py -q`
+  - Result: `3 passed in 1.32s`.
+- Full Python 3.10 suite:
+  - Command:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/ -q`
+  - Result: `685 passed in 8.89s`.
+- Static checks:
+  - `git diff --check` passed.
+  - YAML parse smoke for `dev_memory/ROADMAP.yaml`,
+    `dev_memory/CURRENT_PHASE.yaml`, and
+    `dev_memory/phases/phase_08a_statistics_core/CHECKLIST.yaml` passed.
+
 ## Pair time-gap spoofing hardening
 
 - Implemented after the fourth external code-reading review plus Claude probes

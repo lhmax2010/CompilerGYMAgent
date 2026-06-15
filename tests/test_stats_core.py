@@ -640,6 +640,51 @@ def test_compare_run_records_rejects_large_gap_when_duration_is_spoofed(
     assert "suspect_pair_quality" in result.notes
 
 
+def test_compare_run_records_rejects_coordinated_duration_and_ended_at_spoofing() -> None:
+    baseline = tuple(
+        _record(
+            score=10.0,
+            run_index=index,
+            pair_key=f"pair_{index}",
+            pair_order="baseline_first",
+            run_id=f"base_duration_ended_spoof_{index}",
+            duration_sec=10_000.0,
+            started_at=NOW + timedelta(seconds=index * 10),
+            ended_at=NOW + timedelta(seconds=index * 10 + 10_000),
+        )
+        for index in range(12)
+    )
+    candidate = tuple(
+        _record(
+            score=12.0,
+            run_index=index,
+            pair_key=f"pair_{index}",
+            pair_order="baseline_first",
+            run_id=f"cand_duration_ended_spoof_{index}",
+            duration_sec=10_000.0,
+            started_at=NOW + timedelta(seconds=index * 10 + 250),
+            ended_at=NOW + timedelta(seconds=index * 10 + 10_250),
+        )
+        for index in range(12)
+    )
+
+    result = compare_run_records(
+        baseline,
+        candidate,
+        bootstrap_samples=80,
+        seed=60,
+    )
+
+    assert result.paired is True
+    assert result.pair_quality == "suspect"
+    assert result.ci_low == pytest.approx(2.0)
+    assert result.ci_high == pytest.approx(2.0)
+    assert result.verdict == "inconclusive"
+    assert result.significant_single_comparison is False
+    assert "run_overlap_detected" in result.notes
+    assert "suspect_pair_quality" in result.notes
+
+
 def test_compare_run_records_keeps_good_pairs_decision_grade() -> None:
     baseline = _records(
         [10.0] * 12,
@@ -668,6 +713,7 @@ def test_compare_run_records_keeps_good_pairs_decision_grade() -> None:
     assert result.verdict == "significant_improvement"
     assert result.significant_single_comparison is True
     assert result.low_power is False
+    assert "run_overlap_detected" not in result.notes
 
 
 def test_compare_run_records_allows_fast_benchmark_pair_gap_floor() -> None:
@@ -708,6 +754,7 @@ def test_compare_run_records_allows_fast_benchmark_pair_gap_floor() -> None:
     assert result.verdict == "significant_improvement"
     assert result.significant_single_comparison is True
     assert "pair_time_gap_conflict" not in result.notes
+    assert "run_overlap_detected" not in result.notes
     assert "suspect_pair_quality" not in result.notes
 
 
@@ -850,6 +897,7 @@ def test_compare_run_records_sorts_mixed_utc_started_at_formats_by_datetime() ->
             pair_time_gap_sec=0.1,
             run_id=f"base_mixed_{index}",
             started_at=_mixed_utc_timestamp(index),
+            duration_sec=0.01,
         )
         for index in range(20)
     )
@@ -862,6 +910,7 @@ def test_compare_run_records_sorts_mixed_utc_started_at_formats_by_datetime() ->
             pair_time_gap_sec=0.1,
             run_id=f"cand_mixed_{index}",
             started_at=_mixed_utc_timestamp(index),
+            duration_sec=0.01,
         )
         for index in range(20)
     )

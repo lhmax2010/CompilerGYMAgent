@@ -366,3 +366,23 @@ Final pair gap spoofing hardening:
   - slow coverage regression -> 3 passed in 1.23s,
   - full Python 3.10 suite -> 682 passed in 8.56s,
   - `git diff --check` passed.
+
+Same-arm run-overlap hardening:
+
+- A coordinated spoof of `duration_sec` and `ended_at` could still widen the
+  relative pair-gap threshold when the real gap was below the 300 second hard
+  cap. This case is detectable because inflated `ended_at` values cause one
+  run in the same arm to overlap the next run's `started_at`.
+- Pair quality now checks baseline and candidate arms independently for
+  same-arm overlap after chronology sorting. A detected overlap records
+  `run_overlap_detected`, sets `pair_quality=suspect`, and blocks
+  decision-grade significance.
+- DECISIONS now distinguishes this detectable P-B case from the true inherent
+  boundary: all relevant time metadata forged into small, self-consistent,
+  physically plausible values cannot be disproven from 08a statistics alone.
+- Validation:
+  - stats/schema smoke -> 99 passed in 0.75s,
+  - targeted hardening group -> 107 passed in 2.29s,
+  - slow coverage regression -> 3 passed in 1.32s,
+  - full Python 3.10 suite -> 685 passed in 8.89s,
+  - `git diff --check` passed.
