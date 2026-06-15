@@ -1605,3 +1605,31 @@ Decision records must include:
   - Keep per-arm-only overlap detection. Rejected because it misses cross-arm concurrency while still allowing false paired significance.
   - Allow cross-arm overlap for hypothetical parallel measurement workers. Rejected because such runs do not satisfy the paired common-mode cancellation assumption.
   - Add more statistical gates instead of time-line validation. Rejected because the failure is metadata consistency, not bootstrap/ESS behavior.
+
+## 2026-06-15T20:32:16+08:00 - 08a pair gap threshold is per-pair, not global-median
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 08a
+  - ROADMAP.yaml Phase 7.0
+  - ROADMAP.yaml Phase 07
+  - REQUIREMENTS.md section 4.8
+  - REQUIREMENTS.md section 4.9
+- decision: The duration-based pair gap threshold must be evaluated per pair. For each matched baseline/candidate pair, 08a computes `pair_duration = min(effective_duration(baseline), effective_duration(candidate))` and uses `max(5 * pair_duration, 5s)` for that pair's allowed gap, with the existing 300s hard cap. The previous global median duration is not used for pair-quality gap validation.
+- rationale: Review probes found P-C7: one comparison can contain mostly legitimate slow pairs plus one fast pair with an abnormal gap. A global median lets the slow pairs raise the duration threshold for the fast pair and mask the abnormal gap. Gap checking is already per-pair, so the duration threshold must have the same scope.
+- implementation_notes:
+  - "effective_duration(record) remains min(duration_sec, ended_at-started_at) when both sources exist"
+  - "pair_duration uses min(baseline_effective_duration, candidate_effective_duration), not max"
+  - "using min is intentionally conservative: if either side is fast, the pair gap must be close enough for the fast run"
+  - "the 5 second floor still protects subsecond honest pairs from scheduler overhead"
+- closure_argument:
+  - "A good paired result now requires pair_order consistency, no merged-timeline overlap, gap<=300 seconds, and gap<=max(5*min(pair durations), 5 seconds) for every pair."
+  - "Merged-timeline non-overlap prevents inflated long durations from overlapping adjacent runs."
+  - "Per-pair min duration prevents other slow pairs or one inflated side of the same pair from widening a fast pair's allowed gap."
+  - "A remaining large real gap must be visible in started_at and is bounded by the hard 300s cap; if it exceeds the per-pair duration threshold, the pair is suspect."
+- inherent_boundary:
+  - "After per-pair duration thresholds, the remaining inherent boundary is a producer forging started_at/ended_at/pair_time_gap_sec/duration_sec into a small, self-consistent, non-overlapping sequence. That leaves no physical or statistical fingerprint inside 08a."
+  - "Producer time-metadata truthfulness is a Phase 7.0 responsibility, with future defense from trusted clocks, trace signing, env_snapshot_distance, or other cross-signal validation."
+- alternatives_considered:
+  - Keep global median duration. Rejected because heterogeneous comparisons can hide a fast pair's abnormal gap behind unrelated slow pairs.
+  - Use per-pair max duration. Rejected because one inflated run duration would reopen the same class of widening bypass.
+  - Reject all heterogeneous-duration comparisons. Rejected because per-pair min duration gives the needed safety without banning legitimate mixed runtimes outright.

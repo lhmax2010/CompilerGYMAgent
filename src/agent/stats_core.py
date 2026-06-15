@@ -1151,13 +1151,6 @@ def _pair_quality(samples: PairedScoreSamples) -> PairQualityDiagnostics:
     ):
         return PairQualityDiagnostics("suspect", run_overlap_detected=True)
 
-    durations = tuple(
-        _effective_record_duration_sec(record)
-        for record in samples.baseline_records + samples.candidate_records
-    )
-    finite_durations = tuple(value for value in durations if math.isfinite(value))
-    median_duration = float(median(finite_durations)) if finite_durations else None
-
     saw_unknown = False
     for baseline, candidate in zip(
         samples.baseline_records,
@@ -1181,9 +1174,10 @@ def _pair_quality(samples: PairedScoreSamples) -> PairQualityDiagnostics:
             continue
         if gap.effective_gap_sec > PAIR_QUALITY_GAP_ABS_MAX_SEC:
             return PairQualityDiagnostics("suspect")
+        pair_duration = _pair_effective_duration_sec(baseline, candidate)
         duration_threshold = (
-            PAIR_QUALITY_GAP_DURATION_MULT * median_duration
-            if median_duration is not None
+            PAIR_QUALITY_GAP_DURATION_MULT * pair_duration
+            if pair_duration is not None
             else 0.0
         )
         allowed_gap = max(duration_threshold, PAIR_QUALITY_GAP_FLOOR_SEC)
@@ -1191,6 +1185,23 @@ def _pair_quality(samples: PairedScoreSamples) -> PairQualityDiagnostics:
             return PairQualityDiagnostics("suspect")
 
     return PairQualityDiagnostics("unknown" if saw_unknown else "good")
+
+
+def _pair_effective_duration_sec(
+    baseline: RunLevelRecord,
+    candidate: RunLevelRecord,
+) -> float | None:
+    durations = tuple(
+        duration
+        for duration in (
+            _effective_record_duration_sec(baseline),
+            _effective_record_duration_sec(candidate),
+        )
+        if math.isfinite(duration)
+    )
+    if not durations:
+        return None
+    return min(durations)
 
 
 def _records_have_time_overlap(records: Sequence[RunLevelRecord]) -> bool:

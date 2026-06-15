@@ -642,6 +642,80 @@ def test_compare_run_records_rejects_large_gap_when_duration_is_spoofed(
     assert "suspect_pair_quality" in result.notes
 
 
+def test_compare_run_records_uses_per_pair_duration_for_gap_threshold() -> None:
+    baseline_records: list[RunLevelRecord] = []
+    candidate_records: list[RunLevelRecord] = []
+    for index in range(11):
+        pair_start = NOW + timedelta(seconds=index * 600)
+        baseline_records.append(
+            _record(
+                score=10.0,
+                run_index=index,
+                pair_key=f"slow_pair_{index}",
+                pair_order="baseline_first",
+                run_id=f"base_slow_pair_{index}",
+                duration_sec=300.0,
+                started_at=pair_start,
+                ended_at=pair_start + timedelta(seconds=300),
+            )
+        )
+        candidate_records.append(
+            _record(
+                score=12.0,
+                run_index=index,
+                pair_key=f"slow_pair_{index}",
+                pair_order="baseline_first",
+                run_id=f"cand_slow_pair_{index}",
+                duration_sec=300.0,
+                started_at=pair_start + timedelta(seconds=300),
+                ended_at=pair_start + timedelta(seconds=600),
+            )
+        )
+
+    fast_pair_start = NOW + timedelta(seconds=11 * 600)
+    baseline_records.append(
+        _record(
+            score=10.0,
+            run_index=11,
+            pair_key="fast_pair",
+            pair_order="baseline_first",
+            run_id="base_fast_pair_masked_by_slow_pairs",
+            duration_sec=0.1,
+            started_at=fast_pair_start,
+            ended_at=fast_pair_start + timedelta(seconds=0.1),
+        )
+    )
+    candidate_records.append(
+        _record(
+            score=12.0,
+            run_index=11,
+            pair_key="fast_pair",
+            pair_order="baseline_first",
+            run_id="cand_fast_pair_masked_by_slow_pairs",
+            duration_sec=0.1,
+            started_at=fast_pair_start + timedelta(seconds=250),
+            ended_at=fast_pair_start + timedelta(seconds=250.1),
+        )
+    )
+
+    result = compare_run_records(
+        tuple(baseline_records),
+        tuple(candidate_records),
+        bootstrap_samples=80,
+        seed=60,
+    )
+
+    assert result.paired is True
+    assert result.pair_quality == "suspect"
+    assert result.ci_low == pytest.approx(2.0)
+    assert result.ci_high == pytest.approx(2.0)
+    assert result.verdict == "inconclusive"
+    assert result.significant_single_comparison is False
+    assert "suspect_pair_quality" in result.notes
+    assert "run_overlap_detected" not in result.notes
+    assert "pair_time_gap_conflict" not in result.notes
+
+
 def test_compare_run_records_rejects_coordinated_duration_and_ended_at_spoofing() -> None:
     baseline = tuple(
         _record(

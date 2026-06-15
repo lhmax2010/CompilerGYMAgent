@@ -408,3 +408,25 @@ Merged-timeline run-overlap hardening:
   - slow coverage regression -> 3 passed in 1.24s,
   - full Python 3.10 suite -> 686 passed in 8.73s,
   - `git diff --check` passed.
+
+Per-pair duration threshold hardening:
+
+- P-C7 showed that a global median duration could be raised by legitimate slow
+  pairs and then incorrectly applied to a fast pair with an abnormal gap.
+- Pair quality now evaluates the duration threshold per matched pair:
+  `max(5 * min(baseline_effective_duration, candidate_effective_duration), 5s)`,
+  with the existing 300 second hard cap.
+- The new regression mixes 11 legitimate slow pairs with one fast pair whose
+  own gap is 250s; the fast pair is now suspect even though the comparison's
+  global duration distribution is slow.
+- Honest homogeneous paired comparisons keep the previous behavior and remain
+  decision-grade when pair quality, power, and CI gates pass.
+- The corrected closure argument is recorded in DECISIONS: merged-timeline
+  overlap plus per-pair min duration closes detectable duration/gap widening;
+  the remaining boundary is fully self-consistent forged time metadata.
+- Validation:
+  - stats/schema smoke -> 101 passed in 0.76s,
+  - targeted hardening group -> 109 passed in 2.25s,
+  - slow coverage regression -> 3 passed in 1.30s,
+  - full Python 3.10 suite -> 687 passed in 8.91s,
+  - `git diff --check` passed.

@@ -1,5 +1,38 @@
 # Development Progress
 
+## 2026-06-15T20:32:16+08:00 - 08a per-pair duration threshold hardening implemented
+
+- Fixed P-C7: pair gap validation no longer uses a global median duration that
+  can be raised by unrelated slow pairs. Each pair now uses
+  `max(5 * min(baseline_effective_duration, candidate_effective_duration), 5s)`
+  plus the existing 300s hard cap.
+- Added a regression with 11 honest slow pairs and 1 fast pair whose own gap is
+  250s. The slow pairs no longer mask the fast pair's abnormal gap; result is
+  `pair_quality=suspect` and `verdict=inconclusive`.
+- Existing honest homogeneous pair tests still pass with decision-grade
+  `significant_improvement`, confirming per-pair behavior matches the old
+  median behavior when durations are homogeneous.
+- Updated DECISIONS with the corrected closure argument: after merged-timeline
+  overlap detection and per-pair min-duration thresholds, remaining detectable
+  time inconsistencies are blocked. The only residual boundary is fully
+  self-consistent forged `started_at`/`ended_at`/gap/duration metadata.
+- Validation:
+  - stats/schema:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py -q`
+    -> 101 passed in 0.76s,
+  - targeted hardening group:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py tests/test_stats_core_coverage_regression.py -q`
+    -> 109 passed in 2.25s,
+  - slow coverage regression:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core_coverage_regression.py -q`
+    -> 3 passed in 1.30s,
+  - full Python 3.10 suite:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/ -q`
+    -> 687 passed in 8.91s,
+  - `git diff --check` passed.
+
+Next action: commit/push and request external review for the new range.
+
 ## 2026-06-15T20:04:27+08:00 - 08a merged-timeline overlap hardening implemented
 
 - Fixed the P-B' cross-arm concurrency bypass:

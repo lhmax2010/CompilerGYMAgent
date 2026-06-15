@@ -263,6 +263,38 @@
     `dev_memory/CURRENT_PHASE.yaml`, and
     `dev_memory/phases/phase_08a_statistics_core/CHECKLIST.yaml` passed.
 
+## Per-pair duration threshold hardening
+
+- Implemented after Claude Code and Claude probes found P-C7: a global median
+  duration can let unrelated slow pairs widen the allowed gap for an abnormal
+  fast pair.
+- Covered fixes:
+  - pair gap threshold is now evaluated inside the per-pair loop,
+  - pair duration is `min(effective_duration(baseline),
+    effective_duration(candidate))`,
+  - global median duration is no longer used for pair-quality gap validation.
+- Stats/schema smoke:
+  - Command:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py -q`
+  - Result: `101 passed in 0.76s`.
+- Final targeted hardening group:
+  - Command:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py tests/test_stats_core_coverage_regression.py -q`
+  - Result: `109 passed in 2.25s`.
+- Slow coverage regression:
+  - Command:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core_coverage_regression.py -q`
+  - Result: `3 passed in 1.30s`.
+- Full Python 3.10 suite:
+  - Command:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/ -q`
+  - Result: `687 passed in 8.91s`.
+- Static checks:
+  - `git diff --check` passed.
+  - YAML parse smoke for `dev_memory/ROADMAP.yaml`,
+    `dev_memory/CURRENT_PHASE.yaml`, and
+    `dev_memory/phases/phase_08a_statistics_core/CHECKLIST.yaml` passed.
+
 ## Merged-timeline run-overlap hardening
 
 - Implemented after Claude Code and Claude probes found the P-B' cross-arm
