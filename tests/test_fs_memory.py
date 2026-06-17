@@ -72,6 +72,7 @@ from agent.fs_memory import (
     write_learned_rule,
     write_trial_record,
 )
+from agent.skills.result_schema import compute_combo_hash as compute_result_combo_hash
 from agent.registry import ProjectNamespace
 
 
@@ -475,9 +476,24 @@ def test_trial_record_rejects_combo_hash_mismatch() -> None:
         TrialRecord.model_validate(data)
 
 
-@pytest.mark.parametrize("option", [" -O3", "-O3 ", "-O3\nINJECT", "-O3\t"])
-def test_compute_combo_hash_rejects_untrimmed_or_control_options(option: str) -> None:
-    with pytest.raises(ValueError, match="combo options"):
+def test_compute_combo_hash_uses_shared_canonical_identity() -> None:
+    assert compute_combo_hash(["-O2", "-flto"]) == compute_combo_hash(
+        ["-flto", "-O2"]
+    )
+    assert compute_combo_hash(["-O2", "-O2"]) == compute_combo_hash(["-O2"])
+    assert compute_combo_hash(["-O2"]) != compute_combo_hash(["-O3"])
+    assert compute_combo_hash(["-O2", "-flto"]) == compute_result_combo_hash(
+        ["-flto", "-O2"]
+    )
+
+
+def test_compute_combo_hash_trims_safe_whitespace() -> None:
+    assert compute_combo_hash([" -O3 "]) == compute_combo_hash(["-O3"])
+
+
+@pytest.mark.parametrize("option", ["-O3\nINJECT", "-O3\tINJECT", "-DDEBUG"])
+def test_compute_combo_hash_rejects_control_or_out_of_scope_options(option: str) -> None:
+    with pytest.raises(ValueError, match="combo options|outside"):
         compute_combo_hash([option])
 
 

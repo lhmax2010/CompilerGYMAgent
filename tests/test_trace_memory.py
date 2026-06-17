@@ -10,6 +10,7 @@ import pytest
 from pydantic import ValidationError
 
 import agent.fs_memory as fs_memory
+from agent import MeasurementPlan, TraceSessionWriter
 from agent.fs_memory import (
     NamespaceLayout,
     TraceLoadError,
@@ -83,6 +84,38 @@ def test_append_trace_event_writes_jsonl_and_returns_line_reference(tmp_path: Pa
     assert trace_event_payload(loaded[0])["round"] == 12
     assert trace_event_payload(loaded[1])["trial_id"] == "r12_t3"
     assert tuple(iter_trace_events(current_layout.trace_path)) == loaded
+
+
+def test_trace_session_writer_records_measurement_plan(tmp_path: Path) -> None:
+    current_layout = layout(tmp_path)
+    writer = TraceSessionWriter.for_layout(
+        current_layout,
+        session_id="sess_20260617_contracts",
+    )
+    plan = MeasurementPlan(
+        measurement_plan_id="plan_screen_1",
+        family_id="family_round_1",
+        candidate_id="candidate_sha",
+        baseline_id="champion_sha",
+        plan_type="screen",
+        planned_n_pairs=2,
+        abba_seed="seed_1",
+        pair_order=("baseline_first", "candidate_first"),
+        created_at=datetime(2026, 6, 17, 8, 0, tzinfo=UTC),
+    )
+
+    writer.measurement_plan_created(plan=plan, round=1)
+
+    payload = trace_event_payload(load_trace_events(current_layout.trace_path)[0])
+    assert payload["kind"] == "measurement_plan_created"
+    assert payload["session_id"] == "sess_20260617_contracts"
+    assert payload["measurement_plan_id"] == "plan_screen_1"
+    assert payload["family_id"] == "family_round_1"
+    assert payload["candidate_id"] == "candidate_sha"
+    assert payload["baseline_id"] == "champion_sha"
+    assert payload["plan_type"] == "screen"
+    assert payload["pair_order"] == ["baseline_first", "candidate_first"]
+    assert payload["round"] == 1
 
 
 def test_append_trace_event_without_expected_line_number_is_o1_metadata(

@@ -1,5 +1,59 @@
 # Development Progress
 
+## 2026-06-17T22:45:00+08:00 - 7.0-contracts code deliverables implemented
+
+- Implemented the seven frozen 7.0-contracts v4 code deliverables:
+  canonical candidate identity, p_value, relative CI fields,
+  family_screen/is_decision_grade, RunLevelRecord provenance, MeasurementPlan,
+  and AcceptDecision/can_accept.
+- Split `ROADMAP.yaml` Phase 7.0 into `7.0-contracts` and `7.0-spike`.
+  `7.0-contracts` is now the in-progress implementation phase; `7.0-spike`
+  remains the later scaling/strategy measurement phase.
+- Delivery 1 identity change:
+  - added `agent.candidate_identity`,
+  - `result_schema.compute_combo_hash()` and `fs_memory.compute_combo_hash()`
+    delegate to the same helper,
+  - commutative flags are sorted/deduplicated,
+  - value flags such as `-O2`/`-O3` remain distinct and conflicting values are
+    rejected,
+  - safe surrounding whitespace is normalized and control/out-of-scope
+    accumulating flags are rejected.
+- Additive 08a/schema changes:
+  - bootstrap CI helpers now compute diagnostic `p_value` from the same
+    bootstrap distribution as CI, with zero-count correction,
+  - `StatisticalResult` carries `relative_ci_low_pct` /
+    `relative_ci_high_pct`,
+  - `RunLevelRecord` carries optional `measurement_plan_id`, `source_commit`,
+    `benchmark_id`, `benchmark_version`, and `objective_id`,
+  - verdict and pair_quality gates remain unchanged.
+- 07 consumer helpers:
+  - `family_screen()` performs batch BH over full family size and screens only
+    `verdict=significant_improvement`,
+  - `is_decision_grade()` is derived from the same schema predicate,
+  - `can_accept()` returns `AcceptDecision` reason codes and checks family
+    screening, confirmation, practical threshold via relative CI, and
+    provenance completeness.
+- Measurement plan support:
+  - `MeasurementPlan` owns candidate/family/baseline identity,
+  - `TraceSessionWriter.measurement_plan_created()` records a trace event that
+    can be replayed from JSONL.
+- Validation:
+  - focused contracts:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_result_schema.py tests/test_stats_core.py tests/test_fs_memory.py tests/test_trace_memory.py -q`
+    -> 284 passed in 1.23s,
+  - adjacent compile/benchmark/trace:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_compile_skill.py tests/test_benchmark_skill.py tests/test_fake_gbs.py tests/test_error_analyzer.py tests/test_trace_session.py -q`
+    -> 76 passed in 3.28s,
+  - full Python 3.10 suite:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/ -q`
+    -> 703 passed in 8.54s.
+  - static checks: YAML parse smoke passed, `git diff --check` passed, and
+    greenfield identity audit found no persisted `combo_hash` data outside
+    docs/dev_memory/tests.
+
+Next action: run YAML/diff checks, generate patch artifacts, commit/push, and
+request external review for the implementation range.
+
 ## 2026-06-15T20:53:42+08:00 - Phase 08a statistics core closed
 
 - Phase 08a is formally closed after eight adversarial pair_quality review

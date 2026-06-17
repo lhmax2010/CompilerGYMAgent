@@ -1,6 +1,6 @@
 # dev_memory/ROADMAP.yaml
 roadmap_version: 1
-last_updated: 2026-06-17T00:00:00+08:00
+last_updated: 2026-06-17T22:28:51+08:00
 status: active
 
 # ============================================================
@@ -39,12 +39,12 @@ cadence_assumption:
 # Overall sizing (calibrated)
 # ============================================================
 sizing:
-  v1_minimal_phases: ["04","06","05.5","05","08a","7.0","07","08b","09","10","11","12","13"]
+  v1_minimal_phases: ["04","06","05.5","05","08a","7.0-contracts","7.0-spike","07","08b","09","10","11","12","13"]
   v1_minimal_estimate_subtasks: { low: 89, high: 136 }
   v1_minimal_estimate_workdays_at_current_pace: { low: 68, high: 105 }
   v1_minimal_estimate_weeks: { low: 14, high: 21 }
 
-  v1_full_phases: ["04","06","05.5","05","08a","7.0","07","08b","9.0","9.1","09","10","11","12","13","14","15a","15b","16"]
+  v1_full_phases: ["04","06","05.5","05","08a","7.0-contracts","7.0-spike","07","08b","9.0","9.1","09","10","11","12","13","14","15a","15b","16"]
   v1_full_estimate_subtasks: { low: 114, high: 176 }
   v1_full_estimate_workdays_at_current_pace: { low: 88, high: 135 }
   v1_full_estimate_weeks: { low: 18, high: 27 }
@@ -223,12 +223,39 @@ planned_phases:
       - "Pair-quality cross-signal diagnostics document how env_snapshot_distance complements timestamp checks without replacing producer trace integrity"
     validation_plan: ["fake_gbs non-Gaussian profile benchmarks", "Ubuntu fcntl regression"]
 
-  - id: "7.0"
+  - id: "7.0-contracts"
+    title: "Candidate Engine Input Contracts - Frozen Code Deliverables"
+    status: in_progress
+    started_at: "2026-06-17T22:28:51+08:00"
+    milestone: "M2 (precursor)"
+    requirement_sections: ["4.6.2", "4.8", "4.9", "4.10"]
+    dependencies: ["08a"]
+    estimate_subtasks: { low: 7, high: 7 }
+    risk: high
+    design_reference: "doc/PHASE_7.0_CONTRACTS_DRAFT.md"
+    goals:
+      - "Implement canonicalize_candidate and unify both compute_combo_hash entry points."
+      - "Add StatisticalResult p_value from the same bootstrap distribution used for CI."
+      - "Add relative_ci_low_pct / relative_ci_high_pct for practical-threshold gates."
+      - "Add family_screen and is_decision_grade helpers as the only decision-grade consumer surface."
+      - "Extend RunLevelRecord with optional measurement_plan_id and run-specific provenance."
+      - "Add MeasurementPlan model and trace payload/writer support."
+      - "Add AcceptDecision and can_accept gate with reason codes."
+    exit_criteria:
+      - "compute_combo_hash is order-insensitive for commutative flags, deduplicates identical flags, keeps value flags distinct, and result_schema/fs_memory share one implementation."
+      - "p_value is finite, non-zero under zero-count correction, and stays diagnostic-only without changing 08a verdict/pair_quality gates."
+      - "relative CI fields are optional/additive and enforce relative_ci_low_pct <= relative_effect_pct <= relative_ci_high_pct when present."
+      - "family_screen uses pre-registered full-family m, screens only verdict=significant_improvement, and handles lower_is_better by verdict rather than relative-effect sign."
+      - "can_accept returns AcceptDecision reason codes for screen, confirmation, practical-threshold, pair-quality, and provenance gates."
+      - "MeasurementPlan is the canonical owner of candidate_id/family_id/baseline_id and can be recorded in trace."
+      - "Focused and full Python 3.10 test suites pass."
+
+  - id: "7.0-spike"
     title: "Candidate Engine Search Strategy + Constraint Solver Spike"
     status: planned
     milestone: "M2 (precursor)"
     requirement_sections: ["4.6.2", "4.10"]
-    dependencies: ["08a"]
+    dependencies: ["08a", "7.0-contracts"]
     estimate_subtasks: { low: 2, high: 3 }
     risk: high
     spike: true
@@ -238,11 +265,7 @@ planned_phases:
       - "Measure trace volume and rejected-candidate diagnostics cost"
       - "Extend 05.5 finding into candidate-search strategy: test noise-robust interaction discovery with random/brute-force fallbacks disabled"
       - "Define how Phase 08 statistical significance outputs are consumed by near-miss interaction search"
-      - "Define how exploratory_signal is consumed only for propose/prioritize/schedule-retest flows, never for accept/promote/champion decisions."
-      - "Define paired measurement plans that generate randomized AB/BA pair_order and small pair_time_gap_sec for pair_quality=good."
-      - "Consume 08a StatisticalResult strictly: unpaired+autocorrelation remains inconclusive, exploratory_signal only schedules confirmation, and only good-quality paired or IID decision-grade results can accept/reject/promote."
-      - "Define producer obligations for truthful started_at/ended_at/duration_sec/pair_time_gap_sec metadata; this is the 08a inherent-boundary backstop."
-      - "Prohibit sequential testing/peeking in search strategy; repeated looks require Phase 08b/07 policy rather than ad hoc candidate-engine decisions."
+      - "Use the frozen 7.0-contracts canonicalization, family, producer, fixed-budget, and accept API contracts as spike inputs."
     exit_criteria:
       - "Benchmark report records solver runtime/memory at 10^3, 10^4, and 10^5 combos"
       - "Fallback decision is captured before Phase 07 implementation"
@@ -263,7 +286,7 @@ planned_phases:
     status: planned
     milestone: M2
     requirement_sections: ["4.6.1", "4.6.2 (existing trace contract from 3.5)", "4.6.3", "4.10"]
-    dependencies: ["02", "03", "05.5", "08a", "7.0"]
+    dependencies: ["02", "03", "05.5", "08a", "7.0-contracts", "7.0-spike"]
     can_parallel_with: []
     estimate_subtasks: { low: 10, high: 16 }
     risk: high

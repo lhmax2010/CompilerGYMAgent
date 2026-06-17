@@ -14,7 +14,9 @@ from agent import (
     IID_PERCENTILE_BOOTSTRAP_METHOD,
     MOVING_BLOCK_BOOTSTRAP_METHOD,
     RunLevelRecord,
+    StatisticalResult,
     autocorrelation_aware_bootstrap_ci,
+    can_accept,
     compare_run_records,
     compute_acf_effective_sample_size,
     compute_effective_sample_size,
@@ -23,7 +25,9 @@ from agent import (
     compute_summary_effective_sample_size,
     compute_result_combo_hash,
     diagnose_iid_assumption,
+    family_screen,
     iid_percentile_bootstrap_ci,
+    is_decision_grade,
     measured_valid_scores,
     moving_block_bootstrap_ci,
     run_summary_hint,
@@ -179,6 +183,7 @@ def test_iid_percentile_bootstrap_ci_is_seeded_and_reports_mean_ci() -> None:
     assert first.confidence_level == 0.90
     assert first.bootstrap_samples == 20
     assert first.method == IID_PERCENTILE_BOOTSTRAP_METHOD
+    assert 0.0 < first.p_value <= 1.0
     assert first.statistic == "mean"
     assert first.n == len(scores)
     assert first.diagnostics.n == len(scores)
@@ -196,6 +201,7 @@ def test_iid_percentile_bootstrap_ci_handles_single_sample() -> None:
     assert ci.point_estimate == 4.2
     assert ci.ci_low == 4.2
     assert ci.ci_high == 4.2
+    assert ci.p_value == pytest.approx(2.0 / 26.0)
 
 
 def test_iid_percentile_bootstrap_ci_coverage_smoke_for_iid_distributions() -> None:
@@ -371,8 +377,11 @@ def test_compare_run_records_reports_significant_single_comparison() -> None:
 
     assert result.point_estimate == pytest.approx(2.0)
     assert result.relative_effect_pct == pytest.approx(20.0)
+    assert result.relative_ci_low_pct == pytest.approx(20.0)
+    assert result.relative_ci_high_pct == pytest.approx(20.0)
     assert result.ci_low == pytest.approx(2.0)
     assert result.ci_high == pytest.approx(2.0)
+    assert result.p_value == pytest.approx(2.0 / 81.0)
     assert result.verdict == "significant_improvement"
     assert result.significant_single_comparison is True
     assert result.comparison_scope == "single_comparison"
@@ -417,6 +426,7 @@ def test_compare_run_records_returns_no_difference_only_with_adequate_power() ->
     )
 
     assert result.verdict == "no_difference"
+    assert result.p_value == pytest.approx(1.0)
     assert result.low_power is False
     assert result.significant_single_comparison is False
 
@@ -434,7 +444,154 @@ def test_compare_run_records_defends_relative_effect_when_baseline_is_zero() -> 
 
     assert result.point_estimate == pytest.approx(1.0)
     assert result.relative_effect_pct is None
+    assert result.relative_ci_low_pct is None
+    assert result.relative_ci_high_pct is None
     assert result.verdict == "significant_improvement"
+
+
+def test_compare_run_records_marks_incomplete_provenance_until_7_0_records_fill_it() -> None:
+    baseline = _records([10.0] * 12, prefix="base")
+    candidate = _records([12.0] * 12, prefix="cand")
+
+    result = compare_run_records(
+        baseline,
+        candidate,
+        bootstrap_samples=80,
+        seed=55,
+    )
+
+    assert result.provenance_complete is False
+
+
+def test_compare_run_records_marks_complete_provenance_when_records_have_plan_and_run_refs() -> None:
+    baseline = _records(
+        [10.0] * 12,
+        prefix="base",
+        measurement_plan_id="plan_1",
+        source_commit="commit_abc",
+        benchmark_id="bench_1",
+        objective_id="throughput",
+    )
+    candidate = _records(
+        [12.0] * 12,
+        prefix="cand",
+        measurement_plan_id="plan_1",
+        source_commit="commit_abc",
+        benchmark_id="bench_1",
+        objective_id="throughput",
+    )
+
+    result = compare_run_records(
+        baseline,
+        candidate,
+        bootstrap_samples=80,
+        seed=56,
+    )
+
+    assert result.provenance_complete is True
+
+
+def test_family_screen_uses_full_family_m_and_improvement_verdict_direction() -> None:
+    results = [
+        _statistical_result(verdict="significant_improvement", p_value=0.01),
+        _statistical_result(verdict="significant_improvement", p_value=0.06),
+        _statistical_result(verdict="significant_regression", p_value=0.001),
+        _statistical_result(verdict="no_difference", p_value=0.02),
+    ]
+
+    assert family_screen(results, q=0.10) == [True, False, False, False]
+
+
+def test_family_screen_selects_lower_is_better_improvement_by_verdict_not_relative_sign() -> None:
+    lower_is_better_improvement = _statistical_result(
+        objective_direction="lower_is_better",
+        verdict="significant_improvement",
+        p_value=0.01,
+        relative_effect_pct=-5.0,
+        relative_ci_low_pct=-7.0,
+        relative_ci_high_pct=-3.0,
+    )
+    regression = _statistical_result(
+        objective_direction="lower_is_better",
+        verdict="significant_regression",
+        p_value=0.001,
+        relative_effect_pct=10.0,
+        relative_ci_low_pct=8.0,
+        relative_ci_high_pct=12.0,
+    )
+
+    assert family_screen([lower_is_better_improvement, regression], q=0.10) == [
+        True,
+        False,
+    ]
+
+
+def test_is_decision_grade_uses_schema_consistent_path_predicate() -> None:
+    result = _statistical_result(paired=True, pair_quality="good")
+
+    assert is_decision_grade(result) is True
+
+
+def test_can_accept_requires_screen_confirmation_practical_threshold_and_provenance() -> None:
+    accepted_result = _statistical_result(
+        relative_effect_pct=5.0,
+        relative_ci_low_pct=3.5,
+        relative_ci_high_pct=6.5,
+        provenance_complete=True,
+    )
+
+    assert can_accept(
+        accepted_result,
+        is_family_screened=True,
+        confirmation_status="confirmed",
+        practical_threshold_pct=3.0,
+        objective_direction="higher_is_better",
+    ).reason == "accepted"
+    assert can_accept(
+        accepted_result,
+        is_family_screened=False,
+        confirmation_status="confirmed",
+        practical_threshold_pct=3.0,
+        objective_direction="higher_is_better",
+    ).reason == "rejected_not_screened"
+    assert can_accept(
+        accepted_result,
+        is_family_screened=True,
+        confirmation_status="pending",
+        practical_threshold_pct=3.0,
+        objective_direction="higher_is_better",
+    ).reason == "needs_confirmation"
+
+    incomplete = _statistical_result(provenance_complete=False)
+    assert can_accept(
+        incomplete,
+        is_family_screened=True,
+        confirmation_status="confirmed",
+        practical_threshold_pct=3.0,
+        objective_direction="higher_is_better",
+    ).reason == "rejected_incomplete_provenance"
+
+    weak_practical = _statistical_result(relative_ci_low_pct=2.5)
+    assert can_accept(
+        weak_practical,
+        is_family_screened=True,
+        confirmation_status="confirmed",
+        practical_threshold_pct=3.0,
+        objective_direction="higher_is_better",
+    ).reason == "rejected_practical_threshold"
+
+    no_relative = _statistical_result(
+        relative_effect_pct=None,
+        relative_ci_low_pct=None,
+        relative_ci_high_pct=None,
+    )
+    assert can_accept(
+        no_relative,
+        is_family_screened=True,
+        confirmation_status="confirmed",
+        practical_threshold_pct=3.0,
+        objective_direction="higher_is_better",
+    ).reason == "rejected_relative_threshold_unavailable"
 
 
 def test_compare_run_records_blocks_significance_for_small_samples() -> None:
@@ -1300,6 +1457,10 @@ def _records(
     pair_order: str | None = None,
     pair_time_gap_sec: float | None = None,
     started_at_offset_sec: float = 0.0,
+    measurement_plan_id: str | None = None,
+    source_commit: str | None = None,
+    benchmark_id: str | None = None,
+    objective_id: str | None = None,
 ) -> tuple[RunLevelRecord, ...]:
     return tuple(
         _record(
@@ -1311,6 +1472,10 @@ def _records(
             pair_time_gap_sec=pair_time_gap_sec,
             run_id=f"{prefix}_{index}",
             started_at=NOW + timedelta(seconds=index + started_at_offset_sec),
+            measurement_plan_id=measurement_plan_id,
+            source_commit=source_commit,
+            benchmark_id=benchmark_id,
+            objective_id=objective_id,
         )
         for index, score in enumerate(scores)
     )
@@ -1330,6 +1495,10 @@ def _record(
     started_at: datetime | str | None = None,
     ended_at: datetime | str | None = None,
     duration_sec: float = 0.1,
+    measurement_plan_id: str | None = None,
+    source_commit: str | None = None,
+    benchmark_id: str | None = None,
+    objective_id: str | None = None,
 ) -> RunLevelRecord:
     failure = (
         None
@@ -1378,8 +1547,49 @@ def _record(
         pair_key=pair_key,
         pair_order=pair_order,  # type: ignore[arg-type]
         pair_time_gap_sec=pair_time_gap_sec,
+        measurement_plan_id=measurement_plan_id,
+        source_commit=source_commit,
+        benchmark_id=benchmark_id,
+        objective_id=objective_id,
         failure_classification=failure,
     )
+
+
+def _statistical_result(**overrides: object) -> StatisticalResult:
+    payload: dict[str, object] = {
+        "comparison": "candidate_vs_baseline",
+        "objective_direction": "higher_is_better",
+        "point_estimate": 5.0,
+        "relative_effect_pct": 5.0,
+        "relative_ci_low_pct": 3.5,
+        "relative_ci_high_pct": 6.5,
+        "ci_low": 3.5,
+        "ci_high": 6.5,
+        "confidence_level": 0.95,
+        "method": "iid_percentile_bootstrap",
+        "p_value": 0.01,
+        "verdict": "significant_improvement",
+        "significant_single_comparison": True,
+        "n_measured": 20,
+        "n_valid": 10,
+        "n_invalid": 0,
+        "baseline_n_valid": 10,
+        "candidate_n_valid": 10,
+        "effective_sample_size": 10.0,
+        "lag1_autocorrelation": 0.0,
+        "paired": False,
+        "pair_quality": "unknown",
+        "provenance_complete": True,
+    }
+    payload.update(overrides)
+    if payload.get("paired") is True and "pair_count" not in overrides:
+        payload["pair_count"] = 10
+    if payload.get("verdict") not in {
+        "significant_improvement",
+        "significant_regression",
+    }:
+        payload["significant_single_comparison"] = False
+    return StatisticalResult.model_validate(payload)
 
 
 def _mixed_utc_timestamp(index: int, *, offset_micros: int = 0) -> str:

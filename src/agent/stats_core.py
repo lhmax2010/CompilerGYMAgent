@@ -15,7 +15,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from statistics import median
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
     from agent.skills.result_schema import RunLevelRecord, RunSummaryHint, StatisticalResult
@@ -67,6 +67,7 @@ class BootstrapConfidenceInterval:
     ci_low: float
     ci_high: float
     confidence_level: float
+    p_value: float
     bootstrap_samples: int
     method: str
     statistic: str
@@ -103,6 +104,26 @@ class PairTimeGap:
 
     effective_gap_sec: float | None
     source_conflict: bool = False
+
+
+AcceptDecisionReason = Literal[
+    "accepted",
+    "rejected_insignificant",
+    "rejected_pair_quality",
+    "rejected_not_screened",
+    "rejected_practical_threshold",
+    "rejected_relative_threshold_unavailable",
+    "needs_confirmation",
+    "rejected_incomplete_provenance",
+]
+
+
+@dataclass(frozen=True)
+class AcceptDecision:
+    """Acceptance gate decision with an auditable reason code."""
+
+    accepted: bool
+    reason: AcceptDecisionReason
 
 
 @dataclass(frozen=True)
@@ -372,6 +393,16 @@ def compare_run_records(
         if math.isclose(baseline_mean, 0.0, abs_tol=base_zero_abs_tol)
         else point_estimate / abs(baseline_mean) * 100.0
     )
+    relative_ci_low_pct = (
+        None
+        if math.isclose(baseline_mean, 0.0, abs_tol=base_zero_abs_tol)
+        else ci.ci_low / abs(baseline_mean) * 100.0
+    )
+    relative_ci_high_pct = (
+        None
+        if math.isclose(baseline_mean, 0.0, abs_tol=base_zero_abs_tol)
+        else ci.ci_high / abs(baseline_mean) * 100.0
+    )
     exploratory_signal, requires_confirmation = _exploratory_signal(
         baseline_scores=baseline_scores,
         candidate_scores=candidate_scores,
@@ -394,10 +425,13 @@ def compare_run_records(
         objective_direction=objective_direction,
         point_estimate=point_estimate,
         relative_effect_pct=relative_effect_pct,
+        relative_ci_low_pct=relative_ci_low_pct,
+        relative_ci_high_pct=relative_ci_high_pct,
         ci_low=ci.ci_low,
         ci_high=ci.ci_high,
         confidence_level=ci.confidence_level,
         method=ci.method,
+        p_value=ci.p_value,
         verdict=verdict,
         significant_single_comparison=verdict
         in {"significant_improvement", "significant_regression"},
@@ -423,8 +457,84 @@ def compare_run_records(
         candidate_block_size=ci.candidate_block_size,
         exploratory_signal=exploratory_signal,
         requires_confirmation=requires_confirmation,
+        provenance_complete=_records_have_complete_provenance(
+            baseline_measured + candidate_measured
+        ),
         notes=tuple(dict.fromkeys(notes)),
     )
+
+
+def is_decision_grade(result: StatisticalResult) -> bool:
+    """Return the schema-derived decision-grade predicate."""
+
+    from agent.skills.result_schema import is_statistical_result_decision_grade
+
+    return is_statistical_result_decision_grade(result)
+
+
+def family_screen(
+    results: Sequence[StatisticalResult],
+    *,
+    method: str = "fdr_bh",
+    q: float = 0.10,
+) -> list[bool]:
+    """Run a batch FDR-BH screen over one pre-registered result family."""
+
+    if method != "fdr_bh":
+        raise ValueError("only method='fdr_bh' is supported")
+    if not math.isfinite(q) or q <= 0.0 or q > 1.0:
+        raise ValueError("q must be finite and in (0, 1]")
+    m = len(results)
+    selected = [False] * m
+    if m == 0:
+        return selected
+
+    improvement_p_values = sorted(
+        (float(result.p_value), index)
+        for index, result in enumerate(results)
+        if result.verdict == "significant_improvement" and result.p_value is not None
+    )
+    cutoff: float | None = None
+    for rank, (p_value, _index) in enumerate(improvement_p_values, start=1):
+        if p_value <= q * rank / m:
+            cutoff = p_value
+    if cutoff is None:
+        return selected
+    for p_value, index in improvement_p_values:
+        if p_value <= cutoff:
+            selected[index] = True
+    return selected
+
+
+def can_accept(
+    result: StatisticalResult,
+    *,
+    is_family_screened: bool,
+    confirmation_status: str,
+    practical_threshold_pct: float,
+    objective_direction: str,
+) -> AcceptDecision:
+    """Return the per-candidate accept decision after screen/confirmation gates."""
+
+    if objective_direction != result.objective_direction:
+        raise ValueError("objective_direction must match result.objective_direction")
+    if not math.isfinite(practical_threshold_pct) or practical_threshold_pct < 0.0:
+        raise ValueError("practical_threshold_pct must be finite and non-negative")
+    if result.paired and result.pair_quality != "good":
+        return AcceptDecision(False, "rejected_pair_quality")
+    if result.verdict != "significant_improvement" or not is_decision_grade(result):
+        return AcceptDecision(False, "rejected_insignificant")
+    if not is_family_screened:
+        return AcceptDecision(False, "rejected_not_screened")
+    if confirmation_status != "confirmed":
+        return AcceptDecision(False, "needs_confirmation")
+    if not result.provenance_complete:
+        return AcceptDecision(False, "rejected_incomplete_provenance")
+    if result.relative_ci_low_pct is None:
+        return AcceptDecision(False, "rejected_relative_threshold_unavailable")
+    if result.relative_ci_low_pct <= practical_threshold_pct:
+        return AcceptDecision(False, "rejected_practical_threshold")
+    return AcceptDecision(True, "accepted")
 
 
 def iid_percentile_bootstrap_ci(
@@ -466,6 +576,7 @@ def iid_percentile_bootstrap_ci(
         ci_low=ci_low,
         ci_high=ci_high,
         confidence_level=confidence_level,
+        p_value=_bootstrap_two_sided_p_value(bootstrap_means),
         bootstrap_samples=bootstrap_samples,
         method=IID_PERCENTILE_BOOTSTRAP_METHOD,
         statistic="mean",
@@ -530,6 +641,7 @@ def moving_block_bootstrap_ci(
         ci_low=ci_low,
         ci_high=ci_high,
         confidence_level=confidence_level,
+        p_value=_bootstrap_two_sided_p_value(bootstrap_means),
         bootstrap_samples=bootstrap_samples,
         method=MOVING_BLOCK_BOOTSTRAP_METHOD,
         statistic="mean",
@@ -666,6 +778,7 @@ def _unpaired_mean_difference_bootstrap_ci(
         ci_low=_quantile_sorted(bootstrap_effects, alpha / 2.0),
         ci_high=_quantile_sorted(bootstrap_effects, 1.0 - alpha / 2.0),
         confidence_level=confidence_level,
+        p_value=_bootstrap_two_sided_p_value(bootstrap_effects),
         bootstrap_samples=bootstrap_samples,
         method=(
             MOVING_BLOCK_BOOTSTRAP_METHOD
@@ -1364,6 +1477,19 @@ def _has_high_cv(values: Iterable[float | None], *, threshold: float) -> bool:
     return any(value is not None and value > threshold for value in values)
 
 
+def _records_have_complete_provenance(records: Sequence[RunLevelRecord]) -> bool:
+    required_fields = (
+        "measurement_plan_id",
+        "source_commit",
+        "benchmark_id",
+        "objective_id",
+    )
+    return all(
+        all(getattr(record, field, None) is not None for field in required_fields)
+        for record in records
+    )
+
+
 def _resampled_mean(
     values: Sequence[float],
     *,
@@ -1417,6 +1543,19 @@ def _quantile_sorted(sorted_values: Sequence[float], q: float) -> float:
     upper = sorted_values[upper_index]
     weight = position - lower_index
     return lower + (upper - lower) * weight
+
+
+def _bootstrap_two_sided_p_value(values: Sequence[float]) -> float:
+    if not values:
+        raise ValueError("bootstrap values must not be empty")
+    _validate_finite_sequence(values)
+    if all(value == 0.0 for value in values):
+        return 1.0
+    non_positive = sum(1 for value in values if value <= 0.0)
+    non_negative = sum(1 for value in values if value >= 0.0)
+    tail = min(non_positive, non_negative)
+    corrected_tail = (tail + 1.0) / (len(values) + 1.0)
+    return min(1.0, 2.0 * corrected_tail)
 
 
 def _validate_confidence_level(confidence_level: float) -> None:

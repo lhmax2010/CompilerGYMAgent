@@ -374,6 +374,21 @@ class TraceSessionWriter:
             **payload,
         )
 
+    def measurement_plan_created(
+        self,
+        *,
+        plan: Any,
+        **fields: Any,
+    ) -> TraceAppendResult:
+        from agent.skills.result_schema import MeasurementPlan
+
+        validated = MeasurementPlan.model_validate(plan)
+        payload = validated.to_trace_payload()
+        payload.pop("kind")
+        ts = payload.pop("ts")
+        payload.update(fields)
+        return self.append("measurement_plan_created", ts=ts, **payload)
+
     def trial_start(
         self,
         *,

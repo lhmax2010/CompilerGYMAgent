@@ -1,0 +1,7 @@
+7.0-contracts implementation patch summary
+
+- Adds shared candidate_identity canonicalization and routes both compute_combo_hash entry points through it.
+- Adds p_value, relative CI fields, provenance completeness, family_screen/is_decision_grade, AcceptDecision/can_accept.
+- Adds RunLevelRecord provenance fields, MeasurementPlan schema, and measurement_plan_created trace writer support.
+- Splits ROADMAP 7.0 into 7.0-contracts and 7.0-spike, and records phase dev_memory.
+- Tests cover canonical hash identity, p_value/relative CI, family BH screening, accept reasons, provenance, and MeasurementPlan trace emission.

@@ -1,0 +1,1913 @@
+diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index bf5cdea..d492f9c 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -1,6 +1,5 @@
+-phase_id: phase_08a_statistics_core
+-phase_title: "Baseline + Statistical Significance - Minimal Stats Core"
+-started_at: 2026-06-10T15:15:45+08:00
+-last_updated: 2026-06-15T20:53:42+08:00
+-closed_at: 2026-06-15T20:53:42+08:00
+-target_milestone: "M2 + M4 (partial)"
++phase_id: phase_7_0_contracts
++phase_title: "Candidate Engine Input Contracts - Frozen Code Deliverables"
++started_at: 2026-06-17T22:28:51+08:00
++last_updated: 2026-06-17T22:45:00+08:00
++target_milestone: "M2 (precursor)"
+@@ -7,0 +7 @@ related_requirements:
++  - REQUIREMENTS.md section 4.6.2
+@@ -10,3 +10,4 @@ related_requirements:
+-  - REQUIREMENTS.md section 4.6.4 convergence detector
+-status: done
+-roadmap_reference: dev_memory/ROADMAP.yaml completed_phases[id=08a]
++  - REQUIREMENTS.md section 4.10
++status: in_progress
++roadmap_reference: dev_memory/ROADMAP.yaml planned_phases[id=7.0-contracts]
++design_reference: doc/PHASE_7.0_CONTRACTS_DRAFT.md
+@@ -14,25 +15,9 @@ dependencies_satisfied:
+-  - "Phase 05 Compile / Benchmark Skills is complete and emits RunLevelRecord values."
+-  - "RunLevelRecord carries measured/warmup phase, valid_for_scoring, objective_direction, pair_key, artifact verification, env_snapshot, and summary_hint."
+-  - "Pre-08a numeric hygiene blockers are fixed: benchmark NaN/Inf ingress rejected and summary fields require finite values."
+-  - "Benchmark failure routing cannot write failed_combos in Phase 05/08a."
+-  - "Runtime compatibility is Python 3.10+: pyproject and code avoid Python 3.11-only datetime.UTC, typing.Self, and tomllib assumptions."
+-  - "Python 3.10 Ubuntu test collection can resolve absolute tests.fixtures imports via tests/__init__.py."
+-  - "dev_memory/BLOCKERS.md records no active blockers."
+-pre_implementation_design_review:
+-  range: "f34c28d..6b72d43"
+-  reviewer: Claude
+-  reviewed_at: 2026-06-10T15:14:00+08:00
+-  verdict: approve
+-  critical_findings: 0
+-  high_findings: 0
+-  summary: "08a design approved as a pure statistics core with autocorrelation defenses; no candidate-engine or workspace/process side effects before the appropriate later phases."
+-  medium_followups:
+-    - "08a.5 must explicitly distinguish no_difference from inconclusive when CI includes zero with adequate vs inadequate power."
+-    - "08a.3 must reconcile or document the gap between rho1>0 ESS correction and rho1>0.3 autocorrelation detection/bootstrap selection."
+-    - "08a.3/08a.4 must document lag-1 ESS limitations and rely on bursty simulation coverage as the real guard."
+-    - "08a.1 must pre-flight the Phase 05 RunLevelRecord contract fields before consuming records."
+-    - "08a.5 must define partial pair_key behavior when only some baseline/candidate records match."
+-  low_followups:
+-    - "Keep RunSummaryHint ESS/rho1/autocorrelation fields optional while computation lands across subtasks."
+-    - "Define the epsilon used for CV when mean is effectively zero."
+-    - "Phrase side-effect-free scope as applying to stats_core; env_snapshot/cross-signal state exposure remains a later harness/integrity follow-up."
++  - "Phase 08a is closed and exposes StatisticalResult/RunLevelRecord/stats_core."
++  - "HLD v1.3 records the 7.0 split into frozen contracts plus later scaling spike."
++  - "7.0-contracts v4 is frozen after three review rounds and twelve external AI reviews."
++scope_boundaries:
++  - "Implement the seven frozen code deliverables only."
++  - "Do not alter 08a verdict or pair_quality gates."
++  - "Delivery 1 is an identity semantic change; confirmed greenfield/no persisted combo_hash."
++  - "Deliveries 2-5 are additive schema/statistics changes."
++  - "MeasurementPlan and AcceptDecision are new structures for 07 consumers."
+@@ -40,440 +25,46 @@ subtasks:
+-  - id: "08a.1"
+-    title: "descriptive statistics + RunSummaryHint extension"
+-    status: done
+-    files_created:
+-      - src/agent/stats_core.py
+-      - tests/test_stats_core.py
+-    files_modified:
+-      - src/agent/skills/result_schema.py
+-      - src/agent/skills/benchmark.py
+-      - src/agent/__init__.py
+-      - tests/test_result_schema.py
+-      - tests/test_benchmark_skill.py
+-      - dev_memory/CURRENT_PHASE.yaml
+-      - dev_memory/HANDOFF_PROMPT.md
+-      - dev_memory/DECISIONS.md
+-      - dev_memory/ROADMAP.yaml
+-      - dev_memory/ROADMAP.md
+-      - dev_memory/PROGRESS.md
+-      - dev_memory/phases/phase_08a_statistics_core/CHECKLIST.yaml
+-      - dev_memory/phases/phase_08a_statistics_core/REVIEW_NOTES.md
+-      - dev_memory/phases/phase_08a_statistics_core/SUMMARY.md
+-      - dev_memory/phases/phase_08a_statistics_core/UT_RESULTS.md
+-    scope:
+-      - "Add side-effect-free descriptive statistics in src/agent/stats_core.py."
+-      - "Consume only RunLevelRecord values with phase=measured and valid_for_scoring=True."
+-      - "Compute mean, median, sample stddev (n-1), CV with near-zero mean returning None, lag-1 rho, and conservative ESS."
+-      - "For n>=8, ESS is min(lag-1 ESS, initial-positive-lag heuristic multi-lag ACF ESS); for n<8, ESS falls back to lag-1 and sets ess_preliminary=True."
+-      - "Extend RunSummaryHint with n_measured, n_valid, n_invalid, effective_sample_size, ess_preliminary, lag1_autocorrelation, autocorrelation_warning."
+-      - "Reject NaN/Inf in all new numeric schema fields."
+-    exclusions:
+-      - "No candidate engine."
+-      - "No bootstrap CI implementation yet."
+-      - "No StatisticalResult verdict logic unless explicitly required by later 08a split."
+-      - "No env_snapshot/cross-signal bursty state exposure in 08a.1."
+-    design_review_cleared: true
+-    implementation_complete: true
+-    implementation_commit: ee0fe4b
+-    ut_required: true
+-    ut_passed: true
+-    local_validation:
+-      - "git diff --check passed."
+-      - "Targeted pytest passed: .venv\\Scripts\\python.exe -m pytest tests\\test_stats_core.py tests\\test_result_schema.py tests\\test_benchmark_skill.py -q -> 48 passed, 5 skipped."
+-      - "Full Windows pytest was run and remains platform-blocked outside 08a: .venv\\Scripts\\python.exe -m pytest tests\\ -q -> 24 failed, 554 passed, 51 skipped, 4 errors."
+-    ubuntu_validation:
+-      status: passed
+-      validated_at: 2026-06-10T18:24:19+08:00
+-      head: ee0fe4b77cf546bcea170734464265980481842a
+-      targeted: "python -m pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py -q -> 53 passed in 0.83s"
+-      full: "python -m pytest tests/ -q -> 631 passed in 7.70s"
+-    static_implementation_review:
+-      reviewer: Claude
+-      reviewed_at: 2026-06-10T15:31:00+08:00
+-      verdict: approve_with_followups
+-      critical_findings: 0
+-      high_findings: 0
+-      addressed_followups:
+-        - "Marked low_power as a diagnostic only; verdict policy remains 08a.3/08a.5 scope."
+-        - "Documented lag-1 adjacent-pair Pearson estimator conservatism in code."
+-        - "Added defensive rejection for valid measured records without scores."
+-        - "Added tests for moderate positive rho, rho=1 ESS, and scoreless valid records."
+-    external_review_alignment:
+-      reviewed_at: 2026-06-10T18:03:41+08:00
+-      verdict: approve_with_alignment_patch
+-      addressed_followups:
+-        - "Tightened exposed ESS from lag-1-only to min(lag-1, multi-lag ACF) for n>=8."
+-        - "Added ess_preliminary so n<8 lag-1-only ESS is machine-readable as preliminary."
+-        - "Recorded that 08a emits single_comparison semantics and does not correct multiple comparisons."
+-        - "Recorded paired-difference autocorrelation checks and fake_gbs state as test-only instrumentation."
+-      deferred_followups:
+-        - "08a.4 owns moving block bootstrap correlation-length/block-size behavior."
+-        - "08a.5 owns StatisticalResult full schema, verdict gates, pair_order, and base approximately zero defense."
+-    statistical_correctness_review:
+-      reviewer: external
+-      reviewed_at: 2026-06-10T18:38:14+08:00
+-      range: "7fe810b..ee0fe4b"
+-      validation_range: "7fe810b..f791e35"
+-      verdict: approve
+-      critical_findings: 0
+-      high_findings: 0
+-      medium_findings: 0
+-      low_findings: 0
+-      info_findings:
+-        - "ESS can be below 1 for high-autocorrelation small samples; this is mathematically valid and protected by ess_preliminary=True plus later ESS_MIN/inconclusive gates."
+-      numerical_validation:
+-        - "lag-1 autocorrelation matched AR(1) known-truth simulations closely: phi=0.4 -> ~0.392, phi=0.7 -> ~0.678."
+-        - "lag-1 autocorrelation estimator uses Pearson over lagged pairs with current/previous means, which is the standard estimator form."
+-        - "ESS formula matched theory: n=100,rho=0.5 -> 33.3; rho<=0 returns n."
+-        - "Conservative ESS uses min(lag1, ACF) for n>=8 and was <= lag1-only ESS on synthetic and fake_gbs bursty checks."
+-        - "n<8 falls back to lag-1 ESS and sets ess_preliminary=True."
+-      review_methodology: "08a statistical subtasks should be reviewed with side-effect-free numerical simulations against known-truth synthetic data and fake_gbs noise profiles."
+-    external_review_verdict: approve
+-  - id: "08a.2"
+-    title: "IID/right-skewed percentile bootstrap CI with seeded reproducibility"
+-    status: done
+-    files_created: []
+-    files_modified:
+-      - src/agent/stats_core.py
+-      - src/agent/__init__.py
+-      - tests/test_stats_core.py
+-      - dev_memory/CURRENT_PHASE.yaml
+-      - dev_memory/DECISIONS.md
+-      - dev_memory/PROGRESS.md
+-      - dev_memory/ROADMAP.yaml
+-      - dev_memory/phases/phase_08a_statistics_core/CHECKLIST.yaml
+-      - dev_memory/phases/phase_08a_statistics_core/REVIEW_NOTES.md
+-      - dev_memory/phases/phase_08a_statistics_core/SUMMARY.md
+-      - dev_memory/phases/phase_08a_statistics_core/UT_RESULTS.md
+-      - tests/__init__.py
+-    scope:
+-      - "Add side-effect-free IID percentile bootstrap CI for the sample mean."
+-      - "Use seeded Python RNG for reproducible bootstrap resampling."
+-      - "Expose BootstrapConfidenceInterval with ci_low, ci_high, confidence_level, method, bootstrap_samples, statistic, n, and point_estimate."
+-      - "Default B=2000 and confidence_level=0.95, configurable by caller."
+-      - "Add coverage smoke tests for IID Gaussian and right-skewed exponential samples."
+-    exclusions:
+-      - "No moving block bootstrap; defer to 08a.4."
+-      - "No ESS/autocorrelation adjustment to CI width; defer to 08a.3/08a.4."
+-      - "No StatisticalResult schema or verdict gates; defer to 08a.5."
+-      - "No candidate engine."
+-    implementation_complete: true
+-    implementation_commit: 457caa4
+-    ut_required: true
+-    ut_passed: true
+-    local_validation:
+-      - "tests/test_stats_core.py -> 13 passed in 1.26s."
+-      - "Targeted pytest passed: .venv\\Scripts\\python.exe -m pytest tests\\test_stats_core.py tests\\test_result_schema.py tests\\test_benchmark_skill.py -q -> 52 passed, 5 skipped."
+-      - "Full Windows pytest was run and remains platform-blocked outside 08a: .venv\\Scripts\\python.exe -m pytest tests\\ -q -> 24 failed, 558 passed, 51 skipped, 4 errors."
+-    ubuntu_validation:
+-      status: passed
+-      validated_at: 2026-06-10T21:43:51+08:00
+-      head: 457caa46d5597da9b010e3f8e20920695facef8e
+-      full: "Linux container full suite -> 635 passed; confirms Windows full failures are platform-specific and not 08a.2 regressions."
+-    statistical_correctness_review:
+-      reviewer: external
+-      reviewed_at: 2026-06-10T21:43:51+08:00
+-      range: "91cc187..457caa4"
+-      verdict: approve
+-      critical_findings: 0
+-      high_findings: 0
+-      medium_findings: 0
+-      low_findings: 0
+-      info_findings:
+-        - "Windows 24 failed + 4 errors are existing platform-sensitive non-08a paths; Linux full suite passed with 635 tests."
+-      coverage_validation:
+-        - "IID gaussian 95% CI coverage: n=20 -> 94.8%, n=50 -> 93.8%."
+-        - "Right-skewed lognormal coverage: n=30 -> 92.0%, n=60 -> 93.2%, acceptable for percentile bootstrap on skewed data."
+-        - "CI bounds normal on corrected probe: ci_low < ci_high, sample mean in CI."
+-        - "Seeded reproducibility passed: same seed identical, different seed different."
+-        - "Small n=2/3/5 boundaries do not crash."
+-        - "method=iid_percentile_bootstrap and B=2000 confirmed."
+-      scope_review:
+-        - "No block bootstrap."
+-        - "No ESS-adjusted CI width."
+-        - "No paired bootstrap."
+-        - "No StatisticalResult or verdict gates."
+-    external_review_verdict: approve
+-  - id: "08a.3"
+-    title: "lag-1 autocorrelation detection + ESS correction + low-power/inconclusive rules"
+-    status: done
+-    files_created: []
+-    files_modified:
+-      - src/agent/stats_core.py
+-      - src/agent/skills/result_schema.py
+-      - src/agent/__init__.py
+-      - tests/test_stats_core.py
+-      - tests/test_result_schema.py
+-      - dev_memory/CURRENT_PHASE.yaml
+-      - dev_memory/DECISIONS.md
+-      - dev_memory/PROGRESS.md
+-      - dev_memory/ROADMAP.yaml
+-      - dev_memory/ROADMAP.md
+-      - dev_memory/phases/phase_08a_statistics_core/CHECKLIST.yaml
+-      - dev_memory/phases/phase_08a_statistics_core/REVIEW_NOTES.md
+-      - dev_memory/phases/phase_08a_statistics_core/SUMMARY.md
+-      - dev_memory/phases/phase_08a_statistics_core/UT_RESULTS.md
+-    scope:
+-      - "Add AutocorrelationDiagnostics for side-effect-free IID-assumption diagnostics."
+-      - "Detect autocorrelation when lag-1 rho > 0.3 and expose iid_assumption_valid as the inverse."
+-      - "Reuse conservative ESS from 08a.1 and mark low_power when measured run count is <=5 or ESS < ESS_MIN."
+-      - "Attach diagnostics to IID percentile bootstrap CI without widening or changing the CI."
+-      - "Extend RunSummaryHint with autocorrelation_detected, iid_assumption_valid, and low_power."
+-      - "Emit diagnostic notes such as autocorrelation_detected, iid_ci_may_undercover, ess_preliminary, low_effective_sample_size, and low_power."
+-    exclusions:
+-      - "No moving block bootstrap; defer to 08a.4."
+-      - "No ESS-adjusted CI width; 08a.3 only marks confidence risk."
+-      - "No StatisticalResult schema or verdict gates; defer to 08a.5."
+-      - "No paired bootstrap or paired comparison logic; defer to 08a.5."
+-      - "No candidate engine."
+-    implementation_complete: true
+-    implementation_commit: 7b27eef
+-    ut_required: true
+-    ut_passed: true
+-    local_validation:
+-      - "Targeted pytest passed: .venv\\Scripts\\python.exe -m pytest tests\\test_stats_core.py tests\\test_result_schema.py tests\\test_benchmark_skill.py -q -> 57 passed, 5 skipped in 1.35s."
+-      - "Full Windows pytest was run and remains platform-blocked outside 08a: .venv\\Scripts\\python.exe -m pytest tests\\ -q -> 24 failed, 563 passed, 51 skipped, 4 errors."
+-    review_gate:
+-      - "Known autocorrelated monotone sequence: rho1 ~= 1.0, autocorrelation_detected=True, iid_assumption_valid=False, ESS=0.0, confidence_warning=True."
+-      - "Weak positive autocorrelation sequence: rho1 ~= 0.1, autocorrelation_detected=False, iid_assumption_valid=True, confidence_warning=False."
+-      - "IID percentile bootstrap keeps method=iid_percentile_bootstrap while attaching diagnostics for autocorrelated data."
+-    statistical_correctness_review:
+-      reviewer: external
+-      reviewed_at: 2026-06-11T20:50:55+08:00
+-      range: "aafa406..12ac2bb"
+-      verdict: approve
+-      critical_findings: 0
+-      high_findings: 0
+-      medium_findings: 0
+-      low_findings: 0
+-      numerical_validation:
+-        - "Autocorrelation threshold validated: phi=0.2 produced rho ~= 0.21 and did not trigger; phi=0.5/0.7 triggered and marked iid_assumption_valid=False."
+-        - "Naive IID bootstrap undercoverage motivation validated: IID gaussian 95% CI coverage stayed near nominal at 95.0%/93.4%, while fake_gbs bursty naive coverage fell to 73.0%/74.4%."
+-        - "Real fake_gbs bursty sequence with rho ~= 0.333 triggered autocorrelation_detected=True and iid_assumption_valid=False."
+-        - "ESS diagnostic integration stayed conservative with min(lag1, ACF) and correct preliminary marking."
+-      scope_review:
+-        - "No moving block bootstrap in 08a.3."
+-        - "No verdict gates or StatisticalResult in 08a.3."
+-      review_takeaway: "08a.3 proves the 08a autocorrelation motivation: naive IID bootstrap can claim 95% confidence while covering only about 73-74% on bursty data."
+-    external_review_verdict: approve
+-    ubuntu_validation:
+-      status: passed
+-      validated_at: 2026-06-11T10:06:30+08:00
+-      head: 12ac2bb
+-      targeted: "python -m pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py -q -> 62 passed in 1.49s"
+-      full: "python -m pytest tests/ -q -> 640 passed in 9.24s"
+-  - id: "08a.4"
+-    title: "moving block bootstrap for autocorrelated sequences"
+-    status: done
+-    files_created: []
+-    files_modified:
+-      - src/agent/stats_core.py
+-      - src/agent/__init__.py
+-      - tests/test_stats_core.py
+-      - dev_memory/CURRENT_PHASE.yaml
+-      - dev_memory/DECISIONS.md
+-      - dev_memory/PROGRESS.md
+-      - dev_memory/ROADMAP.yaml
+-      - dev_memory/ROADMAP.md
+-      - dev_memory/phases/phase_08a_statistics_core/CHECKLIST.yaml
+-      - dev_memory/phases/phase_08a_statistics_core/REVIEW_NOTES.md
+-      - dev_memory/phases/phase_08a_statistics_core/SUMMARY.md
+-      - dev_memory/phases/phase_08a_statistics_core/UT_RESULTS.md
+-    scope:
+-      - "Add moving_block_bootstrap_ci() for moving-block percentile bootstrap CI over the sample mean."
+-      - "Add autocorrelation_aware_bootstrap_ci() to select moving block only when autocorrelation_detected=True and n>5; otherwise keep IID bootstrap."
+-      - "Add select_moving_block_size() using max(2, ceil(n^(1/3)), ceil(1/(1-rho1))) capped at n//2, with n<=5 returning None."
+-      - "Expose MOVING_BLOCK_BOOTSTRAP_METHOD and CI block_size metadata for review and downstream consumers."
+-      - "Resample overlapping contiguous blocks and truncate concatenated blocks back to n observations."
+-    exclusions:
+-      - "No StatisticalResult schema or verdict gates; defer to 08a.5."
+-      - "No paired bootstrap or paired comparison logic; defer to 08a.5."
+-      - "No candidate engine."
+-      - "No adaptive/stationary bootstrap or automatic Hall-Horowitz-Jing block-size selection; defer to 08b."
+-    implementation_complete: true
+-    implementation_commit: 81f7287
+-    ut_required: true
+-    ut_passed: true
+-    local_validation:
+-      - "tests/test_stats_core.py -> 23 passed in 1.37s."
+-      - "Targeted pytest passed: .venv\\Scripts\\python.exe -m pytest tests\\test_stats_core.py tests\\test_result_schema.py tests\\test_benchmark_skill.py -q -> 63 passed, 5 skipped in 1.37s."
+-      - "Full Windows pytest was run and remains platform-blocked outside 08a: .venv\\Scripts\\python.exe -m pytest tests\\ -q -> 24 failed, 569 passed, 51 skipped, 4 errors."
+-    review_gate:
+-      - "Block-size helper covers n<=5 no-block, cube-root floor, rho correlation length, and n//2 cap."
+-      - "Moving-block bootstrap is seeded, reports method=moving_block_bootstrap and block_size, and preserves contiguous block structure."
+-      - "Auto CI selects moving block for detected autocorrelation and falls back to IID for weak autocorrelation or small low-power samples."
+-      - "External numerical review should compare fake_gbs bursty moving-block coverage against the 08a.3 naive 73.0%/74.4% baseline."
+-    statistical_correctness_review:
+-      reviewer: external
+-      reviewed_at: 2026-06-13T09:34:11+08:00
+-      range: "5957109..338232b"
+-      verdict: approve_with_finding
+-      critical_findings: 0
+-      high_findings: 0
+-      medium_findings: 1
+-      low_findings: 0
+-      medium_followups:
+-        - id: Med-1
+-          title: "Moving block bootstrap improves bursty coverage but does not by itself reach >=90% for smaller n."
+-          details:
+-            - "fake_gbs bursty nominal 95% coverage: naive IID n=20 -> 73.0%, moving block n=20 -> 78.0%, autocorrelation-aware n=20 -> 76.8%."
+-            - "fake_gbs bursty nominal 95% coverage: naive IID n=40 -> 74.4%, moving block n=40 -> 83.0%, autocorrelation-aware n=40 -> 80.6%."
+-            - "moving block n=60 -> 82.0%; n=100 -> 88.5%, approaching but still below the original >=90% wording."
+-            - "Block-size sweeps did not reveal a simple implementation bug; coverage appears limited by small n plus burst severity, not by method wiring."
+-          disposition: "Not an 08a.4 blocker. Carry into 08a.5 verdict gates: underpowered/autocorrelated bursty data must be low_power/inconclusive rather than significant."
+-      numerical_validation:
+-        - "Block-size formula, n<=5 fallback, method metadata, and scope boundaries passed review."
+-        - "moving_block_bootstrap improves fake_gbs bursty coverage over naive IID but does not guarantee >=90% at n=20-40."
+-        - "autocorrelation_aware_bootstrap_ci selects IID for weak/non-autocorrelated data and moving_block_bootstrap for detected autocorrelation."
+-      scope_review:
+-        - "No StatisticalResult or verdict gates in 08a.4."
+-        - "No paired bootstrap or paired comparison in 08a.4."
+-        - "No candidate engine in 08a.4."
+-      review_takeaway: "08a.4 corrected the resampling model, but final safety depends on 08a.5 verdict gates that turn low-power/autocorrelated bursty cases inconclusive."
+-    external_review_verdict: approve_with_finding
+-    ubuntu_validation:
+-      status: passed
+-      validated_at: 2026-06-13T09:34:11+08:00
+-      head: 338232b
+-      full: "Linux full suite -> 646 passed per external 08a.4 review."
+-  - id: "08a.5"
+-    title: "baseline normalized comparison + pair_key paired design + StatisticalResult verdict schema"
+-    status: done
+-    files_created: []
+-    files_modified:
+-      - src/agent/stats_core.py
+-      - src/agent/skills/result_schema.py
+-      - src/agent/skills/__init__.py
+-      - src/agent/__init__.py
+-      - tests/test_stats_core.py
+-      - tests/test_result_schema.py
+-      - dev_memory/CURRENT_PHASE.yaml
+-      - dev_memory/DECISIONS.md
+-      - dev_memory/PROGRESS.md
+-      - dev_memory/ROADMAP.yaml
+-      - dev_memory/ROADMAP.md
+-      - dev_memory/phases/phase_08a_statistics_core/CHECKLIST.yaml
+-      - dev_memory/phases/phase_08a_statistics_core/REVIEW_NOTES.md
+-      - dev_memory/phases/phase_08a_statistics_core/SUMMARY.md
+-      - dev_memory/phases/phase_08a_statistics_core/UT_RESULTS.md
+-    scope:
+-      - "Add StatisticalResult schema for one candidate-vs-baseline comparison with single_comparison scope and adjusted_for_multiple_testing=false."
+-      - "Add compare_run_records() as the side-effect-free assembly point for baseline/candidate RunLevelRecord sequences."
+-      - "Compute objective_direction-aware signed absolute effect and relative_effect_pct, with relative_effect_pct=None when the baseline mean is effectively zero."
+-      - "Prefer paired differences when matching pair_key values exist; preserve baseline pair order for paired differences and mark partial_pairing when only a subset matches."
+-      - "Run autocorrelation/ESS diagnostics over the paired difference sequence; pairing does not bypass IID checks."
+-      - "For unpaired comparisons, bootstrap baseline and candidate means independently and mark high-autocorrelation unpaired comparisons inconclusive."
+-      - "Layer verdict gates: n_valid<5 or ESS<3 -> inconclusive; 5<=n_valid<10 or 3<=ESS<5 -> low_power/inconclusive; adequately powered CI excluding zero -> significant_improvement/regression; adequately powered CI including zero -> no_difference."
+-      - "Carry 08a.4 Med-1 by marking small-n autocorrelated paired comparisons low_power/inconclusive rather than significant even when the CI excludes zero."
+-      - "Expose significant_single_comparison boolean and avoid any bare significant field."
+-      - "Emit recommend_more_runs when data are underpowered or high-CV."
+-    exclusions:
+-      - "No multiple-comparison correction; Phase 07 owns global comparison-family policy."
+-      - "No adaptive rerun action; 08a only emits recommend_more_runs metadata."
+-      - "No outlier deletion policy."
+-      - "No candidate engine."
+-      - "No fake_gbs burst-state production dependency."
+-    implementation_complete: true
+-    implementation_commit: 8936849
+-    ut_required: true
+-    ut_passed: true
+-    local_validation:
+-      - "Targeted pytest passed: .venv\\Scripts\\python.exe -m pytest tests\\test_stats_core.py tests\\test_result_schema.py tests\\test_benchmark_skill.py -q -> 75 passed, 5 skipped in 1.43s."
+-      - "Full Windows pytest remains platform-blocked outside 08a: .venv\\Scripts\\python.exe -m pytest tests\\ -q -> 24 failed, 581 passed, 51 skipped, 4 errors."
+-      - "Python 3.10 targeted pytest passed after compatibility patch: .venv\\Scripts\\python.exe -m pytest tests\\test_stats_core.py tests\\test_result_schema.py tests\\test_benchmark_skill.py -q -> 75 passed, 5 skipped in 3.10s."
+-      - "Python 3.10 full Windows pytest collected and ran without ImportError; remains platform-blocked outside 08a: 24 failed, 581 passed, 51 skipped, 4 errors."
+-      - "Added tests/__init__.py so Ubuntu/Python 3.10 absolute imports like tests.fixtures.fake_workspace do not resolve to an unrelated site-packages tests module."
+-    review_gate:
+-      - "External numerical review must verify Med-1 safety: small-n/severe-bursty cases with undercovered block-bootstrap CI remain low_power/inconclusive, not significant."
+-      - "Verify verdict boundary tests for n_valid<5, 5<=n_valid<10, ESS<3, 3<=ESS<5, no_difference, and significant_single_comparison."
+-      - "Verify base approximately zero defense: relative_effect_pct=None while signed absolute point_estimate remains present."
+-      - "Verify paired-difference autocorrelation checks still run and unpaired high-autocorrelation data is inconclusive."
+-      - "Verify scope excludes multiple-comparison correction, adaptive rerun, outliers, and candidate engine."
+-    statistical_correctness_review:
+-      reviewer: external
+-      reviewed_at: 2026-06-13T15:33:47+08:00
+-      range: "995ebf3..7087463"
+-      validation_range: "995ebf3..4c1f678"
+-      verdict: approve
+-      critical_findings: 0
+-      high_findings: 0
+-      medium_findings: 0
+-      low_findings: 0
+-      numerical_validation:
+-        - "Med-1 verdict gates force low-power/inconclusive before CI sign checks; small-n autocorrelated paired probes do not become significant."
+-        - "Verdict thresholds for n_valid<5, 5<=n_valid<10, ESS<3, 3<=ESS<5, no_difference, and significant_single_comparison were verified in code and tests."
+-        - "Paired differences still run autocorrelation/ESS checks; pairing does not imply IID."
+-        - "Unpaired autocorrelation is hard-inconclusive."
+-        - "Baseline approximately zero keeps relative_effect_pct=None while preserving signed absolute point_estimate."
+-        - "Scope remains clean: no multiple-comparison correction, adaptive rerun action, outlier policy, or candidate engine."
+-      python_3_10_review:
+-        - "requires-python >=3.10 and tomli fallback are present."
+-        - "Live source/tests avoid datetime.UTC, typing.Self, and tomllib-only assumptions."
+-        - "tests/__init__.py is appropriate for Ubuntu/Python 3.10 tests.fixtures imports."
+-      validation:
+-        targeted: "uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py -q -> 80 passed in 1.37s"
+-        full: "uv run --python 3.10 --system-certs --extra dev pytest tests/ -q -> 658 passed in 7.36s"
+-    external_review_verdict: approve
+-    ubuntu_validation:
+-      status: passed
+-      validated_at: 2026-06-13T14:47:14+08:00
+-      head: b78c744
+-      targeted: "uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py -q -> 80 passed in 1.00s"
+-      full: "uv run --python 3.10 --system-certs --extra dev pytest tests/ -q -> 658 passed in 7.56s"
+-    post_review_hardening:
+-      reviewed_sources:
+-        - ChatGPT
+-        - Kimi
+-        - Gemini
+-        - Kimi-Code
+-        - Claude numerical validation
+-      implemented_at: 2026-06-15T20:32:16+08:00
+-      scope:
+-        - "Sort measured records by started_at/run_index before score extraction and autocorrelation diagnostics; emit input_order_unverified when neither field exists."
+-        - "Parse started_at as UTC datetime for sorting so mixed Z/+00:00/subsecond strings cannot lexically misorder chronology."
+-        - "Emit order_source_conflict when started_at chronology disagrees with run_index ordering."
+-        - "Compute pair_quality inside compare_run_records; only good paired quality can be decision-grade significant, while suspect/unknown quality downgrades to inconclusive/low_power."
+-        - "Use pair_order, explicit pair_time_gap_sec, and started_at-derived gap for pair_quality; when both gap sources exist, take the conservative max."
+-        - "Mark pair_time_gap_conflict and suspect pair_quality when explicit pair_time_gap_sec materially understates started_at-derived gap."
+-        - "Use a per-pair gap threshold of max(5x min(baseline/candidate effective duration), 5 seconds) with a 300 second hard cap."
+-        - "Bound each effective duration by min(duration_sec, ended_at-started_at) when timestamps are available."
+-        - "Detect merged baseline/candidate timeline overlap (ended_at[i] after started_at[i+1]) as run_overlap_detected and suspect pair_quality."
+-        - "Produce exploratory_signal=suggestive_* only for unpaired autocorrelated inconclusive results with n>=40, ESS>=20, corrected CI excluding zero, and relative effect >=1%; requires_confirmation stays true."
+-        - "Add fixed-seed slow coverage regressions for IID Gaussian coverage, fake_gbs bursty naive undercoverage, moving-block improvement, and unpaired-autocorrelation inconclusive behavior."
+-        - "Document heuristic ESS naming, trend-sensitive lag rho, and the deliberate unpaired-autocorrelation inconclusive policy."
+-        - "Expose baseline_block_size and candidate_block_size for unpaired comparisons while preserving the legacy max block_size field."
+-        - "Add boundary tests for zero variance, tiny variance, and n=1000 bootstrap behavior."
+-      validation:
+-        stats_schema: "uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py -q -> 101 passed in 0.76s"
+-        slow_coverage: "uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core_coverage_regression.py -q -> 3 passed in 1.30s"
+-        targeted: "uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py tests/test_stats_core_coverage_regression.py -q -> 109 passed in 2.25s"
+-        full: "uv run --python 3.10 --system-certs --extra dev pytest tests/ -q -> 687 passed in 8.91s"
+-        diff_check: "git diff --check -> passed"
+-        coverage_values:
+-          iid_gaussian_95pct: 0.955
+-          fake_gbs_bursty_naive_iid: 0.7555555555555555
+-          fake_gbs_bursty_moving_block: 0.8166666666666667
+-  - id: "08a.6"
+-    title: "env_snapshot/cross-signal pair-quality follow-up"
+-    status: deferred_nonblocking
+-    reason: "08a minimal statistics core is closed; env_snapshot_distance and stronger trace-integrity cross-checks move to 08b/7.0 as follow-up defenses for the inherent fully self-consistent timestamp-forgery boundary."
+-phase_closeout:
+-  status: complete
+-  completed_at: 2026-06-15T20:53:42+08:00
+-  final_head_before_closeout: b5dd98b
+-  final_validation:
+-    full_python_3_10: "uv run --python 3.10 --system-certs --extra dev pytest tests/ -q -> 687 passed in 8.63s"
+-    diff_check: "git diff --check -> passed"
+-  summary:
+-    - "08a delivered the minimal side-effect-free statistics core: descriptive statistics, conservative ESS/autocorrelation diagnostics, IID percentile bootstrap, moving-block bootstrap, candidate-vs-baseline comparison, and single-comparison verdict gates."
+-    - "08a exposes a decision/exploration data contract: significant verdicts are decision-grade only after power, autocorrelation, pair_quality, and schema gates; exploratory_signal is non-decision-grade and requires confirmation."
+-    - "pair_quality underwent eight adversarial review rounds and closes detectable time-metadata inconsistency plus global-duration-coupling classes."
+-    - "After per-pair duration thresholds, good paired evidence requires pair_order consistency, no merged-timeline overlap, gap<=300s, and gap<=max(5*min(pair durations), 5s) for every pair."
+-    - "The remaining inherent boundary is fully self-consistent forged time metadata with no physical/statistical fingerprint; Phase 7.0 producer integrity and future env_snapshot/cross-signal validation own that defense."
+-  nonblocking_followups:
+-    - "08b: env_snapshot_distance or equivalent stronger pair_quality cross-signal."
+-    - "08b: cosmetic pair_order vs started_at precedence cross-check."
+-    - "08b/7.0: calibrate pair-quality knobs after producer integration: 5x duration multiplier, 300s hard cap, 5s floor."
+-    - "7.0: consume 08a StatisticalResult contract and produce randomized AB/BA paired measurement plans."
+-    - "7.0: producer must guarantee truthful started_at/ended_at/duration_sec/pair_time_gap_sec metadata."
+-    - "7.0/07: forbid sequential peeking and keep multiple-comparison correction in Phase 07 policy."
+-next_action: "Start Phase 7.0 candidate search strategy + constraint solver spike, with 08a contract as an input."
++  - id: "7.0-contracts.1"
++    title: "canonicalize_candidate + unified compute_combo_hash"
++    status: implemented
++    implementation_notes:
++      - "Add shared candidate_identity helper."
++      - "result_schema and fs_memory compute_combo_hash delegate to the same helper."
++      - "Commutative bool flags are sorted/deduplicated; value flags keep one key/value."
++  - id: "7.0-contracts.2"
++    title: "StatisticalResult p_value"
++    status: implemented
++    implementation_notes:
++      - "Bootstrap CI helpers compute p_value from the same bootstrap distribution."
++      - "Zero-count correction prevents p=0."
++      - "p_value is diagnostic and does not change verdict gates."
++  - id: "7.0-contracts.3"
++    title: "relative_ci_low_pct / relative_ci_high_pct"
++    status: implemented
++  - id: "7.0-contracts.4"
++    title: "family_screen + is_decision_grade"
++    status: implemented
++  - id: "7.0-contracts.5"
++    title: "RunLevelRecord provenance extension"
++    status: implemented
++  - id: "7.0-contracts.6"
++    title: "MeasurementPlan model + trace support"
++    status: implemented
++  - id: "7.0-contracts.7"
++    title: "AcceptDecision + can_accept"
++    status: implemented
++validation:
++  focused_contracts:
++    command: "uv run --python 3.10 --system-certs --extra dev pytest tests/test_result_schema.py tests/test_stats_core.py tests/test_fs_memory.py tests/test_trace_memory.py -q"
++    result: "284 passed in 1.23s"
++  adjacent_compile_benchmark_trace:
++    command: "uv run --python 3.10 --system-certs --extra dev pytest tests/test_compile_skill.py tests/test_benchmark_skill.py tests/test_fake_gbs.py tests/test_error_analyzer.py tests/test_trace_session.py -q"
++    result: "76 passed in 3.28s"
++  full_python_3_10:
++    command: "uv run --python 3.10 --system-certs --extra dev pytest tests/ -q"
++    result: "703 passed in 8.54s"
++  yaml_parse:
++    result: "ROADMAP.yaml, CURRENT_PHASE.yaml, and 7.0-contracts CHECKLIST.yaml parse successfully."
++  diff_check:
++    result: "git diff --check -> passed"
++  greenfield_identity_check:
++    result: "No persisted combo_hash data outside docs/dev_memory/tests."
++next_action: "Generate patch artifacts, run diff/YAML checks, commit, push, and request external review for 7.0-contracts implementation."
+diff --git a/dev_memory/DECISIONS.md b/dev_memory/DECISIONS.md
+index dbada87..e4b8a5f 100644
+--- a/dev_memory/DECISIONS.md
++++ b/dev_memory/DECISIONS.md
+@@ -1674,0 +1675,31 @@ Decision records must include:
++
++## 2026-06-17T22:45:00+08:00 - 7.0-contracts code deliverables preserve 08a gates
++
++- affected_requirement:
++  - ROADMAP.yaml Phase 7.0-contracts
++  - doc/PHASE_7.0_CONTRACTS_DRAFT.md
++  - doc/ARCHITECTURE_HLD.md section 4.1
++  - REQUIREMENTS.md section 4.6.2
++  - REQUIREMENTS.md section 4.8
++  - REQUIREMENTS.md section 4.9
++- decision: Implement the frozen 7.0-contracts v4 code deliverables as a narrow contract-surface patch. Delivery 1 is the only identity semantic change; deliveries 2-5 are additive schema/statistics fields and helpers; deliveries 6-7 add new consumer structures. The implementation must not alter 08a verdict or pair_quality gates.
++- implementation_notes:
++  - "Candidate identity lives in agent.candidate_identity. result_schema.compute_combo_hash and fs_memory.compute_combo_hash both delegate to the same compute_canonical_combo_hash helper."
++  - "The default v1 taxonomy sorts/deduplicates commutative bool flags, models known value flags such as opt_level as key/value, rejects conflicting value flags, and rejects accumulating/multi-value forms such as -D/-I/--param as outside the v1 canonical search space."
++  - "BootstrapConfidenceInterval and StatisticalResult expose p_value computed from the same bootstrap distribution as the CI. The value is diagnostic-only and does not participate in _statistical_verdict."
++  - "relative_ci_low_pct/relative_ci_high_pct are additive StatisticalResult fields. When present, schema enforces relative_ci_low_pct <= relative_effect_pct <= relative_ci_high_pct."
++  - "family_screen is batch-only and uses BH with m=len(results), the pre-registered full family size supplied by the caller. Direction filtering uses verdict == significant_improvement, not relative_effect_pct sign."
++  - "is_decision_grade delegates to the same schema-derived predicate used by StatisticalResult consistency checks; 07 consumers should use the helper instead of reading CI fields directly."
++  - "RunLevelRecord adds optional measurement_plan_id/source_commit/benchmark_id/benchmark_version/objective_id; pair_order/started_at/pair_key/pair_time_gap_sec remain run-level measurement facts consumed by 08a."
++  - "MeasurementPlan owns candidate_id/family_id/baseline_id and can be written to trace via TraceSessionWriter.measurement_plan_created."
++  - "can_accept returns AcceptDecision reason codes and checks family screening, confirmation status, relative CI practical threshold, and provenance completeness."
++- rationale: This preserves the reviewed 08a statistical safety boundary while making the 07 input contracts executable. p_value and relative CI are necessary for family screening and practical-threshold gates, but changing verdict gates here would invalidate the eight-round 08a review closure. Keeping family_screen batch-only prevents accidentally implementing FDR as a per-candidate helper with no rank context.
++- validation:
++  - "Focused contract/schema/stats/fs/trace tests -> 284 passed in 1.23s."
++  - "Adjacent compile/benchmark/fake_gbs/error/trace-session tests -> 76 passed in 3.28s."
++  - "Full Python 3.10 suite -> 703 passed in 8.54s."
++- alternatives_considered:
++  - "Add p_value but let it influence verdict. Rejected because p_value is for 07 family screening and must not reopen 08a verdict gates."
++  - "Keep two compute_combo_hash implementations and copy canonicalization logic. Rejected because TrialRecord hash validation can diverge from result-schema hash identity."
++  - "Put family_screen into can_accept. Rejected because FDR-BH is batch-level and requires the full family p-value ranking."
++  - "Put candidate_id/family_id/baseline_id directly on RunLevelRecord. Rejected because the frozen contract chose plan-owns identity; run records carry measurement_plan_id plus run-specific provenance."
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index 84d10d6..f9706d8 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -2,0 +3,54 @@
++## 2026-06-17T22:45:00+08:00 - 7.0-contracts code deliverables implemented
++
++- Implemented the seven frozen 7.0-contracts v4 code deliverables:
++  canonical candidate identity, p_value, relative CI fields,
++  family_screen/is_decision_grade, RunLevelRecord provenance, MeasurementPlan,
++  and AcceptDecision/can_accept.
++- Split `ROADMAP.yaml` Phase 7.0 into `7.0-contracts` and `7.0-spike`.
++  `7.0-contracts` is now the in-progress implementation phase; `7.0-spike`
++  remains the later scaling/strategy measurement phase.
++- Delivery 1 identity change:
++  - added `agent.candidate_identity`,
++  - `result_schema.compute_combo_hash()` and `fs_memory.compute_combo_hash()`
++    delegate to the same helper,
++  - commutative flags are sorted/deduplicated,
++  - value flags such as `-O2`/`-O3` remain distinct and conflicting values are
++    rejected,
++  - safe surrounding whitespace is normalized and control/out-of-scope
++    accumulating flags are rejected.
++- Additive 08a/schema changes:
++  - bootstrap CI helpers now compute diagnostic `p_value` from the same
++    bootstrap distribution as CI, with zero-count correction,
++  - `StatisticalResult` carries `relative_ci_low_pct` /
++    `relative_ci_high_pct`,
++  - `RunLevelRecord` carries optional `measurement_plan_id`, `source_commit`,
++    `benchmark_id`, `benchmark_version`, and `objective_id`,
++  - verdict and pair_quality gates remain unchanged.
++- 07 consumer helpers:
++  - `family_screen()` performs batch BH over full family size and screens only
++    `verdict=significant_improvement`,
++  - `is_decision_grade()` is derived from the same schema predicate,
++  - `can_accept()` returns `AcceptDecision` reason codes and checks family
++    screening, confirmation, practical threshold via relative CI, and
++    provenance completeness.
++- Measurement plan support:
++  - `MeasurementPlan` owns candidate/family/baseline identity,
++  - `TraceSessionWriter.measurement_plan_created()` records a trace event that
++    can be replayed from JSONL.
++- Validation:
++  - focused contracts:
++    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_result_schema.py tests/test_stats_core.py tests/test_fs_memory.py tests/test_trace_memory.py -q`
++    -> 284 passed in 1.23s,
++  - adjacent compile/benchmark/trace:
++    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_compile_skill.py tests/test_benchmark_skill.py tests/test_fake_gbs.py tests/test_error_analyzer.py tests/test_trace_session.py -q`
++    -> 76 passed in 3.28s,
++  - full Python 3.10 suite:
++    `uv run --python 3.10 --system-certs --extra dev pytest tests/ -q`
++    -> 703 passed in 8.54s.
++  - static checks: YAML parse smoke passed, `git diff --check` passed, and
++    greenfield identity audit found no persisted `combo_hash` data outside
++    docs/dev_memory/tests.
++
++Next action: run YAML/diff checks, generate patch artifacts, commit/push, and
++request external review for the implementation range.
++
+diff --git a/dev_memory/ROADMAP.md b/dev_memory/ROADMAP.md
+index 679a444..6ccdda7 100644
+--- a/dev_memory/ROADMAP.md
++++ b/dev_memory/ROADMAP.md
+@@ -23 +23 @@ Current phase:
+-| Phase 08a done | 7.0 ready | 08a delivered the pure statistics core and closed pair_quality after eight adversarial review rounds. Phase 7.0 should now define the candidate-search strategy and producer contract that consume 08a results. |
++| Phase 7.0-contracts implementation complete | external review, then 7.0-spike | The frozen v4 07 input contracts now have code deliverables for canonical identity, p_value, relative CI, family/accept helpers, provenance, MeasurementPlan, and AcceptDecision. Review/validation should close this before the scaling spike. |
+@@ -50,3 +50,4 @@ Next implementation phases:
+-| 1 | 7.0 - Candidate Search Strategy + Constraint Solver Spike | 2-3 subtasks | Must turn 05.5's noise-robust interaction-discovery risk into concrete Phase 07 search requirements and producer obligations for consuming 08a safely. |
+-| 2 | 07 - Candidate Engine + Constraint + Schedule | 10-16 subtasks | LLM integration and non-bruteforce search strategy remain the largest algorithmic risk. |
+-| 3 | 08b - Baseline + Statistical Significance - Advanced Noise Policy | 3-4 subtasks | Runs alongside/after 07 to add adaptive rerun, outlier policy, sequential testing, noise diagnostics, and env_snapshot/cross-signal pair-quality follow-up. |
++| 1 | 7.0-contracts - Candidate Engine Input Contracts | 7 deliverables | Implementation complete; needs external review before it becomes the stable 07 input surface. |
++| 2 | 7.0-spike - Candidate Search Strategy + Constraint Solver Spike | 2-3 subtasks | Must turn 05.5's noise-robust interaction-discovery risk into concrete Phase 07 search requirements using the frozen contracts. |
++| 3 | 07 - Candidate Engine + Constraint + Schedule | 10-16 subtasks | LLM integration and non-bruteforce search strategy remain the largest algorithmic risk. |
++| 4 | 08b - Baseline + Statistical Significance - Advanced Noise Policy | 3-4 subtasks | Runs alongside/after 07 to add adaptive rerun, outlier policy, sequential testing, noise diagnostics, and env_snapshot/cross-signal pair-quality follow-up. |
+@@ -87,2 +88,2 @@ Remaining estimate:
+-| v1-minimal remaining | 7.0/07/08b/09/10/11/12/13 | 56-95 | 43-73 | 9-15 |
+-| v1-full remaining | 7.0/07/08b/9.0/9.1/09/10/11/12/13/14/15a/15b/16 | 81-135 | 62-104 | 13-21 |
++| v1-minimal remaining | 7.0-contracts/7.0-spike/07/08b/09/10/11/12/13 | 56-95 | 43-73 | 9-15 |
++| v1-full remaining | 7.0-contracts/7.0-spike/07/08b/9.0/9.1/09/10/11/12/13/14/15a/15b/16 | 81-135 | 62-104 | 13-21 |
+diff --git a/dev_memory/ROADMAP.yaml b/dev_memory/ROADMAP.yaml
+index 632fd36..bad1ce2 100644
+--- a/dev_memory/ROADMAP.yaml
++++ b/dev_memory/ROADMAP.yaml
+@@ -3 +3 @@ roadmap_version: 1
+-last_updated: 2026-06-17T00:00:00+08:00
++last_updated: 2026-06-17T22:28:51+08:00
+@@ -42 +42 @@ sizing:
+-  v1_minimal_phases: ["04","06","05.5","05","08a","7.0","07","08b","09","10","11","12","13"]
++  v1_minimal_phases: ["04","06","05.5","05","08a","7.0-contracts","7.0-spike","07","08b","09","10","11","12","13"]
+@@ -47 +47 @@ sizing:
+-  v1_full_phases: ["04","06","05.5","05","08a","7.0","07","08b","9.0","9.1","09","10","11","12","13","14","15a","15b","16"]
++  v1_full_phases: ["04","06","05.5","05","08a","7.0-contracts","7.0-spike","07","08b","9.0","9.1","09","10","11","12","13","14","15a","15b","16"]
+@@ -226 +226,28 @@ planned_phases:
+-  - id: "7.0"
++  - id: "7.0-contracts"
++    title: "Candidate Engine Input Contracts - Frozen Code Deliverables"
++    status: in_progress
++    started_at: "2026-06-17T22:28:51+08:00"
++    milestone: "M2 (precursor)"
++    requirement_sections: ["4.6.2", "4.8", "4.9", "4.10"]
++    dependencies: ["08a"]
++    estimate_subtasks: { low: 7, high: 7 }
++    risk: high
++    design_reference: "doc/PHASE_7.0_CONTRACTS_DRAFT.md"
++    goals:
++      - "Implement canonicalize_candidate and unify both compute_combo_hash entry points."
++      - "Add StatisticalResult p_value from the same bootstrap distribution used for CI."
++      - "Add relative_ci_low_pct / relative_ci_high_pct for practical-threshold gates."
++      - "Add family_screen and is_decision_grade helpers as the only decision-grade consumer surface."
++      - "Extend RunLevelRecord with optional measurement_plan_id and run-specific provenance."
++      - "Add MeasurementPlan model and trace payload/writer support."
++      - "Add AcceptDecision and can_accept gate with reason codes."
++    exit_criteria:
++      - "compute_combo_hash is order-insensitive for commutative flags, deduplicates identical flags, keeps value flags distinct, and result_schema/fs_memory share one implementation."
++      - "p_value is finite, non-zero under zero-count correction, and stays diagnostic-only without changing 08a verdict/pair_quality gates."
++      - "relative CI fields are optional/additive and enforce relative_ci_low_pct <= relative_effect_pct <= relative_ci_high_pct when present."
++      - "family_screen uses pre-registered full-family m, screens only verdict=significant_improvement, and handles lower_is_better by verdict rather than relative-effect sign."
++      - "can_accept returns AcceptDecision reason codes for screen, confirmation, practical-threshold, pair-quality, and provenance gates."
++      - "MeasurementPlan is the canonical owner of candidate_id/family_id/baseline_id and can be recorded in trace."
++      - "Focused and full Python 3.10 test suites pass."
++
++  - id: "7.0-spike"
+@@ -231 +258 @@ planned_phases:
+-    dependencies: ["08a"]
++    dependencies: ["08a", "7.0-contracts"]
+@@ -241,5 +268 @@ planned_phases:
+-      - "Define how exploratory_signal is consumed only for propose/prioritize/schedule-retest flows, never for accept/promote/champion decisions."
+-      - "Define paired measurement plans that generate randomized AB/BA pair_order and small pair_time_gap_sec for pair_quality=good."
+-      - "Consume 08a StatisticalResult strictly: unpaired+autocorrelation remains inconclusive, exploratory_signal only schedules confirmation, and only good-quality paired or IID decision-grade results can accept/reject/promote."
+-      - "Define producer obligations for truthful started_at/ended_at/duration_sec/pair_time_gap_sec metadata; this is the 08a inherent-boundary backstop."
+-      - "Prohibit sequential testing/peeking in search strategy; repeated looks require Phase 08b/07 policy rather than ad hoc candidate-engine decisions."
++      - "Use the frozen 7.0-contracts canonicalization, family, producer, fixed-budget, and accept API contracts as spike inputs."
+@@ -266 +289 @@ planned_phases:
+-    dependencies: ["02", "03", "05.5", "08a", "7.0"]
++    dependencies: ["02", "03", "05.5", "08a", "7.0-contracts", "7.0-spike"]
+diff --git a/dev_memory/phases/phase_7_0_contracts/CHECKLIST.yaml b/dev_memory/phases/phase_7_0_contracts/CHECKLIST.yaml
+new file mode 100644
+index 0000000..7095c79
+--- /dev/null
++++ b/dev_memory/phases/phase_7_0_contracts/CHECKLIST.yaml
+@@ -0,0 +1,74 @@
++phase_id: phase_7_0_contracts
++phase_title: "Candidate Engine Input Contracts - Frozen Code Deliverables"
++status: implementation_complete
++started_at: 2026-06-17T22:28:51+08:00
++design_reference: doc/PHASE_7.0_CONTRACTS_DRAFT.md
++scope:
++  - "Implement the seven code deliverables frozen by 7.0-contracts v4."
++  - "Keep 08a verdict/pair_quality gates unchanged."
++  - "Split ROADMAP 7.0 into 7.0-contracts and 7.0-spike."
++deliverables:
++  - id: "1"
++    title: "canonicalize_candidate + unified compute_combo_hash"
++    status: done
++    files:
++      - src/agent/candidate_identity.py
++      - src/agent/skills/result_schema.py
++      - src/agent/fs_memory.py
++    acceptance:
++      - "Commutative order does not affect hash."
++      - "Duplicate commutative/value flags deduplicate."
++      - "Value flag alternatives remain distinct or conflicting."
++      - "result_schema and fs_memory hash entry points match."
++      - "TrialRecord combo_hash validation uses the shared helper."
++  - id: "2"
++    title: "p_value on BootstrapConfidenceInterval and StatisticalResult"
++    status: done
++    acceptance:
++      - "p_value comes from the same bootstrap distribution as the CI."
++      - "zero-count correction prevents p=0."
++      - "verdict/pair_quality rules are unchanged."
++  - id: "3"
++    title: "relative CI percentage fields"
++    status: done
++    acceptance:
++      - "relative_ci_low_pct <= relative_effect_pct <= relative_ci_high_pct when present."
++      - "baseline mean approximately zero leaves relative fields None."
++  - id: "4"
++    title: "family_screen + is_decision_grade"
++    status: done
++    acceptance:
++      - "BH denominator is full family size."
++      - "Only verdict=significant_improvement can screen in."
++      - "lower_is_better is handled by verdict rather than relative-effect sign."
++  - id: "5"
++    title: "RunLevelRecord provenance extension"
++    status: done
++    acceptance:
++      - "measurement_plan_id/source_commit/benchmark_id/objective_id are optional."
++      - "pair_order/started_at/pair_key/pair_time_gap_sec remain on run records."
++  - id: "6"
++    title: "MeasurementPlan"
++    status: done
++    acceptance:
++      - "MeasurementPlan owns candidate_id/family_id/baseline_id."
++      - "plan_type distinguishes screen and confirmation."
++      - "TraceSessionWriter can write measurement_plan_created events."
++  - id: "7"
++    title: "AcceptDecision + can_accept"
++    status: done
++    acceptance:
++      - "can_accept returns AcceptDecision, not bool."
++      - "relative_ci_low_pct drives practical threshold."
++      - "incomplete provenance is rejected."
++validation:
++  focused_contracts: "284 passed in 1.23s"
++  adjacent_compile_benchmark_trace: "76 passed in 3.28s"
++  full_python_3_10: "703 passed in 8.54s"
++  yaml_parse: "ROADMAP.yaml, CURRENT_PHASE.yaml, and CHECKLIST.yaml parse successfully."
++  diff_check: "git diff --check -> passed"
++  greenfield_identity_check: "No persisted combo_hash data outside docs/dev_memory/tests."
++patch_artifacts:
++  - dev_memory/phases/phase_7_0_contracts/patches/01_contract_code_deliverables.patch
++  - dev_memory/phases/phase_7_0_contracts/patches/01_contract_code_deliverables.summary.txt
++  - dev_memory/phases/phase_7_0_contracts/patches/01_contract_code_deliverables.review.md
+diff --git a/dev_memory/phases/phase_7_0_contracts/REVIEW_NOTES.md b/dev_memory/phases/phase_7_0_contracts/REVIEW_NOTES.md
+new file mode 100644
+index 0000000..ab98e1a
+--- /dev/null
++++ b/dev_memory/phases/phase_7_0_contracts/REVIEW_NOTES.md
+@@ -0,0 +1,24 @@
++# Phase 7.0-contracts Review Notes
++
++## Self-review focus
++
++- Verify delivery 1 is the only identity semantic change and remains greenfield.
++- Verify deliveries 2-5 are additive and do not modify 08a verdict/pair_quality
++  gates.
++- Verify p_value uses the same bootstrap distribution as CI.
++- Verify `family_screen` uses full pre-registered family size as BH denominator
++  and filters by `verdict == significant_improvement`.
++- Verify `can_accept` is per-candidate and takes `is_family_screened` as input
++  rather than recomputing family-level BH.
++
++## Current observations
++
++- `compute_combo_hash` in both `result_schema.py` and `fs_memory.py` delegates
++  to `agent.candidate_identity.compute_canonical_combo_hash`.
++- `compare_run_records()` now fills p_value, relative CI, and provenance
++  completeness, but the existing verdict and pair-quality gate function is
++  unchanged.
++- MeasurementPlan trace support is implemented as an open
++  `measurement_plan_created` event via `TraceSessionWriter`.
++- Patch artifacts are under
++  `dev_memory/phases/phase_7_0_contracts/patches/01_contract_code_deliverables.*`.
+diff --git a/dev_memory/phases/phase_7_0_contracts/SUMMARY.md b/dev_memory/phases/phase_7_0_contracts/SUMMARY.md
+new file mode 100644
+index 0000000..c2abbc2
+--- /dev/null
++++ b/dev_memory/phases/phase_7_0_contracts/SUMMARY.md
+@@ -0,0 +1,39 @@
++# Phase 7.0-contracts Summary
++
++Phase 7.0-contracts implements the seven code deliverables frozen by
++`doc/PHASE_7.0_CONTRACTS_DRAFT.md` v4. The goal is to turn the reviewed 07 input
++contracts into concrete schema/statistics/identity/trace APIs before the later
++7.0 scaling spike and Phase 07 candidate engine work.
++
++Implemented scope so far:
++
++- Split `ROADMAP.yaml` Phase 7.0 into `7.0-contracts` and `7.0-spike`.
++- Added a shared candidate identity helper for commutative-only canonicalization
++  and unified both `compute_combo_hash` entry points.
++- Added bootstrap-derived `p_value` as diagnostic output without changing 08a
++  verdict or pair-quality gates.
++- Added relative CI percentage fields for practical-threshold consumers.
++- Added `family_screen`, `is_decision_grade`, `AcceptDecision`, and
++  `can_accept` helpers.
++- Extended `RunLevelRecord` with optional measurement provenance fields.
++- Added `MeasurementPlan` and trace-writer support for
++  `measurement_plan_created` events.
++
++Key boundary:
++
++- The additive fields and helpers are consumer contract surface for 07. They do
++  not relax 08a's conservative statistical verdict gates.
++
++Validation so far:
++
++- Focused contract/schema/stats/fs/trace tests:
++  `uv run --python 3.10 --system-certs --extra dev pytest tests/test_result_schema.py tests/test_stats_core.py tests/test_fs_memory.py tests/test_trace_memory.py -q`
++  -> 284 passed in 1.23s.
++- Adjacent compile/benchmark/fake_gbs/error/trace-session tests:
++  `uv run --python 3.10 --system-certs --extra dev pytest tests/test_compile_skill.py tests/test_benchmark_skill.py tests/test_fake_gbs.py tests/test_error_analyzer.py tests/test_trace_session.py -q`
++  -> 76 passed in 3.28s.
++
++Full-suite validation:
++
++- `uv run --python 3.10 --system-certs --extra dev pytest tests/ -q`
++  -> 703 passed in 8.54s.
+diff --git a/dev_memory/phases/phase_7_0_contracts/UT_RESULTS.md b/dev_memory/phases/phase_7_0_contracts/UT_RESULTS.md
+new file mode 100644
+index 0000000..9487a20
+--- /dev/null
++++ b/dev_memory/phases/phase_7_0_contracts/UT_RESULTS.md
+@@ -0,0 +1,39 @@
++# Phase 7.0-contracts UT Results
++
++## Focused Contracts
++
++- Command:
++  `uv run --python 3.10 --system-certs --extra dev pytest tests/test_result_schema.py tests/test_stats_core.py tests/test_fs_memory.py tests/test_trace_memory.py -q`
++- Result:
++  `284 passed in 1.23s`
++- Coverage:
++  - canonical hash equivalence, deduplication, value-flag distinction, shared
++    result_schema/fs_memory entry points, and TrialRecord validation;
++  - p_value and relative CI propagation;
++  - family_screen full-family BH and lower_is_better direction handling;
++  - RunLevelRecord optional provenance;
++  - MeasurementPlan schema and trace emission;
++  - AcceptDecision reason codes.
++
++## Adjacent Regression
++
++- Command:
++  `uv run --python 3.10 --system-certs --extra dev pytest tests/test_compile_skill.py tests/test_benchmark_skill.py tests/test_fake_gbs.py tests/test_error_analyzer.py tests/test_trace_session.py -q`
++- Result:
++  `76 passed in 3.28s`
++
++## Full Suite
++
++- Command:
++  `uv run --python 3.10 --system-certs --extra dev pytest tests/ -q`
++- Result:
++  `703 passed in 8.54s`
++
++## Static / Metadata
++
++- `git diff --check` -> passed.
++- YAML parse smoke for `dev_memory/ROADMAP.yaml`,
++  `dev_memory/CURRENT_PHASE.yaml`, and
++  `dev_memory/phases/phase_7_0_contracts/CHECKLIST.yaml` -> passed.
++- Greenfield identity check:
++  no persisted `combo_hash` data outside docs/dev_memory/tests.
+diff --git a/src/agent/__init__.py b/src/agent/__init__.py
+index 39268a3..95a5f82 100644
+--- a/src/agent/__init__.py
++++ b/src/agent/__init__.py
+@@ -2,0 +3,6 @@
++from .candidate_identity import (
++    CandidateCanonicalizationSpec,
++    CanonicalCandidate,
++    canonicalize_candidate,
++    compute_canonical_combo_hash,
++)
+@@ -229,0 +236,2 @@ from .skills import (
++    MeasurementPlan,
++    MeasurementPlanType,
+@@ -236,0 +245 @@ from .skills import (
++    is_statistical_result_decision_grade,
+@@ -271,0 +281 @@ from .stats_core import (
++    AcceptDecision,
+@@ -274,0 +285 @@ from .stats_core import (
++    can_accept,
+@@ -281,0 +293 @@ from .stats_core import (
++    family_screen,
+@@ -282,0 +295 @@ from .stats_core import (
++    is_decision_grade,
+@@ -327,0 +341 @@ __all__ = [
++    "AcceptDecision",
+@@ -330,0 +345 @@ __all__ = [
++    "CandidateCanonicalizationSpec",
+@@ -341,0 +357 @@ __all__ = [
++    "CanonicalCandidate",
+@@ -419,0 +436,2 @@ __all__ = [
++    "MeasurementPlan",
++    "MeasurementPlanType",
+@@ -505,0 +524,2 @@ __all__ = [
++    "can_accept",
++    "canonicalize_candidate",
+@@ -517,0 +538 @@ __all__ = [
++    "compute_canonical_combo_hash",
+@@ -538,0 +560 @@ __all__ = [
++    "family_screen",
+@@ -547,0 +570 @@ __all__ = [
++    "is_decision_grade",
+@@ -548,0 +572 @@ __all__ = [
++    "is_statistical_result_decision_grade",
+diff --git a/src/agent/candidate_identity.py b/src/agent/candidate_identity.py
+new file mode 100644
+index 0000000..f12eddf
+--- /dev/null
++++ b/src/agent/candidate_identity.py
+@@ -0,0 +1,183 @@
++"""Candidate identity helpers for 7.0 contracts."""
++
++from __future__ import annotations
++
++import hashlib
++import re
++from dataclasses import dataclass
++from typing import Any, Mapping, Sequence
++
++
++_INTERNAL_WHITESPACE = re.compile(r"\s+")
++_OPT_LEVEL_FLAGS = {
++    "-O0": "O0",
++    "-O1": "O1",
++    "-O2": "O2",
++    "-O3": "O3",
++    "-Os": "Os",
++    "-Oz": "Oz",
++    "-Og": "Og",
++    "-Ofast": "Ofast",
++}
++_VALUE_PREFIXES = {
++    "-march=": "march",
++    "-mtune=": "mtune",
++    "-mcpu=": "mcpu",
++    "-flto=": "flto",
++}
++_UNSUPPORTED_ACCUMULATING_PREFIXES = (
++    "-D",
++    "-I",
++    "-L",
++    "-l",
++    "-Wl,",
++    "--param",
++)
++
++
++@dataclass(frozen=True)
++class CanonicalCandidate:
++    """Canonical candidate representation used for identity hashing."""
++
++    commutative_flags: tuple[str, ...]
++    value_flags: tuple[tuple[str, str, str], ...]
++
++    @property
++    def hash_items(self) -> tuple[str, ...]:
++        value_items = tuple(raw for _key, _value, raw in self.value_flags)
++        return tuple(sorted(self.commutative_flags + value_items))
++
++
++@dataclass(frozen=True)
++class CandidateCanonicalizationSpec:
++    """Minimal v1 search-space taxonomy for candidate identity."""
++
++    value_prefixes: Mapping[str, str] | None = None
++    value_literals: Mapping[str, tuple[str, str]] | None = None
++    unsupported_prefixes: tuple[str, ...] = _UNSUPPORTED_ACCUMULATING_PREFIXES
++
++
++def canonicalize_candidate(
++    spec: CandidateCanonicalizationSpec | Mapping[str, Any] | None,
++    combo: Sequence[str],
++) -> CanonicalCandidate:
++    """Return the commutative-only canonical representation for a combo.
++
++    The default v1 taxonomy treats ordinary bool flags as commutative, models
++    known value flags as key->single value, and rejects accumulating/multi-value
++    flag forms that are outside the frozen 7.0-contracts v1 search space.
++    """
++
++    if not combo:
++        raise ValueError("combo cannot be empty")
++    normalized = tuple(_normalize_option(option) for option in combo)
++    parsed_spec = _coerce_spec(spec)
++    value_prefixes = dict(_VALUE_PREFIXES)
++    if parsed_spec.value_prefixes:
++        value_prefixes.update(parsed_spec.value_prefixes)
++    value_literals = dict(_default_value_literals())
++    if parsed_spec.value_literals:
++        value_literals.update(parsed_spec.value_literals)
++
++    bool_flags: set[str] = set()
++    value_by_key: dict[str, tuple[str, str]] = {}
++    for option in normalized:
++        _reject_unsupported_accumulating(option, parsed_spec.unsupported_prefixes)
++        literal = value_literals.get(option)
++        if literal is not None:
++            key, value = literal
++            raw = option
++            _add_value_flag(value_by_key, key=key, value=value, raw=raw)
++            continue
++
++        matched_prefix = next(
++            (prefix for prefix in sorted(value_prefixes, key=len, reverse=True) if option.startswith(prefix)),
++            None,
++        )
++        if matched_prefix is not None:
++            key = value_prefixes[matched_prefix]
++            value = option[len(matched_prefix) :]
++            if not value:
++                raise ValueError(f"value flag {option!r} must include a value")
++            _add_value_flag(value_by_key, key=key, value=value, raw=option)
++            continue
++
++        bool_flags.add(option)
++
++    return CanonicalCandidate(
++        commutative_flags=tuple(sorted(bool_flags)),
++        value_flags=tuple(
++            (key, value, raw)
++            for key, (value, raw) in sorted(value_by_key.items(), key=lambda item: item[0])
++        ),
++    )
++
++
++def compute_canonical_combo_hash(
++    combo: Sequence[str],
++    *,
++    spec: CandidateCanonicalizationSpec | Mapping[str, Any] | None = None,
++) -> str:
++    """Return the shared sha256 candidate identity hash."""
++
++    canonical = canonicalize_candidate(spec, combo)
++    payload = "\0".join(canonical.hash_items).encode("utf-8", errors="surrogateescape")
++    return "sha256:" + hashlib.sha256(payload).hexdigest()
++
++
++def _coerce_spec(
++    spec: CandidateCanonicalizationSpec | Mapping[str, Any] | None,
++) -> CandidateCanonicalizationSpec:
++    if spec is None:
++        return CandidateCanonicalizationSpec()
++    if isinstance(spec, CandidateCanonicalizationSpec):
++        return spec
++    value_prefixes = spec.get("value_prefixes")
++    value_literals = spec.get("value_literals")
++    unsupported_prefixes = spec.get("unsupported_prefixes", _UNSUPPORTED_ACCUMULATING_PREFIXES)
++    return CandidateCanonicalizationSpec(
++        value_prefixes=value_prefixes,
++        value_literals=value_literals,
++        unsupported_prefixes=tuple(unsupported_prefixes),
++    )
++
++
++def _default_value_literals() -> dict[str, tuple[str, str]]:
++    return {raw: ("opt_level", value) for raw, value in _OPT_LEVEL_FLAGS.items()}
++
++
++def _normalize_option(option: str) -> str:
++    if not isinstance(option, str):
++        raise ValueError("combo options must be strings")
++    stripped = option.strip()
++    if not stripped:
++        raise ValueError("combo options must be non-empty strings")
++    if any(ord(char) < 0x20 or ord(char) == 0x7F for char in stripped):
++        raise ValueError("combo options cannot contain control characters")
++    return _INTERNAL_WHITESPACE.sub(" ", stripped)
++
++
++def _reject_unsupported_accumulating(
++    option: str,
++    unsupported_prefixes: tuple[str, ...],
++) -> None:
++    if option == "--param" or option.startswith("--param "):
++        raise ValueError(f"option {option!r} is outside the v1 canonical search space")
++    for prefix in unsupported_prefixes:
++        if prefix == "--param":
++            continue
++        if option.startswith(prefix):
++            raise ValueError(f"option {option!r} is outside the v1 canonical search space")
++
++
++def _add_value_flag(
++    value_by_key: dict[str, tuple[str, str]],
++    *,
++    key: str,
++    value: str,
++    raw: str,
++) -> None:
++    previous = value_by_key.get(key)
++    if previous is not None and previous[0] != value:
++        raise ValueError(f"value flag {key!r} has conflicting values")
++    value_by_key[key] = (value, raw)
+diff --git a/src/agent/fs_memory.py b/src/agent/fs_memory.py
+index 7f68eaa..716a2a2 100644
+--- a/src/agent/fs_memory.py
++++ b/src/agent/fs_memory.py
+@@ -26,0 +27 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
++from .candidate_identity import compute_canonical_combo_hash
+@@ -1180,11 +1181 @@ def compute_combo_hash(combo: Sequence[str]) -> str:
+-    if not combo:
+-        raise ValueError("combo cannot be empty")
+-    for option in combo:
+-        if not isinstance(option, str) or not option.strip():
+-            raise ValueError("combo options must be non-empty strings")
+-        if option != option.strip():
+-            raise ValueError("combo options cannot contain surrounding whitespace")
+-        if any(ord(char) < 0x20 or ord(char) == 0x7F for char in option):
+-            raise ValueError("combo options cannot contain control characters")
+-    payload = _canonical_yaml_bytes(list(combo))
+-    return "sha256:" + hashlib.sha256(payload).hexdigest()
++    return compute_canonical_combo_hash(combo)
+diff --git a/src/agent/skills/__init__.py b/src/agent/skills/__init__.py
+index 46655b4..0c2e339 100644
+--- a/src/agent/skills/__init__.py
++++ b/src/agent/skills/__init__.py
+@@ -25,0 +26,2 @@ from .result_schema import (
++    MeasurementPlan,
++    MeasurementPlanType,
+@@ -33,0 +36 @@ from .result_schema import (
++    is_statistical_result_decision_grade,
+@@ -65,0 +69,2 @@ __all__ = [
++    "MeasurementPlan",
++    "MeasurementPlanType",
+@@ -85,0 +91 @@ __all__ = [
++    "is_statistical_result_decision_grade",
+diff --git a/src/agent/skills/result_schema.py b/src/agent/skills/result_schema.py
+index 2ce1461..050f7b8 100644
+--- a/src/agent/skills/result_schema.py
++++ b/src/agent/skills/result_schema.py
+@@ -5 +4,0 @@ from __future__ import annotations
+-import hashlib
+@@ -13,0 +13,6 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
++from agent.candidate_identity import (
++    CandidateCanonicalizationSpec,
++    CanonicalCandidate,
++    canonicalize_candidate,
++    compute_canonical_combo_hash,
++)
+@@ -58,0 +64 @@ PairQuality = Literal["good", "suspect", "unknown"]
++MeasurementPlanType = Literal["screen", "confirmation"]
+@@ -177,0 +184,2 @@ class StatisticalResult(StrictResultSchemaModel):
++    relative_ci_low_pct: float | None = None
++    relative_ci_high_pct: float | None = None
+@@ -181,0 +190 @@ class StatisticalResult(StrictResultSchemaModel):
++    p_value: float | None = Field(default=None, ge=0, le=1)
+@@ -205,0 +215 @@ class StatisticalResult(StrictResultSchemaModel):
++    provenance_complete: bool = True
+@@ -210,0 +221,2 @@ class StatisticalResult(StrictResultSchemaModel):
++        "relative_ci_low_pct",
++        "relative_ci_high_pct",
+@@ -212,0 +225 @@ class StatisticalResult(StrictResultSchemaModel):
++        "p_value",
+@@ -225,0 +239,20 @@ class StatisticalResult(StrictResultSchemaModel):
++        relative_ci_values = (self.relative_ci_low_pct, self.relative_ci_high_pct)
++        if any(value is not None for value in relative_ci_values):
++            if (
++                self.relative_effect_pct is None
++                or self.relative_ci_low_pct is None
++                or self.relative_ci_high_pct is None
++            ):
++                raise ValueError("relative CI fields must all be present or all be None")
++            relative_low = self.relative_ci_low_pct
++            relative_effect = self.relative_effect_pct
++            relative_high = self.relative_ci_high_pct
++            assert relative_low is not None
++            assert relative_effect is not None
++            assert relative_high is not None
++            if relative_low > relative_high:
++                raise ValueError("relative_ci_low_pct cannot exceed relative_ci_high_pct")
++            if not relative_low <= relative_effect <= relative_high:
++                raise ValueError(
++                    "relative_effect_pct must lie within the relative CI"
++                )
+@@ -233,4 +266 @@ class StatisticalResult(StrictResultSchemaModel):
+-        expected_significant = self.verdict in {
+-            "significant_improvement",
+-            "significant_regression",
+-        }
++        expected_significant = _statistical_result_has_significant_verdict(self)
+@@ -266,0 +297,47 @@ class StatisticalResult(StrictResultSchemaModel):
++class MeasurementPlan(StrictResultSchemaModel):
++    """Pre-registered measurement plan for 7.0/07 statistical comparisons."""
++
++    measurement_plan_id: NonEmptyStr
++    family_id: NonEmptyStr
++    candidate_id: NonEmptyStr
++    baseline_id: NonEmptyStr
++    plan_type: MeasurementPlanType
++    planned_n_pairs: int = Field(gt=0)
++    abba_seed: NonEmptyStr
++    pair_order: tuple[PairOrder, ...] = Field(min_length=1)
++    created_at: NonEmptyStr
++
++    @field_validator("created_at", mode="before")
++    @classmethod
++    def created_at_datetime_to_string(cls, value: Any) -> Any:
++        return _datetime_to_utc_isoformat(value, "created_at")
++
++    @field_validator("created_at")
++    @classmethod
++    def created_at_must_be_utc_isoformat(cls, value: str) -> str:
++        _parse_utc_isoformat(value, "created_at")
++        return value
++
++    @model_validator(mode="after")
++    def measurement_plan_must_match_planned_pairs(self) -> MeasurementPlan:
++        if len(self.pair_order) != self.planned_n_pairs:
++            raise ValueError("pair_order length must match planned_n_pairs")
++        return self
++
++    def to_trace_payload(self) -> dict[str, object]:
++        """Return the JSON-compatible payload for a measurement_plan_created event."""
++
++        return {
++            "kind": "measurement_plan_created",
++            "ts": self.created_at,
++            "measurement_plan_id": self.measurement_plan_id,
++            "family_id": self.family_id,
++            "candidate_id": self.candidate_id,
++            "baseline_id": self.baseline_id,
++            "plan_type": self.plan_type,
++            "planned_n_pairs": self.planned_n_pairs,
++            "abba_seed": self.abba_seed,
++            "pair_order": list(self.pair_order),
++        }
++
++
+@@ -296,0 +374,5 @@ class RunLevelRecord(StrictResultSchemaModel):
++    measurement_plan_id: NonEmptyStr | None = None
++    source_commit: NonEmptyStr | None = None
++    benchmark_id: NonEmptyStr | None = None
++    benchmark_version: NonEmptyStr | None = None
++    objective_id: NonEmptyStr | None = None
+@@ -364 +446,5 @@ class RunLevelRecord(StrictResultSchemaModel):
+-def compute_combo_hash(combo: tuple[str, ...] | list[str]) -> str:
++def compute_combo_hash(
++    combo: tuple[str, ...] | list[str],
++    *,
++    spec: CandidateCanonicalizationSpec | dict[str, Any] | None = None,
++) -> str:
+@@ -367,2 +453,19 @@ def compute_combo_hash(combo: tuple[str, ...] | list[str]) -> str:
+-    payload = "\0".join(combo).encode("utf-8", errors="surrogateescape")
+-    return "sha256:" + hashlib.sha256(payload).hexdigest()
++    return compute_canonical_combo_hash(combo, spec=spec)
++
++
++def is_statistical_result_decision_grade(result: StatisticalResult) -> bool:
++    """Return the schema-derived decision-grade predicate for a result."""
++
++    validated = StatisticalResult.model_validate(result)
++    if not _statistical_result_has_significant_verdict(validated):
++        return False
++    if validated.paired:
++        return validated.pair_quality == "good"
++    return validated.iid_assumption_valid and not validated.autocorrelation_detected
++
++
++def _statistical_result_has_significant_verdict(result: StatisticalResult) -> bool:
++    return result.verdict in {
++        "significant_improvement",
++        "significant_regression",
++    }
+diff --git a/src/agent/stats_core.py b/src/agent/stats_core.py
+index fcfc1a1..ec6867a 100644
+--- a/src/agent/stats_core.py
++++ b/src/agent/stats_core.py
+@@ -18 +18 @@ from statistics import median
+-from typing import TYPE_CHECKING
++from typing import TYPE_CHECKING, Literal
+@@ -69,0 +70 @@ class BootstrapConfidenceInterval:
++    p_value: float
+@@ -107,0 +109,20 @@ class PairTimeGap:
++AcceptDecisionReason = Literal[
++    "accepted",
++    "rejected_insignificant",
++    "rejected_pair_quality",
++    "rejected_not_screened",
++    "rejected_practical_threshold",
++    "rejected_relative_threshold_unavailable",
++    "needs_confirmation",
++    "rejected_incomplete_provenance",
++]
++
++
++@dataclass(frozen=True)
++class AcceptDecision:
++    """Acceptance gate decision with an auditable reason code."""
++
++    accepted: bool
++    reason: AcceptDecisionReason
++
++
+@@ -374,0 +396,10 @@ def compare_run_records(
++    relative_ci_low_pct = (
++        None
++        if math.isclose(baseline_mean, 0.0, abs_tol=base_zero_abs_tol)
++        else ci.ci_low / abs(baseline_mean) * 100.0
++    )
++    relative_ci_high_pct = (
++        None
++        if math.isclose(baseline_mean, 0.0, abs_tol=base_zero_abs_tol)
++        else ci.ci_high / abs(baseline_mean) * 100.0
++    )
+@@ -396,0 +428,2 @@ def compare_run_records(
++        relative_ci_low_pct=relative_ci_low_pct,
++        relative_ci_high_pct=relative_ci_high_pct,
+@@ -400,0 +434 @@ def compare_run_records(
++        p_value=ci.p_value,
+@@ -425,0 +460,3 @@ def compare_run_records(
++        provenance_complete=_records_have_complete_provenance(
++            baseline_measured + candidate_measured
++        ),
+@@ -429,0 +467,73 @@ def compare_run_records(
++def is_decision_grade(result: StatisticalResult) -> bool:
++    """Return the schema-derived decision-grade predicate."""
++
++    from agent.skills.result_schema import is_statistical_result_decision_grade
++
++    return is_statistical_result_decision_grade(result)
++
++
++def family_screen(
++    results: Sequence[StatisticalResult],
++    *,
++    method: str = "fdr_bh",
++    q: float = 0.10,
++) -> list[bool]:
++    """Run a batch FDR-BH screen over one pre-registered result family."""
++
++    if method != "fdr_bh":
++        raise ValueError("only method='fdr_bh' is supported")
++    if not math.isfinite(q) or q <= 0.0 or q > 1.0:
++        raise ValueError("q must be finite and in (0, 1]")
++    m = len(results)
++    selected = [False] * m
++    if m == 0:
++        return selected
++
++    improvement_p_values = sorted(
++        (float(result.p_value), index)
++        for index, result in enumerate(results)
++        if result.verdict == "significant_improvement" and result.p_value is not None
++    )
++    cutoff: float | None = None
++    for rank, (p_value, _index) in enumerate(improvement_p_values, start=1):
++        if p_value <= q * rank / m:
++            cutoff = p_value
++    if cutoff is None:
++        return selected
++    for p_value, index in improvement_p_values:
++        if p_value <= cutoff:
++            selected[index] = True
++    return selected
++
++
++def can_accept(
++    result: StatisticalResult,
++    *,
++    is_family_screened: bool,
++    confirmation_status: str,
++    practical_threshold_pct: float,
++    objective_direction: str,
++) -> AcceptDecision:
++    """Return the per-candidate accept decision after screen/confirmation gates."""
++
++    if objective_direction != result.objective_direction:
++        raise ValueError("objective_direction must match result.objective_direction")
++    if not math.isfinite(practical_threshold_pct) or practical_threshold_pct < 0.0:
++        raise ValueError("practical_threshold_pct must be finite and non-negative")
++    if result.paired and result.pair_quality != "good":
++        return AcceptDecision(False, "rejected_pair_quality")
++    if result.verdict != "significant_improvement" or not is_decision_grade(result):
++        return AcceptDecision(False, "rejected_insignificant")
++    if not is_family_screened:
++        return AcceptDecision(False, "rejected_not_screened")
++    if confirmation_status != "confirmed":
++        return AcceptDecision(False, "needs_confirmation")
++    if not result.provenance_complete:
++        return AcceptDecision(False, "rejected_incomplete_provenance")
++    if result.relative_ci_low_pct is None:
++        return AcceptDecision(False, "rejected_relative_threshold_unavailable")
++    if result.relative_ci_low_pct <= practical_threshold_pct:
++        return AcceptDecision(False, "rejected_practical_threshold")
++    return AcceptDecision(True, "accepted")
++
++
+@@ -468,0 +579 @@ def iid_percentile_bootstrap_ci(
++        p_value=_bootstrap_two_sided_p_value(bootstrap_means),
+@@ -532,0 +644 @@ def moving_block_bootstrap_ci(
++        p_value=_bootstrap_two_sided_p_value(bootstrap_means),
+@@ -668,0 +781 @@ def _unpaired_mean_difference_bootstrap_ci(
++        p_value=_bootstrap_two_sided_p_value(bootstrap_effects),
+@@ -1366,0 +1480,13 @@ def _has_high_cv(values: Iterable[float | None], *, threshold: float) -> bool:
++def _records_have_complete_provenance(records: Sequence[RunLevelRecord]) -> bool:
++    required_fields = (
++        "measurement_plan_id",
++        "source_commit",
++        "benchmark_id",
++        "objective_id",
++    )
++    return all(
++        all(getattr(record, field, None) is not None for field in required_fields)
++        for record in records
++    )
++
++
+@@ -1421,0 +1548,13 @@ def _quantile_sorted(sorted_values: Sequence[float], q: float) -> float:
++def _bootstrap_two_sided_p_value(values: Sequence[float]) -> float:
++    if not values:
++        raise ValueError("bootstrap values must not be empty")
++    _validate_finite_sequence(values)
++    if all(value == 0.0 for value in values):
++        return 1.0
++    non_positive = sum(1 for value in values if value <= 0.0)
++    non_negative = sum(1 for value in values if value >= 0.0)
++    tail = min(non_positive, non_negative)
++    corrected_tail = (tail + 1.0) / (len(values) + 1.0)
++    return min(1.0, 2.0 * corrected_tail)
++
++
+diff --git a/src/agent/trace.py b/src/agent/trace.py
+index 3dcbfd7..f74f6f5 100644
+--- a/src/agent/trace.py
++++ b/src/agent/trace.py
+@@ -376,0 +377,15 @@ class TraceSessionWriter:
++    def measurement_plan_created(
++        self,
++        *,
++        plan: Any,
++        **fields: Any,
++    ) -> TraceAppendResult:
++        from agent.skills.result_schema import MeasurementPlan
++
++        validated = MeasurementPlan.model_validate(plan)
++        payload = validated.to_trace_payload()
++        payload.pop("kind")
++        ts = payload.pop("ts")
++        payload.update(fields)
++        return self.append("measurement_plan_created", ts=ts, **payload)
++
+diff --git a/tests/test_fs_memory.py b/tests/test_fs_memory.py
+index 8ec3418..91958fb 100644
+--- a/tests/test_fs_memory.py
++++ b/tests/test_fs_memory.py
+@@ -74,0 +75 @@ from agent.fs_memory import (
++from agent.skills.result_schema import compute_combo_hash as compute_result_combo_hash
+@@ -478,3 +479,18 @@ def test_trial_record_rejects_combo_hash_mismatch() -> None:
+-@pytest.mark.parametrize("option", [" -O3", "-O3 ", "-O3\nINJECT", "-O3\t"])
+-def test_compute_combo_hash_rejects_untrimmed_or_control_options(option: str) -> None:
+-    with pytest.raises(ValueError, match="combo options"):
++def test_compute_combo_hash_uses_shared_canonical_identity() -> None:
++    assert compute_combo_hash(["-O2", "-flto"]) == compute_combo_hash(
++        ["-flto", "-O2"]
++    )
++    assert compute_combo_hash(["-O2", "-O2"]) == compute_combo_hash(["-O2"])
++    assert compute_combo_hash(["-O2"]) != compute_combo_hash(["-O3"])
++    assert compute_combo_hash(["-O2", "-flto"]) == compute_result_combo_hash(
++        ["-flto", "-O2"]
++    )
++
++
++def test_compute_combo_hash_trims_safe_whitespace() -> None:
++    assert compute_combo_hash([" -O3 "]) == compute_combo_hash(["-O3"])
++
++
++@pytest.mark.parametrize("option", ["-O3\nINJECT", "-O3\tINJECT", "-DDEBUG"])
++def test_compute_combo_hash_rejects_control_or_out_of_scope_options(option: str) -> None:
++    with pytest.raises(ValueError, match="combo options|outside"):
+diff --git a/tests/test_result_schema.py b/tests/test_result_schema.py
+index f047237..ee367f4 100644
+--- a/tests/test_result_schema.py
++++ b/tests/test_result_schema.py
+@@ -11,0 +12 @@ from agent import (
++    MeasurementPlan,
+@@ -17,0 +19 @@ from agent import (
++    canonicalize_candidate,
+@@ -122,0 +125,59 @@ def test_run_level_record_accepts_successful_measured_run() -> None:
++def test_run_level_record_accepts_optional_measurement_provenance() -> None:
++    record = _record(
++        measurement_plan_id="plan_1",
++        source_commit="commit_abc",
++        benchmark_id="bench_throughput",
++        benchmark_version="v1",
++        objective_id="throughput",
++        pair_key="pair_1",
++        pair_order="baseline_first",
++        pair_time_gap_sec=0.5,
++    )
++
++    assert record.measurement_plan_id == "plan_1"
++    assert record.source_commit == "commit_abc"
++    assert record.benchmark_id == "bench_throughput"
++    assert record.objective_id == "throughput"
++    assert record.pair_order == "baseline_first"
++
++
++def test_measurement_plan_is_trace_payload_source_of_candidate_identity() -> None:
++    created_at = datetime(2026, 6, 17, 8, 0, tzinfo=UTC)
++
++    plan = MeasurementPlan(
++        measurement_plan_id="plan_screen_1",
++        family_id="family_round_1",
++        candidate_id="candidate_sha",
++        baseline_id="champion_sha",
++        plan_type="screen",
++        planned_n_pairs=2,
++        abba_seed="seed_1",
++        pair_order=("baseline_first", "candidate_first"),
++        created_at=created_at,
++    )
++
++    payload = plan.to_trace_payload()
++
++    assert payload["kind"] == "measurement_plan_created"
++    assert payload["ts"] == "2026-06-17T08:00:00+00:00"
++    assert payload["candidate_id"] == "candidate_sha"
++    assert payload["baseline_id"] == "champion_sha"
++    assert payload["plan_type"] == "screen"
++    assert payload["pair_order"] == ["baseline_first", "candidate_first"]
++
++
++def test_measurement_plan_requires_pair_order_for_each_planned_pair() -> None:
++    with pytest.raises(ValidationError, match="pair_order length"):
++        MeasurementPlan(
++            measurement_plan_id="plan_screen_1",
++            family_id="family_round_1",
++            candidate_id="candidate_sha",
++            baseline_id="champion_sha",
++            plan_type="screen",
++            planned_n_pairs=2,
++            abba_seed="seed_1",
++            pair_order=("baseline_first",),
++            created_at=datetime(2026, 6, 17, 8, 0, tzinfo=UTC),
++        )
++
++
+@@ -281,0 +343,2 @@ def test_statistical_result_accepts_single_comparison_schema() -> None:
++        relative_ci_low_pct=10.0,
++        relative_ci_high_pct=30.0,
+@@ -285,0 +349 @@ def test_statistical_result_accepts_single_comparison_schema() -> None:
++        p_value=0.02,
+@@ -300,0 +365,20 @@ def test_statistical_result_accepts_single_comparison_schema() -> None:
++    assert result.p_value == 0.02
++    assert result.relative_ci_low_pct == 10.0
++
++
++def test_statistical_result_rejects_relative_ci_outside_effect() -> None:
++    with pytest.raises(ValidationError, match="relative_effect_pct"):
++        StatisticalResult(
++            **_statistical_result_payload(
++                relative_effect_pct=20.0,
++                relative_ci_low_pct=21.0,
++                relative_ci_high_pct=30.0,
++            )
++        )
++
++
++def test_statistical_result_rejects_non_finite_or_out_of_range_p_value() -> None:
++    with pytest.raises(ValidationError):
++        StatisticalResult(**_statistical_result_payload(p_value=math.nan))
++    with pytest.raises(ValidationError):
++        StatisticalResult(**_statistical_result_payload(p_value=-0.1))
+@@ -460,0 +545,21 @@ def test_schema_module_contains_no_classifier_rule_patterns() -> None:
++def test_compute_result_combo_hash_uses_commutative_canonical_identity() -> None:
++    assert compute_result_combo_hash(["-O2", "-flto"]) == compute_result_combo_hash(
++        ["-flto", "-O2"]
++    )
++    assert compute_result_combo_hash(["-O2", "-O2"]) == compute_result_combo_hash(
++        ["-O2"]
++    )
++    assert compute_result_combo_hash(["-O2"]) != compute_result_combo_hash(["-O3"])
++
++
++def test_canonicalize_candidate_rejects_conflicting_value_flags() -> None:
++    with pytest.raises(ValueError, match="conflicting values"):
++        canonicalize_candidate(None, ["-O2", "-O3"])
++
++
++def test_canonicalize_candidate_normalizes_whitespace_without_changing_case() -> None:
++    canonical = canonicalize_candidate(None, ["  -O2", "-fplugin =foo  "])
++
++    assert canonical.hash_items == ("-O2", "-fplugin =foo")
++
++
+diff --git a/tests/test_stats_core.py b/tests/test_stats_core.py
+index caccfc1..68bd15a 100644
+--- a/tests/test_stats_core.py
++++ b/tests/test_stats_core.py
+@@ -16,0 +17 @@ from agent import (
++    StatisticalResult,
+@@ -17,0 +19 @@ from agent import (
++    can_accept,
+@@ -25,0 +28 @@ from agent import (
++    family_screen,
+@@ -26,0 +30 @@ from agent import (
++    is_decision_grade,
+@@ -181,0 +186 @@ def test_iid_percentile_bootstrap_ci_is_seeded_and_reports_mean_ci() -> None:
++    assert 0.0 < first.p_value <= 1.0
+@@ -198,0 +204 @@ def test_iid_percentile_bootstrap_ci_handles_single_sample() -> None:
++    assert ci.p_value == pytest.approx(2.0 / 26.0)
+@@ -373,0 +380,2 @@ def test_compare_run_records_reports_significant_single_comparison() -> None:
++    assert result.relative_ci_low_pct == pytest.approx(20.0)
++    assert result.relative_ci_high_pct == pytest.approx(20.0)
+@@ -375,0 +384 @@ def test_compare_run_records_reports_significant_single_comparison() -> None:
++    assert result.p_value == pytest.approx(2.0 / 81.0)
+@@ -419,0 +429 @@ def test_compare_run_records_returns_no_difference_only_with_adequate_power() ->
++    assert result.p_value == pytest.approx(1.0)
+@@ -436,0 +447,2 @@ def test_compare_run_records_defends_relative_effect_when_baseline_is_zero() ->
++    assert result.relative_ci_low_pct is None
++    assert result.relative_ci_high_pct is None
+@@ -439,0 +452,145 @@ def test_compare_run_records_defends_relative_effect_when_baseline_is_zero() ->
++def test_compare_run_records_marks_incomplete_provenance_until_7_0_records_fill_it() -> None:
++    baseline = _records([10.0] * 12, prefix="base")
++    candidate = _records([12.0] * 12, prefix="cand")
++
++    result = compare_run_records(
++        baseline,
++        candidate,
++        bootstrap_samples=80,
++        seed=55,
++    )
++
++    assert result.provenance_complete is False
++
++
++def test_compare_run_records_marks_complete_provenance_when_records_have_plan_and_run_refs() -> None:
++    baseline = _records(
++        [10.0] * 12,
++        prefix="base",
++        measurement_plan_id="plan_1",
++        source_commit="commit_abc",
++        benchmark_id="bench_1",
++        objective_id="throughput",
++    )
++    candidate = _records(
++        [12.0] * 12,
++        prefix="cand",
++        measurement_plan_id="plan_1",
++        source_commit="commit_abc",
++        benchmark_id="bench_1",
++        objective_id="throughput",
++    )
++
++    result = compare_run_records(
++        baseline,
++        candidate,
++        bootstrap_samples=80,
++        seed=56,
++    )
++
++    assert result.provenance_complete is True
++
++
++def test_family_screen_uses_full_family_m_and_improvement_verdict_direction() -> None:
++    results = [
++        _statistical_result(verdict="significant_improvement", p_value=0.01),
++        _statistical_result(verdict="significant_improvement", p_value=0.06),
++        _statistical_result(verdict="significant_regression", p_value=0.001),
++        _statistical_result(verdict="no_difference", p_value=0.02),
++    ]
++
++    assert family_screen(results, q=0.10) == [True, False, False, False]
++
++
++def test_family_screen_selects_lower_is_better_improvement_by_verdict_not_relative_sign() -> None:
++    lower_is_better_improvement = _statistical_result(
++        objective_direction="lower_is_better",
++        verdict="significant_improvement",
++        p_value=0.01,
++        relative_effect_pct=-5.0,
++        relative_ci_low_pct=-7.0,
++        relative_ci_high_pct=-3.0,
++    )
++    regression = _statistical_result(
++        objective_direction="lower_is_better",
++        verdict="significant_regression",
++        p_value=0.001,
++        relative_effect_pct=10.0,
++        relative_ci_low_pct=8.0,
++        relative_ci_high_pct=12.0,
++    )
++
++    assert family_screen([lower_is_better_improvement, regression], q=0.10) == [
++        True,
++        False,
++    ]
++
++
++def test_is_decision_grade_uses_schema_consistent_path_predicate() -> None:
++    result = _statistical_result(paired=True, pair_quality="good")
++
++    assert is_decision_grade(result) is True
++
++
++def test_can_accept_requires_screen_confirmation_practical_threshold_and_provenance() -> None:
++    accepted_result = _statistical_result(
++        relative_effect_pct=5.0,
++        relative_ci_low_pct=3.5,
++        relative_ci_high_pct=6.5,
++        provenance_complete=True,
++    )
++
++    assert can_accept(
++        accepted_result,
++        is_family_screened=True,
++        confirmation_status="confirmed",
++        practical_threshold_pct=3.0,
++        objective_direction="higher_is_better",
++    ).reason == "accepted"
++    assert can_accept(
++        accepted_result,
++        is_family_screened=False,
++        confirmation_status="confirmed",
++        practical_threshold_pct=3.0,
++        objective_direction="higher_is_better",
++    ).reason == "rejected_not_screened"
++    assert can_accept(
++        accepted_result,
++        is_family_screened=True,
++        confirmation_status="pending",
++        practical_threshold_pct=3.0,
++        objective_direction="higher_is_better",
++    ).reason == "needs_confirmation"
++
++    incomplete = _statistical_result(provenance_complete=False)
++    assert can_accept(
++        incomplete,
++        is_family_screened=True,
++        confirmation_status="confirmed",
++        practical_threshold_pct=3.0,
++        objective_direction="higher_is_better",
++    ).reason == "rejected_incomplete_provenance"
++
++    weak_practical = _statistical_result(relative_ci_low_pct=2.5)
++    assert can_accept(
++        weak_practical,
++        is_family_screened=True,
++        confirmation_status="confirmed",
++        practical_threshold_pct=3.0,
++        objective_direction="higher_is_better",
++    ).reason == "rejected_practical_threshold"
++
++    no_relative = _statistical_result(
++        relative_effect_pct=None,
++        relative_ci_low_pct=None,
++        relative_ci_high_pct=None,
++    )
++    assert can_accept(
++        no_relative,
++        is_family_screened=True,
++        confirmation_status="confirmed",
++        practical_threshold_pct=3.0,
++        objective_direction="higher_is_better",
++    ).reason == "rejected_relative_threshold_unavailable"
++
++
+@@ -1302,0 +1460,4 @@ def _records(
++    measurement_plan_id: str | None = None,
++    source_commit: str | None = None,
++    benchmark_id: str | None = None,
++    objective_id: str | None = None,
+@@ -1313,0 +1475,4 @@ def _records(
++            measurement_plan_id=measurement_plan_id,
++            source_commit=source_commit,
++            benchmark_id=benchmark_id,
++            objective_id=objective_id,
+@@ -1332,0 +1498,4 @@ def _record(
++    measurement_plan_id: str | None = None,
++    source_commit: str | None = None,
++    benchmark_id: str | None = None,
++    objective_id: str | None = None,
+@@ -1380,0 +1550,4 @@ def _record(
++        measurement_plan_id=measurement_plan_id,
++        source_commit=source_commit,
++        benchmark_id=benchmark_id,
++        objective_id=objective_id,
+@@ -1384,0 +1558,37 @@ def _record(
++def _statistical_result(**overrides: object) -> StatisticalResult:
++    payload: dict[str, object] = {
++        "comparison": "candidate_vs_baseline",
++        "objective_direction": "higher_is_better",
++        "point_estimate": 5.0,
++        "relative_effect_pct": 5.0,
++        "relative_ci_low_pct": 3.5,
++        "relative_ci_high_pct": 6.5,
++        "ci_low": 3.5,
++        "ci_high": 6.5,
++        "confidence_level": 0.95,
++        "method": "iid_percentile_bootstrap",
++        "p_value": 0.01,
++        "verdict": "significant_improvement",
++        "significant_single_comparison": True,
++        "n_measured": 20,
++        "n_valid": 10,
++        "n_invalid": 0,
++        "baseline_n_valid": 10,
++        "candidate_n_valid": 10,
++        "effective_sample_size": 10.0,
++        "lag1_autocorrelation": 0.0,
++        "paired": False,
++        "pair_quality": "unknown",
++        "provenance_complete": True,
++    }
++    payload.update(overrides)
++    if payload.get("paired") is True and "pair_count" not in overrides:
++        payload["pair_count"] = 10
++    if payload.get("verdict") not in {
++        "significant_improvement",
++        "significant_regression",
++    }:
++        payload["significant_single_comparison"] = False
++    return StatisticalResult.model_validate(payload)
++
++
+diff --git a/tests/test_trace_memory.py b/tests/test_trace_memory.py
+index f0685b4..7acac5d 100644
+--- a/tests/test_trace_memory.py
++++ b/tests/test_trace_memory.py
+@@ -12,0 +13 @@ import agent.fs_memory as fs_memory
++from agent import MeasurementPlan, TraceSessionWriter
+@@ -87,0 +89,32 @@ def test_append_trace_event_writes_jsonl_and_returns_line_reference(tmp_path: Pa
++def test_trace_session_writer_records_measurement_plan(tmp_path: Path) -> None:
++    current_layout = layout(tmp_path)
++    writer = TraceSessionWriter.for_layout(
++        current_layout,
++        session_id="sess_20260617_contracts",
++    )
++    plan = MeasurementPlan(
++        measurement_plan_id="plan_screen_1",
++        family_id="family_round_1",
++        candidate_id="candidate_sha",
++        baseline_id="champion_sha",
++        plan_type="screen",
++        planned_n_pairs=2,
++        abba_seed="seed_1",
++        pair_order=("baseline_first", "candidate_first"),
++        created_at=datetime(2026, 6, 17, 8, 0, tzinfo=UTC),
++    )
++
++    writer.measurement_plan_created(plan=plan, round=1)
++
++    payload = trace_event_payload(load_trace_events(current_layout.trace_path)[0])
++    assert payload["kind"] == "measurement_plan_created"
++    assert payload["session_id"] == "sess_20260617_contracts"
++    assert payload["measurement_plan_id"] == "plan_screen_1"
++    assert payload["family_id"] == "family_round_1"
++    assert payload["candidate_id"] == "candidate_sha"
++    assert payload["baseline_id"] == "champion_sha"
++    assert payload["plan_type"] == "screen"
++    assert payload["pair_order"] == ["baseline_first", "candidate_first"]
++    assert payload["round"] == 1
++
++

@@ -1,479 +1,70 @@
-phase_id: phase_08a_statistics_core
-phase_title: "Baseline + Statistical Significance - Minimal Stats Core"
-started_at: 2026-06-10T15:15:45+08:00
-last_updated: 2026-06-15T20:53:42+08:00
-closed_at: 2026-06-15T20:53:42+08:00
-target_milestone: "M2 + M4 (partial)"
+phase_id: phase_7_0_contracts
+phase_title: "Candidate Engine Input Contracts - Frozen Code Deliverables"
+started_at: 2026-06-17T22:28:51+08:00
+last_updated: 2026-06-17T22:45:00+08:00
+target_milestone: "M2 (precursor)"
 related_requirements:
+  - REQUIREMENTS.md section 4.6.2
   - REQUIREMENTS.md section 4.8
   - REQUIREMENTS.md section 4.9
-  - REQUIREMENTS.md section 4.6.4 convergence detector
-status: done
-roadmap_reference: dev_memory/ROADMAP.yaml completed_phases[id=08a]
+  - REQUIREMENTS.md section 4.10
+status: in_progress
+roadmap_reference: dev_memory/ROADMAP.yaml planned_phases[id=7.0-contracts]
+design_reference: doc/PHASE_7.0_CONTRACTS_DRAFT.md
 dependencies_satisfied:
-  - "Phase 05 Compile / Benchmark Skills is complete and emits RunLevelRecord values."
-  - "RunLevelRecord carries measured/warmup phase, valid_for_scoring, objective_direction, pair_key, artifact verification, env_snapshot, and summary_hint."
-  - "Pre-08a numeric hygiene blockers are fixed: benchmark NaN/Inf ingress rejected and summary fields require finite values."
-  - "Benchmark failure routing cannot write failed_combos in Phase 05/08a."
-  - "Runtime compatibility is Python 3.10+: pyproject and code avoid Python 3.11-only datetime.UTC, typing.Self, and tomllib assumptions."
-  - "Python 3.10 Ubuntu test collection can resolve absolute tests.fixtures imports via tests/__init__.py."
-  - "dev_memory/BLOCKERS.md records no active blockers."
-pre_implementation_design_review:
-  range: "f34c28d..6b72d43"
-  reviewer: Claude
-  reviewed_at: 2026-06-10T15:14:00+08:00
-  verdict: approve
-  critical_findings: 0
-  high_findings: 0
-  summary: "08a design approved as a pure statistics core with autocorrelation defenses; no candidate-engine or workspace/process side effects before the appropriate later phases."
-  medium_followups:
-    - "08a.5 must explicitly distinguish no_difference from inconclusive when CI includes zero with adequate vs inadequate power."
-    - "08a.3 must reconcile or document the gap between rho1>0 ESS correction and rho1>0.3 autocorrelation detection/bootstrap selection."
-    - "08a.3/08a.4 must document lag-1 ESS limitations and rely on bursty simulation coverage as the real guard."
-    - "08a.1 must pre-flight the Phase 05 RunLevelRecord contract fields before consuming records."
-    - "08a.5 must define partial pair_key behavior when only some baseline/candidate records match."
-  low_followups:
-    - "Keep RunSummaryHint ESS/rho1/autocorrelation fields optional while computation lands across subtasks."
-    - "Define the epsilon used for CV when mean is effectively zero."
-    - "Phrase side-effect-free scope as applying to stats_core; env_snapshot/cross-signal state exposure remains a later harness/integrity follow-up."
+  - "Phase 08a is closed and exposes StatisticalResult/RunLevelRecord/stats_core."
+  - "HLD v1.3 records the 7.0 split into frozen contracts plus later scaling spike."
+  - "7.0-contracts v4 is frozen after three review rounds and twelve external AI reviews."
+scope_boundaries:
+  - "Implement the seven frozen code deliverables only."
+  - "Do not alter 08a verdict or pair_quality gates."
+  - "Delivery 1 is an identity semantic change; confirmed greenfield/no persisted combo_hash."
+  - "Deliveries 2-5 are additive schema/statistics changes."
+  - "MeasurementPlan and AcceptDecision are new structures for 07 consumers."
 subtasks:
-  - id: "08a.1"
-    title: "descriptive statistics + RunSummaryHint extension"
-    status: done
-    files_created:
-      - src/agent/stats_core.py
-      - tests/test_stats_core.py
-    files_modified:
-      - src/agent/skills/result_schema.py
-      - src/agent/skills/benchmark.py
-      - src/agent/__init__.py
-      - tests/test_result_schema.py
-      - tests/test_benchmark_skill.py
-      - dev_memory/CURRENT_PHASE.yaml
-      - dev_memory/HANDOFF_PROMPT.md
-      - dev_memory/DECISIONS.md
-      - dev_memory/ROADMAP.yaml
-      - dev_memory/ROADMAP.md
-      - dev_memory/PROGRESS.md
-      - dev_memory/phases/phase_08a_statistics_core/CHECKLIST.yaml
-      - dev_memory/phases/phase_08a_statistics_core/REVIEW_NOTES.md
-      - dev_memory/phases/phase_08a_statistics_core/SUMMARY.md
-      - dev_memory/phases/phase_08a_statistics_core/UT_RESULTS.md
-    scope:
-      - "Add side-effect-free descriptive statistics in src/agent/stats_core.py."
-      - "Consume only RunLevelRecord values with phase=measured and valid_for_scoring=True."
-      - "Compute mean, median, sample stddev (n-1), CV with near-zero mean returning None, lag-1 rho, and conservative ESS."
-      - "For n>=8, ESS is min(lag-1 ESS, initial-positive-lag heuristic multi-lag ACF ESS); for n<8, ESS falls back to lag-1 and sets ess_preliminary=True."
-      - "Extend RunSummaryHint with n_measured, n_valid, n_invalid, effective_sample_size, ess_preliminary, lag1_autocorrelation, autocorrelation_warning."
-      - "Reject NaN/Inf in all new numeric schema fields."
-    exclusions:
-      - "No candidate engine."
-      - "No bootstrap CI implementation yet."
-      - "No StatisticalResult verdict logic unless explicitly required by later 08a split."
-      - "No env_snapshot/cross-signal bursty state exposure in 08a.1."
-    design_review_cleared: true
-    implementation_complete: true
-    implementation_commit: ee0fe4b
-    ut_required: true
-    ut_passed: true
-    local_validation:
-      - "git diff --check passed."
-      - "Targeted pytest passed: .venv\\Scripts\\python.exe -m pytest tests\\test_stats_core.py tests\\test_result_schema.py tests\\test_benchmark_skill.py -q -> 48 passed, 5 skipped."
-      - "Full Windows pytest was run and remains platform-blocked outside 08a: .venv\\Scripts\\python.exe -m pytest tests\\ -q -> 24 failed, 554 passed, 51 skipped, 4 errors."
-    ubuntu_validation:
-      status: passed
-      validated_at: 2026-06-10T18:24:19+08:00
-      head: ee0fe4b77cf546bcea170734464265980481842a
-      targeted: "python -m pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py -q -> 53 passed in 0.83s"
-      full: "python -m pytest tests/ -q -> 631 passed in 7.70s"
-    static_implementation_review:
-      reviewer: Claude
-      reviewed_at: 2026-06-10T15:31:00+08:00
-      verdict: approve_with_followups
-      critical_findings: 0
-      high_findings: 0
-      addressed_followups:
-        - "Marked low_power as a diagnostic only; verdict policy remains 08a.3/08a.5 scope."
-        - "Documented lag-1 adjacent-pair Pearson estimator conservatism in code."
-        - "Added defensive rejection for valid measured records without scores."
-        - "Added tests for moderate positive rho, rho=1 ESS, and scoreless valid records."
-    external_review_alignment:
-      reviewed_at: 2026-06-10T18:03:41+08:00
-      verdict: approve_with_alignment_patch
-      addressed_followups:
-        - "Tightened exposed ESS from lag-1-only to min(lag-1, multi-lag ACF) for n>=8."
-        - "Added ess_preliminary so n<8 lag-1-only ESS is machine-readable as preliminary."
-        - "Recorded that 08a emits single_comparison semantics and does not correct multiple comparisons."
-        - "Recorded paired-difference autocorrelation checks and fake_gbs state as test-only instrumentation."
-      deferred_followups:
-        - "08a.4 owns moving block bootstrap correlation-length/block-size behavior."
-        - "08a.5 owns StatisticalResult full schema, verdict gates, pair_order, and base approximately zero defense."
-    statistical_correctness_review:
-      reviewer: external
-      reviewed_at: 2026-06-10T18:38:14+08:00
-      range: "7fe810b..ee0fe4b"
-      validation_range: "7fe810b..f791e35"
-      verdict: approve
-      critical_findings: 0
-      high_findings: 0
-      medium_findings: 0
-      low_findings: 0
-      info_findings:
-        - "ESS can be below 1 for high-autocorrelation small samples; this is mathematically valid and protected by ess_preliminary=True plus later ESS_MIN/inconclusive gates."
-      numerical_validation:
-        - "lag-1 autocorrelation matched AR(1) known-truth simulations closely: phi=0.4 -> ~0.392, phi=0.7 -> ~0.678."
-        - "lag-1 autocorrelation estimator uses Pearson over lagged pairs with current/previous means, which is the standard estimator form."
-        - "ESS formula matched theory: n=100,rho=0.5 -> 33.3; rho<=0 returns n."
-        - "Conservative ESS uses min(lag1, ACF) for n>=8 and was <= lag1-only ESS on synthetic and fake_gbs bursty checks."
-        - "n<8 falls back to lag-1 ESS and sets ess_preliminary=True."
-      review_methodology: "08a statistical subtasks should be reviewed with side-effect-free numerical simulations against known-truth synthetic data and fake_gbs noise profiles."
-    external_review_verdict: approve
-  - id: "08a.2"
-    title: "IID/right-skewed percentile bootstrap CI with seeded reproducibility"
-    status: done
-    files_created: []
-    files_modified:
-      - src/agent/stats_core.py
-      - src/agent/__init__.py
-      - tests/test_stats_core.py
-      - dev_memory/CURRENT_PHASE.yaml
-      - dev_memory/DECISIONS.md
-      - dev_memory/PROGRESS.md
-      - dev_memory/ROADMAP.yaml
-      - dev_memory/phases/phase_08a_statistics_core/CHECKLIST.yaml
-      - dev_memory/phases/phase_08a_statistics_core/REVIEW_NOTES.md
-      - dev_memory/phases/phase_08a_statistics_core/SUMMARY.md
-      - dev_memory/phases/phase_08a_statistics_core/UT_RESULTS.md
-      - tests/__init__.py
-    scope:
-      - "Add side-effect-free IID percentile bootstrap CI for the sample mean."
-      - "Use seeded Python RNG for reproducible bootstrap resampling."
-      - "Expose BootstrapConfidenceInterval with ci_low, ci_high, confidence_level, method, bootstrap_samples, statistic, n, and point_estimate."
-      - "Default B=2000 and confidence_level=0.95, configurable by caller."
-      - "Add coverage smoke tests for IID Gaussian and right-skewed exponential samples."
-    exclusions:
-      - "No moving block bootstrap; defer to 08a.4."
-      - "No ESS/autocorrelation adjustment to CI width; defer to 08a.3/08a.4."
-      - "No StatisticalResult schema or verdict gates; defer to 08a.5."
-      - "No candidate engine."
-    implementation_complete: true
-    implementation_commit: 457caa4
-    ut_required: true
-    ut_passed: true
-    local_validation:
-      - "tests/test_stats_core.py -> 13 passed in 1.26s."
-      - "Targeted pytest passed: .venv\\Scripts\\python.exe -m pytest tests\\test_stats_core.py tests\\test_result_schema.py tests\\test_benchmark_skill.py -q -> 52 passed, 5 skipped."
-      - "Full Windows pytest was run and remains platform-blocked outside 08a: .venv\\Scripts\\python.exe -m pytest tests\\ -q -> 24 failed, 558 passed, 51 skipped, 4 errors."
-    ubuntu_validation:
-      status: passed
-      validated_at: 2026-06-10T21:43:51+08:00
-      head: 457caa46d5597da9b010e3f8e20920695facef8e
-      full: "Linux container full suite -> 635 passed; confirms Windows full failures are platform-specific and not 08a.2 regressions."
-    statistical_correctness_review:
-      reviewer: external
-      reviewed_at: 2026-06-10T21:43:51+08:00
-      range: "91cc187..457caa4"
-      verdict: approve
-      critical_findings: 0
-      high_findings: 0
-      medium_findings: 0
-      low_findings: 0
-      info_findings:
-        - "Windows 24 failed + 4 errors are existing platform-sensitive non-08a paths; Linux full suite passed with 635 tests."
-      coverage_validation:
-        - "IID gaussian 95% CI coverage: n=20 -> 94.8%, n=50 -> 93.8%."
-        - "Right-skewed lognormal coverage: n=30 -> 92.0%, n=60 -> 93.2%, acceptable for percentile bootstrap on skewed data."
-        - "CI bounds normal on corrected probe: ci_low < ci_high, sample mean in CI."
-        - "Seeded reproducibility passed: same seed identical, different seed different."
-        - "Small n=2/3/5 boundaries do not crash."
-        - "method=iid_percentile_bootstrap and B=2000 confirmed."
-      scope_review:
-        - "No block bootstrap."
-        - "No ESS-adjusted CI width."
-        - "No paired bootstrap."
-        - "No StatisticalResult or verdict gates."
-    external_review_verdict: approve
-  - id: "08a.3"
-    title: "lag-1 autocorrelation detection + ESS correction + low-power/inconclusive rules"
-    status: done
-    files_created: []
-    files_modified:
-      - src/agent/stats_core.py
-      - src/agent/skills/result_schema.py
-      - src/agent/__init__.py
-      - tests/test_stats_core.py
-      - tests/test_result_schema.py
-      - dev_memory/CURRENT_PHASE.yaml
-      - dev_memory/DECISIONS.md
-      - dev_memory/PROGRESS.md
-      - dev_memory/ROADMAP.yaml
-      - dev_memory/ROADMAP.md
-      - dev_memory/phases/phase_08a_statistics_core/CHECKLIST.yaml
-      - dev_memory/phases/phase_08a_statistics_core/REVIEW_NOTES.md
-      - dev_memory/phases/phase_08a_statistics_core/SUMMARY.md
-      - dev_memory/phases/phase_08a_statistics_core/UT_RESULTS.md
-    scope:
-      - "Add AutocorrelationDiagnostics for side-effect-free IID-assumption diagnostics."
-      - "Detect autocorrelation when lag-1 rho > 0.3 and expose iid_assumption_valid as the inverse."
-      - "Reuse conservative ESS from 08a.1 and mark low_power when measured run count is <=5 or ESS < ESS_MIN."
-      - "Attach diagnostics to IID percentile bootstrap CI without widening or changing the CI."
-      - "Extend RunSummaryHint with autocorrelation_detected, iid_assumption_valid, and low_power."
-      - "Emit diagnostic notes such as autocorrelation_detected, iid_ci_may_undercover, ess_preliminary, low_effective_sample_size, and low_power."
-    exclusions:
-      - "No moving block bootstrap; defer to 08a.4."
-      - "No ESS-adjusted CI width; 08a.3 only marks confidence risk."
-      - "No StatisticalResult schema or verdict gates; defer to 08a.5."
-      - "No paired bootstrap or paired comparison logic; defer to 08a.5."
-      - "No candidate engine."
-    implementation_complete: true
-    implementation_commit: 7b27eef
-    ut_required: true
-    ut_passed: true
-    local_validation:
-      - "Targeted pytest passed: .venv\\Scripts\\python.exe -m pytest tests\\test_stats_core.py tests\\test_result_schema.py tests\\test_benchmark_skill.py -q -> 57 passed, 5 skipped in 1.35s."
-      - "Full Windows pytest was run and remains platform-blocked outside 08a: .venv\\Scripts\\python.exe -m pytest tests\\ -q -> 24 failed, 563 passed, 51 skipped, 4 errors."
-    review_gate:
-      - "Known autocorrelated monotone sequence: rho1 ~= 1.0, autocorrelation_detected=True, iid_assumption_valid=False, ESS=0.0, confidence_warning=True."
-      - "Weak positive autocorrelation sequence: rho1 ~= 0.1, autocorrelation_detected=False, iid_assumption_valid=True, confidence_warning=False."
-      - "IID percentile bootstrap keeps method=iid_percentile_bootstrap while attaching diagnostics for autocorrelated data."
-    statistical_correctness_review:
-      reviewer: external
-      reviewed_at: 2026-06-11T20:50:55+08:00
-      range: "aafa406..12ac2bb"
-      verdict: approve
-      critical_findings: 0
-      high_findings: 0
-      medium_findings: 0
-      low_findings: 0
-      numerical_validation:
-        - "Autocorrelation threshold validated: phi=0.2 produced rho ~= 0.21 and did not trigger; phi=0.5/0.7 triggered and marked iid_assumption_valid=False."
-        - "Naive IID bootstrap undercoverage motivation validated: IID gaussian 95% CI coverage stayed near nominal at 95.0%/93.4%, while fake_gbs bursty naive coverage fell to 73.0%/74.4%."
-        - "Real fake_gbs bursty sequence with rho ~= 0.333 triggered autocorrelation_detected=True and iid_assumption_valid=False."
-        - "ESS diagnostic integration stayed conservative with min(lag1, ACF) and correct preliminary marking."
-      scope_review:
-        - "No moving block bootstrap in 08a.3."
-        - "No verdict gates or StatisticalResult in 08a.3."
-      review_takeaway: "08a.3 proves the 08a autocorrelation motivation: naive IID bootstrap can claim 95% confidence while covering only about 73-74% on bursty data."
-    external_review_verdict: approve
-    ubuntu_validation:
-      status: passed
-      validated_at: 2026-06-11T10:06:30+08:00
-      head: 12ac2bb
-      targeted: "python -m pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py -q -> 62 passed in 1.49s"
-      full: "python -m pytest tests/ -q -> 640 passed in 9.24s"
-  - id: "08a.4"
-    title: "moving block bootstrap for autocorrelated sequences"
-    status: done
-    files_created: []
-    files_modified:
-      - src/agent/stats_core.py
-      - src/agent/__init__.py
-      - tests/test_stats_core.py
-      - dev_memory/CURRENT_PHASE.yaml
-      - dev_memory/DECISIONS.md
-      - dev_memory/PROGRESS.md
-      - dev_memory/ROADMAP.yaml
-      - dev_memory/ROADMAP.md
-      - dev_memory/phases/phase_08a_statistics_core/CHECKLIST.yaml
-      - dev_memory/phases/phase_08a_statistics_core/REVIEW_NOTES.md
-      - dev_memory/phases/phase_08a_statistics_core/SUMMARY.md
-      - dev_memory/phases/phase_08a_statistics_core/UT_RESULTS.md
-    scope:
-      - "Add moving_block_bootstrap_ci() for moving-block percentile bootstrap CI over the sample mean."
-      - "Add autocorrelation_aware_bootstrap_ci() to select moving block only when autocorrelation_detected=True and n>5; otherwise keep IID bootstrap."
-      - "Add select_moving_block_size() using max(2, ceil(n^(1/3)), ceil(1/(1-rho1))) capped at n//2, with n<=5 returning None."
-      - "Expose MOVING_BLOCK_BOOTSTRAP_METHOD and CI block_size metadata for review and downstream consumers."
-      - "Resample overlapping contiguous blocks and truncate concatenated blocks back to n observations."
-    exclusions:
-      - "No StatisticalResult schema or verdict gates; defer to 08a.5."
-      - "No paired bootstrap or paired comparison logic; defer to 08a.5."
-      - "No candidate engine."
-      - "No adaptive/stationary bootstrap or automatic Hall-Horowitz-Jing block-size selection; defer to 08b."
-    implementation_complete: true
-    implementation_commit: 81f7287
-    ut_required: true
-    ut_passed: true
-    local_validation:
-      - "tests/test_stats_core.py -> 23 passed in 1.37s."
-      - "Targeted pytest passed: .venv\\Scripts\\python.exe -m pytest tests\\test_stats_core.py tests\\test_result_schema.py tests\\test_benchmark_skill.py -q -> 63 passed, 5 skipped in 1.37s."
-      - "Full Windows pytest was run and remains platform-blocked outside 08a: .venv\\Scripts\\python.exe -m pytest tests\\ -q -> 24 failed, 569 passed, 51 skipped, 4 errors."
-    review_gate:
-      - "Block-size helper covers n<=5 no-block, cube-root floor, rho correlation length, and n//2 cap."
-      - "Moving-block bootstrap is seeded, reports method=moving_block_bootstrap and block_size, and preserves contiguous block structure."
-      - "Auto CI selects moving block for detected autocorrelation and falls back to IID for weak autocorrelation or small low-power samples."
-      - "External numerical review should compare fake_gbs bursty moving-block coverage against the 08a.3 naive 73.0%/74.4% baseline."
-    statistical_correctness_review:
-      reviewer: external
-      reviewed_at: 2026-06-13T09:34:11+08:00
-      range: "5957109..338232b"
-      verdict: approve_with_finding
-      critical_findings: 0
-      high_findings: 0
-      medium_findings: 1
-      low_findings: 0
-      medium_followups:
-        - id: Med-1
-          title: "Moving block bootstrap improves bursty coverage but does not by itself reach >=90% for smaller n."
-          details:
-            - "fake_gbs bursty nominal 95% coverage: naive IID n=20 -> 73.0%, moving block n=20 -> 78.0%, autocorrelation-aware n=20 -> 76.8%."
-            - "fake_gbs bursty nominal 95% coverage: naive IID n=40 -> 74.4%, moving block n=40 -> 83.0%, autocorrelation-aware n=40 -> 80.6%."
-            - "moving block n=60 -> 82.0%; n=100 -> 88.5%, approaching but still below the original >=90% wording."
-            - "Block-size sweeps did not reveal a simple implementation bug; coverage appears limited by small n plus burst severity, not by method wiring."
-          disposition: "Not an 08a.4 blocker. Carry into 08a.5 verdict gates: underpowered/autocorrelated bursty data must be low_power/inconclusive rather than significant."
-      numerical_validation:
-        - "Block-size formula, n<=5 fallback, method metadata, and scope boundaries passed review."
-        - "moving_block_bootstrap improves fake_gbs bursty coverage over naive IID but does not guarantee >=90% at n=20-40."
-        - "autocorrelation_aware_bootstrap_ci selects IID for weak/non-autocorrelated data and moving_block_bootstrap for detected autocorrelation."
-      scope_review:
-        - "No StatisticalResult or verdict gates in 08a.4."
-        - "No paired bootstrap or paired comparison in 08a.4."
-        - "No candidate engine in 08a.4."
-      review_takeaway: "08a.4 corrected the resampling model, but final safety depends on 08a.5 verdict gates that turn low-power/autocorrelated bursty cases inconclusive."
-    external_review_verdict: approve_with_finding
-    ubuntu_validation:
-      status: passed
-      validated_at: 2026-06-13T09:34:11+08:00
-      head: 338232b
-      full: "Linux full suite -> 646 passed per external 08a.4 review."
-  - id: "08a.5"
-    title: "baseline normalized comparison + pair_key paired design + StatisticalResult verdict schema"
-    status: done
-    files_created: []
-    files_modified:
-      - src/agent/stats_core.py
-      - src/agent/skills/result_schema.py
-      - src/agent/skills/__init__.py
-      - src/agent/__init__.py
-      - tests/test_stats_core.py
-      - tests/test_result_schema.py
-      - dev_memory/CURRENT_PHASE.yaml
-      - dev_memory/DECISIONS.md
-      - dev_memory/PROGRESS.md
-      - dev_memory/ROADMAP.yaml
-      - dev_memory/ROADMAP.md
-      - dev_memory/phases/phase_08a_statistics_core/CHECKLIST.yaml
-      - dev_memory/phases/phase_08a_statistics_core/REVIEW_NOTES.md
-      - dev_memory/phases/phase_08a_statistics_core/SUMMARY.md
-      - dev_memory/phases/phase_08a_statistics_core/UT_RESULTS.md
-    scope:
-      - "Add StatisticalResult schema for one candidate-vs-baseline comparison with single_comparison scope and adjusted_for_multiple_testing=false."
-      - "Add compare_run_records() as the side-effect-free assembly point for baseline/candidate RunLevelRecord sequences."
-      - "Compute objective_direction-aware signed absolute effect and relative_effect_pct, with relative_effect_pct=None when the baseline mean is effectively zero."
-      - "Prefer paired differences when matching pair_key values exist; preserve baseline pair order for paired differences and mark partial_pairing when only a subset matches."
-      - "Run autocorrelation/ESS diagnostics over the paired difference sequence; pairing does not bypass IID checks."
-      - "For unpaired comparisons, bootstrap baseline and candidate means independently and mark high-autocorrelation unpaired comparisons inconclusive."
-      - "Layer verdict gates: n_valid<5 or ESS<3 -> inconclusive; 5<=n_valid<10 or 3<=ESS<5 -> low_power/inconclusive; adequately powered CI excluding zero -> significant_improvement/regression; adequately powered CI including zero -> no_difference."
-      - "Carry 08a.4 Med-1 by marking small-n autocorrelated paired comparisons low_power/inconclusive rather than significant even when the CI excludes zero."
-      - "Expose significant_single_comparison boolean and avoid any bare significant field."
-      - "Emit recommend_more_runs when data are underpowered or high-CV."
-    exclusions:
-      - "No multiple-comparison correction; Phase 07 owns global comparison-family policy."
-      - "No adaptive rerun action; 08a only emits recommend_more_runs metadata."
-      - "No outlier deletion policy."
-      - "No candidate engine."
-      - "No fake_gbs burst-state production dependency."
-    implementation_complete: true
-    implementation_commit: 8936849
-    ut_required: true
-    ut_passed: true
-    local_validation:
-      - "Targeted pytest passed: .venv\\Scripts\\python.exe -m pytest tests\\test_stats_core.py tests\\test_result_schema.py tests\\test_benchmark_skill.py -q -> 75 passed, 5 skipped in 1.43s."
-      - "Full Windows pytest remains platform-blocked outside 08a: .venv\\Scripts\\python.exe -m pytest tests\\ -q -> 24 failed, 581 passed, 51 skipped, 4 errors."
-      - "Python 3.10 targeted pytest passed after compatibility patch: .venv\\Scripts\\python.exe -m pytest tests\\test_stats_core.py tests\\test_result_schema.py tests\\test_benchmark_skill.py -q -> 75 passed, 5 skipped in 3.10s."
-      - "Python 3.10 full Windows pytest collected and ran without ImportError; remains platform-blocked outside 08a: 24 failed, 581 passed, 51 skipped, 4 errors."
-      - "Added tests/__init__.py so Ubuntu/Python 3.10 absolute imports like tests.fixtures.fake_workspace do not resolve to an unrelated site-packages tests module."
-    review_gate:
-      - "External numerical review must verify Med-1 safety: small-n/severe-bursty cases with undercovered block-bootstrap CI remain low_power/inconclusive, not significant."
-      - "Verify verdict boundary tests for n_valid<5, 5<=n_valid<10, ESS<3, 3<=ESS<5, no_difference, and significant_single_comparison."
-      - "Verify base approximately zero defense: relative_effect_pct=None while signed absolute point_estimate remains present."
-      - "Verify paired-difference autocorrelation checks still run and unpaired high-autocorrelation data is inconclusive."
-      - "Verify scope excludes multiple-comparison correction, adaptive rerun, outliers, and candidate engine."
-    statistical_correctness_review:
-      reviewer: external
-      reviewed_at: 2026-06-13T15:33:47+08:00
-      range: "995ebf3..7087463"
-      validation_range: "995ebf3..4c1f678"
-      verdict: approve
-      critical_findings: 0
-      high_findings: 0
-      medium_findings: 0
-      low_findings: 0
-      numerical_validation:
-        - "Med-1 verdict gates force low-power/inconclusive before CI sign checks; small-n autocorrelated paired probes do not become significant."
-        - "Verdict thresholds for n_valid<5, 5<=n_valid<10, ESS<3, 3<=ESS<5, no_difference, and significant_single_comparison were verified in code and tests."
-        - "Paired differences still run autocorrelation/ESS checks; pairing does not imply IID."
-        - "Unpaired autocorrelation is hard-inconclusive."
-        - "Baseline approximately zero keeps relative_effect_pct=None while preserving signed absolute point_estimate."
-        - "Scope remains clean: no multiple-comparison correction, adaptive rerun action, outlier policy, or candidate engine."
-      python_3_10_review:
-        - "requires-python >=3.10 and tomli fallback are present."
-        - "Live source/tests avoid datetime.UTC, typing.Self, and tomllib-only assumptions."
-        - "tests/__init__.py is appropriate for Ubuntu/Python 3.10 tests.fixtures imports."
-      validation:
-        targeted: "uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py -q -> 80 passed in 1.37s"
-        full: "uv run --python 3.10 --system-certs --extra dev pytest tests/ -q -> 658 passed in 7.36s"
-    external_review_verdict: approve
-    ubuntu_validation:
-      status: passed
-      validated_at: 2026-06-13T14:47:14+08:00
-      head: b78c744
-      targeted: "uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py -q -> 80 passed in 1.00s"
-      full: "uv run --python 3.10 --system-certs --extra dev pytest tests/ -q -> 658 passed in 7.56s"
-    post_review_hardening:
-      reviewed_sources:
-        - ChatGPT
-        - Kimi
-        - Gemini
-        - Kimi-Code
-        - Claude numerical validation
-      implemented_at: 2026-06-15T20:32:16+08:00
-      scope:
-        - "Sort measured records by started_at/run_index before score extraction and autocorrelation diagnostics; emit input_order_unverified when neither field exists."
-        - "Parse started_at as UTC datetime for sorting so mixed Z/+00:00/subsecond strings cannot lexically misorder chronology."
-        - "Emit order_source_conflict when started_at chronology disagrees with run_index ordering."
-        - "Compute pair_quality inside compare_run_records; only good paired quality can be decision-grade significant, while suspect/unknown quality downgrades to inconclusive/low_power."
-        - "Use pair_order, explicit pair_time_gap_sec, and started_at-derived gap for pair_quality; when both gap sources exist, take the conservative max."
-        - "Mark pair_time_gap_conflict and suspect pair_quality when explicit pair_time_gap_sec materially understates started_at-derived gap."
-        - "Use a per-pair gap threshold of max(5x min(baseline/candidate effective duration), 5 seconds) with a 300 second hard cap."
-        - "Bound each effective duration by min(duration_sec, ended_at-started_at) when timestamps are available."
-        - "Detect merged baseline/candidate timeline overlap (ended_at[i] after started_at[i+1]) as run_overlap_detected and suspect pair_quality."
-        - "Produce exploratory_signal=suggestive_* only for unpaired autocorrelated inconclusive results with n>=40, ESS>=20, corrected CI excluding zero, and relative effect >=1%; requires_confirmation stays true."
-        - "Add fixed-seed slow coverage regressions for IID Gaussian coverage, fake_gbs bursty naive undercoverage, moving-block improvement, and unpaired-autocorrelation inconclusive behavior."
-        - "Document heuristic ESS naming, trend-sensitive lag rho, and the deliberate unpaired-autocorrelation inconclusive policy."
-        - "Expose baseline_block_size and candidate_block_size for unpaired comparisons while preserving the legacy max block_size field."
-        - "Add boundary tests for zero variance, tiny variance, and n=1000 bootstrap behavior."
-      validation:
-        stats_schema: "uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py -q -> 101 passed in 0.76s"
-        slow_coverage: "uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core_coverage_regression.py -q -> 3 passed in 1.30s"
-        targeted: "uv run --python 3.10 --system-certs --extra dev pytest tests/test_stats_core.py tests/test_result_schema.py tests/test_benchmark_skill.py tests/test_stats_core_coverage_regression.py -q -> 109 passed in 2.25s"
-        full: "uv run --python 3.10 --system-certs --extra dev pytest tests/ -q -> 687 passed in 8.91s"
-        diff_check: "git diff --check -> passed"
-        coverage_values:
-          iid_gaussian_95pct: 0.955
-          fake_gbs_bursty_naive_iid: 0.7555555555555555
-          fake_gbs_bursty_moving_block: 0.8166666666666667
-  - id: "08a.6"
-    title: "env_snapshot/cross-signal pair-quality follow-up"
-    status: deferred_nonblocking
-    reason: "08a minimal statistics core is closed; env_snapshot_distance and stronger trace-integrity cross-checks move to 08b/7.0 as follow-up defenses for the inherent fully self-consistent timestamp-forgery boundary."
-phase_closeout:
-  status: complete
-  completed_at: 2026-06-15T20:53:42+08:00
-  final_head_before_closeout: b5dd98b
-  final_validation:
-    full_python_3_10: "uv run --python 3.10 --system-certs --extra dev pytest tests/ -q -> 687 passed in 8.63s"
-    diff_check: "git diff --check -> passed"
-  summary:
-    - "08a delivered the minimal side-effect-free statistics core: descriptive statistics, conservative ESS/autocorrelation diagnostics, IID percentile bootstrap, moving-block bootstrap, candidate-vs-baseline comparison, and single-comparison verdict gates."
-    - "08a exposes a decision/exploration data contract: significant verdicts are decision-grade only after power, autocorrelation, pair_quality, and schema gates; exploratory_signal is non-decision-grade and requires confirmation."
-    - "pair_quality underwent eight adversarial review rounds and closes detectable time-metadata inconsistency plus global-duration-coupling classes."
-    - "After per-pair duration thresholds, good paired evidence requires pair_order consistency, no merged-timeline overlap, gap<=300s, and gap<=max(5*min(pair durations), 5s) for every pair."
-    - "The remaining inherent boundary is fully self-consistent forged time metadata with no physical/statistical fingerprint; Phase 7.0 producer integrity and future env_snapshot/cross-signal validation own that defense."
-  nonblocking_followups:
-    - "08b: env_snapshot_distance or equivalent stronger pair_quality cross-signal."
-    - "08b: cosmetic pair_order vs started_at precedence cross-check."
-    - "08b/7.0: calibrate pair-quality knobs after producer integration: 5x duration multiplier, 300s hard cap, 5s floor."
-    - "7.0: consume 08a StatisticalResult contract and produce randomized AB/BA paired measurement plans."
-    - "7.0: producer must guarantee truthful started_at/ended_at/duration_sec/pair_time_gap_sec metadata."
-    - "7.0/07: forbid sequential peeking and keep multiple-comparison correction in Phase 07 policy."
-next_action: "Start Phase 7.0 candidate search strategy + constraint solver spike, with 08a contract as an input."
+  - id: "7.0-contracts.1"
+    title: "canonicalize_candidate + unified compute_combo_hash"
+    status: implemented
+    implementation_notes:
+      - "Add shared candidate_identity helper."
+      - "result_schema and fs_memory compute_combo_hash delegate to the same helper."
+      - "Commutative bool flags are sorted/deduplicated; value flags keep one key/value."
+  - id: "7.0-contracts.2"
+    title: "StatisticalResult p_value"
+    status: implemented
+    implementation_notes:
+      - "Bootstrap CI helpers compute p_value from the same bootstrap distribution."
+      - "Zero-count correction prevents p=0."
+      - "p_value is diagnostic and does not change verdict gates."
+  - id: "7.0-contracts.3"
+    title: "relative_ci_low_pct / relative_ci_high_pct"
+    status: implemented
+  - id: "7.0-contracts.4"
+    title: "family_screen + is_decision_grade"
+    status: implemented
+  - id: "7.0-contracts.5"
+    title: "RunLevelRecord provenance extension"
+    status: implemented
+  - id: "7.0-contracts.6"
+    title: "MeasurementPlan model + trace support"
+    status: implemented
+  - id: "7.0-contracts.7"
+    title: "AcceptDecision + can_accept"
+    status: implemented
+validation:
+  focused_contracts:
+    command: "uv run --python 3.10 --system-certs --extra dev pytest tests/test_result_schema.py tests/test_stats_core.py tests/test_fs_memory.py tests/test_trace_memory.py -q"
+    result: "284 passed in 1.23s"
+  adjacent_compile_benchmark_trace:
+    command: "uv run --python 3.10 --system-certs --extra dev pytest tests/test_compile_skill.py tests/test_benchmark_skill.py tests/test_fake_gbs.py tests/test_error_analyzer.py tests/test_trace_session.py -q"
+    result: "76 passed in 3.28s"
+  full_python_3_10:
+    command: "uv run --python 3.10 --system-certs --extra dev pytest tests/ -q"
+    result: "703 passed in 8.54s"
+  yaml_parse:
+    result: "ROADMAP.yaml, CURRENT_PHASE.yaml, and 7.0-contracts CHECKLIST.yaml parse successfully."
+  diff_check:
+    result: "git diff --check -> passed"
+  greenfield_identity_check:
+    result: "No persisted combo_hash data outside docs/dev_memory/tests."
+next_action: "Generate patch artifacts, run diff/YAML checks, commit, push, and request external review for 7.0-contracts implementation."

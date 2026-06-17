@@ -23,6 +23,8 @@ from .result_schema import (
     FailureConfidence,
     FailureRoute,
     ComparisonScope,
+    MeasurementPlan,
+    MeasurementPlanType,
     ObjectiveDirection,
     RunEnvironmentSnapshot,
     RunLevelRecord,
@@ -31,6 +33,7 @@ from .result_schema import (
     StatisticalResult,
     StatisticalVerdict,
     compute_combo_hash,
+    is_statistical_result_decision_grade,
 )
 from .spec_backup import SpecBackupResult, spec_backup
 from .spec_injector import SpecInjectResult, spec_injector
@@ -63,6 +66,8 @@ __all__ = [
     "FailureConfidence",
     "FailureRoute",
     "ComparisonScope",
+    "MeasurementPlan",
+    "MeasurementPlanType",
     "ObjectiveDirection",
     "RunEnvironmentSnapshot",
     "RunLevelRecord",
@@ -83,6 +88,7 @@ __all__ = [
     "classify_compile_failure",
     "compile_candidate",
     "compute_combo_hash",
+    "is_statistical_result_decision_grade",
     "LogContent",
     "load_workspace_snapshot",
     "spec_backup",

@@ -1,0 +1,74 @@
+phase_id: phase_7_0_contracts
+phase_title: "Candidate Engine Input Contracts - Frozen Code Deliverables"
+status: implementation_complete
+started_at: 2026-06-17T22:28:51+08:00
+design_reference: doc/PHASE_7.0_CONTRACTS_DRAFT.md
+scope:
+  - "Implement the seven code deliverables frozen by 7.0-contracts v4."
+  - "Keep 08a verdict/pair_quality gates unchanged."
+  - "Split ROADMAP 7.0 into 7.0-contracts and 7.0-spike."
+deliverables:
+  - id: "1"
+    title: "canonicalize_candidate + unified compute_combo_hash"
+    status: done
+    files:
+      - src/agent/candidate_identity.py
+      - src/agent/skills/result_schema.py
+      - src/agent/fs_memory.py
+    acceptance:
+      - "Commutative order does not affect hash."
+      - "Duplicate commutative/value flags deduplicate."
+      - "Value flag alternatives remain distinct or conflicting."
+      - "result_schema and fs_memory hash entry points match."
+      - "TrialRecord combo_hash validation uses the shared helper."
+  - id: "2"
+    title: "p_value on BootstrapConfidenceInterval and StatisticalResult"
+    status: done
+    acceptance:
+      - "p_value comes from the same bootstrap distribution as the CI."
+      - "zero-count correction prevents p=0."
+      - "verdict/pair_quality rules are unchanged."
+  - id: "3"
+    title: "relative CI percentage fields"
+    status: done
+    acceptance:
+      - "relative_ci_low_pct <= relative_effect_pct <= relative_ci_high_pct when present."
+      - "baseline mean approximately zero leaves relative fields None."
+  - id: "4"
+    title: "family_screen + is_decision_grade"
+    status: done
+    acceptance:
+      - "BH denominator is full family size."
+      - "Only verdict=significant_improvement can screen in."
+      - "lower_is_better is handled by verdict rather than relative-effect sign."
+  - id: "5"
+    title: "RunLevelRecord provenance extension"
+    status: done
+    acceptance:
+      - "measurement_plan_id/source_commit/benchmark_id/objective_id are optional."
+      - "pair_order/started_at/pair_key/pair_time_gap_sec remain on run records."
+  - id: "6"
+    title: "MeasurementPlan"
+    status: done
+    acceptance:
+      - "MeasurementPlan owns candidate_id/family_id/baseline_id."
+      - "plan_type distinguishes screen and confirmation."
+      - "TraceSessionWriter can write measurement_plan_created events."
+  - id: "7"
+    title: "AcceptDecision + can_accept"
+    status: done
+    acceptance:
+      - "can_accept returns AcceptDecision, not bool."
+      - "relative_ci_low_pct drives practical threshold."
+      - "incomplete provenance is rejected."
+validation:
+  focused_contracts: "284 passed in 1.23s"
+  adjacent_compile_benchmark_trace: "76 passed in 3.28s"
+  full_python_3_10: "703 passed in 8.54s"
+  yaml_parse: "ROADMAP.yaml, CURRENT_PHASE.yaml, and CHECKLIST.yaml parse successfully."
+  diff_check: "git diff --check -> passed"
+  greenfield_identity_check: "No persisted combo_hash data outside docs/dev_memory/tests."
+patch_artifacts:
+  - dev_memory/phases/phase_7_0_contracts/patches/01_contract_code_deliverables.patch
+  - dev_memory/phases/phase_7_0_contracts/patches/01_contract_code_deliverables.summary.txt
+  - dev_memory/phases/phase_7_0_contracts/patches/01_contract_code_deliverables.review.md

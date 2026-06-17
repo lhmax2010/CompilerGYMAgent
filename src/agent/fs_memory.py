@@ -24,6 +24,7 @@ from typing import Any, Iterator, Literal, Mapping, Sequence
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
+from .candidate_identity import compute_canonical_combo_hash
 from .config import AgentConfig, NonEmptyStr
 from .errors import (
     AgentError,
@@ -1177,17 +1178,7 @@ def namespace_layout_for_config(config: AgentConfig) -> NamespaceLayout:
 
 
 def compute_combo_hash(combo: Sequence[str]) -> str:
-    if not combo:
-        raise ValueError("combo cannot be empty")
-    for option in combo:
-        if not isinstance(option, str) or not option.strip():
-            raise ValueError("combo options must be non-empty strings")
-        if option != option.strip():
-            raise ValueError("combo options cannot contain surrounding whitespace")
-        if any(ord(char) < 0x20 or ord(char) == 0x7F for char in option):
-            raise ValueError("combo options cannot contain control characters")
-    payload = _canonical_yaml_bytes(list(combo))
-    return "sha256:" + hashlib.sha256(payload).hexdigest()
+    return compute_canonical_combo_hash(combo)
 
 
 def compute_trial_payload_hash(record: TrialRecord | Mapping[str, Any]) -> str:

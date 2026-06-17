@@ -1672,3 +1672,34 @@ Decision records must include:
   - "Expand equivalent flags in canonicalization (v1). Deferred to KG (Phase 14): equivalent-flag expansion is missed-merge (safe direction) and depends on compiler-version semantics."
 - review_provenance:
   - "Three rounds, twelve external AI reviews (Claude Code / Codex / Gemini / Kimi as VS Code IDE agents reading the workspace). v1 found two directional errors + baseline omission + p-value gap. v2 (after 4 adjudications) found new seams: field overlap, unit mismatch, batch/per-candidate interface mismatch. v3 found one residual (lower_is_better wrong-filter) + freeze notes. v4 closed all; four reviews converged on freeze."
+
+## 2026-06-17T22:45:00+08:00 - 7.0-contracts code deliverables preserve 08a gates
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 7.0-contracts
+  - doc/PHASE_7.0_CONTRACTS_DRAFT.md
+  - doc/ARCHITECTURE_HLD.md section 4.1
+  - REQUIREMENTS.md section 4.6.2
+  - REQUIREMENTS.md section 4.8
+  - REQUIREMENTS.md section 4.9
+- decision: Implement the frozen 7.0-contracts v4 code deliverables as a narrow contract-surface patch. Delivery 1 is the only identity semantic change; deliveries 2-5 are additive schema/statistics fields and helpers; deliveries 6-7 add new consumer structures. The implementation must not alter 08a verdict or pair_quality gates.
+- implementation_notes:
+  - "Candidate identity lives in agent.candidate_identity. result_schema.compute_combo_hash and fs_memory.compute_combo_hash both delegate to the same compute_canonical_combo_hash helper."
+  - "The default v1 taxonomy sorts/deduplicates commutative bool flags, models known value flags such as opt_level as key/value, rejects conflicting value flags, and rejects accumulating/multi-value forms such as -D/-I/--param as outside the v1 canonical search space."
+  - "BootstrapConfidenceInterval and StatisticalResult expose p_value computed from the same bootstrap distribution as the CI. The value is diagnostic-only and does not participate in _statistical_verdict."
+  - "relative_ci_low_pct/relative_ci_high_pct are additive StatisticalResult fields. When present, schema enforces relative_ci_low_pct <= relative_effect_pct <= relative_ci_high_pct."
+  - "family_screen is batch-only and uses BH with m=len(results), the pre-registered full family size supplied by the caller. Direction filtering uses verdict == significant_improvement, not relative_effect_pct sign."
+  - "is_decision_grade delegates to the same schema-derived predicate used by StatisticalResult consistency checks; 07 consumers should use the helper instead of reading CI fields directly."
+  - "RunLevelRecord adds optional measurement_plan_id/source_commit/benchmark_id/benchmark_version/objective_id; pair_order/started_at/pair_key/pair_time_gap_sec remain run-level measurement facts consumed by 08a."
+  - "MeasurementPlan owns candidate_id/family_id/baseline_id and can be written to trace via TraceSessionWriter.measurement_plan_created."
+  - "can_accept returns AcceptDecision reason codes and checks family screening, confirmation status, relative CI practical threshold, and provenance completeness."
+- rationale: This preserves the reviewed 08a statistical safety boundary while making the 07 input contracts executable. p_value and relative CI are necessary for family screening and practical-threshold gates, but changing verdict gates here would invalidate the eight-round 08a review closure. Keeping family_screen batch-only prevents accidentally implementing FDR as a per-candidate helper with no rank context.
+- validation:
+  - "Focused contract/schema/stats/fs/trace tests -> 284 passed in 1.23s."
+  - "Adjacent compile/benchmark/fake_gbs/error/trace-session tests -> 76 passed in 3.28s."
+  - "Full Python 3.10 suite -> 703 passed in 8.54s."
+- alternatives_considered:
+  - "Add p_value but let it influence verdict. Rejected because p_value is for 07 family screening and must not reopen 08a verdict gates."
+  - "Keep two compute_combo_hash implementations and copy canonicalization logic. Rejected because TrialRecord hash validation can diverge from result-schema hash identity."
+  - "Put family_screen into can_accept. Rejected because FDR-BH is batch-level and requires the full family p-value ranking."
+  - "Put candidate_id/family_id/baseline_id directly on RunLevelRecord. Rejected because the frozen contract chose plan-owns identity; run records carry measurement_plan_id plus run-specific provenance."

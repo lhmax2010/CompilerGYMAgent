@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import math
 from datetime import datetime, timedelta, timezone
 
@@ -11,6 +10,12 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from agent.candidate_identity import (
+    CandidateCanonicalizationSpec,
+    CanonicalCandidate,
+    canonicalize_candidate,
+    compute_canonical_combo_hash,
+)
 from agent.config import NonEmptyStr
 
 
@@ -56,6 +61,7 @@ ExploratorySignal = Literal[
 ]
 PairOrder = Literal["baseline_first", "candidate_first"]
 PairQuality = Literal["good", "suspect", "unknown"]
+MeasurementPlanType = Literal["screen", "confirmation"]
 
 
 class StrictResultSchemaModel(BaseModel):
@@ -175,10 +181,13 @@ class StatisticalResult(StrictResultSchemaModel):
     objective_direction: ObjectiveDirection
     point_estimate: float
     relative_effect_pct: float | None = None
+    relative_ci_low_pct: float | None = None
+    relative_ci_high_pct: float | None = None
     ci_low: float
     ci_high: float
     confidence_level: float = Field(gt=0, lt=1)
     method: NonEmptyStr
+    p_value: float | None = Field(default=None, ge=0, le=1)
     verdict: StatisticalVerdict
     significant_single_comparison: bool = False
     comparison_scope: ComparisonScope = "single_comparison"
@@ -203,13 +212,17 @@ class StatisticalResult(StrictResultSchemaModel):
     candidate_block_size: int | None = Field(default=None, ge=2)
     exploratory_signal: ExploratorySignal = "none"
     requires_confirmation: bool = False
+    provenance_complete: bool = True
     notes: tuple[NonEmptyStr, ...] = ()
 
     @field_validator(
         "point_estimate",
         "relative_effect_pct",
+        "relative_ci_low_pct",
+        "relative_ci_high_pct",
         "ci_low",
         "ci_high",
+        "p_value",
         "effective_sample_size",
         "lag1_autocorrelation",
     )
@@ -223,6 +236,26 @@ class StatisticalResult(StrictResultSchemaModel):
     def statistical_result_must_be_consistent(self) -> StatisticalResult:
         if self.ci_low > self.ci_high:
             raise ValueError("ci_low cannot exceed ci_high")
+        relative_ci_values = (self.relative_ci_low_pct, self.relative_ci_high_pct)
+        if any(value is not None for value in relative_ci_values):
+            if (
+                self.relative_effect_pct is None
+                or self.relative_ci_low_pct is None
+                or self.relative_ci_high_pct is None
+            ):
+                raise ValueError("relative CI fields must all be present or all be None")
+            relative_low = self.relative_ci_low_pct
+            relative_effect = self.relative_effect_pct
+            relative_high = self.relative_ci_high_pct
+            assert relative_low is not None
+            assert relative_effect is not None
+            assert relative_high is not None
+            if relative_low > relative_high:
+                raise ValueError("relative_ci_low_pct cannot exceed relative_ci_high_pct")
+            if not relative_low <= relative_effect <= relative_high:
+                raise ValueError(
+                    "relative_effect_pct must lie within the relative CI"
+                )
         if self.n_valid + self.n_invalid > self.n_measured:
             raise ValueError("n_valid + n_invalid cannot exceed n_measured")
         if (
@@ -230,10 +263,7 @@ class StatisticalResult(StrictResultSchemaModel):
             and self.effective_sample_size > self.n_valid
         ):
             raise ValueError("effective_sample_size cannot exceed n_valid")
-        expected_significant = self.verdict in {
-            "significant_improvement",
-            "significant_regression",
-        }
+        expected_significant = _statistical_result_has_significant_verdict(self)
         if self.significant_single_comparison != expected_significant:
             raise ValueError(
                 "significant_single_comparison must match the statistical verdict"
@@ -262,6 +292,53 @@ class StatisticalResult(StrictResultSchemaModel):
                 "unpaired autocorrelated results cannot be decision-grade significant"
             )
         return self
+
+
+class MeasurementPlan(StrictResultSchemaModel):
+    """Pre-registered measurement plan for 7.0/07 statistical comparisons."""
+
+    measurement_plan_id: NonEmptyStr
+    family_id: NonEmptyStr
+    candidate_id: NonEmptyStr
+    baseline_id: NonEmptyStr
+    plan_type: MeasurementPlanType
+    planned_n_pairs: int = Field(gt=0)
+    abba_seed: NonEmptyStr
+    pair_order: tuple[PairOrder, ...] = Field(min_length=1)
+    created_at: NonEmptyStr
+
+    @field_validator("created_at", mode="before")
+    @classmethod
+    def created_at_datetime_to_string(cls, value: Any) -> Any:
+        return _datetime_to_utc_isoformat(value, "created_at")
+
+    @field_validator("created_at")
+    @classmethod
+    def created_at_must_be_utc_isoformat(cls, value: str) -> str:
+        _parse_utc_isoformat(value, "created_at")
+        return value
+
+    @model_validator(mode="after")
+    def measurement_plan_must_match_planned_pairs(self) -> MeasurementPlan:
+        if len(self.pair_order) != self.planned_n_pairs:
+            raise ValueError("pair_order length must match planned_n_pairs")
+        return self
+
+    def to_trace_payload(self) -> dict[str, object]:
+        """Return the JSON-compatible payload for a measurement_plan_created event."""
+
+        return {
+            "kind": "measurement_plan_created",
+            "ts": self.created_at,
+            "measurement_plan_id": self.measurement_plan_id,
+            "family_id": self.family_id,
+            "candidate_id": self.candidate_id,
+            "baseline_id": self.baseline_id,
+            "plan_type": self.plan_type,
+            "planned_n_pairs": self.planned_n_pairs,
+            "abba_seed": self.abba_seed,
+            "pair_order": list(self.pair_order),
+        }
 
 
 class RunLevelRecord(StrictResultSchemaModel):
@@ -294,6 +371,11 @@ class RunLevelRecord(StrictResultSchemaModel):
     artifact_hash: NonEmptyStr | None = None
     artifact_hash_verified: bool = False
     score_source_ref: NonEmptyStr | None = None
+    measurement_plan_id: NonEmptyStr | None = None
+    source_commit: NonEmptyStr | None = None
+    benchmark_id: NonEmptyStr | None = None
+    benchmark_version: NonEmptyStr | None = None
+    objective_id: NonEmptyStr | None = None
     pair_key: NonEmptyStr | None = None
     pair_order: PairOrder | None = None
     pair_time_gap_sec: float | None = Field(default=None, ge=0)
@@ -361,11 +443,32 @@ class RunLevelRecord(StrictResultSchemaModel):
         return self
 
 
-def compute_combo_hash(combo: tuple[str, ...] | list[str]) -> str:
+def compute_combo_hash(
+    combo: tuple[str, ...] | list[str],
+    *,
+    spec: CandidateCanonicalizationSpec | dict[str, Any] | None = None,
+) -> str:
     """Return a deterministic sha256 hash for a compiler option combo."""
 
-    payload = "\0".join(combo).encode("utf-8", errors="surrogateescape")
-    return "sha256:" + hashlib.sha256(payload).hexdigest()
+    return compute_canonical_combo_hash(combo, spec=spec)
+
+
+def is_statistical_result_decision_grade(result: StatisticalResult) -> bool:
+    """Return the schema-derived decision-grade predicate for a result."""
+
+    validated = StatisticalResult.model_validate(result)
+    if not _statistical_result_has_significant_verdict(validated):
+        return False
+    if validated.paired:
+        return validated.pair_quality == "good"
+    return validated.iid_assumption_valid and not validated.autocorrelation_detected
+
+
+def _statistical_result_has_significant_verdict(result: StatisticalResult) -> bool:
+    return result.verdict in {
+        "significant_improvement",
+        "significant_regression",
+    }
 
 
 def _validate_sha256_digest(value: str, label: str) -> None:

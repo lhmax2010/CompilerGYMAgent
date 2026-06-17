@@ -9,12 +9,14 @@ import pytest
 from pydantic import ValidationError
 
 from agent import (
+    MeasurementPlan,
     EvidenceLine,
     FailureClassification,
     RunEnvironmentSnapshot,
     RunLevelRecord,
     RunSummaryHint,
     StatisticalResult,
+    canonicalize_candidate,
     compute_result_combo_hash,
 )
 
@@ -118,6 +120,65 @@ def test_run_level_record_accepts_successful_measured_run() -> None:
     assert record.artifact_hash_verified is True
     assert record.summary_hint is not None
     assert record.env_snapshot.mem_available_bytes == 1024
+
+
+def test_run_level_record_accepts_optional_measurement_provenance() -> None:
+    record = _record(
+        measurement_plan_id="plan_1",
+        source_commit="commit_abc",
+        benchmark_id="bench_throughput",
+        benchmark_version="v1",
+        objective_id="throughput",
+        pair_key="pair_1",
+        pair_order="baseline_first",
+        pair_time_gap_sec=0.5,
+    )
+
+    assert record.measurement_plan_id == "plan_1"
+    assert record.source_commit == "commit_abc"
+    assert record.benchmark_id == "bench_throughput"
+    assert record.objective_id == "throughput"
+    assert record.pair_order == "baseline_first"
+
+
+def test_measurement_plan_is_trace_payload_source_of_candidate_identity() -> None:
+    created_at = datetime(2026, 6, 17, 8, 0, tzinfo=UTC)
+
+    plan = MeasurementPlan(
+        measurement_plan_id="plan_screen_1",
+        family_id="family_round_1",
+        candidate_id="candidate_sha",
+        baseline_id="champion_sha",
+        plan_type="screen",
+        planned_n_pairs=2,
+        abba_seed="seed_1",
+        pair_order=("baseline_first", "candidate_first"),
+        created_at=created_at,
+    )
+
+    payload = plan.to_trace_payload()
+
+    assert payload["kind"] == "measurement_plan_created"
+    assert payload["ts"] == "2026-06-17T08:00:00+00:00"
+    assert payload["candidate_id"] == "candidate_sha"
+    assert payload["baseline_id"] == "champion_sha"
+    assert payload["plan_type"] == "screen"
+    assert payload["pair_order"] == ["baseline_first", "candidate_first"]
+
+
+def test_measurement_plan_requires_pair_order_for_each_planned_pair() -> None:
+    with pytest.raises(ValidationError, match="pair_order length"):
+        MeasurementPlan(
+            measurement_plan_id="plan_screen_1",
+            family_id="family_round_1",
+            candidate_id="candidate_sha",
+            baseline_id="champion_sha",
+            plan_type="screen",
+            planned_n_pairs=2,
+            abba_seed="seed_1",
+            pair_order=("baseline_first",),
+            created_at=datetime(2026, 6, 17, 8, 0, tzinfo=UTC),
+        )
 
 
 def test_run_level_record_requires_objective_direction() -> None:
@@ -279,10 +340,13 @@ def test_statistical_result_accepts_single_comparison_schema() -> None:
         objective_direction="higher_is_better",
         point_estimate=2.0,
         relative_effect_pct=20.0,
+        relative_ci_low_pct=10.0,
+        relative_ci_high_pct=30.0,
         ci_low=1.0,
         ci_high=3.0,
         confidence_level=0.95,
         method="iid_percentile_bootstrap",
+        p_value=0.02,
         verdict="significant_improvement",
         significant_single_comparison=True,
         n_measured=20,
@@ -298,6 +362,26 @@ def test_statistical_result_accepts_single_comparison_schema() -> None:
     assert result.comparison_scope == "single_comparison"
     assert result.adjusted_for_multiple_testing is False
     assert result.significant_single_comparison is True
+    assert result.p_value == 0.02
+    assert result.relative_ci_low_pct == 10.0
+
+
+def test_statistical_result_rejects_relative_ci_outside_effect() -> None:
+    with pytest.raises(ValidationError, match="relative_effect_pct"):
+        StatisticalResult(
+            **_statistical_result_payload(
+                relative_effect_pct=20.0,
+                relative_ci_low_pct=21.0,
+                relative_ci_high_pct=30.0,
+            )
+        )
+
+
+def test_statistical_result_rejects_non_finite_or_out_of_range_p_value() -> None:
+    with pytest.raises(ValidationError):
+        StatisticalResult(**_statistical_result_payload(p_value=math.nan))
+    with pytest.raises(ValidationError):
+        StatisticalResult(**_statistical_result_payload(p_value=-0.1))
 
 
 def test_statistical_result_rejects_inconsistent_significance_and_adjustment() -> None:
@@ -456,6 +540,27 @@ def test_schema_module_contains_no_classifier_rule_patterns() -> None:
     assert source is not None
     assert "unrecognized command-line option" not in source
     assert "gcc_unknown_option" not in source
+
+
+def test_compute_result_combo_hash_uses_commutative_canonical_identity() -> None:
+    assert compute_result_combo_hash(["-O2", "-flto"]) == compute_result_combo_hash(
+        ["-flto", "-O2"]
+    )
+    assert compute_result_combo_hash(["-O2", "-O2"]) == compute_result_combo_hash(
+        ["-O2"]
+    )
+    assert compute_result_combo_hash(["-O2"]) != compute_result_combo_hash(["-O3"])
+
+
+def test_canonicalize_candidate_rejects_conflicting_value_flags() -> None:
+    with pytest.raises(ValueError, match="conflicting values"):
+        canonicalize_candidate(None, ["-O2", "-O3"])
+
+
+def test_canonicalize_candidate_normalizes_whitespace_without_changing_case() -> None:
+    canonical = canonicalize_candidate(None, ["  -O2", "-fplugin =foo  "])
+
+    assert canonical.hash_items == ("-O2", "-fplugin =foo")
 
 
 def _record(**overrides: object) -> RunLevelRecord:

@@ -20,7 +20,7 @@ Current phase:
 
 | State | Next phase | Why next |
 |---|---|---|
-| Phase 08a done | 7.0 ready | 08a delivered the pure statistics core and closed pair_quality after eight adversarial review rounds. Phase 7.0 should now define the candidate-search strategy and producer contract that consume 08a results. |
+| Phase 7.0-contracts implementation complete | external review, then 7.0-spike | The frozen v4 07 input contracts now have code deliverables for canonical identity, p_value, relative CI, family/accept helpers, provenance, MeasurementPlan, and AcceptDecision. Review/validation should close this before the scaling spike. |
 
 08a completion snapshot:
 
@@ -47,9 +47,10 @@ Next implementation phases:
 
 | Order | Phase | Estimate | Main risk |
 |---:|---|---:|---|
-| 1 | 7.0 - Candidate Search Strategy + Constraint Solver Spike | 2-3 subtasks | Must turn 05.5's noise-robust interaction-discovery risk into concrete Phase 07 search requirements and producer obligations for consuming 08a safely. |
-| 2 | 07 - Candidate Engine + Constraint + Schedule | 10-16 subtasks | LLM integration and non-bruteforce search strategy remain the largest algorithmic risk. |
-| 3 | 08b - Baseline + Statistical Significance - Advanced Noise Policy | 3-4 subtasks | Runs alongside/after 07 to add adaptive rerun, outlier policy, sequential testing, noise diagnostics, and env_snapshot/cross-signal pair-quality follow-up. |
+| 1 | 7.0-contracts - Candidate Engine Input Contracts | 7 deliverables | Implementation complete; needs external review before it becomes the stable 07 input surface. |
+| 2 | 7.0-spike - Candidate Search Strategy + Constraint Solver Spike | 2-3 subtasks | Must turn 05.5's noise-robust interaction-discovery risk into concrete Phase 07 search requirements using the frozen contracts. |
+| 3 | 07 - Candidate Engine + Constraint + Schedule | 10-16 subtasks | LLM integration and non-bruteforce search strategy remain the largest algorithmic risk. |
+| 4 | 08b - Baseline + Statistical Significance - Advanced Noise Policy | 3-4 subtasks | Runs alongside/after 07 to add adaptive rerun, outlier policy, sequential testing, noise diagnostics, and env_snapshot/cross-signal pair-quality follow-up. |
 
 The planned order intentionally ran Phase 06 before Phase 05, even though the numbering is not sequential. That dependency has now paid off: Phase 05 compile and benchmark skills use the Phase 06 process runner/cleaner and lease registry instead of inventing subprocess rules.
 
@@ -84,8 +85,8 @@ Remaining estimate:
 
 | Scope | Phases | Subtasks | Workdays | Weeks |
 |---|---|---:|---:|---:|
-| v1-minimal remaining | 7.0/07/08b/09/10/11/12/13 | 56-95 | 43-73 | 9-15 |
-| v1-full remaining | 7.0/07/08b/9.0/9.1/09/10/11/12/13/14/15a/15b/16 | 81-135 | 62-104 | 13-21 |
+| v1-minimal remaining | 7.0-contracts/7.0-spike/07/08b/09/10/11/12/13 | 56-95 | 43-73 | 9-15 |
+| v1-full remaining | 7.0-contracts/7.0-spike/07/08b/9.0/9.1/09/10/11/12/13/14/15a/15b/16 | 81-135 | 62-104 | 13-21 |
 
 The roadmap is deliberately slower than `doc/REQUIREMENTS.md` section 9's nominal schedule because this project is using a high-assurance loop: Codex implementation, Claude review, review fixes, Linux validation, and explicit dev_memory provenance.
 
