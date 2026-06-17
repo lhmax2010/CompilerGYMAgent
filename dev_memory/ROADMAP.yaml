@@ -8,7 +8,7 @@ status: active
 # 详见 doc/ARCHITECTURE_HLD.md 开头的"文档体系定位"表
 # ============================================================
 document_system:
-  architecture_truth: "doc/ARCHITECTURE_HLD.md"   # HLD: 系统架构真相 (组件/交互/契约/不变量 I-1~I-25)。理解全局、对齐、接手时读。v1.2 治理基线。
+  architecture_truth: "doc/ARCHITECTURE_HLD.md"   # HLD: 系统架构真相 (组件/交互/契约/不变量 I-1~I-25)。理解全局、对齐、接手时读。v1.3 治理基线 (含 7.0-contracts 冻结引用)。
   user_intent: "doc/USER_REQUIREMENTS.md"          # 用户原始意图
   detailed_spec: "doc/REQUIREMENTS.md"             # 详细需求规格 (FR-* 功能需求)
   decision_log: "dev_memory/DECISIONS.md"          # 决策日志 (每个设计决策的论证与权衡, 累积)

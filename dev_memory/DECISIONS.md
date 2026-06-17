@@ -1633,3 +1633,42 @@ Decision records must include:
   - Keep global median duration. Rejected because heterogeneous comparisons can hide a fast pair's abnormal gap behind unrelated slow pairs.
   - Use per-pair max duration. Rejected because one inflated run duration would reopen the same class of widening bypass.
   - Reject all heterogeneous-duration comparisons. Rejected because per-pair min duration gives the needed safety without banning legitimate mixed runtimes outright.
+
+## 2026-06-17T00:00:00+08:00 - Phase 7.0-contracts frozen (07 input contracts)
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 7.0 (split into 7.0-contracts + 7.0-spike)
+  - ROADMAP.yaml Phase 07
+  - doc/ARCHITECTURE_HLD.md section 4.1
+  - doc/PHASE_7.0_CONTRACTS_DRAFT.md (the frozen contract document)
+- decision: Phase 7.0 is split into 7.0-contracts (design freeze, done first) and 7.0-spike (scaling measurement, done after). 7.0-contracts is frozen at v4 after three review rounds (twelve external AI reviews). It defines 10 input contracts for the 07 candidate engine plus 7 code deliverables. Four key adjudications:
+  - "Family correction: two layers - FDR-BH screen (q=0.10) selects candidates worth confirming, then confirmation-before-promote (paired re-test beating champion by margin) gates promotion. FDR does not carry promotion; the confirmation gate prevents false champions."
+  - "Baseline: champion-updates-baseline with same-round paired re-test. The baseline is the current champion, re-measured fresh per pair in the same round; never use historical stored baseline scores (environment drift would violate I-5)."
+  - "p-value: 08a adds a p_value field (bootstrap two-sided 2*min(P(d<0),P(d>0)) with zero-count correction (k+1)/(B+1)). FDR-BH needs p-value ranking; 08a previously produced only CI."
+  - "Canonicalization: commutative-only search-space with explicit value-flag modeling. -O2/-O3 are modeled as an opt_level value flag taking a single value, not two coexisting bool flags. last-wins/mutex/value flags are handled explicitly; the search space only sorts flags declared commutative. This avoids the 'wrong-merge' that blind sort-dedup would cause for last-wins flags."
+- rationale: Three review rounds revealed two directional errors in early drafts (blind sort-dedup causes wrong-merge for last-wins flags; family counting only decision-grade results lets result-dependent selection inflate false positives), the most important omission (no baseline contract - the comparison reference was undefined), and a contract-vs-reality gap (FDR needs p-value but 08a only produced CI). The two-layer family design lets FDR be permissive (screen) while the confirmation gate carries the burden of preventing false champions, which fits "find a few real improvements" better than a single conservative correction.
+- implementation_notes:
+  - "compute_combo_hash has two implementations (result_schema.py and fs_memory.py, the latter validates TrialRecord); both must delegate to one canonical hash helper, not fork. This is an identity semantic change (not additive), confirmed greenfield (no persisted combo_hash)."
+  - "Accept API is three layers: family_screen(results, method, q) -> list[bool] (batch BH, stats layer), is_decision_grade(result) (pure-stats property, derived from the same predicate as the schema validator), can_accept(result, *, is_family_screened, ...) -> AcceptDecision (per-candidate, confirmation + practical + provenance gates)."
+  - "FDR screen direction uses verdict==significant_improvement (08a already constructs verdict per objective_direction, correct for both higher_is_better and lower_is_better); do NOT use relative_effect_pct>0 (only correct for higher_is_better). FDR denominator m = pre-registered family_size (all candidates), not the improvement-direction subset (a data-dependent m is the v1 counting bug variant)."
+  - "practical threshold compares relative_ci_low_pct > practical_threshold_pct (not ci_low, which is raw score units). 08a adds relative_ci_low_pct/relative_ci_high_pct. baseline_mean approx 0 -> relative_ci None -> can_accept returns rejected_relative_threshold_unavailable."
+  - "Family is pre-registered: family_id/candidate set/planned_family_size frozen before scoring. Each candidate has exactly one pre-registered primary analysis; infra/low-power re-tests replace the same analysis up to planned N (not optional-stopping); confirmation is an independent gate not written back to screen family count. Counting is by planned role, not observed result."
+  - "Baseline champion is re-measured fresh per pair (not once-per-round shared across candidates), so a round measures champion N_candidates x N_pairs times; fixed budget must account for this doubling."
+  - "MeasurementPlan owns canonical candidate_id/family_id/baseline_id; RunLevelRecord carries only measurement_plan_id plus run-specific provenance (source_commit/benchmark_id/objective_id). plan-owns applies to identity/config fields; measurement fields 08a consumes (pair_order/started_at/pair_key/pair_time_gap_sec) stay on the record (plan holds planned values, record holds actual; consistency auditable)."
+  - "practical_threshold and the I-17 3% stop threshold are the same configurable value (default 3%): a candidate that can be accepted necessarily breaks stagnation."
+- code_deliverables:
+  - "1. compute_combo_hash -> canonicalize_candidate (commutative-only + value-flag; unify both hash entry points). Identity change, greenfield."
+  - "2. add p_value field (bootstrap two-sided + zero-count). Additive."
+  - "3. add relative_ci_low_pct/relative_ci_high_pct fields (invariant low<=effect<=high; None when baseline approx 0). Additive."
+  - "4. add family_screen (batch BH) + is_decision_grade (same-source-derived) helpers. Additive."
+  - "5. extend RunLevelRecord provenance (plan-owns reference). Additive."
+  - "6. MeasurementPlan (new pydantic model + trace persistence)."
+  - "7. AcceptDecision (new dataclass with reason codes)."
+  - "Items 2-5 are additive and do not touch 08a decision gates; item 1 is an identity change (greenfield safe)."
+- alternatives_considered:
+  - "Family correction with Bonferroni/Holm carrying promotion. Rejected: too conservative when candidates are many; the confirmation gate is a more direct false-champion defense than correction strength. (Holm remains a possible v1 fallback if p-value path is deferred, but 08a adds p_value so FDR is usable.)"
+  - "Fixed baseline (project default, unchanged through search). Rejected: cannot keep approaching the optimum once several improvements are found; champion-updates-baseline matches the existing semi-automatic flow."
+  - "Blind sort-dedup for canonicalization. Rejected: causes wrong-merge for last-wins flags ([-O2,-O3] vs [-O3,-O2] sort to the same hash but compile differently), which is more dangerous than missed-merge."
+  - "Expand equivalent flags in canonicalization (v1). Deferred to KG (Phase 14): equivalent-flag expansion is missed-merge (safe direction) and depends on compiler-version semantics."
+- review_provenance:
+  - "Three rounds, twelve external AI reviews (Claude Code / Codex / Gemini / Kimi as VS Code IDE agents reading the workspace). v1 found two directional errors + baseline omission + p-value gap. v2 (after 4 adjudications) found new seams: field overlap, unit mismatch, batch/per-candidate interface mismatch. v3 found one residual (lower_is_better wrong-filter) + freeze notes. v4 closed all; four reviews converged on freeze."

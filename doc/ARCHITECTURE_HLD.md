@@ -3,7 +3,7 @@
 > **文档类型**：High-Level Design（架构层设计）
 > **定位**：全系统架构真相源 —— 对齐已建成现状 + 后续待建设计，供治理、对齐、接手使用。
 > **级别**：HLD。描述组件构成、组件交互、关键设计决策与不变量、数据流与契约；**不下到实现细节**（函数签名、算法伪代码留各 phase 的 SUMMARY / 代码）。
-> **状态**：v1.2（基线，可落地）。08a 完成时建 v1.0 → 四份外部 AI review 修订为 v1.1 → 二轮 review 修订为 v1.2。
+> **状态**：v1.3（基线，可落地）。08a 完成时建 v1.0 → 四份外部 AI review 修订为 v1.1 → 二轮 review 修订为 v1.2 → 7.0-contracts 冻结后 §4.1 更新为 v1.3。
 
 ## 文档体系定位
 
@@ -390,20 +390,24 @@ REQUIREMENTS §3.3 把"中断/暂停/恢复生命周期"作为顶层概念。本
 
 ## 4.1 Phase 7.0 — 候选搜索策略 + 约束 Solver Spike
 
-**性质**：spike（ROADMAP 标 2-3 subtasks，但见下——(B) 类硬契约冻结量较大，估算偏乐观，开工前应重估或把"契约冻结"单拆为独立子任务）。**内部要分清两类产出**：
+**性质与拆分**：原 7.0 混了两类工作，**已拆分为 7.0-contracts（契约冻结，先做）+ 7.0-spike（scaling 实测，后做）**：
 
-**(A) 探索类（真 spike，测了再决定）**：
-- **Scaling 实测**：constraint solver 在 10³/10⁴/10⁵ combos 的 runtime/memory 基准，决定是否需要 heuristic fallback（阈值：10⁴ combo solve >30s → 需 fallback；内存 >1GB@10⁵ → flag）。
-- **搜索策略决策**：把 05.5 的"noise-robust 二阶交互发现"风险，变成 07 的具体搜索需求。strategy 输出是**决策/约束/需求**，不是可运行代码（算法实现留 07）。
+**7.0-contracts（已冻结 v4，见 `doc/PHASE_7.0_CONTRACTS_DRAFT.md`）**：07 候选引擎的输入地基契约。经三轮十二份外部 AI review 收敛冻结。10 项契约 + 7 项代码交付：
+- **契约 1 Canonicalization**（I-21）：**commutative-only search-space + value flag 显式建模**（`-O2/-O3` 建模成 `opt_level` value flag 取唯一值，避免 last-wins flag 排序"错合并"）；candidate_id = canonical 表示 hash（修 compute_combo_hash，两处入口统一）。
+- **契约 2 Producer**（I-20）：时间元数据真实 + AB/BA（PRNG 流抽/配对间交错/blocked 平衡）+ 300s 上限 + pair_time_gap 语义（`abs(started_at 差)`）。
+- **契约 3 Family**（I-8）：**FDR-BH screen（q=0.10，verdict 判方向，m=预注册全候选）+ confirmation-before-promote 两层**；family 预注册（每候选一 primary analysis，按 planned role 计数）。
+- **契约 4 Fixed-budget**：固定 N（ESS-based）不依赖 08b adaptive；champion 每对新鲜重测的预算。
+- **契约 5 Accept API**（I-19）：三层——`family_screen`(batch BH) / `is_decision_grade`(纯统计 property) / `can_accept`(per-candidate, AcceptDecision)；practical 判 `relative_ci_low_pct`（非 ci_low，单位对齐）。
+- **契约 6 Baseline**：**champion updates baseline + 当轮配对重测**（绝不用历史存值，否则环境漂移违反 I-5）。
+- **契约 7-10**：provenance 扩 RunLevelRecord（plan-owns）/ MeasurementPlan / LLM protocol / 单目标 v1。
+- **代码交付**：修 compute_combo_hash（identity 变更，greenfield）+ 加 p_value + 相对 CI 字段 + family_screen/is_decision_grade helper + 扩 provenance + MeasurementPlan + AcceptDecision。前 5 项 additive 不动 08a 判定规则。
 
-**(B) 必交付硬契约（非探索，已欠，必须冻结为 HLD 级契约）**：
-- **Producer 契约**（I-20）：07 作为 producer 必须保证的——RunLevelRecord 最小字段、pairing key 组织、baseline/candidate run 如何组织、started_at/ended_at/duration_sec/pair_time_gap_sec 必须真实、paired AB/BA 如何随机化（让 08a 的 overlap/anchoring 真正有据）。
-- **Candidate canonicalization**（I-21）：candidate_id / canonical combo 表示 / search-space family 定义。
-- **Multiple-comparison family 定义**（I-8）：一轮、一个 benchmark、一个 objective 算一个 family，还是跨轮累计。
-- **Fixed-budget minimal schedule**：07 在 08b 之前如何生成足够的 paired runs（达到 power 但不依赖 adaptive rerun）。
-- **Accept API**（I-19）：`can_accept()` 的输入输出 + 禁止绕过规则。
+**7.0-spike（待做）**：
+- **Scaling 实测**：constraint solver 在 10³/10⁴/10⁵ combos 的 runtime/memory 基准 → fallback 决策（10⁴ solve >30s → fallback；内存 >1GB@10⁵ → flag）。
+- **搜索策略决策**：把 05.5 的"noise-robust 二阶交互发现"风险变成 07 具体搜索需求。
+- **Power simulation**：用 08a 门控常量（MIN_VALID=10/AUTOCORRELATED=60）定契约 4 的固定 N。
 
-**产出**：scaling 基准报告 + fallback 决策 + 搜索策略需求 +（B）类硬契约冻结，喂给 07。
+**产出**：契约冻结（已完成）+ scaling 基准 + fallback 决策 + 固定 N 标定 → 喂给 07。
 
 ## 4.2 Phase 07 — 候选引擎 + 约束 + 调度（Decision Core）
 
@@ -474,7 +478,7 @@ REQUIREMENTS §3.3 把"中断/暂停/恢复生命周期"作为顶层概念。本
 ```
 已建: 01 → 02 → 03 → 04 → 06 → 05 (+05.5 spike) → 08a
                                                     │
-下一: 7.0 (spike: scaling/strategy 探索 + producer/canonical/family 硬契约冻结)
+下一: 7.0-contracts (done: 07 输入契约冻结 v4) + 7.0-spike (scaling/strategy 探索)
         │
        07 (Decision Core: 候选引擎; 只消费 08a, 不依赖 08b) ──┐
         │                                                     │
@@ -495,7 +499,7 @@ REQUIREMENTS §3.3 把"中断/暂停/恢复生命周期"作为顶层概念。本
 - **09 依赖 07 + 08b + 9.0/9.1**（Orchestration 消费 08b 的进阶收敛/噪声策略；07 自有 08a-baseline 停止不需等 08b）。
 - **08b → 09 是真实依赖**（不是 07→08b 串行）。
 
-**为什么这个顺序**：底层先行（记忆/trace/保护/进程/编译/统计），决策大脑后建（消费底层）。08a 在 07 之前（07 消费统计判断）。7.0 spike 在 07 之前（07 消费 scaling/fallback 决策 + producer 契约）。
+**为什么这个顺序**：底层先行（记忆/trace/保护/进程/编译/统计），决策大脑后建（消费底层）。08a 在 07 之前（07 消费统计判断）。7.0-contracts 先冻结 07 输入契约；7.0-spike 再量化 scaling/fallback 与固定 N，二者共同喂给 07。
 
 ## 5.2 质量门禁
 
@@ -533,8 +537,10 @@ Codex 实现 → patch 三件套 + DECISIONS 条目 + REVIEW_NOTES 自审
 
 ---
 
-**END OF HLD v1.2**
+**END OF HLD v1.3**
 
 > v1.1 修订（基于四份外部 AI review v1.0）：架构图加流向/分清 07-Decision-Core 与 09-Orchestration/标注统计层不写记忆；I-4 改"严格隔离"；I-6 限定 paired + 新增 I-5b（unpaired+IID 可 significant）；I-17 澄清防重排除瞬态失败 + 与 I-18 作用层；新增 I-19（消费入口单一+helper 归统计层）/I-20（producer 硬契约）/I-21（canonical id）/I-22（score provenance）/I-23（中断语义+checkpoint-trace 对齐）/I-24（导入不可信）；收敛判定拆分；07 不依赖 08b 显式声明；补齐依赖表；加 05.5 spike 小节 + 控制面小节。
 >
 > v1.2 修订（基于四份外部 AI review v1.1）：① 修 I-17 与"07⊥08b"的措辞张力——明确 07 自有 08a-baseline 停止（不依赖 08b），08b convergence 是 additive 进阶（§4.3/§5.1 同步）；② 修文档漂移——status v1.0→v1.2、§2.4 残留"正交"→"严格隔离"、15a 依赖 —→09；③ helper 在 §3.3 标"待建（随 7.0 交付）"；④ I-22 注明 provenance 字段需 7.0/05 扩 RunLevelRecord；⑤ 新增 I-25（统计层 side-effect-free 显式不变量）；⑥ §4.1 注明 7.0 scope 估算偏乐观、契约冻结量大应重估。
+>
+> v1.3 修订（基于 7.0-contracts v4 冻结）：§4.1 将 7.0 明确拆为 7.0-contracts（已冻结 v4，07 输入契约基线）+ 7.0-spike（scaling/strategy 实测）；概括 canonicalization / producer / family / fixed-budget / Accept API / baseline / provenance / MeasurementPlan 等契约要点，并指向 `doc/PHASE_7.0_CONTRACTS_DRAFT.md`；§5.1 同步依赖图与治理顺序。
