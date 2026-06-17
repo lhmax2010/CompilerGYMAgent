@@ -1,7 +1,23 @@
 # dev_memory/ROADMAP.yaml
 roadmap_version: 1
-last_updated: 2026-06-15T20:53:42+08:00
+last_updated: 2026-06-17T00:00:00+08:00
 status: active
+
+# ============================================================
+# Document system (文档体系定位 — 职责不重叠)
+# 详见 doc/ARCHITECTURE_HLD.md 开头的"文档体系定位"表
+# ============================================================
+document_system:
+  architecture_truth: "doc/ARCHITECTURE_HLD.md"   # HLD: 系统架构真相 (组件/交互/契约/不变量 I-1~I-25)。理解全局、对齐、接手时读。v1.2 治理基线。
+  user_intent: "doc/USER_REQUIREMENTS.md"          # 用户原始意图
+  detailed_spec: "doc/REQUIREMENTS.md"             # 详细需求规格 (FR-* 功能需求)
+  decision_log: "dev_memory/DECISIONS.md"          # 决策日志 (每个设计决策的论证与权衡, 累积)
+  progress_truth: "dev_memory/ROADMAP.yaml"        # 进度真相 (本文件: phase 顺序/状态/依赖/估算)
+  note: |
+    职责分工: HLD 管"架构怎么构成+不变量"(架构变化才更新);
+    DECISIONS 管"某决策为什么这么定"(累积); ROADMAP 管"现在做到哪+下一步"(进度);
+    REQUIREMENTS 管"需求细节"。新 phase 开工前应读 HLD 对齐架构契约 (尤其 §3.2 不变量 + §4 后续 phase 边界)。
+
 
 # ============================================================
 # Cadence assumption (calibrated from Phase 01-03 actual data)
