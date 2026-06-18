@@ -1484,10 +1484,13 @@ def _records_have_complete_provenance(records: Sequence[RunLevelRecord]) -> bool
         "benchmark_id",
         "objective_id",
     )
-    return all(
-        all(getattr(record, field, None) is not None for field in required_fields)
-        for record in records
-    )
+    if not records:
+        return False
+    for field in required_fields:
+        values = {getattr(record, field, None) for record in records}
+        if None in values or len(values) != 1:
+            return False
+    return True
 
 
 def _resampled_mean(

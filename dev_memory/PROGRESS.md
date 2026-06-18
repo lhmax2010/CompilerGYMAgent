@@ -1,5 +1,34 @@
 # Development Progress
 
+## 2026-06-18T15:00:00+08:00 - 7.0-contracts fail-open fixes implemented
+
+- Fixed two P1 fail-open contract deviations from external review:
+  - candidate canonicalization now uses an explicit commutative whitelist and
+    rejects unmodelled bool/override flags such as
+    `-fstrict-aliasing` / `-fno-strict-aliasing`, preventing wrong-merge by
+    blind fallback sorting,
+  - `StatisticalResult.provenance_complete` now defaults to `False`, so
+    hand-built/deserialized significant results without provenance fail safe at
+    `can_accept()`.
+- Fixed two P2 issues:
+  - schema validation and `is_decision_grade()` now share one private
+    decision-grade predicate,
+  - provenance completeness now requires
+    `measurement_plan_id`/`source_commit`/`benchmark_id`/`objective_id` to be
+    present and identical across the comparison.
+- 08a verdict and pair_quality rules were not changed.
+- Validation:
+  - focused contracts:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/test_result_schema.py tests/test_stats_core.py tests/test_fs_memory.py tests/test_trace_memory.py -q`
+    -> 293 passed in 1.28s,
+  - full Python 3.10 suite:
+    `uv run --python 3.10 --system-certs --extra dev pytest tests/ -q`
+    -> 712 passed in 8.63s.
+- Adversarial probes confirmed strict/no-strict aliasing rejects in both
+  orders, `-flto`/`-flto=thin` conflicts reject, whitelist commutative flags
+  remain order-insensitive, omitted provenance rejects, and mismatched plan
+  provenance is incomplete.
+
 ## 2026-06-17T22:45:00+08:00 - 7.0-contracts code deliverables implemented
 
 - Implemented the seven frozen 7.0-contracts v4 code deliverables:

@@ -103,7 +103,7 @@ def namespace() -> ProjectNamespace:
 
 
 def trial_record_data() -> dict:
-    combo = ["-O3", "-flto=thin", "-fno-plt"]
+    combo = ["-O3", "-flto=thin", "-funroll-loops"]
     return {
         "trial_id": "r12_t3",
         "round": 12,
@@ -147,7 +147,7 @@ def trial_record_data() -> dict:
             "noisy": False,
         },
         "outcome": "success",
-        "agent_reasoning": "Started from the previous best and added -fno-plt.",
+        "agent_reasoning": "Started from the previous best and added -funroll-loops.",
         "trace_id": "events.jsonl#L12345",
         "kg_version_used": "v3",
     }
@@ -480,6 +480,9 @@ def test_compute_combo_hash_uses_shared_canonical_identity() -> None:
     assert compute_combo_hash(["-O2", "-flto"]) == compute_combo_hash(
         ["-flto", "-O2"]
     )
+    assert compute_combo_hash(["-O2", "-funroll-loops"]) == compute_combo_hash(
+        ["-funroll-loops", "-O2"]
+    )
     assert compute_combo_hash(["-O2", "-O2"]) == compute_combo_hash(["-O2"])
     assert compute_combo_hash(["-O2"]) != compute_combo_hash(["-O3"])
     assert compute_combo_hash(["-O2", "-flto"]) == compute_result_combo_hash(
@@ -491,7 +494,17 @@ def test_compute_combo_hash_trims_safe_whitespace() -> None:
     assert compute_combo_hash([" -O3 "]) == compute_combo_hash(["-O3"])
 
 
-@pytest.mark.parametrize("option", ["-O3\nINJECT", "-O3\tINJECT", "-DDEBUG"])
+@pytest.mark.parametrize(
+    "option",
+    [
+        "-O3\nINJECT",
+        "-O3\tINJECT",
+        "-DDEBUG",
+        "-fstrict-aliasing",
+        "-fno-strict-aliasing",
+        "-funknown-independent",
+    ],
+)
 def test_compute_combo_hash_rejects_control_or_out_of_scope_options(option: str) -> None:
     with pytest.raises(ValueError, match="combo options|outside"):
         compute_combo_hash([option])

@@ -1,7 +1,7 @@
 phase_id: phase_7_0_contracts
 phase_title: "Candidate Engine Input Contracts - Frozen Code Deliverables"
 started_at: 2026-06-17T22:28:51+08:00
-last_updated: 2026-06-17T22:45:00+08:00
+last_updated: 2026-06-18T15:00:00+08:00
 target_milestone: "M2 (precursor)"
 related_requirements:
   - REQUIREMENTS.md section 4.6.2
@@ -29,6 +29,7 @@ subtasks:
       - "Add shared candidate_identity helper."
       - "result_schema and fs_memory compute_combo_hash delegate to the same helper."
       - "Commutative bool flags are sorted/deduplicated; value flags keep one key/value."
+      - "2026-06-18 P1 fix: unknown bool/override flags now fail closed unless explicitly whitelisted or value-modeled."
   - id: "7.0-contracts.2"
     title: "StatisticalResult p_value"
     status: implemented
@@ -42,9 +43,13 @@ subtasks:
   - id: "7.0-contracts.4"
     title: "family_screen + is_decision_grade"
     status: implemented
+    implementation_notes:
+      - "2026-06-18 P2 fix: schema validator and helper share the same decision-grade predicate."
   - id: "7.0-contracts.5"
     title: "RunLevelRecord provenance extension"
     status: implemented
+    implementation_notes:
+      - "2026-06-18 P2 fix: provenance completeness requires same plan/source/benchmark/objective across the comparison."
   - id: "7.0-contracts.6"
     title: "MeasurementPlan model + trace support"
     status: implemented
@@ -54,17 +59,19 @@ subtasks:
 validation:
   focused_contracts:
     command: "uv run --python 3.10 --system-certs --extra dev pytest tests/test_result_schema.py tests/test_stats_core.py tests/test_fs_memory.py tests/test_trace_memory.py -q"
-    result: "284 passed in 1.23s"
+    result: "293 passed in 1.28s"
   adjacent_compile_benchmark_trace:
     command: "uv run --python 3.10 --system-certs --extra dev pytest tests/test_compile_skill.py tests/test_benchmark_skill.py tests/test_fake_gbs.py tests/test_error_analyzer.py tests/test_trace_session.py -q"
     result: "76 passed in 3.28s"
   full_python_3_10:
     command: "uv run --python 3.10 --system-certs --extra dev pytest tests/ -q"
-    result: "703 passed in 8.54s"
+    result: "712 passed in 8.63s"
+  adversarial_probes:
+    result: "strict/no-strict aliasing, unknown bool flags, and flto bool/value conflicts reject; default provenance rejects; mismatched plan provenance is incomplete."
   yaml_parse:
     result: "ROADMAP.yaml, CURRENT_PHASE.yaml, and 7.0-contracts CHECKLIST.yaml parse successfully."
   diff_check:
     result: "git diff --check -> passed"
   greenfield_identity_check:
     result: "No persisted combo_hash data outside docs/dev_memory/tests."
-next_action: "Generate patch artifacts, run diff/YAML checks, commit, push, and request external review for 7.0-contracts implementation."
+next_action: "Commit/push the 7.0-contracts fail-open fixes and request external review."

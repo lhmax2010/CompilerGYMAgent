@@ -5,7 +5,7 @@
 - Command:
   `uv run --python 3.10 --system-certs --extra dev pytest tests/test_result_schema.py tests/test_stats_core.py tests/test_fs_memory.py tests/test_trace_memory.py -q`
 - Result:
-  `284 passed in 1.23s`
+  `293 passed in 1.28s`
 - Coverage:
   - canonical hash equivalence, deduplication, value-flag distinction, shared
     result_schema/fs_memory entry points, and TrialRecord validation;
@@ -14,6 +14,8 @@
   - RunLevelRecord optional provenance;
   - MeasurementPlan schema and trace emission;
   - AcceptDecision reason codes.
+  - fail-safe canonicalization for unmodelled bool/override flags;
+  - provenance default rejection and same-plan/source/benchmark/objective checks.
 
 ## Adjacent Regression
 
@@ -27,7 +29,21 @@
 - Command:
   `uv run --python 3.10 --system-certs --extra dev pytest tests/ -q`
 - Result:
-  `703 passed in 8.54s`
+  `712 passed in 8.63s`
+
+## Adversarial Probes
+
+- `compute_combo_hash(["-fstrict-aliasing", "-fno-strict-aliasing"])` and the
+  reverse order both reject with `ValueError`.
+- `compute_combo_hash(["-flto", "-flto=thin"])` rejects because the bool and
+  value forms share the `flto` key.
+- `compute_combo_hash(["-flto", "-funroll-loops"])` still matches the reversed
+  whitelist order.
+- A hand-built significant `StatisticalResult` with omitted
+  `provenance_complete` defaults to `False` and `can_accept()` returns
+  `rejected_incomplete_provenance`.
+- Baseline/candidate records with different `measurement_plan_id` produce
+  `provenance_complete=False`.
 
 ## Static / Metadata
 

@@ -18,6 +18,7 @@ from agent import (
     StatisticalResult,
     canonicalize_candidate,
     compute_result_combo_hash,
+    is_statistical_result_decision_grade,
 )
 
 
@@ -364,6 +365,7 @@ def test_statistical_result_accepts_single_comparison_schema() -> None:
     assert result.significant_single_comparison is True
     assert result.p_value == 0.02
     assert result.relative_ci_low_pct == 10.0
+    assert result.provenance_complete is False
 
 
 def test_statistical_result_rejects_relative_ci_outside_effect() -> None:
@@ -463,6 +465,18 @@ def test_statistical_result_rejects_unpaired_autocorrelated_significance() -> No
         )
 
 
+def test_decision_grade_helper_matches_schema_for_unpaired_non_autocorrelated_result() -> None:
+    result = StatisticalResult(
+        **_statistical_result_payload(
+            paired=False,
+            iid_assumption_valid=False,
+            autocorrelation_detected=False,
+        )
+    )
+
+    assert is_statistical_result_decision_grade(result) is True
+
+
 def test_statistical_result_rejects_decision_grade_exploratory_signal() -> None:
     with pytest.raises(ValidationError, match="non-decision-grade"):
         StatisticalResult(
@@ -552,15 +566,33 @@ def test_compute_result_combo_hash_uses_commutative_canonical_identity() -> None
     assert compute_result_combo_hash(["-O2"]) != compute_result_combo_hash(["-O3"])
 
 
+@pytest.mark.parametrize(
+    "combo",
+    [
+        ["-fstrict-aliasing", "-fno-strict-aliasing"],
+        ["-fno-strict-aliasing", "-fstrict-aliasing"],
+        ["-funknown-independent"],
+    ],
+)
+def test_compute_result_combo_hash_rejects_unmodelled_bool_flags(combo: list[str]) -> None:
+    with pytest.raises(ValueError, match="outside the v1 canonical search space"):
+        compute_result_combo_hash(combo)
+
+
 def test_canonicalize_candidate_rejects_conflicting_value_flags() -> None:
     with pytest.raises(ValueError, match="conflicting values"):
         canonicalize_candidate(None, ["-O2", "-O3"])
 
 
-def test_canonicalize_candidate_normalizes_whitespace_without_changing_case() -> None:
-    canonical = canonicalize_candidate(None, ["  -O2", "-fplugin =foo  "])
+def test_canonicalize_candidate_rejects_commutative_value_key_conflict() -> None:
+    with pytest.raises(ValueError, match="conflicts with value flag"):
+        canonicalize_candidate(None, ["-flto", "-flto=thin"])
 
-    assert canonical.hash_items == ("-O2", "-fplugin =foo")
+
+def test_canonicalize_candidate_normalizes_whitespace_without_changing_case() -> None:
+    canonical = canonicalize_candidate(None, ["  -O2", " -funroll-loops  "])
+
+    assert canonical.hash_items == ("-O2", "-funroll-loops")
 
 
 def _record(**overrides: object) -> RunLevelRecord:

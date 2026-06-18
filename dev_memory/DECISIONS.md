@@ -1703,3 +1703,26 @@ Decision records must include:
   - "Keep two compute_combo_hash implementations and copy canonicalization logic. Rejected because TrialRecord hash validation can diverge from result-schema hash identity."
   - "Put family_screen into can_accept. Rejected because FDR-BH is batch-level and requires the full family p-value ranking."
   - "Put candidate_id/family_id/baseline_id directly on RunLevelRecord. Rejected because the frozen contract chose plan-owns identity; run records carry measurement_plan_id plus run-specific provenance."
+
+## 2026-06-18T15:00:00+08:00 - 7.0-contracts implementation fail-open fixes
+
+- affected_requirement:
+  - doc/PHASE_7.0_CONTRACTS_DRAFT.md contract 1 (candidate canonicalization)
+  - doc/PHASE_7.0_CONTRACTS_DRAFT.md Accept API / provenance gates
+  - dev_memory/phases/phase_7_0_contracts/CHECKLIST.yaml
+- decision: Close two reviewed P1 fail-open paths and two P2 consistency gaps without changing 08a verdict or pair_quality rules.
+- implementation_notes:
+  - "Candidate canonicalization is now whitelist-based. Only explicitly declared commutative flags or modeled value flags enter the canonical identity. Unknown bool/override flags reject with ValueError instead of being sorted/deduplicated by a catch-all fallback."
+  - "The default commutative whitelist is intentionally small (`-flto`, `-funroll-loops`). Override families such as `-fstrict-aliasing` / `-fno-strict-aliasing` are outside v1 unless modeled as value flags."
+  - "StatisticalResult.provenance_complete now defaults to False. Only compare_run_records can mark it true by evaluating run-level provenance."
+  - "The decision-grade helper and the StatisticalResult schema validator share one private predicate. The helper no longer adds an extra iid_assumption_valid requirement beyond the schema's unpaired autocorrelation gate."
+  - "_records_have_complete_provenance requires measurement_plan_id/source_commit/benchmark_id/objective_id to be present and identical across all records in the comparison."
+- rationale: Candidate identity and provenance gates are trust boundaries. A permissive unknown-flag fallback can wrong-merge last-wins flags, while a default-true provenance bit lets hand-built/deserialized results bypass the Accept API provenance gate. Both must fail safe. The helper/schema predicate split was over-conservative rather than dangerous, but a single predicate avoids future drift.
+- validation:
+  - "Focused contract/schema/stats/fs/trace tests -> 293 passed in 1.28s."
+  - "Full Python 3.10 suite -> 712 passed in 8.63s."
+  - "Adversarial probes: strict/no-strict aliasing rejects in both orders; flto bool/value conflicts reject; commutative whitelist remains order-insensitive; omitted provenance rejects; mismatched plan provenance is incomplete."
+- alternatives_considered:
+  - "Keep catch-all bool flags and blacklist known override families. Rejected because option taxonomy is trust-critical; unknown flags must fail closed."
+  - "Keep provenance_complete default True for backward compatibility. Rejected because Accept API provenance is a promotion gate and must not pass by omission."
+  - "Require iid_assumption_valid in the helper only. Rejected because the schema validator is the canonical contract; helper-only extra logic creates drift."

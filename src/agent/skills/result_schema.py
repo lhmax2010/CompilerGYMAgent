@@ -212,7 +212,7 @@ class StatisticalResult(StrictResultSchemaModel):
     candidate_block_size: int | None = Field(default=None, ge=2)
     exploratory_signal: ExploratorySignal = "none"
     requires_confirmation: bool = False
-    provenance_complete: bool = True
+    provenance_complete: bool = False
     notes: tuple[NonEmptyStr, ...] = ()
 
     @field_validator(
@@ -279,15 +279,12 @@ class StatisticalResult(StrictResultSchemaModel):
                 raise ValueError("exploratory_signal is non-decision-grade")
             if not self.requires_confirmation:
                 raise ValueError("exploratory_signal requires confirmation")
-        if self.paired and self.pair_quality != "good" and expected_significant:
+        decision_grade = _statistical_result_is_decision_grade_predicate(self)
+        if expected_significant and not decision_grade and self.paired:
             raise ValueError(
                 "paired results require good pair_quality for decision-grade significant"
             )
-        if (
-            not self.paired
-            and self.autocorrelation_detected
-            and expected_significant
-        ):
+        if expected_significant and not decision_grade and not self.paired:
             raise ValueError(
                 "unpaired autocorrelated results cannot be decision-grade significant"
             )
@@ -457,11 +454,7 @@ def is_statistical_result_decision_grade(result: StatisticalResult) -> bool:
     """Return the schema-derived decision-grade predicate for a result."""
 
     validated = StatisticalResult.model_validate(result)
-    if not _statistical_result_has_significant_verdict(validated):
-        return False
-    if validated.paired:
-        return validated.pair_quality == "good"
-    return validated.iid_assumption_valid and not validated.autocorrelation_detected
+    return _statistical_result_is_decision_grade_predicate(validated)
 
 
 def _statistical_result_has_significant_verdict(result: StatisticalResult) -> bool:
@@ -469,6 +462,16 @@ def _statistical_result_has_significant_verdict(result: StatisticalResult) -> bo
         "significant_improvement",
         "significant_regression",
     }
+
+
+def _statistical_result_is_decision_grade_predicate(
+    result: StatisticalResult,
+) -> bool:
+    if not _statistical_result_has_significant_verdict(result):
+        return False
+    if result.paired:
+        return result.pair_quality == "good"
+    return not result.autocorrelation_detected
 
 
 def _validate_sha256_digest(value: str, label: str) -> None:

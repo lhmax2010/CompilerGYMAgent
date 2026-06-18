@@ -25,6 +25,15 @@ _VALUE_PREFIXES = {
     "-mcpu=": "mcpu",
     "-flto=": "flto",
 }
+_COMMUTATIVE_FLAGS = frozenset(
+    {
+        "-flto",
+        "-funroll-loops",
+    }
+)
+_COMMUTATIVE_VALUE_KEYS = {
+    "-flto": "flto",
+}
 _UNSUPPORTED_ACCUMULATING_PREFIXES = (
     "-D",
     "-I",
@@ -52,6 +61,7 @@ class CanonicalCandidate:
 class CandidateCanonicalizationSpec:
     """Minimal v1 search-space taxonomy for candidate identity."""
 
+    commutative_flags: frozenset[str] = _COMMUTATIVE_FLAGS
     value_prefixes: Mapping[str, str] | None = None
     value_literals: Mapping[str, tuple[str, str]] | None = None
     unsupported_prefixes: tuple[str, ...] = _UNSUPPORTED_ACCUMULATING_PREFIXES
@@ -63,9 +73,10 @@ def canonicalize_candidate(
 ) -> CanonicalCandidate:
     """Return the commutative-only canonical representation for a combo.
 
-    The default v1 taxonomy treats ordinary bool flags as commutative, models
-    known value flags as key->single value, and rejects accumulating/multi-value
-    flag forms that are outside the frozen 7.0-contracts v1 search space.
+    The default v1 taxonomy only treats explicitly whitelisted bool flags as
+    commutative, models known value flags as key->single value, and rejects
+    unknown, accumulating, or multi-value forms that are outside the frozen
+    7.0-contracts v1 search space.
     """
 
     if not combo:
@@ -78,6 +89,9 @@ def canonicalize_candidate(
     value_literals = dict(_default_value_literals())
     if parsed_spec.value_literals:
         value_literals.update(parsed_spec.value_literals)
+    commutative_flags = frozenset(
+        _normalize_option(option) for option in parsed_spec.commutative_flags
+    )
 
     bool_flags: set[str] = set()
     value_by_key: dict[str, tuple[str, str]] = {}
@@ -102,7 +116,15 @@ def canonicalize_candidate(
             _add_value_flag(value_by_key, key=key, value=value, raw=option)
             continue
 
-        bool_flags.add(option)
+        if option in commutative_flags:
+            bool_flags.add(option)
+            continue
+
+        raise ValueError(f"option {option!r} is outside the v1 canonical search space")
+
+    for flag, key in _COMMUTATIVE_VALUE_KEYS.items():
+        if flag in bool_flags and key in value_by_key:
+            raise ValueError(f"option {flag!r} conflicts with value flag {key!r}")
 
     return CanonicalCandidate(
         commutative_flags=tuple(sorted(bool_flags)),
@@ -132,10 +154,12 @@ def _coerce_spec(
         return CandidateCanonicalizationSpec()
     if isinstance(spec, CandidateCanonicalizationSpec):
         return spec
+    commutative_flags = spec.get("commutative_flags", _COMMUTATIVE_FLAGS)
     value_prefixes = spec.get("value_prefixes")
     value_literals = spec.get("value_literals")
     unsupported_prefixes = spec.get("unsupported_prefixes", _UNSUPPORTED_ACCUMULATING_PREFIXES)
     return CandidateCanonicalizationSpec(
+        commutative_flags=frozenset(commutative_flags),
         value_prefixes=value_prefixes,
         value_literals=value_literals,
         unsupported_prefixes=tuple(unsupported_prefixes),

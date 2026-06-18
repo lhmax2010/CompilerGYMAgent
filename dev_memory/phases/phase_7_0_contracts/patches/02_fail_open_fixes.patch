@@ -1,0 +1,38 @@
+diff --git a/dev_memory/CURRENT_PHASE.yaml b/dev_memory/CURRENT_PHASE.yaml
+index d0711d8..a1cd5ee 100644
+--- a/dev_memory/CURRENT_PHASE.yaml
++++ b/dev_memory/CURRENT_PHASE.yaml
+@@ -70 +70 @@ validation:
+-    result: "strict/no-strict aliasing and unknown bool flags reject; default provenance rejects; mismatched plan provenance is incomplete."
++    result: "strict/no-strict aliasing, unknown bool flags, and flto bool/value conflicts reject; default provenance rejects; mismatched plan provenance is incomplete."
+diff --git a/dev_memory/DECISIONS.md b/dev_memory/DECISIONS.md
+index 3d5b344..3d96ffc 100644
+--- a/dev_memory/DECISIONS.md
++++ b/dev_memory/DECISIONS.md
+@@ -1724 +1724 @@ Decision records must include:
+-  - "Adversarial probes: strict/no-strict aliasing rejects in both orders; commutative whitelist remains order-insensitive; omitted provenance rejects; mismatched plan provenance is incomplete."
++  - "Adversarial probes: strict/no-strict aliasing rejects in both orders; flto bool/value conflicts reject; commutative whitelist remains order-insensitive; omitted provenance rejects; mismatched plan provenance is incomplete."
+diff --git a/dev_memory/PROGRESS.md b/dev_memory/PROGRESS.md
+index 7031830..c888866 100644
+--- a/dev_memory/PROGRESS.md
++++ b/dev_memory/PROGRESS.md
+@@ -28,2 +28,3 @@
+-  orders, whitelist commutative flags remain order-insensitive, omitted
+-  provenance rejects, and mismatched plan provenance is incomplete.
++  orders, `-flto`/`-flto=thin` conflicts reject, whitelist commutative flags
++  remain order-insensitive, omitted provenance rejects, and mismatched plan
++  provenance is incomplete.
+diff --git a/dev_memory/phases/phase_7_0_contracts/CHECKLIST.yaml b/dev_memory/phases/phase_7_0_contracts/CHECKLIST.yaml
+index f51baa9..fee5c1d 100644
+--- a/dev_memory/phases/phase_7_0_contracts/CHECKLIST.yaml
++++ b/dev_memory/phases/phase_7_0_contracts/CHECKLIST.yaml
+@@ -71 +71 @@ validation:
+-  adversarial_probes: "strict/no-strict aliasing reject; default provenance rejects; mismatched plan provenance incomplete."
++  adversarial_probes: "strict/no-strict aliasing and flto bool/value conflicts reject; default provenance rejects; mismatched plan provenance incomplete."
+diff --git a/dev_memory/phases/phase_7_0_contracts/UT_RESULTS.md b/dev_memory/phases/phase_7_0_contracts/UT_RESULTS.md
+index f30a229..56bfc78 100644
+--- a/dev_memory/phases/phase_7_0_contracts/UT_RESULTS.md
++++ b/dev_memory/phases/phase_7_0_contracts/UT_RESULTS.md
+@@ -37,0 +38,2 @@
++- `compute_combo_hash(["-flto", "-flto=thin"])` rejects because the bool and
++  value forms share the `flto` key.

@@ -1,0 +1,5 @@
+7.0-contracts fail-open fix summary:
+- Candidate canonicalization is now whitelist-based; unmodelled bool/override flags reject.
+- StatisticalResult provenance_complete defaults to False.
+- is_decision_grade and schema validation share one private predicate.
+- Provenance completeness requires one plan/source/benchmark/objective across a comparison.

@@ -19,6 +19,7 @@ deliverables:
       - "Commutative order does not affect hash."
       - "Duplicate commutative/value flags deduplicate."
       - "Value flag alternatives remain distinct or conflicting."
+      - "Unknown bool/override flags fail closed unless explicitly whitelisted or value-modeled."
       - "result_schema and fs_memory hash entry points match."
       - "TrialRecord combo_hash validation uses the shared helper."
   - id: "2"
@@ -41,11 +42,13 @@ deliverables:
       - "BH denominator is full family size."
       - "Only verdict=significant_improvement can screen in."
       - "lower_is_better is handled by verdict rather than relative-effect sign."
+      - "is_decision_grade shares the exact schema decision-grade predicate."
   - id: "5"
     title: "RunLevelRecord provenance extension"
     status: done
     acceptance:
       - "measurement_plan_id/source_commit/benchmark_id/objective_id are optional."
+      - "provenance_complete requires the same plan/source/benchmark/objective across one comparison."
       - "pair_order/started_at/pair_key/pair_time_gap_sec remain on run records."
   - id: "6"
     title: "MeasurementPlan"
@@ -62,13 +65,30 @@ deliverables:
       - "relative_ci_low_pct drives practical threshold."
       - "incomplete provenance is rejected."
 validation:
-  focused_contracts: "284 passed in 1.23s"
+  focused_contracts: "293 passed in 1.28s"
   adjacent_compile_benchmark_trace: "76 passed in 3.28s"
-  full_python_3_10: "703 passed in 8.54s"
+  full_python_3_10: "712 passed in 8.63s"
+  adversarial_probes: "strict/no-strict aliasing and flto bool/value conflicts reject; default provenance rejects; mismatched plan provenance incomplete."
   yaml_parse: "ROADMAP.yaml, CURRENT_PHASE.yaml, and CHECKLIST.yaml parse successfully."
   diff_check: "git diff --check -> passed"
   greenfield_identity_check: "No persisted combo_hash data outside docs/dev_memory/tests."
+post_review_fixes:
+  - id: "P1-1"
+    status: fixed
+    note: "Candidate canonicalization now uses an explicit commutative whitelist and rejects unmodelled bool/override flags."
+  - id: "P1-2"
+    status: fixed
+    note: "StatisticalResult.provenance_complete defaults to false; can_accept fails safe on omitted provenance."
+  - id: "P2-1"
+    status: fixed
+    note: "Schema validator and is_decision_grade use one private decision-grade predicate."
+  - id: "P2-2"
+    status: fixed
+    note: "Provenance completeness now checks same plan/source/benchmark/objective within the comparison."
 patch_artifacts:
   - dev_memory/phases/phase_7_0_contracts/patches/01_contract_code_deliverables.patch
   - dev_memory/phases/phase_7_0_contracts/patches/01_contract_code_deliverables.summary.txt
   - dev_memory/phases/phase_7_0_contracts/patches/01_contract_code_deliverables.review.md
+  - dev_memory/phases/phase_7_0_contracts/patches/02_fail_open_fixes.patch
+  - dev_memory/phases/phase_7_0_contracts/patches/02_fail_open_fixes.summary.txt
+  - dev_memory/phases/phase_7_0_contracts/patches/02_fail_open_fixes.review.md

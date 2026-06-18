@@ -491,6 +491,34 @@ def test_compare_run_records_marks_complete_provenance_when_records_have_plan_an
     assert result.provenance_complete is True
 
 
+def test_compare_run_records_marks_incomplete_provenance_when_plan_refs_disagree() -> None:
+    baseline = _records(
+        [10.0] * 12,
+        prefix="base",
+        measurement_plan_id="plan_1",
+        source_commit="commit_abc",
+        benchmark_id="bench_1",
+        objective_id="throughput",
+    )
+    candidate = _records(
+        [12.0] * 12,
+        prefix="cand",
+        measurement_plan_id="plan_2",
+        source_commit="commit_abc",
+        benchmark_id="bench_1",
+        objective_id="throughput",
+    )
+
+    result = compare_run_records(
+        baseline,
+        candidate,
+        bootstrap_samples=80,
+        seed=57,
+    )
+
+    assert result.provenance_complete is False
+
+
 def test_family_screen_uses_full_family_m_and_improvement_verdict_direction() -> None:
     results = [
         _statistical_result(verdict="significant_improvement", p_value=0.01),
@@ -527,9 +555,15 @@ def test_family_screen_selects_lower_is_better_improvement_by_verdict_not_relati
 
 
 def test_is_decision_grade_uses_schema_consistent_path_predicate() -> None:
-    result = _statistical_result(paired=True, pair_quality="good")
+    paired_result = _statistical_result(paired=True, pair_quality="good")
+    unpaired_non_autocorrelated = _statistical_result(
+        paired=False,
+        iid_assumption_valid=False,
+        autocorrelation_detected=False,
+    )
 
-    assert is_decision_grade(result) is True
+    assert is_decision_grade(paired_result) is True
+    assert is_decision_grade(unpaired_non_autocorrelated) is True
 
 
 def test_can_accept_requires_screen_confirmation_practical_threshold_and_provenance() -> None:
@@ -565,6 +599,18 @@ def test_can_accept_requires_screen_confirmation_practical_threshold_and_provena
     incomplete = _statistical_result(provenance_complete=False)
     assert can_accept(
         incomplete,
+        is_family_screened=True,
+        confirmation_status="confirmed",
+        practical_threshold_pct=3.0,
+        objective_direction="higher_is_better",
+    ).reason == "rejected_incomplete_provenance"
+
+    default_incomplete_payload = _statistical_result().model_dump()
+    default_incomplete_payload.pop("provenance_complete")
+    default_incomplete = StatisticalResult.model_validate(default_incomplete_payload)
+    assert default_incomplete.provenance_complete is False
+    assert can_accept(
+        default_incomplete,
         is_family_screened=True,
         confirmation_status="confirmed",
         practical_threshold_pct=3.0,

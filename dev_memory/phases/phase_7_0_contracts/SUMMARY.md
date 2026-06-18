@@ -36,4 +36,18 @@ Validation so far:
 Full-suite validation:
 
 - `uv run --python 3.10 --system-certs --extra dev pytest tests/ -q`
-  -> 703 passed in 8.54s.
+  -> 712 passed in 8.63s.
+
+Post-review fail-open fixes:
+
+- Candidate canonicalization now uses an explicit commutative whitelist. Unknown
+  bool/override flags such as `-fstrict-aliasing` / `-fno-strict-aliasing`
+  reject instead of being sorted into one candidate identity.
+- `StatisticalResult.provenance_complete` defaults to `False`, so hand-built or
+  deserialized significant results without explicit provenance fail safe at
+  `can_accept()`.
+- `is_decision_grade()` and the schema validator share one private
+  decision-grade predicate.
+- `_records_have_complete_provenance()` now requires
+  `measurement_plan_id`/`source_commit`/`benchmark_id`/`objective_id` to be
+  present and identical across the comparison.

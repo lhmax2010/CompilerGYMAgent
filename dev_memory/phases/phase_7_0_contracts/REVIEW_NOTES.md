@@ -15,6 +15,15 @@
 
 - `compute_combo_hash` in both `result_schema.py` and `fs_memory.py` delegates
   to `agent.candidate_identity.compute_canonical_combo_hash`.
+- Post-review P1 fix: canonicalization no longer has a catch-all bool flag
+  path. Only explicitly whitelisted commutative flags or modeled value flags
+  enter the identity hash; unmodelled override flags reject.
+- Post-review P1 fix: `provenance_complete` defaults to `False`, so missing
+  provenance fails safe in `can_accept()`.
+- Post-review P2 fix: `is_decision_grade()` and `StatisticalResult` schema
+  validation share the same private predicate.
+- Post-review P2 fix: provenance completeness requires one consistent
+  measurement plan/source/benchmark/objective across the comparison.
 - `compare_run_records()` now fills p_value, relative CI, and provenance
   completeness, but the existing verdict and pair-quality gate function is
   unchanged.
