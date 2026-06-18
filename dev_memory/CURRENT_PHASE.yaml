@@ -1,15 +1,16 @@
 phase_id: phase_7_0_contracts
 phase_title: "Candidate Engine Input Contracts - Frozen Code Deliverables"
 started_at: 2026-06-17T22:28:51+08:00
-last_updated: 2026-06-18T15:00:00+08:00
+closed_at: 2026-06-18T16:00:00+08:00
+last_updated: 2026-06-18T16:00:00+08:00
 target_milestone: "M2 (precursor)"
 related_requirements:
   - REQUIREMENTS.md section 4.6.2
   - REQUIREMENTS.md section 4.8
   - REQUIREMENTS.md section 4.9
   - REQUIREMENTS.md section 4.10
-status: in_progress
-roadmap_reference: dev_memory/ROADMAP.yaml planned_phases[id=7.0-contracts]
+status: completed
+roadmap_reference: dev_memory/ROADMAP.yaml completed_phases[id=7.0-contracts]
 design_reference: doc/PHASE_7.0_CONTRACTS_DRAFT.md
 dependencies_satisfied:
   - "Phase 08a is closed and exposes StatisticalResult/RunLevelRecord/stats_core."
@@ -74,4 +75,4 @@ validation:
     result: "git diff --check -> passed"
   greenfield_identity_check:
     result: "No persisted combo_hash data outside docs/dev_memory/tests."
-next_action: "Commit/push the 7.0-contracts fail-open fixes and request external review."
+next_action: "Start 7.0-spike from the completed 7.0-contracts handoff."

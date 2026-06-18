@@ -1726,3 +1726,19 @@ Decision records must include:
   - "Keep catch-all bool flags and blacklist known override families. Rejected because option taxonomy is trust-critical; unknown flags must fail closed."
   - "Keep provenance_complete default True for backward compatibility. Rejected because Accept API provenance is a promotion gate and must not pass by omission."
   - "Require iid_assumption_valid in the helper only. Rejected because the schema validator is the canonical contract; helper-only extra logic creates drift."
+
+## 2026-06-18T16:00:00+08:00 - 7.0-contracts closed and handed to 7.0-spike
+
+- affected_requirement:
+  - ROADMAP.yaml Phase 7.0-contracts
+  - ROADMAP.yaml Phase 7.0-spike
+  - doc/PHASE_7.0_CONTRACTS_DRAFT.md
+- decision: Mark 7.0-contracts complete after the v4 contract freeze, 5b8c1dc implementation, 1f236c9 fail-safe repair, and final external review confirmation. The next active risk-reduction work is 7.0-spike.
+- implementation_notes:
+  - "The 2 P1 fail-open paths were repaired to fail safe: unknown bool/override flags reject unless whitelisted or value-modeled, and provenance_complete defaults to False."
+  - "The 2 P2 gaps were repaired: is_decision_grade shares the schema predicate, and provenance completeness requires one plan/source/benchmark/objective across the comparison."
+  - "_COMMUTATIVE_FLAGS intentionally remains a two-flag seed (`-flto`, `-funroll-loops`) rather than a broad GCC/LLVM list."
+- rationale: The frozen contract requires a curated, compiler-doc-verified option taxonomy. Closing 7.0-contracts with a small fail-safe seed is safer than guessing a broad commutative set during closeout. 7.0-spike/07 must expand that taxonomy as a reviewed search-space artifact.
+- validation:
+  - "Python 3.10 full suite -> 712 passed."
+  - "Final review confirmed the implementation is contract-faithful and leaves 08a verdict/pair_quality machinery untouched."

@@ -1,5 +1,26 @@
 # Development Progress
 
+## 2026-06-18T16:00:00+08:00 - 7.0-contracts closed
+
+- Phase 7.0-contracts is closed after contract freeze v4, implementation, and
+  fail-safe verification:
+  - v4 freeze: three rounds / twelve external AI reviews converged on the 10
+    input contracts and 7 code deliverables,
+  - implementation: 5b8c1dc shipped canonical identity, p_value, relative CI,
+    family/decision helpers, RunLevelRecord provenance, MeasurementPlan, and
+    AcceptDecision/can_accept,
+  - fail-safe fixes: 1f236c9 closed 2 P1 fail-open gates and 2 P2 consistency
+    issues.
+- Final validation:
+  - Python 3.10 full suite -> 712 passed,
+  - external review confirmed contracts are faithfully implemented and 08a
+    verdict/pair_quality redlines are untouched.
+- Handoff to 7.0-spike:
+  - `_COMMUTATIVE_FLAGS` is deliberately a 2-flag fail-safe seed
+    (`-flto`, `-funroll-loops`),
+  - 7.0-spike/07 must expand it into a curated, compiler-doc-verified v1
+    commutative set per contract 1.
+
 ## 2026-06-18T15:00:00+08:00 - 7.0-contracts fail-open fixes implemented
 
 - Fixed two P1 fail-open contract deviations from external review:

@@ -1,6 +1,6 @@
 # dev_memory/ROADMAP.yaml
 roadmap_version: 1
-last_updated: 2026-06-17T22:28:51+08:00
+last_updated: 2026-06-18T16:00:00+08:00
 status: active
 
 # ============================================================
@@ -114,6 +114,25 @@ completed_phases:
       - "Pure stats core: descriptive statistics, ESS/autocorrelation diagnostics, IID and moving-block bootstrap, baseline/candidate comparison, and verdict gates."
       - "Data contract separates decision-grade verdicts from non-decision-grade exploratory_signal."
       - "pair_quality hardening closed detectable time-metadata inconsistency and global-duration coupling classes; remaining boundary is fully self-consistent forged time metadata."
+  - id: "7.0-contracts"
+    title: "Candidate Engine Input Contracts - Frozen Code Deliverables"
+    status: completed
+    milestone: "M2 (precursor)"
+    requirement_sections: ["4.6.2", "4.8", "4.9", "4.10"]
+    dependencies: ["08a"]
+    actual_subtasks_done: 7
+    started_at: 2026-06-17T22:28:51+08:00
+    closed_at: 2026-06-18T16:00:00+08:00
+    design_reference: doc/PHASE_7.0_CONTRACTS_DRAFT.md
+    validation: >
+      Python 3.10 full suite -> 712 passed. Contract freeze v1->v4 (three rounds,
+      twelve external AI reviews). Implementation 5b8c1dc + fail-safe fixes 1f236c9.
+      Four-AI confirmation: contracts faithfully implemented, 08a verdict/pair_quality untouched.
+    notes:
+      - "10 input contracts frozen at PHASE_7.0_CONTRACTS_DRAFT.md v4. 7 code deliverables shipped."
+      - "Implementation review found 2 P1 fail-open gates (canonicalization allowed last-wins wrong-merge; provenance_complete defaulted True), fixed to fail-safe in 1f236c9 (commutative whitelist + provenance default False). 2 P2 also fixed (is_decision_grade shares schema predicate; provenance requires same plan_id/commit/benchmark/objective)."
+      - "HANDOFF to 7.0-spike: _COMMUTATIVE_FLAGS default is a 2-flag fail-safe seed ({-flto,-funroll-loops}); 7.0-spike/07 must expand to a curated, compiler-doc-verified v1 commutative set (search-space definition per contract 1 item 1/5; likely edits the default constant used by fs_memory.compute_combo_hash)."
+      - "08a redline untouched: _statistical_verdict and pair_quality machinery unchanged; P2-1 predicate extraction verified algebraically equivalent to prior validator."
 
 # ============================================================
 # Planned phases (Codex-recommended order)
@@ -222,33 +241,6 @@ planned_phases:
       - "Noise diagnostics report when Phase 07 near-miss interaction evidence is statistically underpowered"
       - "Pair-quality cross-signal diagnostics document how env_snapshot_distance complements timestamp checks without replacing producer trace integrity"
     validation_plan: ["fake_gbs non-Gaussian profile benchmarks", "Ubuntu fcntl regression"]
-
-  - id: "7.0-contracts"
-    title: "Candidate Engine Input Contracts - Frozen Code Deliverables"
-    status: in_progress
-    started_at: "2026-06-17T22:28:51+08:00"
-    milestone: "M2 (precursor)"
-    requirement_sections: ["4.6.2", "4.8", "4.9", "4.10"]
-    dependencies: ["08a"]
-    estimate_subtasks: { low: 7, high: 7 }
-    risk: high
-    design_reference: "doc/PHASE_7.0_CONTRACTS_DRAFT.md"
-    goals:
-      - "Implement canonicalize_candidate and unify both compute_combo_hash entry points."
-      - "Add StatisticalResult p_value from the same bootstrap distribution used for CI."
-      - "Add relative_ci_low_pct / relative_ci_high_pct for practical-threshold gates."
-      - "Add family_screen and is_decision_grade helpers as the only decision-grade consumer surface."
-      - "Extend RunLevelRecord with optional measurement_plan_id and run-specific provenance."
-      - "Add MeasurementPlan model and trace payload/writer support."
-      - "Add AcceptDecision and can_accept gate with reason codes."
-    exit_criteria:
-      - "compute_combo_hash is order-insensitive for commutative flags, deduplicates identical flags, keeps value flags distinct, and result_schema/fs_memory share one implementation."
-      - "p_value is finite, non-zero under zero-count correction, and stays diagnostic-only without changing 08a verdict/pair_quality gates."
-      - "relative CI fields are optional/additive and enforce relative_ci_low_pct <= relative_effect_pct <= relative_ci_high_pct when present."
-      - "family_screen uses pre-registered full-family m, screens only verdict=significant_improvement, and handles lower_is_better by verdict rather than relative-effect sign."
-      - "can_accept returns AcceptDecision reason codes for screen, confirmation, practical-threshold, pair-quality, and provenance gates."
-      - "MeasurementPlan is the canonical owner of candidate_id/family_id/baseline_id and can be recorded in trace."
-      - "Focused and full Python 3.10 test suites pass."
 
   - id: "7.0-spike"
     title: "Candidate Engine Search Strategy + Constraint Solver Spike"
